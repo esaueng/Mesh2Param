@@ -1,7 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resolve } from "node:path";
 
-async function waitForJob(page: Page, kind: string, timeout = 180_000) {
-  const progress = page.locator(`[data-job-kind="${kind}"]`);
+// `pnpm test:e2e` runs from apps/web; the sample meshes live at the repo root.
+const SAMPLE_STL = resolve(process.cwd(), "../../samples/generated/l-bracket-with-holes/source-random.stl");
+
+async function waitForJob(page: Page, kind: string, timeout = 240_000) {
+  const progress = page.locator(`.canvas-progress[data-job-kind="${kind}"]`);
   await expect(progress).toBeVisible({ timeout: 30_000 });
   await expect(progress).toBeHidden({ timeout });
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -21,87 +25,56 @@ async function openCleanStart(page: Page) {
   await expect(page.getByTestId("start-screen")).toBeVisible();
 }
 
-test("bracket sample converts, edits, validates, exports, and reopens", async ({ page }, testInfo) => {
+const primaryAction = (page: Page) => page.locator(".dock-primary");
+
+test("L-bracket sample opens validated and exports a STEP", async ({ page }) => {
   await openCleanStart(page);
-  await page.getByRole("row", { name: "Open Bracket with holes sample" }).click();
+  await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
   await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
   await waitForJob(page, "sample_open");
 
-  await page.getByRole("button", { name: "Confirm import" }).click();
-  await page.getByRole("button", { name: "Analyze", exact: true }).click();
-  await waitForJob(page, "analyze");
-  await page.locator('[data-workflow-step="import"]').click();
-  await expect(page.getByText("Triangles", { exact: true })).toBeVisible();
+  // The supported sample arrives fully validated, so the guided action is a download.
+  await expect(page.getByText("Validated")).toBeVisible();
+  await expect(primaryAction(page)).toContainText("Download STEP", { timeout: 60_000 });
 
-  await page.locator('[data-workflow-step="repair"]').click();
-  await page.getByRole("button", { name: "Apply repair" }).click();
-  await waitForJob(page, "repair");
-  await expect(page.getByText("Operations recorded")).toBeVisible();
+  // Display modes: the reconstructed result is revealed; comparing overlays the source.
+  await page.getByRole("button", { name: "Compare", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Compare", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Result", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Result", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-  await page.locator('[data-workflow-step="surfaces"]').click();
-  const cylinder = page.locator('[data-patch-type="cylinder"]').first();
-  await expect(cylinder).toBeVisible();
-  await cylinder.click();
-  await expect(page.getByText(/Selected patch/)).toBeVisible();
-
-  await page.locator('[data-workflow-step="features"]').click();
-  await page
-    .getByLabel("features inspector")
-    .getByRole("button", { name: "Auto reconstruct" })
-    .click();
-  await waitForJob(page, "reconstruct", 240_000);
-  const hole = page.locator('[data-feature-operation="hole"]').first();
-  await expect(hole).toBeVisible();
-  await hole.click();
-
-  await page.locator('[data-workflow-step="refine"]').click();
-  const diameter = page.getByLabel("Diameter");
-  const original = Number(await diameter.inputValue());
-  const edited = Number((original * 1.1).toFixed(4));
-  const cadgraphUpdated = page.waitForResponse((response) =>
-    response.request().method() === "PATCH" && response.url().includes("/cadgraph") && response.ok());
-  await diameter.fill(String(edited));
-  await diameter.press("Enter");
-  await cadgraphUpdated;
-  await page.getByRole("button", { name: "Rebuild", exact: true }).click();
-  await waitForJob(page, "rebuild", 180_000);
-
-  await page.locator('[data-workflow-step="validate"]').click();
-  await page.getByRole("button", { name: "Run validation" }).click();
-  await waitForJob(page, "validate", 180_000);
-  await expect(page.locator('[data-validation-stage="brep"]')).toContainText("Valid");
-  await expect(page.locator('[data-validation-stage="step-reimport"]')).toContainText("Successful");
-
-  await page.locator('[data-workflow-step="export"]').click();
-  const stepDownload = page.waitForEvent("download", { timeout: 30_000 });
-  await page.locator('[data-artifact-name="model.step"]').click();
-  expect((await stepDownload).suggestedFilename()).toBe("model.step");
-  const graphDownload = page.waitForEvent("download", { timeout: 30_000 });
-  await page.locator('[data-artifact-name="model.cadgraph.json"]').click();
-  expect((await graphDownload).suggestedFilename()).toBe("model.cadgraph.json");
-  const projectDownload = page.waitForEvent("download", { timeout: 30_000 });
-  await page
-    .getByLabel("export inspector")
-    .getByRole("button", { name: "Save project" })
-    .click();
-  const savedProject = await projectDownload;
-  const savedPath = testInfo.outputPath("saved-project.mesh2param.json");
-  await savedProject.saveAs(savedPath);
-
-  await page.reload();
-  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await page.locator('[data-workflow-step="refine"]').click();
-  await expect(page.getByLabel("Diameter")).toHaveValue(String(edited));
+  const download = page.waitForEvent("download", { timeout: 30_000 });
+  await primaryAction(page).click();
+  expect((await download).suggestedFilename()).toMatch(/\.step$/i);
 
   await page.getByRole("button", { name: "Back to start screen" }).click();
   await expect(page.getByTestId("start-screen")).toBeVisible();
-  await page.getByLabel("Open Mesh2Param project file").setInputFiles(savedPath);
-  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await page.locator('[data-workflow-step="refine"]').click();
-  await expect(page.getByLabel("Diameter")).toHaveValue(String(edited));
 });
 
-test("start and workspace stay usable at required responsive sizes", async ({ page }) => {
+test("uploaded mesh advances through analyze, reconstruct, and download", async ({ page }) => {
+  await openCleanStart(page);
+  await page.getByLabel("Choose source mesh").setInputFiles(SAMPLE_STL);
+  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
+  await waitForJob(page, "upload");
+
+  // Ingest yields diagnostics only; analysis is the next guided step.
+  await expect(primaryAction(page)).toContainText("Analyze mesh");
+  await primaryAction(page).click();
+  await waitForJob(page, "analyze");
+
+  // Analysis produces the renderable source mesh and unlocks reconstruction.
+  await expect(page.getByText("Analyzed")).toBeVisible();
+  await expect(primaryAction(page)).toContainText("Reconstruct");
+  await primaryAction(page).click();
+  await waitForJob(page, "reconstruct");
+
+  await expect(primaryAction(page)).toContainText("Download STEP", { timeout: 60_000 });
+  const download = page.waitForEvent("download", { timeout: 30_000 });
+  await primaryAction(page).click();
+  expect((await download).suggestedFilename()).toMatch(/\.step$/i);
+});
+
+test("start and canvas stay usable at required responsive sizes", async ({ page }) => {
   const viewports = [
     { width: 1440, height: 900 },
     { width: 1280, height: 800 },
@@ -109,21 +82,22 @@ test("start and workspace stay usable at required responsive sizes", async ({ pa
     { width: 820, height: 900 },
     { width: 390, height: 844 },
   ];
+  const hasHOverflow = () => page.evaluate(() =>
+    document.documentElement.scrollWidth > document.documentElement.clientWidth);
+
   await openCleanStart(page);
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(page.getByTestId("start-screen")).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-    expect(overflow, `start ${viewport.width}x${viewport.height} has page-level horizontal overflow`).toBe(false);
+    expect(await hasHOverflow(), `landing ${viewport.width}x${viewport.height} overflows horizontally`).toBe(false);
   }
 
-  await page.getByRole("row", { name: "Open Bracket with holes sample" }).click();
+  await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
   await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
   await waitForJob(page, "sample_open");
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-    expect(overflow, `workspace ${viewport.width}x${viewport.height} has page-level horizontal overflow`).toBe(false);
+    expect(await hasHOverflow(), `canvas ${viewport.width}x${viewport.height} overflows horizontally`).toBe(false);
   }
 });

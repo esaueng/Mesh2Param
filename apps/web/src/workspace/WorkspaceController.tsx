@@ -18,7 +18,7 @@ import type {
 import { normalizeProjectDetail } from "./normalize";
 import { automaticReconstructionCapability } from "./automaticReconstruction";
 import { failedStepStatus, formatJobFailure, formatJobSnapshotFailure } from "./jobFailure";
-import { WorkspaceShell } from "./WorkspaceShell";
+import { CanvasShell } from "../canvas/CanvasShell";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
 
 const COMPLETION_STEP: Partial<Record<JobKind, WorkflowStep>> = {
@@ -35,10 +35,11 @@ const COMPLETION_STEP: Partial<Record<JobKind, WorkflowStep>> = {
 interface WorkspaceControllerProps {
   workerReady: boolean;
   initialJob: Job | null;
+  initialUpload?: { file: File; units: Units; scale: number } | null;
   onOpenStart(): void;
 }
 
-export function WorkspaceController({ workerReady, initialJob, onOpenStart }: WorkspaceControllerProps) {
+export function WorkspaceController({ workerReady, initialJob, initialUpload = null, onOpenStart }: WorkspaceControllerProps) {
   const project = useWorkspaceSelector((state) => state.project);
   const working = useWorkspaceSelector((state) => state.working);
   const activeStep = useWorkspaceSelector((state) => state.workflow.active);
@@ -254,6 +255,9 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
           unitsConfirmed: true,
           scaleFactor: scale,
         });
+        // The local blob is a reload-recovery cache only; the server is authoritative,
+        // so a failure to cache it (private browsing, quota, IndexedDB blob limits) must
+        // not abort acceptance of the uploaded source.
         await workspaceRepository.putBlob({
           projectId: current.project.id,
           kind: "source",
@@ -262,7 +266,7 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
           mediaType: file.type || `model/${result.data.source.format}`,
           originalFileName: file.name,
           blob: file,
-        });
+        }).catch(() => undefined);
         await refreshProject("Source accepted");
         trackJob(result.data.job);
       } catch (cause) {
@@ -412,6 +416,13 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
     },
   }), [canRedo, canUndo, onOpenStart, refreshProject, requireServerWritable, run, syncHistoryCadgraph, trackJob, workerReady]);
 
+  const initialUploadRef = useRef(false);
+  useEffect(() => {
+    if (initialUpload === null || initialUploadRef.current) return;
+    initialUploadRef.current = true;
+    void actions.upload(initialUpload.file, initialUpload.units, initialUpload.scale);
+  }, [initialUpload, actions]);
+
   useWorkspaceShortcuts(actions);
 
   if (project === null || working === null) return null;
@@ -433,7 +444,7 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
   };
   return (
     <>
-      <WorkspaceShell vm={vm} actions={actions} />
+      <CanvasShell vm={vm} actions={actions} />
       {error === null ? null : <div className="global-error" role="alert">{error}</div>}
     </>
   );
