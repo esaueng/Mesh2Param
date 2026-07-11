@@ -199,7 +199,10 @@ B-Rep, and a valid B-Rep does not claim tolerance success without comparison evi
 - **`/ready` is not ready:** check database/storage permissions and worker heartbeat; `/health`
   alone does not prove geometry capacity.
 - **A reconstruction is unsupported:** keep the diagnostics/patches, use manual features or the
-  faceted fallback, and do not reinterpret an explicit failure as success.
+  explicit **Faceted STEP fallback**. The fallback preserves the upload, records its OCCT sewing
+  tolerance in project units, labels the result non-parametric, and still requires a solid-valid
+  STEP reimport. Its viewport layer is a preserved-mesh proxy; it does not claim a measured
+  source-to-B-Rep deviation.
 - **Playwright cannot launch in a managed sandbox:** run `pnpm test:e2e` on a normal host/CI runner;
   the limitation and exact observed error are in [fallbacks](docs/fallbacks.md).
 - **License inventory is stale:** install both lockfiles, then run the checker with

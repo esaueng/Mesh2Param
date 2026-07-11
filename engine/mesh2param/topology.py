@@ -345,6 +345,7 @@ class TopologyRegistry:
         generated_from: Sequence[str],
         shape: cq.Shape | None,
         provenance: Sequence[str],
+        descriptor_override: Mapping[str, Any] | None = None,
     ) -> ResolvedTopology:
         previous = self._previous.get(semantic_id)
         previous_hash: str | None = None
@@ -353,7 +354,13 @@ class TopologyRegistry:
         elif isinstance(previous, Mapping):
             raw_hash = previous.get("descriptorHash", previous.get("descriptor_hash"))
             previous_hash = str(raw_hash) if raw_hash else None
-        descriptor = shape_descriptor(shape, self.resolution) if shape is not None else None
+        descriptor = (
+            dict(descriptor_override)
+            if descriptor_override is not None
+            else shape_descriptor(shape, self.resolution)
+            if shape is not None
+            else None
+        )
         record = ResolvedTopology(
             semantic_id=semantic_id,
             kind=kind,
@@ -384,6 +391,9 @@ class TopologyRegistry:
                     candidate: cq.Shape = solids[0]
                     record.shape = candidate
                     record.status = "resolved"
+                    # Source-bound descriptors are intentionally lightweight at the imported
+                    # feature boundary. Once a later feature remaps that solid, its identity must
+                    # describe the new kernel result rather than the original mesh artifact.
                     record.descriptor = shape_descriptor(candidate, self.resolution)
                     record.descriptor_hash = descriptor_hash(record.descriptor)
                 continue
@@ -461,6 +471,10 @@ class TopologyRegistry:
         explicit_references: Sequence[Any],
         candidates: Mapping[str, Sequence[cq.Shape]] | None = None,
         direction: cq.Vector | None = None,
+        *,
+        faceted_mesh_sha256: str | None = None,
+        faceted_sewing_tolerance: float | None = None,
+        faceted_units: str | None = None,
     ) -> tuple[str, ...]:
         """Register automatic and contract-declared semantic topology outputs."""
 
@@ -469,6 +483,16 @@ class TopologyRegistry:
         }
         explicit_by_id = {item.id: item for item in explicit_references}
         registered: list[str] = []
+        faceted_descriptor = (
+            {
+                "shapeType": "solid",
+                "meshSha256": faceted_mesh_sha256,
+                "sewingTolerance": faceted_sewing_tolerance,
+                "units": faceted_units,
+            }
+            if faceted_mesh_sha256 is not None
+            else None
+        )
 
         solid_id = f"{feature.id}.solid"
         if solid_id not in explicit_by_id:
@@ -480,10 +504,16 @@ class TopologyRegistry:
                 feature.dependencies,
                 result.Solids()[0] if len(result.Solids()) == 1 else None,
                 ("featureResult",),
+                descriptor_override=faceted_descriptor,
             )
             registered.append(solid_id)
 
-        for kind, subitems in (("face", result.Faces()), ("edge", result.Edges())):
+        subshape_groups = (
+            ()
+            if faceted_mesh_sha256 is not None
+            else (("face", result.Faces()), ("edge", result.Edges()))
+        )
+        for kind, subitems in subshape_groups:
             ordered = sorted(
                 subitems,
                 key=lambda item: _canonical_json(shape_descriptor(item, self.resolution, result)),
@@ -518,6 +548,11 @@ class TopologyRegistry:
                 reference.generated_from,
                 selected,
                 ("declaredRole",),
+                descriptor_override=(
+                    faceted_descriptor
+                    if faceted_descriptor is not None and reference.kind == "solid"
+                    else None
+                ),
             )
             registered.append(reference.id)
             if record.status != "resolved":

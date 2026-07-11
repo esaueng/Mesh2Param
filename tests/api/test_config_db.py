@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from mesh2param.samples import sample_graph
+from mesh2param_api.api.core import APIError
 from mesh2param_api.api.routes.operations import _operation_payload
 from mesh2param_api.config import Settings
 from mesh2param_api.db import Database, JobStatus, Repository
@@ -250,6 +251,124 @@ def test_graph_operation_cache_identity_is_canonical(tmp_path: Path) -> None:
     second = _operation_payload(project_b, "rebuild", body, store)
     assert first["inputHash"] == second["inputHash"]
     assert len(str(first["inputHash"])) == 64
+
+
+def test_faceted_graph_operation_stages_its_hash_bound_source(tmp_path: Path) -> None:
+    store = LocalCAS(tmp_path / "storage")
+    blob = store.put_bytes(b"solid source\nendsolid source\n")
+    graph = sample_graph("rectangular-block").model_dump(mode="json", by_alias=True)
+    graph["source"] = {
+        "format": "stl",
+        "sha256": blob.sha256,
+        "originalFileName": "source.stl",
+        "byteSize": blob.byte_size,
+        "triangleCount": 0,
+        "declaredUnits": "mm",
+        "scaleFactor": 1.0,
+    }
+    graph["features"] = [
+        {
+            "operation": "importedFaceted",
+            "sourceArtifactId": "artifact.source",
+            "meshSha256": blob.sha256,
+        }
+    ]
+    project: dict[str, object] = {
+        "id": "project.faceted",
+        "name": "Faceted",
+        "units": "mm",
+        "state": {
+            "cadgraph": graph,
+            "source": {
+                "sha256": blob.sha256,
+                "format": "stl",
+                "originalFileName": "source.stl",
+                "declaredUnits": "mm",
+                "scaleFactor": 1.0,
+            },
+            "currentVersionId": "version.faceted.1",
+        },
+    }
+
+    payload = _operation_payload(project, "rebuild", OperationRequest(), store)
+    assert payload["sourcePath"] == str(store.path_for(blob.sha256))
+
+    graph["source"]["sha256"] = "f" * 64
+    with pytest.raises(APIError, match="provenance") as graph_error:
+        _operation_payload(project, "rebuild", OperationRequest(), store)
+    assert graph_error.value.code == "faceted_graph_source_mismatch"
+    graph["source"]["sha256"] = blob.sha256
+
+    graph["features"][0]["meshSha256"] = "f" * 64
+    with pytest.raises(APIError, match="does not match") as error:
+        _operation_payload(project, "rebuild", OperationRequest(), store)
+    assert error.value.code == "faceted_source_mismatch"
+
+
+def test_analyzed_freeform_source_is_preflighted_but_faceted_mode_remains_available(
+    tmp_path: Path,
+) -> None:
+    store = LocalCAS(tmp_path / "storage")
+    blob = store.put_bytes(b"solid source\nendsolid source\n")
+    project: dict[str, object] = {
+        "id": "project.freeform",
+        "name": "Freeform",
+        "units": "mm",
+        "state": {
+            "cadgraph": None,
+            "source": {
+                "sha256": blob.sha256,
+                "format": "stl",
+                "originalFileName": "source.stl",
+                "declaredUnits": "mm",
+                "scaleFactor": 1.0,
+            },
+            "patches": [
+                {"id": "patch.overridden", "type": "plane", "areaMm2": 100.0},
+            ],
+            "analysis": {
+                "settings": {
+                    "smoothAngleDeg": 12.0,
+                    "planarFitToleranceMm": 0.005,
+                    "cylinderFitToleranceMm": 0.01,
+                    "minimumCylinderCoverageDeg": 300.0,
+                    "maximumCylinderAxisNormalComponent": 0.05,
+                    "minimumPatchAreaMm2": 1e-8,
+                    "stableIdResolutionMm": 1e-5,
+                },
+                "patches": [
+                    {"id": "patch.freeform", "type": "freeform", "areaMm2": 99.0},
+                    {"id": "patch.plane", "type": "plane", "areaMm2": 1.0},
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(APIError, match=r"99\.0%") as error:
+        _operation_payload(project, "reconstruct", OperationRequest(), store)
+    assert error.value.code == "automatic_reconstruction_unsupported"
+    assert error.value.recommended_action is not None
+
+    payload = _operation_payload(
+        project,
+        "reconstruct",
+        OperationRequest(settings={"mode": "faceted", "sewingTolerance": 0.05}),
+        store,
+    )
+    assert payload["settings"] == {"mode": "faceted", "sewingTolerance": 0.05}
+
+    inch_project = {**project, "units": "in"}
+    with pytest.raises(APIError) as transform_error:
+        _operation_payload(
+            inch_project,
+            "reconstruct",
+            OperationRequest(settings={"mode": "faceted", "sewingTolerance": 0.05}),
+            store,
+        )
+    assert transform_error.value.code == "faceted_source_transform_unsupported"
+    mm_repair = _operation_payload(project, "repair", OperationRequest(), store)
+    inch_repair = _operation_payload(inch_project, "repair", OperationRequest(), store)
+    assert mm_repair["inputHash"] != inch_repair["inputHash"]
 
 
 def test_event_history_is_bounded_and_orphan_blobs_are_retained_then_cleaned(

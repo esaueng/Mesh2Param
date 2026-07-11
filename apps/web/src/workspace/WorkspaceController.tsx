@@ -211,7 +211,7 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
       return;
     }
     if (current.project === null || current.serverRevision === null || !requireServerWritable()) return;
-    if (operation === "reconstruct" && current.working !== null) {
+    if (operation === "reconstruct" && settings.mode !== "faceted" && current.working !== null) {
       const capability = automaticReconstructionCapability(current.working);
       if (!capability.supported) {
         setError(capability.reason ?? "Automatic reconstruction is unavailable for this sample.");

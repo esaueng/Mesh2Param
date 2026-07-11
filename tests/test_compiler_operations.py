@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
 import mesh2param.samples as sample_models
+import numpy as np
 import pytest
-from mesh2param import CompilationResult, compile_cadgraph
+import trimesh
+from mesh2param import (
+    CompilationResult,
+    FacetedFallbackError,
+    compile_cadgraph,
+    create_faceted_fallback,
+)
 from mesh2param.samples import sample_graph
 from mesh2param.tessellation import export_binary_stl
 from mesh2param.validation import export_step_validated
@@ -227,6 +235,202 @@ def test_imported_step_and_faceted_stl_fallbacks(tmp_path: Path) -> None:
         )
         assert result.success, [error.to_dict() for error in result.errors]
         assert result.require_shape().Volume() == pytest.approx(14400.0, abs=1e-6)
+        if path.suffix == ".stl":
+            document["source"]["scaleFactor"] = 2.0
+            transformed = compile_cadgraph(
+                CADGraph.model_validate(document), artifact_resolver={artifact_id: path}
+            )
+            assert not transformed.success
+            assert transformed.errors[0].code == "faceted_source_transform_unsupported"
+
+
+@pytest.mark.geometry
+def test_imported_faceted_explicitly_sews_a_bounded_open_seam(tmp_path: Path) -> None:
+    box = trimesh.creation.box(extents=(10.0, 10.0, 10.0))
+    top_faces = np.flatnonzero(np.asarray(box.triangles_center)[:, 2] > 4.9)
+    open_box = trimesh.Trimesh(
+        vertices=np.asarray(box.vertices).copy(),
+        faces=np.delete(np.asarray(box.faces), top_faces, axis=0),
+        process=False,
+    )
+    cap = trimesh.Trimesh(
+        vertices=np.asarray(
+            [
+                (-5.0, -5.0, 5.02),
+                (5.0, -5.0, 5.02),
+                (5.0, 5.0, 5.02),
+                (-5.0, 5.0, 5.02),
+            ],
+            dtype=np.float64,
+        ),
+        faces=np.asarray(((0, 1, 2), (0, 2, 3)), dtype=np.int64),
+        process=False,
+    )
+    path = tmp_path / "open-seam.stl"
+    trimesh.util.concatenate((open_box, cap)).export(path)
+
+    document = _document()
+    document["sketches"] = []
+    feature = {
+        **sample_models._feature_fields("feature.imported", "Imported fallback", 0, []),
+        "operation": "importedFaceted",
+        "booleanMode": "base",
+        "sourceArtifactId": "artifact.source",
+        "meshSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "intent": "fallback",
+        "sewingTolerance": 0.05,
+    }
+    document["features"] = [feature]
+    document["semanticTopology"] = [_result_reference(feature)]
+
+    result = compile_cadgraph(
+        CADGraph.model_validate(document), artifact_resolver={"artifact.source": path}
+    )
+    assert result.success, [error.to_dict() for error in result.errors]
+    assert result.require_shape().Volume() == pytest.approx(1000.666666, abs=1e-4)
+    assert result.feature_records[0].validation is not None
+    assert result.feature_records[0].validation.triangle_count == 0
+    step = export_step_validated(
+        result.require_shape(),
+        tmp_path / "open-seam.step",
+        require_tessellation=False,
+    )
+    assert step.valid
+    assert step.source.triangle_count == 0
+    assert step.reimport.triangle_count == 0
+    initial_descriptor = result.topology["feature.imported.result"].descriptor
+    assert initial_descriptor is not None
+    assert initial_descriptor["meshSha256"] == feature["meshSha256"]
+    assert initial_descriptor["sewingTolerance"] == 0.05
+    assert initial_descriptor["units"] == "mm"
+
+    feature["sewingTolerance"] = 0.005
+    failed = compile_cadgraph(
+        CADGraph.model_validate(document), artifact_resolver={"artifact.source": path}
+    )
+    assert not failed.success
+    assert failed.errors[0].code == "faceted_sewing_incomplete"
+
+    feature["sewingTolerance"] = 0.05
+    hole = sample_models._hole(
+        "feature.hole",
+        "Through hole",
+        1,
+        (0.0, 0.0, 5.02),
+        (0.0, 0.0, -1.0),
+        2.0,
+        dependencies=["feature.imported"],
+    )
+    _append_feature(document, hole)
+    refined = compile_cadgraph(
+        CADGraph.model_validate(document), artifact_resolver={"artifact.source": path}
+    )
+    assert refined.success, [error.to_dict() for error in refined.errors]
+    remapped_descriptor = refined.topology["feature.imported.result"].descriptor
+    assert remapped_descriptor is not None
+    assert "meshSha256" not in remapped_descriptor
+    assert (
+        refined.topology["feature.imported.result"].descriptor_hash
+        != result.topology["feature.imported.result"].descriptor_hash
+    )
+
+
+@pytest.mark.geometry
+def test_imported_faceted_enforces_ten_millimeter_limit_in_project_units(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "source.stl"
+    trimesh.creation.box(extents=(1.0, 1.0, 1.0)).export(path)
+    document = _document()
+    document["units"] = "in"
+    document["source"]["declaredUnits"] = "in"
+    document["sketches"] = []
+    feature = {
+        **sample_models._feature_fields("feature.imported", "Imported fallback", 0, []),
+        "operation": "importedFaceted",
+        "booleanMode": "base",
+        "sourceArtifactId": "artifact.source",
+        "meshSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "intent": "fallback",
+        # 0.4 inches is 10.16 mm and must be rejected despite satisfying the schema's
+        # unit-agnostic numeric maximum.
+        "sewingTolerance": 0.4,
+    }
+    document["features"] = [feature]
+    document["semanticTopology"] = [_result_reference(feature)]
+
+    result = compile_cadgraph(
+        CADGraph.model_validate(document), artifact_resolver={"artifact.source": path}
+    )
+
+    assert not result.success
+    assert result.errors[0].code == "invalid_sewing_tolerance"
+    assert "0.393701 in (10 mm)" in result.errors[0].kernel_error
+
+
+@pytest.mark.geometry
+def test_faceted_fallback_converts_default_mm_tolerance_and_marks_proxy(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "source.stl"
+    trimesh.creation.box(extents=(1.0, 2.0, 3.0)).export(path)
+
+    fallback = create_faceted_fallback(path, tmp_path / "fallback", units="in")
+
+    feature = fallback.graph.features[0]
+    assert feature.operation == "importedFaceted"
+    assert feature.sewing_tolerance == pytest.approx(0.05 / 25.4)
+    assert fallback.sewing_tolerance == pytest.approx(0.05 / 25.4)
+    assert fallback.sewing_tolerance_mm == pytest.approx(0.05)
+    assert fallback.graph.project_tolerance.linear_resolution == pytest.approx(0.001 / 25.4)
+    assert fallback.graph.validation.status == "partial"
+    assert fallback.graph.validation.tolerance_satisfied is None
+
+    report = json.loads((tmp_path / "fallback" / "validation.json").read_text(encoding="utf-8"))
+    assert report["status"] == "partial"
+    assert report["toleranceSatisfied"] is None
+    assert report["facetedFallback"]["sewingTolerance"] == pytest.approx(0.05 / 25.4)
+    assert report["facetedFallback"]["sewingToleranceUnits"] == "in"
+    assert report["facetedFallback"]["sewingToleranceMm"] == pytest.approx(0.05)
+    assert report["facetedFallback"]["browserTessellation"] == "preserved-source-proxy"
+    assert report["facetedFallback"]["browserTessellationRepresentsKernelResult"] is False
+    assert (tmp_path / "fallback" / "source.glb").read_bytes() == (
+        tmp_path / "fallback" / "reconstructed.glb"
+    ).read_bytes()
+
+
+def test_faceted_fallback_rejects_unimplemented_source_unit_or_scale_transform(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "source.stl"
+    trimesh.creation.box(extents=(1.0, 2.0, 3.0)).export(path)
+    descriptor = {
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "format": "stl",
+        "originalFileName": "source.stl",
+        "declaredUnits": "in",
+        "scaleFactor": 1.0,
+    }
+
+    with pytest.raises(FacetedFallbackError) as units_error:
+        create_faceted_fallback(
+            path,
+            tmp_path / "units-mismatch",
+            units="mm",
+            source_descriptor=descriptor,
+        )
+    assert units_error.value.code == "faceted_source_transform_unsupported"
+
+    descriptor["declaredUnits"] = "mm"
+    descriptor["scaleFactor"] = 2.0
+    with pytest.raises(FacetedFallbackError) as scale_error:
+        create_faceted_fallback(
+            path,
+            tmp_path / "scale-mismatch",
+            units="mm",
+            source_descriptor=descriptor,
+        )
+    assert scale_error.value.code == "faceted_source_transform_unsupported"
 
 
 @pytest.mark.geometry

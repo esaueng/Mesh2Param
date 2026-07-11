@@ -35,9 +35,13 @@ from mesh2param_contracts.models import (
     Sketch,
     SketchProfile,
 )
+from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+from OCP.ShapeFix import ShapeFix_Shell, ShapeFix_Solid
+from OCP.TopoDS import TopoDS
 
 from .errors import CompilationException, CompileError, FeatureBuildFailure
 from .topology import ProvenanceRecord, ResolvedTopology, TopologyRegistry, topology_hash
+from .units import MAXIMUM_FACETED_SEWING_TOLERANCE_MM, validate_physical_tolerance
 from .validation import ShapeValidation, import_step_shape, validate_shape
 
 type ArtifactResolver = Mapping[str, str | Path] | Callable[[str], str | Path]
@@ -523,7 +527,7 @@ def _resolve_artifact(resolver: ArtifactResolver | None, artifact_id: str) -> Pa
     return path
 
 
-def _faceted_stl(path: Path) -> cq.Shape:
+def _faceted_stl(path: Path, sewing_tolerance: float | None = None) -> cq.Shape:
     loaded = trimesh.load_mesh(path, process=True)
     if not isinstance(loaded, trimesh.Trimesh) or len(loaded.faces) == 0:
         raise FeatureBuildFailure(
@@ -531,11 +535,14 @@ def _faceted_stl(path: Path) -> cq.Shape:
             f"artifact {path.name} is not a non-empty triangle mesh",
             "Provide a watertight STL fallback mesh.",
         )
-    if not loaded.is_watertight:
+    if not loaded.is_watertight and sewing_tolerance is None:
         raise FeatureBuildFailure(
             "invalid_imported_mesh",
             f"artifact {path.name} is not watertight",
-            "Repair the mesh explicitly before creating a faceted fallback solid.",
+            (
+                "Provide an explicit sewing tolerance or repair the mesh before creating "
+                "a faceted fallback solid."
+            ),
         )
     faces: list[cq.Face] = []
     for indices in loaded.faces:
@@ -548,8 +555,45 @@ def _faceted_stl(path: Path) -> cq.Shape:
         wire = cq.Wire.assembleEdges(edges)
         faces.append(cq.Face.makeFromWires(wire))
     try:
-        shell = cq.Shell.makeShell(faces)
-        return cq.Solid.makeSolid(shell)
+        if sewing_tolerance is None:
+            shell = cq.Shell.makeShell(faces)
+            return cq.Solid.makeSolid(shell)
+
+        sewing = BRepBuilderAPI_Sewing(
+            float(sewing_tolerance),
+            True,
+            True,
+            True,
+            False,
+        )
+        for face in faces:
+            sewing.Add(face.wrapped)
+        sewing.Perform()
+        if sewing.NbFreeEdges() != 0 or sewing.NbMultipleEdges() != 0:
+            raise FeatureBuildFailure(
+                "faceted_sewing_incomplete",
+                (
+                    "explicit faceted sewing left "
+                    f"{sewing.NbFreeEdges()} free edges and "
+                    f"{sewing.NbMultipleEdges()} multiply-connected edges"
+                ),
+                "Increase the sewing tolerance only if the intended seam gap is known.",
+            )
+        raw_shell = TopoDS.Shell_s(sewing.SewedShape())
+        shell_fix = ShapeFix_Shell()
+        shell_fix.Init(raw_shell)
+        shell_fix.Perform()
+        fixed_shell = shell_fix.Shell()
+        solid = cq.Shape.cast(ShapeFix_Solid().SolidFromShell(fixed_shell))
+        if len(solid.Solids()) != 1 or not all(shell.Closed() for shell in solid.Shells()):
+            raise FeatureBuildFailure(
+                "faceted_sewing_incomplete",
+                "explicit faceted sewing did not produce one closed solid",
+                "Use a smaller single-body mesh or explicitly repair its remaining boundaries.",
+            )
+        return solid
+    except FeatureBuildFailure:
+        raise
     except Exception as exc:
         raise FeatureBuildFailure(
             "faceted_brep_failed",
@@ -562,6 +606,8 @@ def _imported_tool(
     feature: ImportedFacetedFeature,
     resolver: ArtifactResolver | None,
     units: str,
+    declared_units: str | None,
+    scale_factor: float | None,
 ) -> cq.Shape:
     path = _resolve_artifact(resolver, feature.source_artifact_id)
     actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -571,10 +617,32 @@ def _imported_tool(
             f"artifact {feature.source_artifact_id!r} SHA-256 does not match CADGraph",
             "Restore the exact immutable artifact or create a new feature version.",
         )
+    if feature.sewing_tolerance is not None:
+        try:
+            validate_physical_tolerance(
+                feature.sewing_tolerance,
+                units,
+                maximum_mm=MAXIMUM_FACETED_SEWING_TOLERANCE_MM,
+            )
+        except ValueError as exc:
+            raise FeatureBuildFailure(
+                "invalid_sewing_tolerance",
+                str(exc),
+                "Use a positive sewing tolerance no larger than 10 mm in project units.",
+            ) from exc
     if path.suffix.lower() in {".step", ".stp"}:
         return import_step_shape(path, units)
     if path.suffix.lower() == ".stl":
-        return _faceted_stl(path)
+        if (declared_units is not None and declared_units != units) or (
+            scale_factor is not None
+            and not math.isclose(float(scale_factor), 1.0, rel_tol=0.0, abs_tol=1e-12)
+        ):
+            raise FeatureBuildFailure(
+                "faceted_source_transform_unsupported",
+                ("faceted STL source units must match graph units and its scale factor must be 1"),
+                "Normalize a working copy explicitly before compiling this source-bound feature.",
+            )
+        return _faceted_stl(path, feature.sewing_tolerance)
     raise FeatureBuildFailure(
         "unsupported_imported_artifact",
         f"imported fallback does not support {path.suffix or 'extensionless'} files",
@@ -771,7 +839,12 @@ def _validation_tolerance(graph: CADGraph) -> float:
     )
 
 
-def _validate_feature_result(graph: CADGraph, shape: cq.Shape) -> ShapeValidation:
+def _validate_feature_result(
+    graph: CADGraph,
+    shape: cq.Shape,
+    *,
+    require_tessellation: bool = True,
+) -> ShapeValidation:
     validation = validate_shape(
         shape,
         linear_resolution=_validation_tolerance(graph),
@@ -779,6 +852,7 @@ def _validate_feature_result(graph: CADGraph, shape: cq.Shape) -> ShapeValidatio
             math.radians(float(graph.project_tolerance.angular_deviation_deg)),
             0.05,
         ),
+        require_tessellation=require_tessellation,
     )
     if not validation.valid:
         raise FeatureBuildFailure(
@@ -960,7 +1034,13 @@ def compile_cadgraph(
                     )
                 body, tool, mode = _finishing_feature(feature, body, registry)
             elif isinstance(feature, ImportedFacetedFeature):
-                tool = _imported_tool(feature, artifact_resolver, graph.units)
+                tool = _imported_tool(
+                    feature,
+                    artifact_resolver,
+                    graph.units,
+                    graph.source.declared_units if graph.source is not None else None,
+                    graph.source.scale_factor if graph.source is not None else None,
+                )
                 mode = feature.boolean_mode
                 body = _apply_boolean(body, tool, mode, tolerance)
             else:
@@ -977,13 +1057,39 @@ def compile_cadgraph(
                     "Check feature parameters and dependencies.",
                 )
             body = _single_solid(body)
-            validation = _validate_feature_result(graph, body)
+            faceted_mesh_sha256 = (
+                feature.mesh_sha256
+                if isinstance(feature, ImportedFacetedFeature)
+                and feature.boolean_mode == "base"
+                and before is None
+                else None
+            )
+            faceted_base = faceted_mesh_sha256 is not None
+            faceted_topology_hash = (
+                hashlib.sha256(
+                    f"{faceted_mesh_sha256}:{feature.sewing_tolerance}:{graph.units}".encode()
+                ).hexdigest()
+                if isinstance(feature, ImportedFacetedFeature) and faceted_base
+                else None
+            )
+            validation = _validate_feature_result(
+                graph,
+                body,
+                require_tessellation=not faceted_base,
+            )
             registry.remap_against(body)
             semantic_ids = registry.register_feature(
                 feature,
                 body,
                 explicit_by_feature[feature.id],
                 direction=direction,
+                faceted_mesh_sha256=faceted_mesh_sha256,
+                faceted_sewing_tolerance=(
+                    feature.sewing_tolerance
+                    if isinstance(feature, ImportedFacetedFeature) and faceted_base
+                    else None
+                ),
+                faceted_units=graph.units if faceted_base else None,
             )
             state = _FeatureState(mode, tool, before, body)
             states[feature.id] = state
@@ -999,7 +1105,7 @@ def compile_cadgraph(
                     validation.volume,
                     validation,
                     semantic_ids,
-                    topology_hash(body, tolerance),
+                    faceted_topology_hash or topology_hash(body, tolerance),
                 )
             )
             provenance.append(
@@ -1007,9 +1113,9 @@ def compile_cadgraph(
                     feature_id=feature.id,
                     relation=f"boolean:{mode}",
                     source_kind=tool.ShapeType(),
-                    source_descriptor=topology_hash(tool, tolerance),
+                    source_descriptor=(faceted_topology_hash or topology_hash(tool, tolerance)),
                     result_kind=body.ShapeType(),
-                    result_descriptor=topology_hash(body, tolerance),
+                    result_descriptor=(faceted_topology_hash or topology_hash(body, tolerance)),
                 )
             )
         except Exception as exc:
