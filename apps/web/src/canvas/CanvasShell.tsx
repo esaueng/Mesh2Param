@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Box,
   Download,
   FileArchive,
   FolderOpen,
   Focus,
+  Layers,
   LoaderCircle,
   Moon,
   Rotate3D,
@@ -12,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  TerminalSquare,
 } from "lucide-react";
 import { apiClient } from "../api/client";
 import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
@@ -20,6 +23,8 @@ import type { ViewerMode } from "../state/types";
 import { CadViewport } from "../viewer/CadViewport";
 import type { ViewPreset } from "../viewer/cameraMath";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
+import { debugLog, useDebugLog } from "./debugLog";
+import { DebugConsole } from "./DebugConsole";
 import {
   availableModes,
   humanPhase,
@@ -35,6 +40,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const theme = useWorkspaceSelector((state) => state.shell.theme);
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedRef = useRef(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const logs = useDebugLog();
+  const issueCount = logs.filter((entry) => entry.level === "error" || entry.level === "warn").length;
 
   const state = vm.project.state;
   const action = nextAction(vm);
@@ -42,11 +50,20 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const activeJob = vm.activeJob;
 
   const setMode = useCallback((mode: ViewerMode) => {
+    debugLog.debug("view", `Display mode -> ${mode}`);
     const store = workspaceStore.getState();
     if (mode === "overlay") store.setViewerPreferences({ mode, sourceOpacity: 0.35, resultOpacity: 1 });
     else if (mode === "source") store.setViewerPreferences({ mode, sourceOpacity: 1 });
     else store.setViewerPreferences({ mode, resultOpacity: 1 });
   }, []);
+
+  // Trace the guided pipeline stage (and why it's blocked) into the console.
+  useEffect(() => {
+    debugLog.debug("pipeline", `Stage: ${action.label}${action.disabled ? " (unavailable)" : ""}`);
+  }, [action.label, action.disabled]);
+  useEffect(() => {
+    if (action.disabled && action.reason) debugLog.warn("pipeline", `${action.label} unavailable`, action.reason);
+  }, [action.disabled, action.reason, action.label]);
 
   // Reveal the clean reconstructed result the first time it becomes available.
   useEffect(() => {
@@ -65,6 +82,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const downloadStep = useCallback(() => {
     const step = stepArtifact(vm.artifacts);
     if (step === undefined) return;
+    debugLog.info("export", `Downloading ${step.name}`, { bytes: step.byteSize });
     const anchor = document.createElement("a");
     anchor.href = apiClient.artifactUrl(vm.project.id, step.name, step.sha256);
     anchor.download = step.name;
@@ -76,7 +94,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") downloadStep();
-    else if (action.operation !== undefined) void actions.run(action.operation);
+    else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
   };
 
   const status = conversionStatus(vm);
@@ -147,6 +165,15 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         </div>
       ) : null}
 
+      {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
+
+      {!consoleOpen && activeJob === null && (action.reason !== undefined || action.kind === "faceted") ? (
+        <div className={`canvas-note ${action.disabled ? "warn" : "info"}`} role="status">
+          <AlertTriangle size={13} />
+          <span>{action.reason ?? action.hint}</span>
+        </div>
+      ) : null}
+
       <nav className="canvas-dock" aria-label="Conversion commands">
         <button className="dock-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"} aria-label={state.source === null ? "Open a mesh" : "Replace the mesh"}>
           <FolderOpen size={17} />
@@ -175,6 +202,16 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         <button className="dock-btn" onClick={() => view("iso")} title="Isometric view" aria-label="Isometric view"><Rotate3D size={17} /></button>
         <button className="dock-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle light or dark theme">
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+        <button
+          className={`dock-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
+          onClick={() => setConsoleOpen((value) => !value)}
+          title="Toggle console"
+          aria-label="Toggle debug console"
+          aria-pressed={consoleOpen}
+        >
+          <TerminalSquare size={17} />
+          {issueCount > 0 ? <span className="dock-badge">{issueCount > 99 ? "99+" : issueCount}</span> : null}
         </button>
 
         <span className="dock-sep" />
@@ -211,6 +248,7 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "open") return <FolderOpen size={size} />;
   if (kind === "analyze") return <ScanSearch size={size} />;
   if (kind === "reconstruct") return <Sparkles size={size} />;
+  if (kind === "faceted") return <Layers size={size} />;
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
   return <Download size={size} />;

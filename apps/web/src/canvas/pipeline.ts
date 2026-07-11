@@ -1,4 +1,4 @@
-import type { ArtifactDescriptor, ProjectWorkingDocument, ViewerMode } from "../state/types";
+import type { ArtifactDescriptor, JsonObject, ProjectWorkingDocument, ViewerMode } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
 import { automaticReconstructionCapability } from "../workspace/automaticReconstruction";
 
@@ -7,7 +7,7 @@ import { automaticReconstructionCapability } from "../workspace/automaticReconst
  * The primary command in the dock advances the conversion one stage at a time,
  * derived purely from the current project state.
  */
-export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "validate" | "export" | "download";
+export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "faceted" | "validate" | "export" | "download";
 
 export type RunOperation = "analyze" | "reconstruct" | "validate" | "export";
 
@@ -19,6 +19,21 @@ export interface PipelineAction {
   reason?: string;
   /** The geometry operation to run, when this action drives a worker job. */
   operation?: RunOperation;
+  /** Extra settings forwarded to the worker operation (e.g. the faceted fallback mode). */
+  settings?: JsonObject;
+}
+
+/**
+ * The source-bound faceted STEP fallback is offered when exact parametric inference is
+ * unavailable. The worker requires an STL source at project units and unit scale.
+ */
+export function facetedApplicable(state: ProjectWorkingDocument): boolean {
+  const source = state.source;
+  return state.cadgraph === null
+    && source !== null
+    && source.format === "stl"
+    && source.scaleFactor === 1
+    && source.declaredUnits === state.units;
 }
 
 export function isValidated(state: ProjectWorkingDocument): boolean {
@@ -58,14 +73,37 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
       };
     }
     const capability = automaticReconstructionCapability(state);
-    const reason = !capability.supported ? capability.reason : runBlocked ?? undefined;
+    if (capability.supported) {
+      return {
+        kind: "reconstruct",
+        operation: "reconstruct",
+        label: "Reconstruct",
+        hint: "Build an exact, editable parametric model",
+        disabled: runBlocked !== null,
+        ...(runBlocked !== null ? { reason: runBlocked } : {}),
+      };
+    }
+    // Exact inference is unavailable; offer the source-bound faceted STEP fallback when it applies.
+    if (facetedApplicable(state)) {
+      return {
+        kind: "faceted",
+        operation: "reconstruct",
+        settings: { mode: "faceted" },
+        label: "Faceted STEP",
+        hint: capability.reason
+          ? `Exact inference unavailable. ${capability.reason}`
+          : "Build a source-bound faceted STEP (not an exact parametric model)",
+        disabled: runBlocked !== null,
+        ...(runBlocked !== null ? { reason: runBlocked } : {}),
+      };
+    }
     return {
       kind: "reconstruct",
       operation: "reconstruct",
       label: "Reconstruct",
       hint: "Build an exact, editable parametric model",
-      disabled: runBlocked !== null || !capability.supported,
-      ...(reason !== undefined ? { reason } : {}),
+      disabled: true,
+      ...(capability.reason !== undefined ? { reason: capability.reason } : {}),
     };
   }
 
