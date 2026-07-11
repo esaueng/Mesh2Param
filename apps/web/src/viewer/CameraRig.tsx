@@ -3,12 +3,13 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { cameraFitForBox, type ViewPreset } from "./cameraMath";
+import { cameraFitForBox, cameraFitForDirection, type ViewPreset } from "./cameraMath";
 
 export interface CameraCommand {
   fitRevision: number;
   viewRevision: number;
   preset: ViewPreset;
+  direction: [number, number, number] | null;
 }
 
 interface CameraRigProps {
@@ -47,12 +48,11 @@ export function CameraRig({ bounds, artifactKey, command, controlsRef }: CameraR
     fitRef.current = command.fitRevision;
     viewRef.current = command.viewRevision;
     const currentSize = sizeRef.current;
-    const fit = cameraFitForBox(
-      bounds,
-      camera instanceof THREE.PerspectiveCamera ? camera.fov : 42,
-      currentSize.width / Math.max(currentSize.height, 1),
-      viewChanged ? command.preset : "iso",
-    );
+    const fov = camera instanceof THREE.PerspectiveCamera ? camera.fov : 42;
+    const aspect = currentSize.width / Math.max(currentSize.height, 1);
+    const fit = viewChanged && command.direction !== null
+      ? cameraFitForDirection(bounds, fov, aspect, command.direction)
+      : cameraFitForBox(bounds, fov, aspect, viewChanged ? command.preset : "iso");
     camera.position.copy(fit.position);
     camera.up.copy(fit.up);
     camera.lookAt(fit.target);
@@ -65,7 +65,7 @@ export function CameraRig({ bounds, artifactKey, command, controlsRef }: CameraR
       controlsRef.current.update();
     }
     invalidate();
-  }, [artifactKey, bounds, camera, command.fitRevision, command.preset, command.viewRevision, controlsRef, invalidate]);
+  }, [artifactKey, bounds, camera, command.direction, command.fitRevision, command.preset, command.viewRevision, controlsRef, invalidate]);
 
   return (
     <OrbitControls

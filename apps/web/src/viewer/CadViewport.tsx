@@ -19,6 +19,7 @@ import { apiClient } from "../api/client";
 import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state/types";
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
+import { OrientationGizmo, type GizmoViewRequest } from "./OrientationGizmo";
 import type { ViewPreset } from "./cameraMath";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
@@ -58,7 +59,7 @@ export function CadViewport({
   chrome = "full",
 }: CadViewportProps) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
-  const [command, setCommand] = useState<CameraCommand>({ fitRevision: 0, viewRevision: 0, preset: "iso" });
+  const [command, setCommand] = useState<CameraCommand>({ fitRevision: 0, viewRevision: 0, preset: "iso", direction: null });
   const [selection, setSelection] = useState<SelectionRange[]>([]);
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [measurementEnabled, setMeasurementEnabled] = useState(false);
@@ -113,7 +114,7 @@ export function CadViewport({
     const fit = () => setCommand((current) => ({ ...current, fitRevision: current.fitRevision + 1 }));
     const view = (event: Event) => {
       const detail = (event as CustomEvent<ViewPreset>).detail;
-      if (detail) setCommand((current) => ({ ...current, preset: detail, viewRevision: current.viewRevision + 1 }));
+      if (detail) setCommand((current) => ({ ...current, preset: detail, direction: null, viewRevision: current.viewRevision + 1 }));
     };
     window.addEventListener("mesh2param:fit-view", fit);
     window.addEventListener("mesh2param:view-preset", view);
@@ -124,11 +125,26 @@ export function CadViewport({
   }, []);
 
   function preset(value: ViewPreset) {
-    setCommand((current) => ({ ...current, preset: value, viewRevision: current.viewRevision + 1 }));
+    setCommand((current) => ({ ...current, preset: value, direction: null, viewRevision: current.viewRevision + 1 }));
+  }
+
+  function gizmoView(view: GizmoViewRequest) {
+    const direction: [number, number, number] = typeof view === "object"
+      ? view.direction
+      : view === "x" ? [1, 0, 0]
+      : view === "y" ? [0, 1, 0]
+      : view === "z" ? [0, 0, 1]
+      : [1, 1, 1];
+    setCommand((current) => ({ ...current, direction, viewRevision: current.viewRevision + 1 }));
   }
 
   return (
-    <section className="cad-viewport" aria-label="3D CAD viewer" data-testid="cad-viewport">
+    <section
+      className="cad-viewport"
+      aria-label="3D CAD viewer"
+      data-testid="cad-viewport"
+      data-camera-view={command.direction?.join(",") ?? command.preset}
+    >
       {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
         {MODES.map((mode) => (
@@ -270,20 +286,13 @@ export function CadViewport({
             ) : null}
           </Suspense>
           <CameraRig bounds={bounds} artifactKey={artifactKey} command={command} controlsRef={controls} />
+          <OrientationGizmo onSelectView={gizmoView} />
         </Canvas>
       </ViewerErrorBoundary>
 
       {layers.length === 0 && chrome === "full" ? (
         <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
-      <div className="view-cube" aria-label="Standard views">
-        <button onClick={() => preset("top")}>TOP</button>
-        <button onClick={() => preset("front")}>FRONT</button>
-        <button onClick={() => preset("right")}>RIGHT</button>
-      </div>
-      <div className="axis-triad" aria-hidden="true">
-        <span className="axis-z">Z</span><span className="axis-y">Y</span><span className="axis-x">X</span>
-      </div>
       <div className="scale-bar" aria-hidden="true"><span />10 mm</div>
       {selectedPatchId === null ? null : (
         <div className="selection-chip">Selected patch <strong>{selectedPatchId}</strong></div>
