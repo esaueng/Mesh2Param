@@ -32,6 +32,7 @@ x-backend-environment: &backend-environment
 services:
   api:
     image: mesh2param-backend:${COMPOSE_IMAGE_TAG:-local}
+    platform: linux/amd64
     build: *backend-build
     command: ["python", "-P", "-m", "mesh2param_api.cli"]
     environment:
@@ -68,6 +69,7 @@ services:
 
   worker:
     image: mesh2param-backend:${COMPOSE_IMAGE_TAG:-local}
+    platform: linux/amd64
     build: *backend-build
     command: ["python", "-P", "-m", "mesh2param_api.jobs.service", "run"]
     environment:

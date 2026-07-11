@@ -45,6 +45,8 @@ instead of the `rfc3987` GPL-3.0+ dependency pulled by `jsonschema[format]`.
 This table is generated from the active uv environment and pnpm installation. Peer-resolution paths
 are deduplicated by ecosystem, package, version, and effective license. Overrides are narrow,
 source-linked, and reviewed in [`licenses/overrides.toml`](licenses/overrides.toml).
+Platform-constrained pnpm packages (`os`, `cpu`, or `libc`) remain policy-audited when installed but
+are omitted from this cross-platform table; distributors must audit the exact target installation.
 
 <!-- BEGIN GENERATED DEPENDENCY INVENTORY -->
 
@@ -79,7 +81,6 @@ source-linked, and reviewed in [`licenses/overrides.toml`](licenses/overrides.to
 | javascript | @csstools/css-parser-algorithms | 3.0.5 | MIT |
 | javascript | @csstools/css-tokenizer | 3.0.4 | MIT |
 | javascript | @dimforge/rapier3d-compat | 0.12.0 | Apache-2.0 |
-| javascript | @esbuild/darwin-arm64 | 0.28.1 | MIT |
 | javascript | @eslint-community/eslint-utils | 4.9.1 | MIT |
 | javascript | @eslint-community/regexpp | 4.12.2 | MIT |
 | javascript | @eslint/config-array | 0.21.2 | Apache-2.0 |
@@ -108,7 +109,6 @@ source-linked, and reviewed in [`licenses/overrides.toml`](licenses/overrides.to
 | javascript | @react-three/drei | 10.7.7 | MIT |
 | javascript | @react-three/fiber | 9.6.1 | MIT |
 | javascript | @rolldown/pluginutils | 1.0.0-rc.3 | MIT |
-| javascript | @rollup/rollup-darwin-arm64 | 4.62.2 | MIT |
 | javascript | @testing-library/dom | 10.4.1 | MIT |
 | javascript | @testing-library/jest-dom | 6.9.1 | MIT |
 | javascript | @testing-library/react | 16.3.2 | MIT |
@@ -237,8 +237,6 @@ source-linked, and reviewed in [`licenses/overrides.toml`](licenses/overrides.to
 | javascript | find-up | 5.0.0 | MIT |
 | javascript | flat-cache | 4.0.1 | MIT |
 | javascript | flatted | 3.4.2 | ISC |
-| javascript | fsevents | 2.3.2 | MIT |
-| javascript | fsevents | 2.3.3 | MIT |
 | javascript | gensync | 1.0.0-beta.2 | MIT |
 | javascript | get-caller-file | 2.0.5 | ISC |
 | javascript | glob-parent | 6.0.2 | ISC |

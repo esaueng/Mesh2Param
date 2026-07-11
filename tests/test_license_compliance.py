@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
-import subprocess
+import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 
@@ -77,56 +78,138 @@ def test_dependency_configuration_rejects_gpl_package_in_nested_lock(
     ]
 
 
-def test_javascript_inventory_retries_a_transient_pnpm_failure(
-    monkeypatch: pytest.MonkeyPatch,
+def _write_javascript_package(
+    virtual_store: Path,
+    virtual_directory: str,
+    name: str,
+    version: str,
+    *,
+    license_name: str | None = "MIT",
+    constraints: dict[str, list[str]] | None = None,
+) -> Path:
+    package_directory = (
+        virtual_store
+        / virtual_directory
+        / "node_modules"
+        / Path(*name.split("/"))
+    )
+    package_directory.mkdir(parents=True)
+    document: dict[str, object] = {"name": name, "version": version}
+    if license_name is not None:
+        document["license"] = license_name
+    if constraints is not None:
+        document.update(constraints)
+    (package_directory / "package.json").write_text(
+        json.dumps(document), encoding="utf-8"
+    )
+    return package_directory
+
+
+def test_javascript_inventory_reads_all_installed_package_manifests(
+    tmp_path: Path,
 ) -> None:
     checker = _checker()
-    attempts = iter(
-        [
-            subprocess.CompletedProcess([], 143, "", ""),
-            subprocess.CompletedProcess(
-                [],
-                0,
-                '{"MIT":[{"name":"react","versions":["19.2.7"]}]}',
-                "",
-            ),
-        ]
+    virtual_store = tmp_path / "node_modules" / ".pnpm"
+    react = _write_javascript_package(
+        virtual_store, "react@19.2.7", "react", "19.2.7"
     )
-    sleeps: list[float] = []
-    monkeypatch.setattr(checker.subprocess, "run", lambda *args, **kwargs: next(attempts))
-    monkeypatch.setattr(checker.time, "sleep", sleeps.append)
+    parent = _write_javascript_package(
+        virtual_store, "parent@1.0.0", "parent", "1.0.0", license_name="ISC"
+    )
+    _write_javascript_package(
+        virtual_store, "@scope+tool@2.0.0", "@scope/tool", "2.0.0"
+    )
+    fallback = _write_javascript_package(
+        virtual_store,
+        "license-fallback@3.0.0",
+        "license-fallback",
+        "3.0.0",
+        license_name=None,
+    )
+    (fallback / "LICENSE").write_text(
+        "MIT License\n\nPermission is hereby granted, free of charge, to any person",
+        encoding="utf-8",
+    )
+    duplicate = _write_javascript_package(
+        virtual_store,
+        "react@19.2.7_parent@1.0.0",
+        "react",
+        "19.2.7",
+    )
+    (parent.parent / "react").symlink_to(react, target_is_directory=True)
 
-    records, errors = checker.javascript_records(checker.load_policy())
+    records, errors = checker.javascript_records(checker.load_policy(), root=tmp_path)
 
     assert errors == []
-    assert records == [checker.LicenseRecord("javascript", "react", "19.2.7", "MIT")]
-    assert sleeps == [1.0]
+    assert records == [
+        checker.LicenseRecord("javascript", "@scope/tool", "2.0.0", "MIT"),
+        checker.LicenseRecord("javascript", "license-fallback", "3.0.0", "MIT"),
+        checker.LicenseRecord("javascript", "parent", "1.0.0", "ISC"),
+        checker.LicenseRecord("javascript", "react", "19.2.7", "MIT"),
+    ]
+    assert duplicate.is_dir()
 
 
-def test_javascript_inventory_stops_after_bounded_pnpm_failures(
-    monkeypatch: pytest.MonkeyPatch,
+def test_platform_constrained_javascript_packages_are_audited_not_rendered(
+    tmp_path: Path,
 ) -> None:
     checker = _checker()
-    attempts = 0
+    virtual_store = tmp_path / "node_modules" / ".pnpm"
+    _write_javascript_package(
+        virtual_store,
+        "react@19.2.7",
+        "react",
+        "19.2.7",
+    )
+    _write_javascript_package(
+        virtual_store,
+        "@esbuild+darwin-arm64@0.28.1",
+        "@esbuild/darwin-arm64",
+        "0.28.1",
+        constraints={"os": ["darwin"], "cpu": ["arm64"]},
+    )
+    _write_javascript_package(
+        virtual_store,
+        "@esbuild+linux-x64@0.28.1",
+        "@esbuild/linux-x64",
+        "0.28.1",
+        license_name="GPL-3.0-only",
+        constraints={"os": ["linux"], "cpu": ["x64"], "libc": ["glibc"]},
+    )
 
-    def failed_process(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        nonlocal attempts
-        attempts += 1
-        return subprocess.CompletedProcess([], -15, "", "")
+    records, errors = checker.javascript_records(checker.load_policy(), root=tmp_path)
 
-    sleeps: list[float] = []
-    monkeypatch.setattr(checker.subprocess, "run", failed_process)
-    monkeypatch.setattr(checker.time, "sleep", sleeps.append)
+    assert errors == []
+    assert len(records) == 3
+    by_name = {record.name: record for record in records}
+    assert not by_name["react"].platform_constrained
+    assert by_name["@esbuild/darwin-arm64"].platform_constrained
+    assert by_name["@esbuild/linux-x64"].platform_constrained
+    neutral_inventory = checker.render_inventory([by_name["react"]])
+    assert checker.render_inventory(
+        [by_name["react"], by_name["@esbuild/darwin-arm64"]]
+    ) == checker.render_inventory(
+        [by_name["react"], by_name["@esbuild/linux-x64"]]
+    ) == neutral_inventory
+    assert checker.render_inventory(records) == neutral_inventory
 
-    records, errors = checker.javascript_records(checker.load_policy())
+    policy = replace(checker.load_policy(), required_notice_packages=frozenset())
+    policy_failures = checker.policy_errors(records, policy)
+    assert any(
+        "forbidden license" in error and "@esbuild/linux-x64" in error
+        for error in policy_failures
+    )
+
+
+def test_javascript_inventory_reports_missing_install(tmp_path: Path) -> None:
+    checker = _checker()
+    records, errors = checker.javascript_records(checker.load_policy(), root=tmp_path)
 
     assert records == []
     assert errors == [
-        "pnpm license inspection failed after 6 attempts "
-        "(signal 15; signal 15; signal 15; signal 15; signal 15; signal 15)"
+        "cannot inspect installed JavaScript packages: "
+        f"pnpm virtual store is missing at {tmp_path / 'node_modules' / '.pnpm'}"
     ]
-    assert attempts == 6
-    assert sleeps == [1.0, 2.0, 4.0, 8.0, 15.0]
 
 
 def test_failed_inventory_does_not_report_missing_dependencies_or_stale_notices(

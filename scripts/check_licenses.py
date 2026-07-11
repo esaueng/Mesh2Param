@@ -7,9 +7,7 @@ import hashlib
 import importlib.metadata
 import json
 import re
-import subprocess
 import sys
-import time
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -21,8 +19,6 @@ DEFAULT_POLICY = ROOT / "licenses" / "overrides.toml"
 DEFAULT_NOTICES = ROOT / "THIRD_PARTY_NOTICES.md"
 INVENTORY_START = "<!-- BEGIN GENERATED DEPENDENCY INVENTORY -->"
 INVENTORY_END = "<!-- END GENERATED DEPENDENCY INVENTORY -->"
-PNPM_LICENSE_ATTEMPTS = 6
-PNPM_LICENSE_RETRY_DELAYS = (1.0, 2.0, 4.0, 8.0, 15.0)
 
 
 @dataclass(frozen=True, order=True)
@@ -31,6 +27,7 @@ class LicenseRecord:
     name: str
     version: str
     license: str
+    platform_constrained: bool = False
 
     @property
     def package_key(self) -> str:
@@ -227,79 +224,169 @@ def python_records(policy: LicensePolicy) -> tuple[list[LicenseRecord], list[str
 def javascript_records(
     policy: LicensePolicy, *, root: Path = ROOT
 ) -> tuple[list[LicenseRecord], list[str]]:
-    failures: list[str] = []
-    process: subprocess.CompletedProcess[str] | None = None
-    for attempt in range(PNPM_LICENSE_ATTEMPTS):
-        try:
-            process = subprocess.run(
-                ["pnpm", "licenses", "list", "--json"],
-                cwd=root,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-        except FileNotFoundError as exc:
-            return [], [f"cannot inspect pnpm licenses: {exc}"]
-        except subprocess.TimeoutExpired:
-            failures.append("timed out after 120 seconds")
-        else:
-            if process.returncode == 0:
-                break
-            status = (
-                f"signal {-process.returncode}"
-                if process.returncode < 0
-                else f"exit code {process.returncode}"
-            )
-            details = process.stderr.strip() or process.stdout.strip()
-            failures.append(f"{status}: {details}" if details else status)
-        if attempt < len(PNPM_LICENSE_RETRY_DELAYS):
-            time.sleep(PNPM_LICENSE_RETRY_DELAYS[attempt])
-    else:
+    """Read package metadata directly from pnpm's installed virtual store.
+
+    ``pnpm licenses list`` consults package-index files in the content-addressable
+    store. Those indexes are not part of the installed workspace and can be
+    missing even when the frozen install itself is complete. Every package that
+    pnpm installs for this isolated-linker workspace has one real package
+    directory under ``node_modules/.pnpm/*/node_modules``; dependency edges in
+    those directories are symlinks. Reading only the real package directories
+    therefore inventories every installed transitive package/version without a
+    network request, store-index lookup, or install mutation.
+    """
+
+    virtual_store = root / "node_modules" / ".pnpm"
+    if not virtual_store.is_dir():
         return [], [
-            "pnpm license inspection failed after "
-            f"{PNPM_LICENSE_ATTEMPTS} attempts ({'; '.join(failures)})"
+            "cannot inspect installed JavaScript packages: "
+            f"pnpm virtual store is missing at {virtual_store}"
         ]
 
-    assert process is not None
-    try:
-        raw = json.loads(process.stdout)
-    except json.JSONDecodeError as exc:
-        return [], [f"pnpm returned invalid license JSON: {exc}"]
-    if not isinstance(raw, dict):
-        return [], ["pnpm license output must be an object"]
-
-    records: set[LicenseRecord] = set()
+    records_by_package: dict[tuple[str, str], LicenseRecord] = {}
     errors: list[str] = []
-    for license_name, packages in raw.items():
-        if not isinstance(license_name, str) or not isinstance(packages, list):
-            errors.append("pnpm license output contains an invalid group")
+
+    for manifest_path in _javascript_manifest_paths(virtual_store):
+        relative_path = manifest_path.relative_to(root)
+        try:
+            document = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            errors.append(f"cannot read JavaScript package metadata at {relative_path}: {exc}")
             continue
-        for package in packages:
-            if not isinstance(package, dict):
-                errors.append(f"pnpm {license_name} group contains an invalid package")
-                continue
-            name = package.get("name")
-            versions = package.get("versions")
-            if not isinstance(name, str) or not isinstance(versions, list):
-                errors.append(f"pnpm {license_name} group contains incomplete metadata")
-                continue
-            package_key = f"javascript:{name.casefold()}"
-            if package_key in policy.ignored_packages:
-                continue
-            override = policy.overrides.get(package_key)
-            resolved = override.license if override is not None else normalize_license(
-                license_name, license_name, []
+        if not isinstance(document, dict):
+            errors.append(f"JavaScript package metadata is not an object: {relative_path}")
+            continue
+
+        name = document.get("name")
+        version = document.get("version")
+        if not isinstance(name, str) or not name.strip():
+            errors.append(f"JavaScript package has no valid name: {relative_path}")
+            continue
+        if not isinstance(version, str) or not version.strip():
+            errors.append(f"JavaScript package {name} has no valid version: {relative_path}")
+            continue
+
+        package_key = f"javascript:{name.casefold()}"
+        if package_key in policy.ignored_packages:
+            continue
+        override = policy.overrides.get(package_key)
+        declared_license = _javascript_declared_license(document)
+        license_text = None
+        if declared_license is None:
+            license_text = _javascript_license_file_text(manifest_path.parent)
+        resolved = override.license if override is not None else normalize_license(
+            declared_license,
+            license_text,
+            [],
+        )
+        if resolved is None:
+            errors.append(
+                f"unresolved JavaScript license: {name}=={version} ({relative_path})"
             )
-            if resolved is None:
-                errors.append(f"unresolved JavaScript license: {name} ({license_name})")
+            continue
+
+        record = LicenseRecord(
+            "javascript",
+            name,
+            version,
+            resolved,
+            platform_constrained=_javascript_platform_constrained(document),
+        )
+        identity = (name.casefold(), version)
+        existing = records_by_package.get(identity)
+        if existing is not None and existing.license != record.license:
+            errors.append(
+                f"conflicting JavaScript licenses for {name}=={version}: "
+                f"{existing.license} and {record.license}"
+            )
+            continue
+        if existing is not None and not existing.platform_constrained:
+            record = existing
+        records_by_package[identity] = record
+    return sorted(records_by_package.values()), errors
+
+
+def _javascript_manifest_paths(virtual_store: Path) -> list[Path]:
+    manifests: list[Path] = []
+    for virtual_package in sorted(virtual_store.iterdir(), key=lambda path: path.name):
+        installed = virtual_package / "node_modules"
+        if not installed.is_dir():
+            continue
+        for candidate in sorted(installed.iterdir(), key=lambda path: path.name):
+            if candidate.is_symlink():
                 continue
-            for version in versions:
-                if isinstance(version, str):
-                    records.add(LicenseRecord("javascript", name, version, resolved))
-                else:
-                    errors.append(f"pnpm package {name} has a non-string version")
-    return sorted(records), errors
+            if candidate.name.startswith("@") and candidate.is_dir():
+                for scoped_candidate in sorted(
+                    candidate.iterdir(), key=lambda path: path.name
+                ):
+                    if scoped_candidate.is_symlink():
+                        continue
+                    manifest = scoped_candidate / "package.json"
+                    if manifest.is_file():
+                        manifests.append(manifest)
+                continue
+            manifest = candidate / "package.json"
+            if manifest.is_file():
+                manifests.append(manifest)
+    return manifests
+
+
+def _javascript_declared_license(document: Mapping[str, object]) -> str | None:
+    license_value = document.get("license")
+    if isinstance(license_value, str) and license_value.strip():
+        return license_value.strip()
+    if isinstance(license_value, dict):
+        legacy_type = license_value.get("type")
+        if isinstance(legacy_type, str) and legacy_type.strip():
+            return legacy_type.strip()
+
+    legacy_licenses = document.get("licenses")
+    if not isinstance(legacy_licenses, list):
+        return None
+    expressions: list[str] = []
+    for value in legacy_licenses:
+        if isinstance(value, str) and value.strip():
+            expressions.append(value.strip())
+        elif isinstance(value, dict):
+            legacy_type = value.get("type")
+            if isinstance(legacy_type, str) and legacy_type.strip():
+                expressions.append(legacy_type.strip())
+    return " OR ".join(expressions) or None
+
+
+def _javascript_platform_constrained(document: Mapping[str, object]) -> bool:
+    for field in ("os", "cpu", "libc"):
+        value = document.get(field)
+        if isinstance(value, str):
+            constrained = bool(value.strip())
+        elif isinstance(value, Sequence):
+            constrained = bool(value)
+        else:
+            constrained = value is not None
+        if constrained:
+            return True
+    return False
+
+
+def _javascript_license_file_text(package_directory: Path) -> str | None:
+    candidates = sorted(
+        (
+            path
+            for path in package_directory.iterdir()
+            if path.is_file()
+            and path.name.casefold().split(".", maxsplit=1)[0]
+            in {"license", "licence", "copying"}
+        ),
+        key=lambda path: path.name.casefold(),
+    )
+    for candidate in candidates:
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        if text.strip():
+            return text
+    return None
 
 
 def policy_errors(
@@ -377,7 +464,9 @@ def render_inventory(records: Iterable[LicenseRecord]) -> str:
         "| Ecosystem | Package | Version | Declared/effective license |",
         "| --- | --- | --- | --- |",
     ]
-    for record in sorted(set(records)):
+    for record in sorted(
+        {record for record in records if not record.platform_constrained}
+    ):
         values = (
             record.ecosystem,
             record.name,

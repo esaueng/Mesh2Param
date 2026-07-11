@@ -49,6 +49,10 @@ Both runtime images include the project and third-party license bundle under
 | `api` | `python -P -m mesh2param_api.cli`; HTTP authority and durable queue producer | `GET /health` is liveness only |
 | `worker` | `python -P -m mesh2param_api.jobs.service run`; owns geometry execution | heartbeat age via `healthcheck --max-age 15` |
 
+The backend image is pinned to `linux/amd64` because the locked CPython 3.12 `nlopt` dependency has
+no Linux ARM wheel. The web image remains native-platform. ARM hosts therefore require standard
+amd64 container emulation; the acceptance workflow is configured to exercise this path.
+
 `GET /ready` returns `200` only when SQLite, filesystem storage, and the configured job runner are
 ready. In external mode it requires a fresh `<data-dir>/worker-heartbeat.json`; otherwise it returns
 `503`. The singleton lock is `<data-dir>/worker.lock`. API and worker must use the identical absolute
@@ -87,6 +91,8 @@ Compose-only `COMPOSE_API_CPUS`, `COMPOSE_API_MEMORY`, `COMPOSE_WORKER_CPUS`,
 `COMPOSE_WORKER_MEMORY`, `COMPOSE_WEB_CPUS`, `COMPOSE_WEB_MEMORY`, `COMPOSE_WEB_PORT`, and
 `COMPOSE_IMAGE_TAG` tune container resources or naming. They are intentionally not
 `MESH2PARAM_*` settings.
+When changing `COMPOSE_WEB_PORT`, set `MESH2PARAM_PUBLIC_URL` and
+`MESH2PARAM_CORS_ORIGINS` to the same browser-visible port; mismatched origins fail closed.
 
 Production settings reject unknown `MESH2PARAM_*` names and unsupported S3, Redis, PostgreSQL,
 multi-worker SQLite, relative-path, symlink-path, wildcard host/origin, and debug configurations.
