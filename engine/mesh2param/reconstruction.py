@@ -25,12 +25,20 @@ from .inference import (
     CandidateSearchSettings,
     InferredHole,
     build_l_bracket_cadgraph,
+    build_prismatic_cadgraph,
     compile_candidate,
     infer_through_holes,
     score_candidate,
     select_bounded_candidates,
 )
 from .ingest import IngestedMesh, MeshLimits, ingest_mesh
+from .prismatic import (
+    ExtrusionCandidate,
+    PrismaticDiagnostic,
+    PrismaticSettings,
+    detect_extrusion_candidate,
+    validate_prismatic_candidate,
+)
 from .repair import RepairResult, RepairSettings, repair_mesh
 from .segmentation import SegmentationResult, SegmentationSettings, segment_mesh
 from .selection import SelectionMapArtifact, write_patch_selection_artifacts
@@ -54,6 +62,7 @@ class ReconstructionSettings:
     sketches: SketchExtractionSettings = field(default_factory=SketchExtractionSettings)
     comparison: ComparisonSettings = field(default_factory=ComparisonSettings)
     candidate_search: CandidateSearchSettings = field(default_factory=CandidateSearchSettings)
+    prismatic: PrismaticSettings = field(default_factory=PrismaticSettings)
     include_nominal_preview: bool = True
 
 
@@ -101,6 +110,39 @@ class ReconstructionResult:
                 "holes": [hole.to_dict() for hole in self.holes],
             },
             "candidates": [candidate.to_dict() for candidate in self.candidates],
+            "selectedCandidate": self.selected.label,
+            "comparison": self.comparison.to_dict(),
+            "stepValidation": self.step.to_dict(),
+            "patchSelection": self.patch_selection.to_dict(),
+            "artifacts": dict(sorted(self.artifacts.items())),
+            "warnings": list(self.warnings),
+            "limitations": list(self.limitations),
+        }
+
+
+@dataclass(slots=True)
+class PrismaticReconstructionResult:
+    source: IngestedMesh
+    repair: RepairResult
+    segmentation: SegmentationResult
+    prismatic: ExtrusionCandidate
+    selected: CandidateEvaluation
+    graph: CADGraph
+    comparison: ComparisonReport
+    step: StepValidation
+    patch_selection: SelectionMapArtifact
+    artifacts: dict[str, str]
+    warnings: tuple[str, ...]
+    limitations: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": "valid",
+            "scope": "validated analytic linear extrusion with line/circular-arc profile",
+            "source": self.source.to_dict(),
+            "repair": self.repair.to_dict(),
+            "segmentation": self.segmentation.to_dict(),
+            "prismaticReconstruction": self.prismatic.to_dict(),
             "selectedCandidate": self.selected.label,
             "comparison": self.comparison.to_dict(),
             "stepValidation": self.step.to_dict(),
@@ -228,6 +270,144 @@ def _manifest(output: Path, artifacts: dict[str, str]) -> dict[str, Any]:
     return result
 
 
+def _complete_prismatic_reconstruction(
+    *,
+    source: IngestedMesh,
+    repaired: RepairResult,
+    segmentation: SegmentationResult,
+    candidate: ExtrusionCandidate,
+    output: Path,
+    units: str,
+    settings: ReconstructionSettings,
+) -> PrismaticReconstructionResult:
+    """Compile, compare, round-trip, and materialize one accepted extrusion."""
+
+    graph = build_prismatic_cadgraph(
+        source=_source_document(source, units),
+        candidate=candidate,
+    )
+    selected = compile_candidate("analytic-prismatic", graph)
+    if not selected.valid or selected.shape is None:
+        details = (
+            selected.compilation.errors[0].code
+            if selected.compilation.errors
+            else "unknown kernel failure"
+        )
+        raise ReconstructionError(
+            "prismatic-compilation",
+            "invalid_compiled_brep",
+            f"analytic extrusion was rejected by OpenCascade: {details}",
+        )
+    comparison = compare_mesh_to_shape(
+        repaired.mesh,
+        selected.shape,
+        settings=settings.comparison,
+    )
+    selected.comparison = comparison
+    score_candidate(selected, comparison)
+    tolerance = graph.project_tolerance.surface_deviation
+    if (
+        comparison.p95_distance_mm > tolerance
+        or comparison.maximum_distance_mm > tolerance
+        or comparison.relative_volume_delta is None
+        or comparison.relative_volume_delta > 0.01
+    ):
+        raise ReconstructionError(
+            "prismatic-validation",
+            "geometric_validation_failure",
+            (
+                "analytic extrusion exceeds source agreement gates: "
+                f"p95={comparison.p95_distance_mm:g} mm, "
+                f"max={comparison.maximum_distance_mm:g} mm, "
+                f"relativeVolume={comparison.relative_volume_delta}"
+            ),
+        )
+    step_path = output / "model.step"
+    try:
+        step = export_step_validated(selected.shape, step_path, units=units)
+    except ValueError as exc:
+        raise ReconstructionError(
+            "prismatic-step",
+            "step_reimport_failure",
+            str(exc),
+        ) from exc
+    warnings = tuple(
+        dict.fromkeys(
+            [warning.message for warning in source.diagnostics.warnings]
+            + list(repaired.warnings)
+            + list(segmentation.warnings)
+            + list(comparison.warnings)
+        )
+    )
+    final_graph = _final_graph(graph, comparison, step, "feature.base", warnings)
+    graph_path = output / "model.cadgraph.json"
+    graph_path.write_bytes(canonical_json_bytes(final_graph))
+    source_path_output = output / "model.cq.py"
+    write_cadquery_source(final_graph, source_path_output)
+    result_glb = output / "model.glb"
+    export_glb(selected.shape, result_glb)
+    heatmap_path = output / "residual-heatmap.glb"
+    heatmap = write_residual_heatmap_glb(
+        repaired.mesh,
+        comparison.source_vertex_residuals_mm,
+        heatmap_path,
+        tolerance_mm=settings.comparison.tolerance_mm,
+    )
+    patch_selection = write_patch_selection_artifacts(
+        repaired.mesh,
+        segmentation.patches,
+        output / "patches.glb",
+        output / "selection-map.json",
+    )
+    _write_json(output / "comparison.json", comparison.to_dict())
+    _write_json(output / "prismatic.json", candidate.to_dict())
+    _write_json(output / "candidates.json", [selected.to_dict()])
+    artifacts = {
+        "analysis": str(output / "analysis.json"),
+        "sourceGlb": str(output / "source.glb"),
+        "repair": str(output / "repair.json"),
+        "repairedMesh": str(output / "repaired.stl"),
+        "repairedGlb": str(output / "repaired.glb"),
+        "analysisProxyGlb": str(output / "analysis-proxy.glb"),
+        "patches": str(output / "patches.json"),
+        "patchesGlb": patch_selection.glb.path,
+        "selectionMap": patch_selection.path,
+        "prismatic": str(output / "prismatic.json"),
+        "candidates": str(output / "candidates.json"),
+        "cadgraph": str(graph_path),
+        "cadquerySource": str(source_path_output),
+        "step": str(step_path),
+        "modelGlb": str(result_glb),
+        "comparison": str(output / "comparison.json"),
+        "residualHeatmap": heatmap.path,
+        "originalSource": str(output / f"source.original{source.metadata.extension}"),
+    }
+    limitations = (
+        "This recovers one extrusion from a line/circular-arc profile, not the historical "
+        "CAD tree.",
+        "Non-prismatic, tapered, twisted, spline, and inconsistent-cap geometry is rejected.",
+        "Full-cylinder patch recognition remains a separate high-coverage inference path.",
+    )
+    result = PrismaticReconstructionResult(
+        source,
+        repaired,
+        segmentation,
+        candidate,
+        selected,
+        final_graph,
+        comparison,
+        step,
+        patch_selection,
+        artifacts,
+        warnings,
+        limitations,
+    )
+    _write_json(output / "reconstruction.json", result.to_dict())
+    artifacts["reconstruction"] = str(output / "reconstruction.json")
+    _manifest(output, artifacts)
+    return result
+
+
 def reconstruct_file(
     source_path: str | Path,
     output_directory: str | Path,
@@ -235,7 +415,7 @@ def reconstruct_file(
     units: str = "mm",
     settings: ReconstructionSettings | None = None,
     progress_callback: ProgressCallback | None = None,
-) -> ReconstructionResult:
+) -> ReconstructionResult | PrismaticReconstructionResult:
     """Run the verified bracket pipeline and write truthful intermediate artifacts."""
 
     settings = settings or ReconstructionSettings()
@@ -272,6 +452,44 @@ def reconstruct_file(
         completed["segmentation"] = segmentation.to_dict()
         _write_json(output / "patches.json", segmentation.to_dict())
         _report(progress_callback, "fitting cylinders", 42.0)
+
+        _report(progress_callback, "detecting analytic extrusion", 45.0)
+        prismatic = validate_prismatic_candidate(
+            detect_extrusion_candidate(repaired.mesh, segmentation.patches, settings.prismatic),
+            settings.prismatic,
+        )
+        completed["prismaticReconstruction"] = prismatic.to_dict()
+        _write_json(output / "prismatic.json", prismatic.to_dict())
+        if prismatic.accepted:
+            try:
+                prismatic_result = _complete_prismatic_reconstruction(
+                    source=source,
+                    repaired=repaired,
+                    segmentation=segmentation,
+                    candidate=prismatic,
+                    output=output,
+                    units=units,
+                    settings=settings,
+                )
+                _report(progress_callback, "finalizing artifacts", 99.0)
+                return prismatic_result
+            except (ReconstructionError, ValueError) as exc:
+                # A geometric hypothesis is not accepted until compilation, bidirectional
+                # comparison, and STEP reimport all pass.  Preserve the rejection and allow
+                # the existing bounded analytic paths to continue.
+                code = (
+                    exc.code
+                    if isinstance(exc, ReconstructionError)
+                    else "prismatic_validation_failure"
+                )
+                completed["prismaticReconstruction"]["accepted"] = False
+                completed["prismaticReconstruction"]["diagnostics"].append(
+                    PrismaticDiagnostic(code, str(exc)).to_dict()
+                )
+                _write_json(
+                    output / "prismatic.json",
+                    completed["prismaticReconstruction"],
+                )
 
         if segmentation.counts_by_type["freeform"] or segmentation.counts_by_type["unknown"]:
             raise ReconstructionError(
@@ -485,6 +703,7 @@ def reconstruct_file(
 
 
 __all__ = [
+    "PrismaticReconstructionResult",
     "ProgressCallback",
     "ReconstructionError",
     "ReconstructionResult",

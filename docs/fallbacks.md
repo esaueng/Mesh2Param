@@ -38,6 +38,21 @@ the 12 degree smooth-region threshold and create extra plane directions; this fa
 frame instead of guessing. Small-hole filling exists only as an explicit repair operation with a
 configured edge-count and planarity limit.
 
+## Prismatic analytic path and faceted distinction
+
+Sewing STL triangles can close a shell, but it cannot recover the mathematical plane, circle, or
+cylinder that existed before tessellation. Every sewn triangle remains a planar B-Rep face. For a
+validated linear extrusion, Mesh2Param instead reconstructs the cap's ordered 2-D boundary as lines
+and circular arcs and extrudes one analytic face. This supports one exterior loop plus contained
+holes on an arbitrary sketch plane; line/arc profiles may include tangent transitions even when the
+side wall was segmented as one smooth `freeform` region.
+
+The path currently rejects tapered or twisted sweeps, inconsistent caps, branching/open boundaries,
+splines, arbitrary freeform surfaces, multiple disjoint exterior profiles, and geometry outside its
+residual and scale limits. Rejection does not relabel the hypothesis as analytic and does not block
+other supported inference paths. If no analytic path succeeds, the explicit source-bound faceted
+operation below remains available; it is never presented as recovered parametric history.
+
 ## Explicit faceted STEP fallback
 
 Freeform STL geometry can be converted without inventing analytic history through the Features
