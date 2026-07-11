@@ -244,11 +244,17 @@ def export_step_validated(
     units: str = "mm",
     linear_resolution: float = 1e-3,
     angular_tolerance: float = 0.1,
+    require_tessellation: bool = True,
 ) -> StepValidation:
     """Export normalized STEP and prove it by kernel reimport before success."""
 
     shape = as_shape(value)
-    source_validation = validate_shape(shape, linear_resolution, angular_tolerance)
+    source_validation = validate_shape(
+        shape,
+        linear_resolution,
+        angular_tolerance,
+        require_tessellation=require_tessellation,
+    )
     if not source_validation.valid:
         raise ValueError(
             "refusing STEP export for invalid source B-Rep: " + "; ".join(source_validation.errors)
@@ -280,7 +286,12 @@ def export_step_validated(
         temporary.unlink(missing_ok=True)
 
     imported = import_step_shape(destination, units)
-    reimport_validation = validate_shape(imported, linear_resolution, angular_tolerance)
+    reimport_validation = validate_shape(
+        imported,
+        linear_resolution,
+        angular_tolerance,
+        require_tessellation=require_tessellation,
+    )
     volume_delta = abs(source_validation.volume - reimport_validation.volume)
     volume_tolerance = max(
         linear_resolution**3 * 10,

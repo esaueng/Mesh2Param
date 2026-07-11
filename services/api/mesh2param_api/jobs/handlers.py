@@ -129,9 +129,7 @@ def _repair_settings(payload: dict[str, Any]) -> Any:
             recommended_action="Choose only repair operations offered by the current UI.",
         )
     selected = set(operations)
-    return RepairSettings(
-        **{field: operation in selected for operation, field in allowed.items()}
-    )
+    return RepairSettings(**{field: operation in selected for operation, field in allowed.items()})
 
 
 def _segmentation_settings(payload: dict[str, Any]) -> Any:
@@ -176,14 +174,10 @@ def _segmentation_settings(payload: dict[str, Any]) -> Any:
         settings = SegmentationSettings(
             smooth_angle_deg=maximum_angle,
             planar_fit_tolerance_mm=(
-                deviation
-                if "maxDeviation" in raw
-                else defaults.planar_fit_tolerance_mm
+                deviation if "maxDeviation" in raw else defaults.planar_fit_tolerance_mm
             ),
             cylinder_fit_tolerance_mm=(
-                deviation
-                if "maxDeviation" in raw
-                else defaults.cylinder_fit_tolerance_mm
+                deviation if "maxDeviation" in raw else defaults.cylinder_fit_tolerance_mm
             ),
             minimum_patch_area_mm2=minimum_area,
         )
@@ -197,6 +191,120 @@ def _segmentation_settings(payload: dict[str, Any]) -> Any:
             str(exc),
             recoverable=True,
             recommended_action="Use positive finite tolerances and an angle below 90 degrees.",
+        ) from exc
+
+
+def _reconstruction_segmentation_settings(payload: dict[str, Any]) -> Any:
+    """Replay the exact user-facing settings that produced persisted analysis patches."""
+
+    from mesh2param import SegmentationSettings
+
+    project_state = payload.get("projectState")
+    if not isinstance(project_state, dict):
+        return _segmentation_settings({"settings": {}})
+    analysis = project_state.get("analysis")
+    persisted = analysis.get("settings") if isinstance(analysis, dict) else None
+    patches = project_state.get("patches")
+    if persisted is None:
+        if isinstance(patches, list) and patches:
+            raise JobFailure(
+                "analysis_settings_missing",
+                "starting reconstruction",
+                "Analysis settings are unavailable",
+                "Persisted surface patches do not include the settings that produced them.",
+                recoverable=True,
+                recommended_action="Re-run surface analysis before automatic reconstruction.",
+            )
+        return _segmentation_settings({"settings": {}})
+    if not isinstance(persisted, dict):
+        raise JobFailure(
+            "invalid_analysis_settings",
+            "starting reconstruction",
+            "Analysis settings are invalid",
+            "Persisted segmentation settings must be an object.",
+            recoverable=True,
+            recommended_action="Re-run surface analysis before automatic reconstruction.",
+        )
+    required = {
+        "smoothAngleDeg",
+        "planarFitToleranceMm",
+        "cylinderFitToleranceMm",
+        "minimumCylinderCoverageDeg",
+        "maximumCylinderAxisNormalComponent",
+        "minimumPatchAreaMm2",
+        "stableIdResolutionMm",
+    }
+    missing = sorted(required - set(persisted))
+    if missing:
+        raise JobFailure(
+            "invalid_analysis_settings",
+            "starting reconstruction",
+            "Analysis settings are invalid",
+            f"Persisted segmentation settings omit: {', '.join(missing)}.",
+            recoverable=True,
+            recommended_action="Re-run surface analysis before automatic reconstruction.",
+        )
+    try:
+        settings = SegmentationSettings(
+            smooth_angle_deg=_bounded_number(
+                persisted["smoothAngleDeg"],
+                name="persisted smooth angle",
+                minimum=0.0,
+                maximum=90.0,
+                minimum_inclusive=False,
+                maximum_inclusive=False,
+            ),
+            planar_fit_tolerance_mm=_bounded_number(
+                persisted["planarFitToleranceMm"],
+                name="persisted planar fit tolerance",
+                minimum=0.0,
+                maximum=1_000_000.0,
+                minimum_inclusive=False,
+            ),
+            cylinder_fit_tolerance_mm=_bounded_number(
+                persisted["cylinderFitToleranceMm"],
+                name="persisted cylinder fit tolerance",
+                minimum=0.0,
+                maximum=1_000_000.0,
+                minimum_inclusive=False,
+            ),
+            minimum_cylinder_coverage_deg=_bounded_number(
+                persisted["minimumCylinderCoverageDeg"],
+                name="persisted minimum cylinder coverage",
+                minimum=0.0,
+                maximum=360.0,
+                minimum_inclusive=False,
+            ),
+            maximum_cylinder_axis_normal_component=_bounded_number(
+                persisted["maximumCylinderAxisNormalComponent"],
+                name="persisted maximum cylinder axis-normal component",
+                minimum=0.0,
+                maximum=1.0,
+            ),
+            minimum_patch_area_mm2=_bounded_number(
+                persisted["minimumPatchAreaMm2"],
+                name="persisted minimum patch area",
+                minimum=0.0,
+                maximum=1_000_000_000_000.0,
+            ),
+            stable_id_resolution_mm=_bounded_number(
+                persisted["stableIdResolutionMm"],
+                name="persisted stable-ID resolution",
+                minimum=0.0,
+                maximum=1_000_000.0,
+                minimum_inclusive=False,
+            ),
+        )
+        settings.validate()
+        return settings
+    except ValueError as exc:
+        raise JobFailure(
+            "invalid_analysis_settings",
+            "starting reconstruction",
+            "Analysis settings are invalid",
+            str(exc),
+            recoverable=True,
+            recommended_action="Re-run surface analysis before automatic reconstruction.",
         ) from exc
 
 
@@ -336,9 +444,7 @@ def _repair(payload: dict[str, Any], workdir: Path, progress: Progress) -> Handl
             ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
             ArtifactOutput("repair.json", "repair.json", "application/json", "repair"),
             ArtifactOutput("repaired.stl", "repaired.stl", "model/stl", "repaired-mesh"),
-            ArtifactOutput(
-                "repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"
-            ),
+            ArtifactOutput("repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"),
         ),
     )
 
@@ -388,9 +494,7 @@ def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> Hand
             ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
             ArtifactOutput("repair.json", "repair.json", "application/json", "repair"),
             ArtifactOutput("repaired.stl", "repaired.stl", "model/stl", "repaired-mesh"),
-            ArtifactOutput(
-                "repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"
-            ),
+            ArtifactOutput("repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"),
             ArtifactOutput(
                 "analysis-proxy.glb",
                 "analysis-proxy.glb",
@@ -413,9 +517,7 @@ def _reconstruction_project_settings(
     payload: dict[str, Any], result: dict[str, Any]
 ) -> dict[str, Any]:
     project_state = payload.get("projectState")
-    previous_settings = (
-        project_state.get("settings") if isinstance(project_state, dict) else None
-    )
+    previous_settings = project_state.get("settings") if isinstance(project_state, dict) else None
     settings = copy.deepcopy(previous_settings) if isinstance(previous_settings, dict) else {}
     candidates = result.get("candidates")
     selected = result.get("selectedCandidate")
@@ -426,14 +528,208 @@ def _reconstruction_project_settings(
     return settings
 
 
+def _faceted_sewing_tolerance(payload: dict[str, Any]) -> float | None:
+    from mesh2param.units import (
+        DEFAULT_FACETED_SEWING_TOLERANCE_MM,
+        MAXIMUM_FACETED_SEWING_TOLERANCE_MM,
+        MILLIMETERS_PER_UNIT,
+        millimeters_to_project_units,
+    )
+
+    raw = payload.get("settings", {})
+    if not isinstance(raw, dict):
+        raise JobFailure(
+            "invalid_reconstruction_settings",
+            "starting reconstruction",
+            "Reconstruction settings are invalid",
+            "Reconstruction settings must be an object.",
+            recoverable=True,
+            recommended_action="Use the reconstruction controls offered by the current UI.",
+        )
+    if raw.get("mode") != "faceted":
+        return None
+    if set(raw) - {"mode", "sewingTolerance"}:
+        raise JobFailure(
+            "invalid_faceted_settings",
+            "sewing facets",
+            "Faceted fallback settings are invalid",
+            "Faceted fallback settings contain an unsupported field.",
+            recoverable=True,
+            recommended_action="Use only the displayed sewing-tolerance control.",
+        )
+    units = payload.get("units")
+    if not isinstance(units, str) or units not in MILLIMETERS_PER_UNIT:
+        raise JobFailure(
+            "invalid_faceted_settings",
+            "sewing facets",
+            "Faceted fallback settings are invalid",
+            "Faceted sewing requires explicit mm, cm, m, in, or ft project units.",
+            recoverable=True,
+            recommended_action="Restore a supported project unit before retrying.",
+        )
+    default_tolerance = millimeters_to_project_units(
+        DEFAULT_FACETED_SEWING_TOLERANCE_MM,
+        units,
+    )
+    maximum_tolerance = millimeters_to_project_units(
+        MAXIMUM_FACETED_SEWING_TOLERANCE_MM,
+        units,
+    )
+    try:
+        return _bounded_number(
+            raw.get("sewingTolerance", default_tolerance),
+            name="sewing tolerance",
+            minimum=0.0,
+            maximum=maximum_tolerance,
+            minimum_inclusive=False,
+        )
+    except ValueError as exc:
+        raise JobFailure(
+            "invalid_faceted_settings",
+            "sewing facets",
+            "Faceted fallback settings are invalid",
+            str(exc),
+            recoverable=True,
+            recommended_action=(
+                "Use a positive sewing tolerance no larger than "
+                f"{maximum_tolerance:g} {units} (10 mm)."
+            ),
+        ) from exc
+
+
+def _faceted_reconstruct(
+    payload: dict[str, Any],
+    workdir: Path,
+    progress: Progress,
+    sewing_tolerance: float,
+) -> HandlerOutput:
+    from mesh2param import FacetedFallbackError, create_faceted_fallback
+    from mesh2param.units import MILLIMETERS_PER_UNIT
+
+    units = payload.get("units")
+    if not isinstance(units, str) or units not in MILLIMETERS_PER_UNIT:
+        raise JobFailure(
+            "invalid_faceted_settings",
+            "sewing facets",
+            "Faceted fallback settings are invalid",
+            "Faceted sewing requires explicit mm, cm, m, in, or ft project units.",
+            recoverable=True,
+            recommended_action="Restore a supported project unit before retrying.",
+        )
+    source_descriptor = payload.get("source")
+    if not isinstance(source_descriptor, dict):
+        raise JobFailure(
+            "faceted_source_metadata_required",
+            "validating upload",
+            "Faceted source metadata is required",
+            "The preserved source descriptor is unavailable for this conversion.",
+            recoverable=True,
+            recommended_action="Re-upload the original STL before retrying.",
+        )
+    progress(
+        "sewing facets",
+        12.0,
+        f"Sewing preserved source facets within {sewing_tolerance:g} {units}",
+    )
+    try:
+        fallback = create_faceted_fallback(
+            _source_path(payload),
+            workdir,
+            units=units,
+            sewing_tolerance=sewing_tolerance,
+            source_descriptor=source_descriptor,
+            mesh_limits=_mesh_limits(payload),
+        )
+    except FacetedFallbackError as exc:
+        raise JobFailure(
+            exc.code,
+            exc.phase,
+            "Faceted STEP fallback could not complete",
+            str(exc),
+            recoverable=True,
+            recommended_action=(
+                "Re-import with source units matching project units and scale factor 1."
+                if exc.code == "faceted_source_transform_unsupported"
+                else "Inspect the open boundaries and increase the tolerance only when the "
+                "intended seam gap is known."
+            ),
+        ) from exc
+    progress("reimporting STEP", 94.0, "Kernel-validated faceted STEP reimport completed")
+    graph_document = fallback.graph.model_dump(mode="json", by_alias=True)
+    validation = json.loads((workdir / "validation.json").read_text(encoding="utf-8"))
+    artifact_map: dict[str, tuple[str, str, str]] = {
+        "analysis": ("analysis.json", "application/json", "analysis"),
+        "sourceOriginal": ("source.original.stl", "model/stl", "source"),
+        "sourceGlb": ("source.glb", "model/gltf-binary", "source-mesh"),
+        "repair": ("repair.json", "application/json", "repair"),
+        "repairedMesh": ("repaired.stl", "model/stl", "repaired-mesh"),
+        "repairedGlb": ("repaired.glb", "model/gltf-binary", "repaired-mesh"),
+        "cadgraph": ("model.cadgraph.json", "application/json", "cadgraph"),
+        "cadquerySource": ("model.cq.py", "text/x-python", "cadquery-source"),
+        "step": ("model.step", "model/step", "step"),
+        "modelGlb": (
+            "reconstructed.glb",
+            "model/gltf-binary",
+            "preserved-source-proxy",
+        ),
+        "validation": ("validation.json", "application/json", "validation"),
+        "facetedFallback": (
+            "faceted-fallback.json",
+            "application/json",
+            "faceted-fallback",
+        ),
+    }
+    artifacts = [
+        ArtifactOutput(name, name, media_type, kind)
+        for key, (name, media_type, kind) in artifact_map.items()
+        if key in fallback.artifacts
+    ]
+    if (workdir / "manifest.json").is_file():
+        artifacts.append(
+            ArtifactOutput("manifest.json", "manifest.json", "application/json", "manifest")
+        )
+    project_state = payload.get("projectState")
+    prior_settings = project_state.get("settings") if isinstance(project_state, dict) else None
+    settings = copy.deepcopy(prior_settings) if isinstance(prior_settings, dict) else {}
+    settings.pop("candidateHistories", None)
+    settings.pop("selectedCandidate", None)
+    settings["facetedFallback"] = {
+        "nonParametric": True,
+        "sewingTolerance": sewing_tolerance,
+        "units": units,
+        "sourceSha256": fallback.source.metadata.sha256,
+    }
+    return HandlerOutput(
+        result=fallback.to_dict(),
+        state_patch={
+            "diagnostics": fallback.source.diagnostics.to_dict(),
+            "repair": fallback.repair.to_dict(),
+            "cadgraph": graph_document,
+            "validation": validation,
+            "metrics": graph_document["fitMetrics"],
+            "settings": settings,
+        },
+        artifacts=tuple(artifacts),
+    )
+
+
 def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
-    from mesh2param import ReconstructionError, reconstruct_file
+    from mesh2param import ReconstructionError, ReconstructionSettings, reconstruct_file
+
+    sewing_tolerance = _faceted_sewing_tolerance(payload)
+    if sewing_tolerance is not None:
+        return _faceted_reconstruct(payload, workdir, progress, sewing_tolerance)
 
     try:
+        reconstruction_settings = ReconstructionSettings(
+            mesh_limits=_mesh_limits(payload),
+            segmentation=_reconstruction_segmentation_settings(payload),
+        )
         reconstruction = reconstruct_file(
             _source_path(payload),
             workdir,
             units=str(payload.get("units", "mm")),
+            settings=reconstruction_settings,
             progress_callback=lambda phase, value: progress(phase, value, None),
         )
     except ReconstructionError as exc:
@@ -443,7 +739,11 @@ def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
             "Automatic reconstruction could not complete",
             str(exc),
             recoverable=True,
-            recommended_action="Review the partial diagnostics or use manual feature tools.",
+            recommended_action=(
+                "Use the explicit faceted STEP fallback for freeform geometry."
+                if exc.code == "unsupported-freeform-remainder"
+                else "Review the partial diagnostics or use manual feature tools."
+            ),
         ) from exc
 
     graph_document = reconstruction.graph.model_dump(mode="json", by_alias=True)
@@ -510,9 +810,12 @@ def _graph_build(
         compile_cadgraph,
         export_glb,
         export_step_validated,
+        ingest_mesh,
         write_cadquery_source,
     )
+    from mesh2param.tessellation import write_glb
     from mesh2param_contracts import CADGraph, canonical_json
+    from mesh2param_contracts.models import ImportedFacetedFeature
 
     payload_graph = payload.get("cadgraph")
     if not isinstance(payload_graph, dict):
@@ -539,8 +842,27 @@ def _graph_build(
             )
         project_tolerance["surfaceDeviation"] = surface_deviation
     graph = CADGraph.model_validate(raw_graph)
+    imported_features = [
+        feature for feature in graph.features if isinstance(feature, ImportedFacetedFeature)
+    ]
+    faceted_derived = bool(imported_features)
+    faceted_base = (
+        len(graph.features) == 1
+        and len(imported_features) == 1
+        and imported_features[0].boolean_mode == "base"
+    )
+    artifact_resolver: dict[str, Path] = {}
+    if imported_features:
+        source_path = _source_path(payload)
+        artifact_resolver = {
+            feature.source_artifact_id: source_path for feature in imported_features
+        }
     progress("building B-Rep", 30.0, "Compiling the authoritative CADGraph")
-    compilation = compile_cadgraph(graph)
+    compilation = (
+        compile_cadgraph(graph, artifact_resolver=artifact_resolver)
+        if artifact_resolver
+        else compile_cadgraph(graph)
+    )
     if not compilation.success:
         error = compilation.errors[0] if compilation.errors else None
         raise JobFailure(
@@ -557,40 +879,87 @@ def _graph_build(
         )
     shape = compilation.require_shape()
     progress("exporting STEP", 65.0, "Exporting the validated solid")
-    step = export_step_validated(shape, workdir / "model.step", units=graph.units)
+    step = (
+        export_step_validated(
+            shape,
+            workdir / "model.step",
+            units=graph.units,
+            linear_resolution=float(graph.project_tolerance.linear_resolution),
+            require_tessellation=False,
+        )
+        if faceted_base
+        else export_step_validated(shape, workdir / "model.step", units=graph.units)
+    )
     progress("reimporting STEP", 82.0, "STEP reimport validation completed")
     tolerance_satisfied = (
-        graph.fit_metrics.p95_surface_distance
-        <= graph.project_tolerance.surface_deviation
-        and graph.fit_metrics.max_surface_distance
-        <= graph.project_tolerance.surface_deviation
+        None
+        if faceted_derived
+        else (
+            graph.fit_metrics.p95_surface_distance <= graph.project_tolerance.surface_deviation
+            and graph.fit_metrics.max_surface_distance <= graph.project_tolerance.surface_deviation
+        )
+    )
+    validation_status = (
+        "partial"
+        if faceted_derived and step.valid
+        else "valid"
+        if step.valid and tolerance_satisfied is True
+        else "invalid"
     )
     graph_document = graph.model_dump(mode="json", by_alias=True)
     graph_document["validation"] = {
-        "status": "valid" if step.valid and tolerance_satisfied else "invalid",
+        "status": validation_status,
         "brepValid": step.source.valid,
         "stepReimportValid": step.reimport.valid,
         "toleranceSatisfied": tolerance_satisfied,
         "checkedAt": graph.validation.checked_at,
         "lastValidFeatureId": graph.validation.last_valid_feature_id,
         "issues": [
-            issue.model_dump(mode="json", by_alias=True)
-            for issue in graph.validation.issues
+            issue.model_dump(mode="json", by_alias=True) for issue in graph.validation.issues
         ],
     }
     final_graph = CADGraph.model_validate(graph_document)
     graph_path = workdir / "model.cadgraph.json"
     graph_path.write_text(canonical_json(final_graph), encoding="utf-8", newline="\n")
-    write_cadquery_source(final_graph, workdir / "model.cq.py")
-    export_glb(shape, workdir / "reconstructed.glb")
+    generated_artifact_paths = (
+        {feature.source_artifact_id: "source.original.stl" for feature in imported_features}
+        if imported_features
+        else None
+    )
+    if generated_artifact_paths is None:
+        write_cadquery_source(final_graph, workdir / "model.cq.py")
+    else:
+        write_cadquery_source(
+            final_graph,
+            workdir / "model.cq.py",
+            artifact_paths=generated_artifact_paths,
+        )
+    if imported_features:
+        shutil.copyfile(_source_path(payload), workdir / "source.original.stl")
+    if faceted_base:
+        faceted_source = ingest_mesh(_source_path(payload), limits=_mesh_limits(payload))
+        write_glb(_mesh_tessellation(faceted_source.mesh), workdir / "reconstructed.glb")
+    else:
+        export_glb(shape, workdir / "reconstructed.glb")
     validation = {
-        "status": "valid" if step.valid and tolerance_satisfied else "invalid",
+        "status": validation_status,
         "brepValid": step.source.valid,
         "stepReimportValid": step.reimport.valid,
         "toleranceSatisfied": tolerance_satisfied,
         "step": step.to_dict(),
         "compilation": compilation.to_dict(),
     }
+    if faceted_derived:
+        validation["facetedFallback"] = {
+            "nonParametric": True,
+            "sewingTolerance": imported_features[0].sewing_tolerance,
+            "sewingToleranceUnits": graph.units,
+            "importedFeatureCount": len(imported_features),
+            "sourcePreserved": True,
+            "geometricDeviationMeasured": False,
+            "browserTessellation": ("preserved-source-proxy" if faceted_base else "kernel-result"),
+            "browserTessellationRepresentsKernelResult": not faceted_base,
+        }
     _json(workdir / "validation.json", validation)
     artifacts = [
         ArtifactOutput("model.step", "model.step", "model/step", "step"),
@@ -599,18 +968,25 @@ def _graph_build(
         ),
         ArtifactOutput("model.cq.py", "model.cq.py", "text/x-python", "cadquery-source"),
         ArtifactOutput(
-            "reconstructed.glb", "reconstructed.glb", "model/gltf-binary", "reconstructed"
+            "reconstructed.glb",
+            "reconstructed.glb",
+            "model/gltf-binary",
+            "preserved-source-proxy" if faceted_base else "reconstructed",
         ),
-        ArtifactOutput(
-            "validation.json", "validation.json", "application/json", "validation"
-        ),
+        ArtifactOutput("validation.json", "validation.json", "application/json", "validation"),
     ]
+    if imported_features:
+        artifacts.append(
+            ArtifactOutput("source.original.stl", "source.original.stl", "model/stl", "source")
+        )
     if export_bundle:
         from mesh2param_api.storage import validate_artifact_name
 
-        reserved_names = {
-            artifact.name for artifact in artifacts
-        } | {"manifest.json", "mesh2param-export.zip", "project.mesh2param.json"}
+        reserved_names = {artifact.name for artifact in artifacts} | {
+            "manifest.json",
+            "mesh2param-export.zip",
+            "project.mesh2param.json",
+        }
         prior_artifacts = payload.get("priorArtifacts", [])
         if not isinstance(prior_artifacts, list) or len(prior_artifacts) > 128:
             raise JobFailure(
@@ -730,9 +1106,7 @@ def _graph_build(
     return HandlerOutput(
         result={
             "validation": validation,
-            "artifactValidationState": (
-                "valid" if step.valid and tolerance_satisfied else "invalid"
-            ),
+            "artifactValidationState": validation_status,
         },
         state_patch={"cadgraph": graph_document, "validation": validation},
         artifacts=tuple(artifacts),
@@ -769,9 +1143,7 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
     artifacts = (
         ArtifactOutput("source-high.stl", f"{slug}/source-high.stl", "model/stl", "source"),
         ArtifactOutput("source-low.stl", f"{slug}/source-low.stl", "model/stl", "source"),
-        ArtifactOutput(
-            "source-random.stl", f"{slug}/source-random.stl", "model/stl", "source"
-        ),
+        ArtifactOutput("source-random.stl", f"{slug}/source-random.stl", "model/stl", "source"),
         ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
         ArtifactOutput("model.step", f"{slug}/model.step", "model/step", "step"),
         ArtifactOutput(
