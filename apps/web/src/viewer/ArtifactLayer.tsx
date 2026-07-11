@@ -3,6 +3,7 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { GLTF } from "three-stdlib";
+import { surfaceColor, viewerPalette, type ViewerTheme } from "./viewerTheme";
 
 export interface SelectionRange {
   triangleStart: number;
@@ -34,6 +35,7 @@ interface ArtifactLayerProps {
   mode: string;
   opacity: number;
   wireframe: boolean;
+  theme: ViewerTheme;
   selectionRanges: SelectionRange[];
   selectedPatchId: string | null;
   sectionPlane: THREE.Plane | null;
@@ -48,6 +50,7 @@ export function ArtifactLayer({
   mode,
   opacity,
   wireframe,
+  theme,
   selectionRanges,
   selectedPatchId,
   sectionPlane,
@@ -57,6 +60,7 @@ export function ArtifactLayer({
   onMeasurePoint,
 }: ArtifactLayerProps) {
   const gltf = useGLTF(url) as GLTF;
+  const palette = viewerPalette(theme);
   const object = useMemo(() => {
     const clone = gltf.scene.clone(true);
     clone.traverse((child) => {
@@ -71,20 +75,21 @@ export function ArtifactLayer({
       material.clippingPlanes = sectionPlane === null ? null : [sectionPlane];
       if (material instanceof THREE.MeshStandardMaterial) {
         material.flatShading = true;
+        material.roughness = 0.72;
+        material.metalness = 0.04;
+        const color = surfaceColor(mode, palette);
+        if (color !== null) material.color = new THREE.Color(color);
         material.needsUpdate = true;
       }
-      if (mode === "patches") {
-        material.vertexColors = false;
-        material.color = new THREE.Color("#4da3ff");
-      }
+      if (mode === "patches") material.vertexColors = false;
       child.material = material;
     });
     return clone;
-  }, [gltf.scene, mode, opacity, sectionPlane, wireframe]);
+  }, [gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
 
   const highlight = useMemo(
-    () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId) : null,
-    [mode, object, selectedPatchId, selectionRanges],
+    () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
+    [mode, object, palette, selectedPatchId, selectionRanges],
   );
 
   useEffect(() => {
@@ -133,6 +138,7 @@ function makePatchHighlight(
   object: THREE.Object3D,
   ranges: SelectionRange[],
   selectedPatchId: string | null,
+  palette: ReturnType<typeof viewerPalette>,
 ): THREE.Mesh | null {
   const selected = selectedTriangleRanges(ranges, selectedPatchId);
   if (selected.length === 0) return null;
@@ -163,9 +169,9 @@ function makePatchHighlight(
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
-    color: "#9dd7ff",
-    emissive: "#0a78d4",
-    emissiveIntensity: 1.35,
+    color: palette.highlight,
+    emissive: palette.highlightEmissive,
+    emissiveIntensity: palette.highlightEmissiveIntensity,
     transparent: true,
     opacity: 0.86,
     side: THREE.DoubleSide,

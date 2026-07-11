@@ -20,6 +20,7 @@ import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
 import type { ViewPreset } from "./cameraMath";
+import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
 
 const MODES: ReadonlyArray<{ id: ViewerMode; label: string }> = [
@@ -36,6 +37,7 @@ interface CadViewportProps {
   projectId: string;
   artifacts: ArtifactDescriptor[];
   preferences: ViewerPreferences;
+  theme: ViewerTheme;
   selectedPatchId: string | null;
   onPreferences(patch: Partial<ViewerPreferences>): void;
   onSelectPatch(id: string | null): void;
@@ -45,6 +47,7 @@ export function CadViewport({
   projectId,
   artifacts,
   preferences,
+  theme,
   selectedPatchId,
   onPreferences,
   onSelectPatch,
@@ -56,6 +59,7 @@ export function CadViewport({
   const [measurementEnabled, setMeasurementEnabled] = useState(false);
   const [measurementPoints, setMeasurementPoints] = useState<THREE.Vector3[]>([]);
   const controls = useRef<OrbitControlsImpl | null>(null);
+  const palette = viewerPalette(theme);
   const artifactMap = useMemo(() => new Map(artifacts.map((artifact) => [artifact.name, artifact])), [artifacts]);
   const selectionArtifact = artifactMap.get("selection-map.json");
   useEffect(() => {
@@ -203,12 +207,13 @@ export function CadViewport({
             gl.domElement.addEventListener("webglcontextlost", (event) => event.preventDefault());
           }}
         >
-          <color attach="background" args={[viewerBackground()]} />
-          <ambientLight intensity={1.1} />
-          <directionalLight position={[80, -60, 100]} intensity={2.2} />
-          <directionalLight position={[-70, 80, 30]} intensity={0.8} />
+          <color key={palette.background} attach="background" args={[palette.background]} />
+          <ambientLight intensity={palette.ambientIntensity} />
+          <directionalLight position={[80, -60, 100]} intensity={palette.keyIntensity} />
+          <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
           <gridHelper
-            args={[300, 30, "#173a5b", "#10243a"]}
+            key={`${palette.gridMajor}-${palette.gridMinor}`}
+            args={[300, 30, palette.gridMajor, palette.gridMinor]}
             rotation={[Math.PI / 2, 0, 0]}
             position={[0, 0, -0.02]}
           />
@@ -217,11 +222,12 @@ export function CadViewport({
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
               <ArtifactLayer
-                key={`${layer.artifact.sha256}-${layer.opacity}-${preferences.shading}`}
+                key={`${layer.artifact.sha256}-${layer.opacity}-${preferences.shading}-${theme}`}
                 url={apiClient.artifactUrl(projectId, layer.artifact.name, layer.artifact.sha256)}
                 mode={layer.mode}
                 opacity={layer.opacity}
                 wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
+                theme={theme}
                 selectionRanges={layer.mode === "patches" ? selection : []}
                 selectedPatchId={selectedPatchId}
                 sectionPlane={sectionPlane}
@@ -372,11 +378,6 @@ function isSelectionMap(value: unknown): value is { artifact: { sha256: string }
     && typeof (raw.artifact as Record<string, unknown>).sha256 === "string"
     && Array.isArray(raw.ranges),
   );
-}
-
-function viewerBackground(): string {
-  if (typeof document === "undefined") return "#070b10";
-  return getComputedStyle(document.documentElement).getPropertyValue("--color-viewport").trim() || "#070b10";
 }
 
 class ViewerErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
