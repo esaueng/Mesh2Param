@@ -159,6 +159,7 @@ def _sample_catalog_entry(spec: SampleSpec) -> dict[str, Any]:
         "expectedVolume": spec.expected_volume,
         "expectedPlanarFaces": spec.expected_planar_faces,
         "expectedCylindricalFaces": spec.expected_cylindrical_faces,
+        "automaticReconstructionSupported": spec.automatic_reconstruction_supported,
         "triangleCount": triangle_count,
         "intendedOperations": intended_operations,
         "toleranceMm": float(tolerance_mm),

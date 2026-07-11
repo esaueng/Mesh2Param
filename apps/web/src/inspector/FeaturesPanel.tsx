@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Boxes, Plus, Sparkles } from "lucide-react";
+import { Boxes, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { Button, NumberField, PanelSection, SelectField } from "@mesh2param/ui";
 import type { CADGraph, Feature } from "@mesh2param/contracts";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
@@ -7,6 +7,7 @@ import type { CandidateHistory } from "../state/types";
 import { apiClient } from "../api/client";
 import { InspectorFrame } from "../workspace/InspectorFrame";
 import { JobProgress } from "./shared";
+import { automaticReconstructionCapability } from "../workspace/automaticReconstruction";
 import {
   candidatesFromSettings,
   selectableCandidateGraph,
@@ -29,6 +30,7 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
   const persistedCandidates = candidatesFromSettings(vm.project.state.settings.candidateHistories);
   const candidates = artifactCandidates ?? persistedCandidates;
   const selectedCandidate = selectedCandidateLabel(graph, vm.project.state.settings);
+  const automaticReconstruction = automaticReconstructionCapability(vm.project.state);
   useEffect(() => {
     setArtifactCandidates(null);
     if (candidateArtifact === undefined) return;
@@ -75,14 +77,25 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
         ? <JobProgress state={vm.activeJob} onCancel={() => void actions.cancelJob()} />
         : null}
       <PanelSection title="Automatic reconstruction">
-        <p className="panel-note">Candidate search rejects kernel-invalid solids before scoring geometric fit.</p>
+        <p className="panel-note">{automaticReconstruction.supported
+          ? "Candidate search rejects kernel-invalid solids before scoring geometric fit."
+          : automaticReconstruction.reason}</p>
         <Button
           variant="primary"
           onClick={() => void actions.run("reconstruct")}
-          disabled={!vm.workerReady || !vm.serverWritable || !vm.project.state.source || Boolean(vm.activeJob)}
+          title={automaticReconstruction.supported ? undefined : automaticReconstruction.reason}
+          disabled={!automaticReconstruction.supported || !vm.workerReady || !vm.serverWritable || !vm.project.state.source || Boolean(vm.activeJob)}
         >
           <Sparkles size={16} />Auto reconstruct
         </Button>
+        {!automaticReconstruction.supported && graph !== null ? (
+          <Button
+            onClick={() => void actions.run("rebuild")}
+            disabled={!vm.workerReady || !vm.serverWritable || Boolean(vm.activeJob)}
+          >
+            <RefreshCw size={16} />Rebuild sample CADGraph
+          </Button>
+        ) : null}
       </PanelSection>
       <PanelSection title="Add feature">
         <SelectField
@@ -122,7 +135,9 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
         <FeatureList features={features} selected={vm.selectedFeatureId} onSelect={actions.selectFeature} />
       </PanelSection>
       <PanelSection title={`Candidate histories · ${candidates.length}`}>
-        {candidates.length === 0 ? <p className="panel-note">Run automatic reconstruction to generate bounded, kernel-checked alternatives.</p> : (
+        {candidates.length === 0 ? <p className="panel-note">{automaticReconstruction.supported
+          ? "Run automatic reconstruction to generate bounded, kernel-checked alternatives."
+          : "Automatic candidate histories are unavailable for this exact reference sample."}</p> : (
           <div className="version-list candidate-list">
             {candidates.map((candidate) => (
               <button

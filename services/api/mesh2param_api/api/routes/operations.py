@@ -10,6 +10,10 @@ from typing import Literal
 from fastapi import APIRouter, Body, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
 from mesh2param import __version__ as engine_version
+from mesh2param.samples import (
+    AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE,
+    sample_spec,
+)
 from mesh2param_contracts import content_sha256
 
 from ...config import Settings
@@ -22,6 +26,46 @@ from ..dependencies import repository, settings, storage
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["operations"])
 OperationName = Literal["repair", "analyze", "reconstruct", "rebuild", "validate", "export"]
+
+
+def _unsupported_sample_reconstruction_reason(state: dict[str, object]) -> str | None:
+    cadgraph = state.get("cadgraph")
+    if not isinstance(cadgraph, dict):
+        return None
+    extensions = cadgraph.get("extensions")
+    sample_extension = (
+        extensions.get("mesh2param.dev/sample") if isinstance(extensions, dict) else None
+    )
+    slug = sample_extension.get("slug") if isinstance(sample_extension, dict) else None
+    if not isinstance(slug, str):
+        return None
+
+    settings = state.get("settings")
+    if isinstance(settings, dict):
+        capability = settings.get("automaticReconstruction")
+        capability_sample_id = (
+            capability.get("sampleId") if isinstance(capability, dict) else None
+        )
+        if (
+            isinstance(capability, dict)
+            and capability.get("supported") is False
+            and (capability_sample_id is None or capability_sample_id == slug)
+        ):
+            reason = capability.get("reason")
+            if isinstance(reason, str) and reason.strip():
+                return reason
+            return AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE
+
+    try:
+        spec = sample_spec(slug)
+    except KeyError:
+        return None
+    if spec.automatic_reconstruction_supported:
+        return None
+    return (
+        f"{AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE} "
+        "This exact sample already includes an editable CADGraph."
+    )
 
 
 def _job_response(request: Request, job: dict[str, object]) -> JSONResponse:
@@ -85,6 +129,20 @@ def _operation_payload(
                 "inputHash": digest,
             }
         )
+        if operation == "reconstruct":
+            unsupported_reason = _unsupported_sample_reconstruction_reason(state)
+            if unsupported_reason is not None:
+                raise APIError(
+                    409,
+                    "automatic_reconstruction_unsupported",
+                    "Automatic reconstruction is unavailable for this sample",
+                    unsupported_reason,
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action=(
+                        "Use Rebuild sample CADGraph to exercise the exact editable model."
+                    ),
+                )
     else:
         cadgraph = state.get("cadgraph")
         if not isinstance(cadgraph, dict):

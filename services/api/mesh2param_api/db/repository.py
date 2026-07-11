@@ -260,6 +260,11 @@ class Repository:
                 "state": "pending",
             }
             document = copy.deepcopy(state.document_json)
+            project_settings = document.get("settings")
+            if isinstance(project_settings, dict):
+                project_settings = copy.deepcopy(project_settings)
+                project_settings.pop("automaticReconstruction", None)
+                document["settings"] = project_settings
             document.update(
                 {
                     "source": source_document,
@@ -801,6 +806,7 @@ class Repository:
                 code=code,
                 data={
                     "status": status.value,
+                    "detail": detail,
                     "recoverable": recoverable,
                     "recommendedAction": recommended_action,
                 },
@@ -868,7 +874,11 @@ class Repository:
                 level="error",
                 message=job.error_summary,
                 code="worker_crash",
-                data={"status": "failed", "exitCode": exit_code},
+                data={
+                    "status": "failed",
+                    "detail": job.error_detail,
+                    "exitCode": exit_code,
+                },
             )
             return False
 
@@ -974,7 +984,11 @@ class Repository:
                     level="error",
                     message=job.error_summary,
                     code="worker_abandoned",
-                    data={"status": "failed", "recoverable": True},
+                    data={
+                        "status": "failed",
+                        "detail": job.error_detail,
+                        "recoverable": True,
+                    },
                 )
             return len(jobs)
 

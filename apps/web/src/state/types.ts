@@ -299,6 +299,7 @@ export interface JobEvent {
   progress: number | null;
   level: "debug" | "info" | "warning" | "error";
   message: string | null;
+  detail?: string | null;
   code: string | null;
   timestamp: IsoTimestamp;
   status?: JobStatus;
@@ -355,6 +356,7 @@ export interface SampleDescriptor {
   expectedVolume: number;
   expectedPlanarFaces: number;
   expectedCylindricalFaces: number;
+  automaticReconstructionSupported: boolean;
   triangleCount: number;
   intendedOperations: string[];
   toleranceMm: number;
