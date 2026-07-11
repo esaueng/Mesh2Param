@@ -16,6 +16,7 @@ import {
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { apiClient } from "../api/client";
+import { debugLog } from "../canvas/debugLog";
 import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state/types";
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
@@ -404,7 +405,7 @@ class ViewerErrorBoundary extends Component<{ children: ReactNode }, { error: st
     return { error: error instanceof Error ? error.message : String(error) };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Mesh2Param viewer error", error, info);
+    debugLog.error("viewer", `Geometry render failed: ${error.message}`, info.componentStack ?? undefined);
   }
   render() {
     return this.state.error === null ? this.props.children : (
