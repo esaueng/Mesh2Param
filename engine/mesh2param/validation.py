@@ -6,7 +6,7 @@ import hashlib
 import os
 import re
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -43,9 +43,22 @@ class ShapeValidation:
         return not self.errors
 
     def to_dict(self) -> dict[str, Any]:
-        result = asdict(self)
-        result["valid"] = self.valid
-        return result
+        return {
+            "rootType": self.root_type,
+            "solidCount": self.solid_count,
+            "cadqueryValid": self.cadquery_valid,
+            "occtValid": self.occt_valid,
+            "closed": self.closed,
+            "positiveVolume": self.positive_volume,
+            "volume": self.volume,
+            "area": self.area,
+            "faceCount": self.face_count,
+            "edgeCount": self.edge_count,
+            "vertexCount": self.vertex_count,
+            "triangleCount": self.triangle_count,
+            "errors": list(self.errors),
+            "valid": self.valid,
+        }
 
 
 @dataclass(frozen=True, slots=True)

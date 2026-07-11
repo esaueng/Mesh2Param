@@ -35,7 +35,9 @@ def test_generated_cadquery_source_is_deterministic_and_data_only() -> None:
 
 def test_cli_help_and_sample_listing(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 0
-    assert "compile" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "reconstruct" in output
+    assert "rebuild" in output
     assert main(["samples", "list"]) == 0
     output = capsys.readouterr().out
     assert "rectangular-block" in output
