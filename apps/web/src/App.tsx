@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { apiClient } from "./api/client";
 import { normalizeApiError } from "./api/errors";
 import { workspaceRepository } from "./persistence/repository";
-import { StartScreen } from "./start/StartScreen";
+import { CanvasLanding } from "./canvas/CanvasLanding";
 import { workspaceStore } from "./state/store";
 import type {
   Job,
@@ -10,6 +10,7 @@ import type {
   ProjectDetail,
   Readiness,
   SampleDescriptor,
+  Units,
 } from "./state/types";
 import { normalizeProjectDetail } from "./workspace/normalize";
 
@@ -23,6 +24,7 @@ export default function App() {
   const [recentProjects, setRecentProjects] = useState<ProjectDetail[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [initialJob, setInitialJob] = useState<Job | null>(null);
+  const [initialUpload, setInitialUpload] = useState<{ file: File; units: Units; scale: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,6 +88,7 @@ export default function App() {
     project: ProjectDetail,
     job: Job | null = null,
     ui: PersistedProjectUI | null = null,
+    upload: { file: File; units: Units; scale: number } | null = null,
   ) {
     workspaceStore.getState().hydrateProject(normalizeProjectDetail(project));
     if (ui !== null) {
@@ -97,6 +100,7 @@ export default function App() {
     }
     sessionStorage.setItem("mesh2param-active-project", project.id);
     setInitialJob(job);
+    setInitialUpload(upload);
     setError(null);
     setScreen("workspace");
   }
@@ -120,9 +124,11 @@ export default function App() {
         <WorkspaceController
           workerReady={readiness?.status === "ready"}
           initialJob={initialJob}
+          initialUpload={initialUpload}
           onOpenStart={() => {
             sessionStorage.removeItem("mesh2param-active-project");
             setInitialJob(null);
+            setInitialUpload(null);
             setScreen("start");
           }}
         />
@@ -131,17 +137,17 @@ export default function App() {
   }
 
   return (
-    <StartScreen
+    <CanvasLanding
       samples={samples}
       recentProjects={recentProjects}
       readiness={readiness}
       busy={busy}
       error={error}
-      onNew={() => void withBusy(async () => {
-        const result = await apiClient.createProject("Untitled conversion", "mm");
-        openWorkspace(result.data);
+      onOpenMesh={(file) => void withBusy(async () => {
+        const result = await apiClient.createProject(deriveProjectName(file.name), "mm");
+        openWorkspace(result.data, null, null, { file, units: "mm", scale: 1 });
       })}
-      onOpen={(file) => void withBusy(async () => {
+      onOpenProjectFile={(file) => void withBusy(async () => {
         const parsed = await workspaceRepository.importProjectFileBlob(file);
         openWorkspace(
           { ...parsed.file.project, state: parsed.file.working },
@@ -168,6 +174,10 @@ export default function App() {
       })}
     />
   );
+}
+
+function deriveProjectName(filename: string): string {
+  return filename.replace(/\.[^.]+$/, "").trim() || "Untitled conversion";
 }
 
 function mergeRecents(
