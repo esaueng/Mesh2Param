@@ -1,0 +1,348 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "project.bracket",
+  "name": "Mesh2Param Bracket",
+  "units": "mm",
+  "source": {
+    "format": "generated",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "originalFileName": "bracket.generated",
+    "byteSize": 0,
+    "triangleCount": 0,
+    "declaredUnits": "mm",
+    "scaleFactor": 1
+  },
+  "sourceCoordinateFrame": {
+    "origin": { "x": 0, "y": 0, "z": 0 },
+    "xAxis": { "x": 1, "y": 0, "z": 0 },
+    "yAxis": { "x": 0, "y": 1, "z": 0 },
+    "zAxis": { "x": 0, "y": 0, "z": 1 },
+    "locked": false,
+    "confidence": 1,
+    "evidenceIds": ["evidence.source"]
+  },
+  "projectTolerance": {
+    "surfaceDeviation": 0.1,
+    "angularDeviationDeg": 1,
+    "linearResolution": 0.001
+  },
+  "sketches": [
+    {
+      "id": "sketch.base",
+      "name": "Base sketch",
+      "plane": {
+        "origin": { "x": 0, "y": 0, "z": 0 },
+        "normal": { "x": 0, "y": 0, "z": 1 },
+        "xAxis": { "x": 1, "y": 0, "z": 0 }
+      },
+      "entities": [
+        {
+          "id": "entity.point",
+          "kind": "point",
+          "construction": false,
+          "position": { "x": 1, "y": 1 },
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.constructionPoint",
+          "kind": "constructionPoint",
+          "construction": true,
+          "position": { "x": 0, "y": 0 },
+          "sourceEvidence": [],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.line.1",
+          "kind": "line",
+          "construction": false,
+          "start": { "x": 0, "y": 0 },
+          "end": { "x": 30, "y": 0 },
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.line.2",
+          "kind": "line",
+          "construction": false,
+          "start": { "x": 30, "y": 0 },
+          "end": { "x": 30, "y": 20 },
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.line.3",
+          "kind": "line",
+          "construction": false,
+          "start": { "x": 30, "y": 20 },
+          "end": { "x": 0, "y": 20 },
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.line.4",
+          "kind": "line",
+          "construction": false,
+          "start": { "x": 0, "y": 20 },
+          "end": { "x": 0, "y": 0 },
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.constructionLine",
+          "kind": "constructionLine",
+          "construction": true,
+          "start": { "x": 0, "y": 10 },
+          "end": { "x": 30, "y": 10 },
+          "sourceEvidence": [],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.polyline",
+          "kind": "polyline",
+          "construction": false,
+          "points": [
+            { "x": 0, "y": 0 },
+            { "x": 10, "y": 0 },
+            { "x": 10, "y": 10 }
+          ],
+          "closed": false,
+          "sourceEvidence": [],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.rectangle",
+          "kind": "rectangle",
+          "construction": false,
+          "origin": { "x": 0, "y": 0 },
+          "width": 30,
+          "height": 20,
+          "rotationDeg": 0,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.circle",
+          "kind": "circle",
+          "construction": false,
+          "center": { "x": 15, "y": 10 },
+          "radius": 2.5,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.arc",
+          "kind": "circularArc",
+          "construction": false,
+          "center": { "x": 15, "y": 10 },
+          "radius": 5,
+          "startAngleDeg": 0,
+          "endAngleDeg": 90,
+          "clockwise": false,
+          "sourceEvidence": [],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.closedProfile",
+          "kind": "closedProfile",
+          "construction": false,
+          "outerLoop": ["entity.line.1", "entity.line.2", "entity.line.3", "entity.line.4"],
+          "innerLoops": [["entity.circle"]],
+          "orientation": "counterclockwise",
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
+          "id": "entity.axis",
+          "kind": "constructionAxis",
+          "construction": true,
+          "origin": { "x": 0, "y": 0 },
+          "direction": { "x": 0, "y": 1 },
+          "sourceEvidence": [],
+          "confidence": 1,
+          "locked": true,
+          "suppressed": false
+        }
+      ],
+      "constraints": [
+        {
+          "id": "constraint.horizontal",
+          "kind": "horizontal",
+          "entityIds": ["entity.line.1"],
+          "unit": "none",
+          "driving": true,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false
+        },
+        {
+          "id": "constraint.diameter",
+          "kind": "diameter",
+          "entityIds": ["entity.circle"],
+          "value": 5,
+          "measuredValue": 4.98,
+          "suggestedNominalValue": 5,
+          "nominalAccepted": true,
+          "unit": "length",
+          "driving": true,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 0.98,
+          "locked": false
+        }
+      ],
+      "profiles": [
+        {
+          "id": "profile.base",
+          "name": "Base profile",
+          "outerLoop": ["entity.rectangle"],
+          "innerLoops": [["entity.circle"]],
+          "orientation": "counterclockwise",
+          "closed": true,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false
+        }
+      ],
+      "sourceEvidence": ["evidence.source"],
+      "confidence": 1,
+      "userLocks": [],
+      "overrides": [],
+      "suppressed": false
+    }
+  ],
+  "features": [
+    {
+      "id": "feature.base",
+      "name": "Base extrusion",
+      "operation": "extrusion",
+      "booleanMode": "base",
+      "order": 0,
+      "dependencies": [],
+      "suppressed": false,
+      "sourceEvidence": ["evidence.source"],
+      "confidence": 1,
+      "userLocks": [],
+      "overrides": [],
+      "semanticOutputs": ["feature.base.solid", "feature.base.edge.1"],
+      "sketchId": "sketch.base",
+      "profileIds": ["profile.base"],
+      "direction": { "x": 0, "y": 0, "z": 1 },
+      "extent": "blind",
+      "distance": 8
+    }
+  ],
+  "semanticTopology": [
+    {
+      "id": "feature.base.solid",
+      "kind": "solid",
+      "producerFeatureId": "feature.base",
+      "role": "resultSolid",
+      "generatedFrom": ["profile.base"],
+      "status": "resolved"
+    },
+    {
+      "id": "feature.base.edge.1",
+      "kind": "edge",
+      "producerFeatureId": "feature.base",
+      "role": "sideFace.profileEdge.1",
+      "generatedFrom": ["entity.line.1"],
+      "status": "resolved",
+      "kernelReference": "Edge1"
+    }
+  ],
+  "sourceEvidence": [
+    {
+      "id": "evidence.source",
+      "sourceType": "derived",
+      "sourceIds": [],
+      "confidence": 1,
+      "notes": "Deterministic contract fixture"
+    }
+  ],
+  "userLocks": [],
+  "overrides": [],
+  "reconstructionSettings": {
+    "maxFeatures": 64,
+    "beamWidth": 3,
+    "candidatesPerResidual": 4,
+    "wallClockSeconds": 300,
+    "maxRebuilds": 200,
+    "minScoreImprovement": 0.001,
+    "nominalSnappingEnabled": true,
+    "nominalSnapTolerance": 0.1,
+    "scoreWeights": {
+      "rmsDistance": 1,
+      "p95Distance": 1,
+      "maxDistance": 0.5,
+      "normalAgreement": 0.5,
+      "volumeDifference": 0.75,
+      "overlap": 0.75,
+      "sharpEdgeAlignment": 0.5,
+      "boundaryAlignment": 0.5,
+      "unmatchedSource": 1,
+      "excessResult": 1,
+      "complexity": 0.1,
+      "unsupportedOperation": 2,
+      "evidenceConfidence": 0.25
+    }
+  },
+  "engineVersions": {
+    "mesh2param": "0.1.0",
+    "contracts": "1.0.0",
+    "cadBackend": "OCCT",
+    "cadQuery": "2.5.2",
+    "ocp": "7.7.2",
+    "dependencies": {}
+  },
+  "deterministicSeed": 42,
+  "fitMetrics": {
+    "rmsSurfaceDistance": 0,
+    "p95SurfaceDistance": 0,
+    "maxSurfaceDistance": 0,
+    "normalAgreement": 1,
+    "volumeDifference": 0,
+    "overlap": 1,
+    "unmatchedSourceArea": 0,
+    "excessResultArea": 0,
+    "score": 1
+  },
+  "validation": {
+    "status": "valid",
+    "brepValid": true,
+    "stepReimportValid": true,
+    "toleranceSatisfied": true,
+    "checkedAt": "2026-07-11T00:00:00Z",
+    "lastValidFeatureId": "feature.base",
+    "issues": []
+  },
+  "versionMetadata": {
+    "versionId": "version.1",
+    "createdAt": "2026-07-11T00:00:00Z",
+    "createdBy": "contracts-test",
+    "message": "Initial fixture"
+  }
+}

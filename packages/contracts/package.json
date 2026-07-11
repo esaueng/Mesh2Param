@@ -1,0 +1,40 @@
+{
+  "name": "@mesh2param/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CADGraph schema, generated TypeScript types, validation and migration utilities",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "schema/cadgraph.schema.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": "./schema/cadgraph.schema.json"
+  },
+  "scripts": {
+    "generate": "node ./scripts/generate.mjs",
+    "generate:check": "node ./scripts/generate.mjs --check",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "verify": "pnpm generate:check && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
