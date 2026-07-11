@@ -55,6 +55,43 @@
 
 .theme-light .canvas-dock,.theme-light .canvas-progress{background:rgba(248,250,252,.94)}
 
+/* ---------- console toggle badge + inline note ---------- */
+.canvas-dock .dock-btn{position:relative}
+.canvas-dock .dock-btn.active{color:var(--color-accent);background:var(--color-accent-dim)}
+.canvas-dock .dock-btn.has-issues:not(.active){color:var(--color-warning)}
+.dock-badge{position:absolute;top:0;right:0;min-width:15px;height:15px;padding:0 3px;display:grid;place-items:center;border-radius:8px;background:var(--color-warning);color:#111821;font:700 9px/1 var(--font-mono)}
+
+.canvas-note{position:absolute;z-index:7;left:50%;bottom:74px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:min(640px,calc(100vw - 24px));padding:8px 13px;border-radius:var(--radius-md);background:rgba(17,24,33,.95);font:var(--fs-xs)/1.45 var(--font-ui);box-shadow:0 10px 30px -14px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+.canvas-note>svg{flex:none}
+.canvas-note>span{color:var(--color-text)}
+.canvas-note.warn{border:1px solid rgba(245,158,11,.5);color:var(--color-warning)}
+.canvas-note.info{border:1px solid var(--color-accent-border);color:var(--color-accent)}
+.theme-light .canvas-note{background:rgba(248,250,252,.96)}
+
+/* ---------- debug console ---------- */
+.debug-console{position:absolute;z-index:9;left:50%;bottom:74px;transform:translateX(-50%);width:min(940px,calc(100vw - 24px));max-height:min(46vh,440px);display:grid;grid-template-rows:auto minmax(0,1fr);border:1px solid var(--color-border-strong);border-radius:10px;background:rgba(13,18,24,.98);box-shadow:0 22px 54px -18px rgba(0,0,0,.75);backdrop-filter:blur(10px);overflow:hidden}
+.theme-light .debug-console{background:rgba(248,250,252,.98)}
+.dc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--color-border);background:var(--color-surface-2)}
+.dc-title{display:inline-flex;align-items:center;gap:7px;color:var(--color-text);font:500 var(--fs-sm) var(--font-ui)}
+.dc-title em{padding:1px 6px;border-radius:var(--radius-pill);background:var(--color-bg);color:var(--color-subtle);font:10px var(--font-mono);font-style:normal}
+.dc-actions{display:flex;align-items:center;gap:5px}
+.dc-actions button{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:transparent;color:var(--color-muted);font:var(--fs-xs) var(--font-ui)}
+.dc-actions button:hover{color:var(--color-text);background:var(--color-hover)}
+.dc-actions button.active{color:var(--color-accent);border-color:var(--color-accent-border);background:var(--color-accent-dim)}
+.dc-actions .dc-close{width:26px;padding:0;justify-content:center}
+.dc-log{overflow:auto;padding:4px 0;font:var(--fs-xs) var(--font-mono);scrollbar-width:thin}
+.dc-empty{padding:16px 12px;color:var(--color-subtle);text-align:center}
+.dc-row{display:grid;grid-template-columns:82px 46px 62px minmax(0,1fr);gap:8px;align-items:baseline;padding:2px 12px;border-bottom:1px solid color-mix(in srgb,var(--color-border) 45%,transparent)}
+.dc-row>time{color:var(--color-subtle);white-space:nowrap}
+.dc-lvl{text-transform:uppercase;font-size:9.5px;letter-spacing:.06em}
+.dc-src{color:var(--color-subtle);overflow:hidden;text-overflow:ellipsis}
+.dc-msg{min-width:0;color:var(--color-text);word-break:break-word}
+.dc-msg pre{margin:3px 0 2px;padding:6px 8px;border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-muted);white-space:pre-wrap;overflow-x:auto}
+.dc-row.lvl-error .dc-lvl,.dc-row.lvl-error .dc-msg{color:var(--color-error)}
+.dc-row.lvl-warn .dc-lvl{color:var(--color-warning)}
+.dc-row.lvl-info .dc-lvl{color:var(--color-accent)}
+.dc-row.lvl-debug .dc-lvl{color:var(--color-subtle)}
+
 /* ---------- landing (no project open) ---------- */
 .canvas-landing{position:relative;width:100%;height:100dvh;overflow:auto;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:radial-gradient(1100px 560px at 50% -8%,#0e141c 0%,var(--color-bg) 62%);color:var(--color-text)}
 .canvas-landing .canvas-topbar{position:static;pointer-events:auto}
