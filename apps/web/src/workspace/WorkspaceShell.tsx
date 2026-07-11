@@ -42,6 +42,7 @@ export function WorkspaceShell({ vm, actions }: { vm: WorkspaceViewModel; action
           projectId={vm.project.id}
           artifacts={vm.artifacts}
           preferences={viewer}
+          theme={shell.theme}
           selectedPatchId={vm.selectedPatchId}
           onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
           onSelectPatch={actions.selectPatch}
