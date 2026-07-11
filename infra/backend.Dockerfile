@@ -2,10 +2,11 @@
 
 ARG PYTHON_IMAGE=python:3.12.11-slim-bookworm@sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa
+ARG BACKEND_PLATFORM=linux/amd64
 
-FROM ${UV_IMAGE} AS uv-bin
+FROM --platform=${BACKEND_PLATFORM} ${UV_IMAGE} AS uv-bin
 
-FROM ${PYTHON_IMAGE} AS backend-base
+FROM --platform=${BACKEND_PLATFORM} ${PYTHON_IMAGE} AS backend-base
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
@@ -57,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix="mesh2param-image-smoke-") as directory:
     restored = importers.importStep(str(step_path))
     if len(restored.solids().vals()) != 1:
         raise RuntimeError("STEP smoke did not reimport exactly one solid")
-    if not BRepCheck_Analyzer(restored.val()).IsValid():
+    if not BRepCheck_Analyzer(restored.val().wrapped).IsValid():
         raise RuntimeError("STEP smoke reimported an invalid B-Rep")
 PY
 

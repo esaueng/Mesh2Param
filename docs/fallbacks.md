@@ -84,6 +84,14 @@ The Compose worker has no network and uses a read-only root filesystem, dropped 
 OS/container controls, the Python audit hook is only defense in depth and must not be described as
 equivalent isolation. See [deployment](deployment.md) for the supported topology.
 
+## Container architecture
+
+The production API and worker run as `linux/amd64` containers. The locked `nlopt` package does not
+publish a CPython 3.12 Linux ARM wheel, while CadQuery/OCP and CasADi do. A native `linux/arm64`
+backend build therefore fails closed during frozen dependency installation; ARM hosts use container
+emulation until the complete locked dependency set has native wheels. The nginx/web image remains
+native-platform.
+
 ## Alternative reconstruction histories
 
 `candidates.json` contains scores, validity evidence, feature counts, rejection reasons, and a complete

@@ -33,3 +33,6 @@ artifacts/acceptance
 tests
 engine/tests
 packages/contracts/tests
+!packages/contracts/tests
+!packages/contracts/tests/fixtures
+!packages/contracts/tests/fixtures/base.cadgraph.json
