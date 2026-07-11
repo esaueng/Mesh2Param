@@ -100,7 +100,7 @@ def test_javascript_inventory_retries_a_transient_pnpm_failure(
 
     assert errors == []
     assert records == [checker.LicenseRecord("javascript", "react", "19.2.7", "MIT")]
-    assert sleeps == [0.5]
+    assert sleeps == [1.0]
 
 
 def test_javascript_inventory_stops_after_bounded_pnpm_failures(
@@ -122,11 +122,11 @@ def test_javascript_inventory_stops_after_bounded_pnpm_failures(
 
     assert records == []
     assert errors == [
-        "pnpm license inspection failed after 3 attempts "
-        "(signal 15; signal 15; signal 15)"
+        "pnpm license inspection failed after 6 attempts "
+        "(signal 15; signal 15; signal 15; signal 15; signal 15; signal 15)"
     ]
-    assert attempts == 3
-    assert sleeps == [0.5, 1.0]
+    assert attempts == 6
+    assert sleeps == [1.0, 2.0, 4.0, 8.0, 15.0]
 
 
 def test_failed_inventory_does_not_report_missing_dependencies_or_stale_notices(
