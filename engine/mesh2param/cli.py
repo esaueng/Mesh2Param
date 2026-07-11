@@ -189,13 +189,10 @@ def _samples_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _serve_command(_args: argparse.Namespace) -> int:
-    print(
-        "mesh2param: serve is unavailable until the M3 API service is installed; "
-        "no server was started",
-        file=sys.stderr,
-    )
-    return 2
+def _serve_command(args: argparse.Namespace) -> int:
+    from mesh2param_api.cli import run_server
+
+    return run_server(host=args.host, port=args.port, reload=args.reload)
 
 
 def _mesh_input(parser: argparse.ArgumentParser) -> None:
@@ -267,6 +264,9 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.set_defaults(handler=_samples_command)
 
     serve_parser = subparsers.add_parser("serve", help="start the M3 API service when installed")
+    serve_parser.add_argument("--host")
+    serve_parser.add_argument("--port", type=int)
+    serve_parser.add_argument("--reload", action="store_true")
     serve_parser.set_defaults(handler=_serve_command)
     return parser
 

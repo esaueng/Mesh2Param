@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +42,7 @@ from .sketches import (
     infer_l_profile,
 )
 from .source import write_cadquery_source
-from .tessellation import Tessellation, export_glb, write_binary_stl
+from .tessellation import Tessellation, export_glb, write_binary_stl, write_glb
 from .validation import StepValidation, export_step_validated
 
 
@@ -107,6 +109,14 @@ class ReconstructionResult:
             "warnings": list(self.warnings),
             "limitations": list(self.limitations),
         }
+
+
+ProgressCallback = Callable[[str, float], None]
+
+
+def _report(callback: ProgressCallback | None, phase: str, progress: float) -> None:
+    if callback is not None:
+        callback(phase, progress)
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -208,7 +218,12 @@ def _manifest(output: Path, artifacts: dict[str, str]) -> dict[str, Any]:
                 "sha256": hashlib.sha256(payload).hexdigest(),
             }
         )
-    result = {"schemaVersion": "1.0.0", "directory": str(output), "artifacts": records}
+    result = {
+        "schemaVersion": "1.0.0",
+        "directory": str(output),
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "artifacts": records,
+    }
     _write_json(output / "manifest.json", result)
     return result
 
@@ -219,6 +234,7 @@ def reconstruct_file(
     *,
     units: str = "mm",
     settings: ReconstructionSettings | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> ReconstructionResult:
     """Run the verified bracket pipeline and write truthful intermediate artifacts."""
 
@@ -227,21 +243,35 @@ def reconstruct_file(
     output.mkdir(parents=True, exist_ok=True)
     completed: dict[str, Any] = {}
     try:
+        _report(progress_callback, "validating upload", 2.0)
         source = ingest_mesh(source_path, limits=settings.mesh_limits)
         original_path = output / f"source.original{source.metadata.extension}"
         original_path.write_bytes(source.original_bytes)
+        source_glb_path = output / "source.glb"
+        write_glb(_mesh_tessellation(source.mesh), source_glb_path)
         completed["source"] = source.to_dict()
         _write_json(output / "analysis.json", source.to_dict())
+        _report(progress_callback, "diagnostics", 10.0)
 
+        _report(progress_callback, "repairing", 12.0)
         repaired = repair_mesh(source, settings.repair, limits=settings.mesh_limits)
         completed["repair"] = repaired.to_dict()
         _write_json(output / "repair.json", repaired.to_dict())
         repaired_path = output / "repaired.stl"
         write_binary_stl(_mesh_tessellation(repaired.mesh), repaired_path)
+        repaired_glb_path = output / "repaired.glb"
+        write_glb(_mesh_tessellation(repaired.mesh), repaired_glb_path)
+        # M2 currently analyzes the full repaired mesh.  Persist that exact mesh under the
+        # analysis-proxy contract name so the UI never displays invented or stale geometry.
+        analysis_proxy_path = output / "analysis-proxy.glb"
+        write_glb(_mesh_tessellation(repaired.mesh), analysis_proxy_path)
+        _report(progress_callback, "analysis proxy", 22.0)
 
+        _report(progress_callback, "sharp boundaries", 25.0)
         segmentation = segment_mesh(repaired.mesh, settings.segmentation)
         completed["segmentation"] = segmentation.to_dict()
         _write_json(output / "patches.json", segmentation.to_dict())
+        _report(progress_callback, "fitting cylinders", 42.0)
 
         if segmentation.counts_by_type["freeform"] or segmentation.counts_by_type["unknown"]:
             raise ReconstructionError(
@@ -253,6 +283,7 @@ def reconstruct_file(
         completed["coordinateFrame"] = frame.to_dict()
         _write_json(output / "frame.json", frame.to_dict())
 
+        _report(progress_callback, "extracting profiles", 50.0)
         sketches = extract_planar_sketches(
             repaired.mesh, segmentation.patches, frame, settings.sketches
         )
@@ -265,6 +296,7 @@ def reconstruct_file(
                 "damaged/open patch loops are preserved but not automatically closed",
             )
         profile = infer_l_profile(segmentation.patches, sketches, frame)
+        _report(progress_callback, "proposing features", 60.0)
         holes = infer_through_holes(repaired.mesh, segmentation.patches, frame)
         if len(holes) != 4:
             raise ReconstructionError(
@@ -273,6 +305,7 @@ def reconstruct_file(
                 f"verified L-bracket scope requires four through holes; found {len(holes)}",
             )
 
+        _report(progress_callback, "building B-Rep", 68.0)
         measured = compile_candidate(
             "measured",
             build_l_bracket_cadgraph(
@@ -298,6 +331,7 @@ def reconstruct_file(
                 )
             )
         transform = _world_transform(frame)
+        _report(progress_callback, "residuals", 76.0)
         for candidate in generated_candidates:
             if candidate.valid and candidate.shape is not None:
                 comparison = compare_mesh_to_shape(
@@ -321,8 +355,10 @@ def reconstruct_file(
         completed["candidates"] = [candidate.to_dict() for candidate in candidates]
         _write_json(output / "candidates.json", completed["candidates"])
 
+        _report(progress_callback, "exporting STEP", 86.0)
         step_path = output / "model.step"
         step = export_step_validated(selected.shape, step_path, units=units)
+        _report(progress_callback, "reimporting STEP", 94.0)
         warnings = tuple(
             dict.fromkeys(
                 [warning.message for warning in source.diagnostics.warnings]
@@ -339,6 +375,7 @@ def reconstruct_file(
             selected.graph.features[-1].id,
             warnings,
         )
+        _report(progress_callback, "finalizing artifacts", 96.0)
         graph_path = output / "model.cadgraph.json"
         graph_path.write_bytes(canonical_json_bytes(graph))
         source_path_output = output / "model.cq.py"
@@ -361,8 +398,11 @@ def reconstruct_file(
         _write_json(output / "comparison.json", comparison.to_dict())
         artifacts = {
             "analysis": str(output / "analysis.json"),
+            "sourceGlb": str(source_glb_path),
             "repair": str(output / "repair.json"),
             "repairedMesh": str(repaired_path),
+            "repairedGlb": str(repaired_glb_path),
+            "analysisProxyGlb": str(analysis_proxy_path),
             "patches": str(output / "patches.json"),
             "patchesGlb": patch_selection.glb.path,
             "selectionMap": patch_selection.path,
@@ -407,6 +447,7 @@ def reconstruct_file(
         _write_json(output / "reconstruction.json", result.to_dict())
         artifacts["reconstruction"] = str(output / "reconstruction.json")
         _manifest(output, artifacts)
+        _report(progress_callback, "finalizing artifacts", 99.0)
         return result
     except ReconstructionError as exc:
         partial = {
@@ -444,6 +485,7 @@ def reconstruct_file(
 
 
 __all__ = [
+    "ProgressCallback",
     "ReconstructionError",
     "ReconstructionResult",
     "ReconstructionSettings",
