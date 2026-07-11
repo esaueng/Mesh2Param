@@ -10,7 +10,17 @@ from .faceted import (
 )
 from .frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
 from .ingest import IngestedMesh, MeshDiagnostics, MeshIngestionError, MeshLimits, ingest_mesh
+from .prismatic import (
+    ArcPrimitive,
+    ExtrusionCandidate,
+    LinePrimitive,
+    PrismaticSettings,
+    detect_extrusion_candidate,
+    fit_closed_line_arc_chain,
+    validate_prismatic_candidate,
+)
 from .reconstruction import (
+    PrismaticReconstructionResult,
     ReconstructionError,
     ReconstructionResult,
     ReconstructionSettings,
@@ -29,6 +39,7 @@ from .tessellation import (
 from .validation import (
     ShapeValidation,
     StepValidation,
+    classify_face_surfaces,
     export_step_validated,
     import_step_shape,
     validate_shape,
@@ -37,22 +48,27 @@ from .validation import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "ArcPrimitive",
     "ComparisonReport",
     "ComparisonSettings",
     "CompilationException",
     "CompilationResult",
     "CompileError",
     "CoordinateFrame",
+    "ExtrusionCandidate",
     "FacetedFallbackError",
     "FacetedFallbackResult",
     "FeatureBuildFailure",
     "FeatureRecord",
     "FrameInferenceError",
     "IngestedMesh",
+    "LinePrimitive",
     "MeshArtifact",
     "MeshDiagnostics",
     "MeshIngestionError",
     "MeshLimits",
+    "PrismaticReconstructionResult",
+    "PrismaticSettings",
     "ReconstructionError",
     "ReconstructionResult",
     "ReconstructionSettings",
@@ -65,12 +81,15 @@ __all__ = [
     "SurfacePatch",
     "Tessellation",
     "__version__",
+    "classify_face_surfaces",
     "compare_mesh_to_shape",
     "compile_cadgraph",
     "create_faceted_fallback",
+    "detect_extrusion_candidate",
     "export_binary_stl",
     "export_glb",
     "export_step_validated",
+    "fit_closed_line_arc_chain",
     "generate_cadquery_source",
     "import_step_shape",
     "infer_coordinate_frame",
@@ -79,6 +98,7 @@ __all__ = [
     "repair_mesh",
     "segment_mesh",
     "tessellate_shape",
+    "validate_prismatic_candidate",
     "validate_shape",
     "write_cadquery_source",
 ]

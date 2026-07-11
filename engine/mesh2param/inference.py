@@ -14,6 +14,7 @@ from mesh2param_contracts import CADGraph
 
 from .compiler import CompilationResult, compile_cadgraph
 from .frame import CoordinateFrame
+from .prismatic import ArcPrimitive, ExtrusionCandidate
 from .segmentation import SurfacePatch
 from .sketches import InferredProfile
 
@@ -126,6 +127,10 @@ def infer_through_holes(
 
 def _vector3(values: Sequence[float]) -> dict[str, float]:
     return {"x": float(values[0]), "y": float(values[1]), "z": float(values[2])}
+
+
+def _vector2(values: Sequence[float]) -> dict[str, float]:
+    return {"x": float(values[0]), "y": float(values[1])}
 
 
 def _measurement_metadata(value: float) -> dict[str, Any]:
@@ -411,6 +416,269 @@ def build_l_bracket_cadgraph(
     return CADGraph.model_validate(document)
 
 
+def build_prismatic_cadgraph(
+    *,
+    source: Mapping[str, Any],
+    candidate: ExtrusionCandidate,
+    deterministic_seed: int = 0x4D325006,
+) -> CADGraph:
+    """Build one editable mixed line/arc sketch and one extrusion feature."""
+
+    if (
+        not candidate.accepted
+        or candidate.frame is None
+        or candidate.axis is None
+        or candidate.distance_mm is None
+        or candidate.cap_patch_ids is None
+        or not candidate.profiles
+    ):
+        raise ValueError("prismatic CADGraph requires a fully validated extrusion candidate")
+    frame = candidate.frame
+    evidence_id = "evidence.prismatic-profile"
+    entities: list[dict[str, Any]] = []
+    loop_ids: list[list[str]] = []
+    primitive_index = 0
+    for profile in candidate.profiles:
+        identifiers: list[str] = []
+        for primitive in profile:
+            primitive_index += 1
+            identifier = f"sketch.base.entity.{primitive_index:03d}"
+            identifiers.append(identifier)
+            common = {
+                "id": identifier,
+                "construction": False,
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "locked": False,
+                "suppressed": False,
+            }
+            if isinstance(primitive, ArcPrimitive):
+                start_angle = math.degrees(
+                    math.atan2(
+                        primitive.start[1] - primitive.center[1],
+                        primitive.start[0] - primitive.center[0],
+                    )
+                )
+                entities.append(
+                    {
+                        **common,
+                        "kind": "circularArc",
+                        "center": _vector2(primitive.center),
+                        "radius": float(primitive.radius_mm),
+                        "startAngleDeg": start_angle,
+                        "endAngleDeg": start_angle + primitive.sweep_deg,
+                        "clockwise": primitive.clockwise,
+                    }
+                )
+            else:
+                entities.append(
+                    {
+                        **common,
+                        "kind": "line",
+                        "start": _vector2(primitive.start),
+                        "end": _vector2(primitive.end),
+                    }
+                )
+        loop_ids.append(identifiers)
+    entities.append(
+        {
+            "id": "sketch.base.closed-profile",
+            "kind": "closedProfile",
+            "construction": False,
+            "outerLoop": loop_ids[0],
+            "innerLoops": loop_ids[1:],
+            "orientation": "counterclockwise",
+            "sourceEvidence": [evidence_id],
+            "confidence": float(candidate.confidence),
+            "locked": False,
+            "suppressed": False,
+        }
+    )
+    source_sha = str(source["sha256"])
+    origin = frame.origin
+    axis = candidate.axis
+    document: dict[str, Any] = {
+        "schemaVersion": "1.0.0",
+        "id": "reconstruction.prismatic",
+        "name": "Recovered analytic extrusion",
+        "units": str(source.get("units", "mm")),
+        "source": {
+            "format": str(source["format"]),
+            "sha256": source_sha,
+            "originalFileName": str(source["originalFileName"]),
+            "byteSize": int(source["byteSize"]),
+            "triangleCount": int(source["triangleCount"]),
+            "declaredUnits": str(source.get("units", "mm")),
+            "scaleFactor": float(source.get("scaleFactor", 1.0)),
+        },
+        "sourceCoordinateFrame": {
+            "origin": _vector3(origin),
+            "xAxis": _vector3(frame.u),
+            "yAxis": _vector3(frame.v),
+            "zAxis": _vector3(frame.w),
+            "locked": False,
+            "confidence": float(candidate.confidence),
+            "evidenceIds": [evidence_id],
+        },
+        "projectTolerance": {
+            "surfaceDeviation": 0.1,
+            "angularDeviationDeg": 1.0,
+            "linearResolution": 0.001,
+        },
+        "sketches": [
+            {
+                "id": "sketch.base",
+                "name": "Recovered line and arc profile",
+                "plane": {
+                    "origin": _vector3(origin),
+                    "normal": _vector3(axis),
+                    "xAxis": _vector3(frame.u),
+                },
+                "entities": entities,
+                "constraints": [],
+                "profiles": [
+                    {
+                        "id": "sketch.base.profile",
+                        "name": "Recovered closed profile",
+                        "outerLoop": loop_ids[0],
+                        "innerLoops": loop_ids[1:],
+                        "orientation": "counterclockwise",
+                        "closed": True,
+                        "sourceEvidence": [evidence_id],
+                        "confidence": float(candidate.confidence),
+                        "locked": False,
+                    }
+                ],
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "suppressed": False,
+            }
+        ],
+        "features": [
+            {
+                "id": "feature.base",
+                "name": "Recovered analytic extrusion",
+                "operation": "extrusion",
+                "booleanMode": "base",
+                "order": 0,
+                "dependencies": [],
+                "suppressed": False,
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "semanticOutputs": ["feature.base.result"],
+                "sketchId": "sketch.base",
+                "profileIds": ["sketch.base.profile"],
+                "direction": _vector3(axis),
+                "extent": "blind",
+                "distance": float(candidate.distance_mm),
+            }
+        ],
+        "semanticTopology": [
+            {
+                "id": "feature.base.result",
+                "kind": "solid",
+                "producerFeatureId": "feature.base",
+                "role": "resultSolid",
+                "generatedFrom": ["sketch.base.profile"],
+                "status": "unresolved",
+            }
+        ],
+        "sourceEvidence": [
+            {
+                "id": evidence_id,
+                "sourceType": "meshPatch",
+                "sourceIds": list(candidate.cap_patch_ids),
+                "measuredValue": float(candidate.distance_mm),
+                "residual": float(candidate.side_normal_rms or 0.0),
+                "confidence": float(candidate.confidence),
+                "notes": (
+                    "Matched opposing caps and perpendicular side normals support one "
+                    "linear extrusion."
+                ),
+                "metadata": {
+                    "axis": list(axis),
+                    "capOffsetsMm": list(candidate.cap_offsets_mm or ()),
+                    "profileLoopCount": len(candidate.profiles),
+                    "primitiveCount": sum(len(profile) for profile in candidate.profiles),
+                    "diagnostics": [item.to_dict() for item in candidate.diagnostics],
+                },
+            }
+        ],
+        "userLocks": [],
+        "overrides": [],
+        "reconstructionSettings": {
+            "maxFeatures": 16,
+            "beamWidth": 2,
+            "candidatesPerResidual": 2,
+            "wallClockSeconds": 120.0,
+            "maxRebuilds": 8,
+            "minScoreImprovement": 0.0001,
+            "nominalSnappingEnabled": False,
+            "nominalSnapTolerance": 0.05,
+            "scoreWeights": {
+                "rmsDistance": 1.0,
+                "p95Distance": 1.0,
+                "maxDistance": 0.5,
+                "normalAgreement": 0.5,
+                "volumeDifference": 0.75,
+                "overlap": 0.75,
+                "sharpEdgeAlignment": 0.5,
+                "boundaryAlignment": 0.5,
+                "unmatchedSource": 1.0,
+                "excessResult": 1.0,
+                "complexity": 0.1,
+                "unsupportedOperation": 2.0,
+                "evidenceConfidence": 0.25,
+            },
+        },
+        "engineVersions": {
+            "mesh2param": "0.1.0",
+            "contracts": "1.0.0",
+            "cadBackend": "OCCT",
+            "cadQuery": "2.8.0",
+            "ocp": "7.9.3.1.1",
+            "dependencies": {"numpy": np.__version__, "trimesh": trimesh.__version__},
+        },
+        "deterministicSeed": deterministic_seed,
+        "fitMetrics": {
+            "rmsSurfaceDistance": 0.0,
+            "p95SurfaceDistance": 0.0,
+            "maxSurfaceDistance": 0.0,
+            "normalAgreement": 0.0,
+            "volumeDifference": 0.0,
+            "overlap": 0.0,
+            "unmatchedSourceArea": 0.0,
+            "excessResultArea": 0.0,
+            "score": 0.0,
+        },
+        "validation": {
+            "status": "notRun",
+            "brepValid": None,
+            "stepReimportValid": None,
+            "toleranceSatisfied": None,
+            "lastValidFeatureId": None,
+            "issues": [],
+        },
+        "versionMetadata": {
+            "versionId": "version.reconstruction.prismatic.1",
+            "createdAt": "1970-01-01T00:00:00Z",
+            "createdBy": "mesh2param-reconstruction",
+            "message": "Analytic line/arc profile reconstructed from extrusion evidence.",
+        },
+        "extensions": {
+            "mesh2param.dev/prismaticReconstruction": {
+                "scope": "validated linear extrusion of line/circular-arc profiles",
+                "capPatchIds": list(candidate.cap_patch_ids),
+            }
+        },
+    }
+    return CADGraph.model_validate(document)
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateSearchSettings:
     beam_width: int = 2
@@ -519,6 +787,7 @@ __all__ = [
     "InferredHole",
     "Measurement",
     "build_l_bracket_cadgraph",
+    "build_prismatic_cadgraph",
     "compile_candidate",
     "infer_through_holes",
     "measure",

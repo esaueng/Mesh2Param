@@ -11,7 +11,16 @@ from pathlib import Path
 from typing import Any
 
 import cadquery as cq
+from OCP.BRepAdaptor import BRepAdaptor_Surface
 from OCP.BRepCheck import BRepCheck_Analyzer
+from OCP.GeomAbs import (
+    GeomAbs_BSplineSurface,
+    GeomAbs_Cone,
+    GeomAbs_Cylinder,
+    GeomAbs_Plane,
+    GeomAbs_Sphere,
+    GeomAbs_Torus,
+)
 
 STEP_UNITS: dict[str, str] = {
     "mm": "MM",
@@ -339,11 +348,38 @@ def validate_step_file(
     )
 
 
+def classify_face_surfaces(value: cq.Shape | cq.Workplane) -> dict[str, int]:
+    """Classify the exact OCCT surface underlying every B-Rep face."""
+
+    result = {
+        "plane": 0,
+        "cylinder": 0,
+        "cone": 0,
+        "sphere": 0,
+        "torus": 0,
+        "bspline": 0,
+        "other": 0,
+    }
+    mapping = {
+        GeomAbs_Plane: "plane",
+        GeomAbs_Cylinder: "cylinder",
+        GeomAbs_Cone: "cone",
+        GeomAbs_Sphere: "sphere",
+        GeomAbs_Torus: "torus",
+        GeomAbs_BSplineSurface: "bspline",
+    }
+    for face in as_shape(value).Faces():
+        surface_type = BRepAdaptor_Surface(face.wrapped, True).GetType()
+        result[mapping.get(surface_type, "other")] += 1
+    return result
+
+
 __all__ = [
     "STEP_UNITS",
     "ShapeValidation",
     "StepValidation",
     "as_shape",
+    "classify_face_surfaces",
     "export_step_validated",
     "import_step_shape",
     "normalize_step_bytes",

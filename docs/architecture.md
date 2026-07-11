@@ -76,6 +76,32 @@ side.
 7. The service publishes immutable content-addressed artifacts and a manifest. The browser renders
    those artifacts; it does not infer validity from appearance.
 
+### Analytic prismatic reconstruction
+
+Before a `freeform` side remainder rejects the older L-bracket inference path, the engine tests the
+mesh as a possible linear extrusion. It finds significant antipodal planar caps, refines the
+translation axis from the minimum eigenvector of the area-weighted side-normal covariance, checks
+the axial extents, and matches ordered projected cap loops under cyclic shift and reversed winding.
+Open or branching cap boundaries, mismatched caps, non-perpendicular side normals, degenerate
+length, and self-intersecting profiles all produce structured rejection diagnostics.
+
+An accepted cap loop is projected into a deterministic orthonormal sketch frame and globally
+segmented with a cached dynamic program. Candidate intervals are total-least-squares lines or
+endpoint-constrained circular arcs; the objective combines normalized residuals with primitive and
+breakpoint penalties. Adjacent entities share exact coordinates and record their tangent gap. The
+resulting CADGraph contains ordered `line` and `circularArc` entities, a `closedProfile`, and one
+extrusion on the measured arbitrary plane. The compiler creates one analytic wire and face and
+extrudes it through OCCT, so arc edges produce cylindrical side faces and line edges produce planar
+ones. B-Rep validity, bidirectional source comparison, bounding box and volume agreement, STEP
+export, and independent STEP reimport remain acceptance gates.
+
+The principal prismatic tolerances are separate and configurable: cap angle/area/loop matching,
+side-normal RMS and accepted-area fraction, line and arc RMS/maximum residual, minimum primitive
+length, minimum arc sweep and sagitta, scale-relative maximum radius, and primitive/breakpoint
+penalties. The segmentation threshold for a complete cylinder remains high (300 degrees by
+default). A partial profile arc needs only its own sweep and sagitta evidence; lowering full-cylinder
+coverage to admit a 2-D fillet would conflate two different geometric claims.
+
 ## Jobs and process isolation
 
 Development defaults to `job_runner_mode=embedded`: the API owns the local supervisor. Production
