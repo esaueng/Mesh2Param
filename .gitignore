@@ -3,6 +3,7 @@
 .venv/
 .pnpm-store/
 .cache/
+.mesh2param-data/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/

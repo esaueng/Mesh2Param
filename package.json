@@ -10,8 +10,10 @@
   },
   "scripts": {
     "build": "pnpm --filter @mesh2param/contracts build && XDG_CACHE_HOME=.cache uv build",
-    "typecheck": "pnpm --filter @mesh2param/contracts typecheck && XDG_CACHE_HOME=.cache uv run --extra dev mypy engine scripts tests",
-    "lint": "pnpm --filter @mesh2param/contracts generate:check && XDG_CACHE_HOME=.cache uv run --extra dev ruff check engine scripts tests",
+    "db:migrate": "XDG_CACHE_HOME=.cache uv run python -m mesh2param_api.migrate",
+    "dev": "XDG_CACHE_HOME=.cache uv run mesh2param serve --reload",
+    "typecheck": "pnpm --filter @mesh2param/contracts typecheck && XDG_CACHE_HOME=.cache uv run --extra dev mypy engine services scripts tests",
+    "lint": "pnpm --filter @mesh2param/contracts generate:check && XDG_CACHE_HOME=.cache uv run --extra dev ruff check engine services scripts tests",
     "test": "pnpm --filter @mesh2param/contracts test && XDG_CACHE_HOME=.cache uv run --extra dev pytest",
     "samples:generate": "XDG_CACHE_HOME=.cache uv run mesh2param samples generate",
     "mesh2param": "XDG_CACHE_HOME=.cache uv run mesh2param",

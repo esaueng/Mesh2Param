@@ -412,7 +412,10 @@ def test_reconstruction_orchestrator_writes_valid_artifact_bundle(
     assert result.comparison.p95_distance_mm < 5e-6
     required = {
         "analysis.json",
+        "source.glb",
         "repair.json",
+        "repaired.glb",
+        "analysis-proxy.glb",
         "patches.json",
         "patches.glb",
         "selection-map.json",
@@ -431,7 +434,7 @@ def test_reconstruction_orchestrator_writes_valid_artifact_bundle(
     assert required <= {path.name for path in tmp_path.iterdir()}
 
 
-def test_cli_exposes_exact_m2_commands_and_serve_is_honest(
+def test_cli_exposes_exact_m2_commands_and_service_arguments(
     capsys: pytest.CaptureFixture[str], bracket_path: Path, tmp_path: Path
 ) -> None:
     help_text = build_parser().format_help()
@@ -450,5 +453,8 @@ def test_cli_exposes_exact_m2_commands_and_serve_is_honest(
     assert main(["analyze", str(bracket_path), "--units", "mm", "--output", str(tmp_path)]) == 0
     assert (tmp_path / "analysis.json").is_file()
     capsys.readouterr()
-    assert main(["serve"]) == 2
-    assert "no server was started" in capsys.readouterr().err
+    serve = build_parser().parse_args(
+        ["serve", "--host", "127.0.0.1", "--port", "8765"]
+    )
+    assert serve.host == "127.0.0.1"
+    assert serve.port == 8765

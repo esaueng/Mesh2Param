@@ -10,18 +10,23 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "Apache-2.0" }
 dependencies = [
+  "fastapi==0.139.0",
   "cadquery==2.8.0",
   "cadquery-ocp==7.9.3.1.1",
   "mesh2param-contracts",
   "networkx==3.6.1",
   "numpy==2.4.6",
+  "pydantic-settings==2.10.1",
   "scipy==1.18.0",
   "shapely==2.1.2",
+  "sqlalchemy==2.0.41",
   "trimesh==4.12.2",
+  "uvicorn==0.35.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "httpx>=0.28,<1",
   "jsonschema[format]>=4.23,<5",
   "mypy>=1.15,<2",
   "pytest>=8.3,<9",
@@ -30,13 +35,15 @@ dev = [
 
 [project.scripts]
 mesh2param = "mesh2param.cli:main"
+mesh2param-api = "mesh2param_api.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["engine/mesh2param"]
+packages = ["engine/mesh2param", "services/api/mesh2param_api"]
 
 [tool.hatch.build.targets.sdist]
 include = [
   "/engine",
+  "/services/api",
   "/packages/contracts/schema/cadgraph.schema.json",
   "/samples",
   "/scripts",
@@ -66,9 +73,12 @@ exclude = ["samples/generated"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+"services/api/mesh2param_api/api/routes/*.py" = ["B008"]
+
 [tool.mypy]
 python_version = "3.12"
-mypy_path = ["engine", "packages/contracts/python"]
+mypy_path = ["engine", "packages/contracts/python", "services/api"]
 explicit_package_bases = true
 check_untyped_defs = true
 disallow_any_generics = true
