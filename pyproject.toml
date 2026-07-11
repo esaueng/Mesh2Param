@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mesh2param"
+version = "0.1.0"
+description = "Deterministic exact B-Rep compiler for Mesh2Param CADGraph documents"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "cadquery==2.8.0",
+  "cadquery-ocp==7.9.3.1.1",
+  "mesh2param-contracts",
+  "networkx==3.6.1",
+  "numpy==2.4.6",
+  "scipy==1.18.0",
+  "shapely==2.1.2",
+  "trimesh==4.12.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "jsonschema[format]>=4.23,<5",
+  "mypy>=1.15,<2",
+  "pytest>=8.3,<9",
+  "ruff>=0.11,<1",
+]
+
+[project.scripts]
+mesh2param = "mesh2param.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["engine/mesh2param"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/engine",
+  "/packages/contracts/schema/cadgraph.schema.json",
+  "/samples",
+  "/scripts",
+  "/tests",
+  "/README.md",
+]
+
+[tool.uv.workspace]
+members = ["packages/contracts"]
+
+[tool.uv.sources]
+mesh2param-contracts = { workspace = true }
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests", "engine/tests", "packages/contracts/tests/python"]
+markers = [
+  "geometry: tests that execute the OCCT geometry kernel",
+  "samples: deterministic procedural sample roundtrips",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["samples/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["engine", "packages/contracts/python"]
+explicit_package_bases = true
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+exclude = ["samples/generated"]
+
+[[tool.mypy.overrides]]
+module = ["cadquery.*", "OCP.*", "trimesh.*", "scipy.*", "shapely.*"]
+ignore_missing_imports = true
