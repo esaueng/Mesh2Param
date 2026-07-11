@@ -130,6 +130,11 @@ export function CadViewport({
   }
 
   function gizmoView(view: GizmoViewRequest) {
+    // The gizmo "home" sphere shares the default/reset iso orientation (cameraMath DIRECTIONS.iso).
+    if (view === "iso") {
+      setCommand((current) => ({ ...current, preset: "iso", direction: null, viewRevision: current.viewRevision + 1 }));
+      return;
+    }
     const direction: [number, number, number] = typeof view === "object"
       ? view.direction
       : view === "x" ? [1, 0, 0]
