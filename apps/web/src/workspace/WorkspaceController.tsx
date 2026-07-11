@@ -19,6 +19,7 @@ import { normalizeProjectDetail } from "./normalize";
 import { automaticReconstructionCapability } from "./automaticReconstruction";
 import { failedStepStatus, formatJobFailure, formatJobSnapshotFailure } from "./jobFailure";
 import { CanvasShell } from "../canvas/CanvasShell";
+import { debugLog } from "../canvas/debugLog";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
 
 const COMPLETION_STEP: Partial<Record<JobKind, WorkflowStep>> = {
@@ -52,6 +53,9 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   const [error, setError] = useState<string | null>(null);
   const streams = useRef(new Map<string, () => void>());
 
+  // Every surfaced error is mirrored to the in-app debug console.
+  useEffect(() => { if (error !== null) debugLog.error("app", error); }, [error]);
+
   const refreshProject = useCallback(async (label = "Refresh project") => {
     const current = workspaceStore.getState().project;
     if (current === null) return;
@@ -75,9 +79,19 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   const trackJob = useCallback((job: Job) => {
     streams.current.get(job.id)?.();
     workspaceStore.getState().setJob(job);
+    debugLog.info("job", `${job.kind} started`, { id: job.id, status: job.status });
     const stop = watchJob(job, {
-      onConnection: (connection) => workspaceStore.getState().setJobConnection(job.kind, connection),
+      onConnection: (connection) => {
+        debugLog.debug("job", `${job.kind} stream ${connection}`);
+        workspaceStore.getState().setJobConnection(job.kind, connection);
+      },
       onEvent: (event) => {
+        if (event.type === "progress") debugLog.debug("job", `${job.kind} ${event.phase} ${event.progress ?? "?"}%`, event.message ?? undefined);
+        else if (event.type === "log") debugLog.debug("job", `${job.kind} · ${event.phase}`, event.message ?? undefined);
+        else if (event.type === "completed") debugLog.info("job", `${job.kind} completed`);
+        else if (event.type === "failed" || event.type === "cancelled") {
+          debugLog[event.type === "failed" ? "error" : "warn"]("job", `${job.kind} ${event.type}`, event.message ?? event.detail ?? undefined);
+        }
         if (event.type === "completed") {
           void refreshProject(`${job.kind} completed`)
             .then(() => {
@@ -128,8 +142,8 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
           snapshot.status === "running" ? "reconnecting" : "closed",
         );
       },
-      onError: (cause) => setError(cause.detail),
-      onInvalidEvent: (cause) => setError(`Invalid worker event: ${cause.message}`),
+      onError: (cause) => { debugLog.error("job", `${job.kind} stream error`, cause); setError(cause.detail); },
+      onInvalidEvent: (cause) => { debugLog.error("job", `${job.kind} invalid event`, cause.message); setError(`Invalid worker event: ${cause.message}`); },
     });
     streams.current.set(job.id, stop);
   }, [refreshProject]);
@@ -207,14 +221,19 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
     settings: JsonObject = {},
   ) => {
     const current = workspaceStore.getState();
+    debugLog.info("run", `Requested ${operation}`, settings);
     if (!workerReady) {
       setError("The geometry worker is not ready. No operation was queued; retry after readiness returns.");
       return;
     }
-    if (current.project === null || current.serverRevision === null || !requireServerWritable()) return;
+    if (current.project === null || current.serverRevision === null || !requireServerWritable()) {
+      debugLog.warn("run", `${operation} not queued: no writable project revision`);
+      return;
+    }
     if (operation === "reconstruct" && settings.mode !== "faceted" && current.working !== null) {
       const capability = automaticReconstructionCapability(current.working);
       if (!capability.supported) {
+        debugLog.warn("run", "Automatic reconstruction unavailable", capability.reason);
         setError(capability.reason ?? "Automatic reconstruction is unavailable for this sample.");
         return;
       }
@@ -222,9 +241,11 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
     setError(null);
     try {
       const result = await apiClient.startOperation(current.project.id, operation, current.serverRevision, { settings });
+      debugLog.info("run", `${operation} job accepted`, { jobId: result.data.id });
       trackJob(result.data);
     } catch (cause) {
       const apiError = normalizeApiError(cause);
+      debugLog.error("run", `${operation} request failed`, apiError);
       setError(`${apiError.summary}: ${apiError.detail}`);
       current.setSyncState({ state: apiError.status === 409 || apiError.status === 412 ? "conflict" : "error", error: apiError });
     }
@@ -246,6 +267,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
     },
     async upload(file: File, units: Units, scale: number) {
       const current = workspaceStore.getState();
+      debugLog.info("upload", `Uploading ${file.name}`, { bytes: file.size, units, scale });
       if (!workerReady) { setError("The geometry worker is not ready. The source was not uploaded."); return; }
       if (current.project === null || current.serverRevision === null || !requireServerWritable()) return;
       try {
@@ -266,10 +288,12 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
           mediaType: file.type || `model/${result.data.source.format}`,
           originalFileName: file.name,
           blob: file,
-        }).catch(() => undefined);
+        }).catch((cause: unknown) => debugLog.warn("upload", "Local source cache failed (non-fatal)", cause));
+        debugLog.info("upload", `Source accepted: ${file.name}`, { sha256: result.data.source.sha256.slice(0, 12), job: result.data.job.kind });
         await refreshProject("Source accepted");
         trackJob(result.data.job);
       } catch (cause) {
+        debugLog.error("upload", `Upload failed: ${file.name}`, normalizeApiError(cause));
         setError(normalizeApiError(cause).detail);
       }
     },
