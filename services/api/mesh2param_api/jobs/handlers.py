@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
+import math
 import os
 import shutil
 import time
@@ -85,6 +87,174 @@ def _mesh_limits(payload: dict[str, Any]) -> Any:
     )
 
 
+def _repair_settings(payload: dict[str, Any]) -> Any:
+    from mesh2param import RepairSettings
+
+    raw = payload.get("settings", {})
+    if not isinstance(raw, dict) or set(raw) - {"operations"}:
+        raise JobFailure(
+            "invalid_repair_settings",
+            "repairing",
+            "Repair settings are invalid",
+            "Repair settings must contain only the supported operation list.",
+            recoverable=True,
+            recommended_action="Choose only repair operations offered by the current UI.",
+        )
+    if "operations" not in raw:
+        return RepairSettings()
+    operations = raw["operations"]
+    allowed = {
+        "mergeDuplicateVertices": "merge_duplicate_vertices",
+        "removeDegenerateFaces": "remove_degenerate_faces",
+        "removeDuplicateFaces": "remove_duplicate_faces",
+        "removeUnreferencedVertices": "remove_unreferenced_vertices",
+        "orientWinding": "orient_winding",
+        "repairNormals": "repair_normals",
+        "keepLargestComponent": "keep_largest_component",
+        "dropTinyComponents": "drop_tiny_components",
+        "fillSmallHoles": "fill_small_holes",
+    }
+    if (
+        not isinstance(operations, list)
+        or len(operations) > len(allowed)
+        or any(not isinstance(item, str) or item not in allowed for item in operations)
+        or len(set(operations)) != len(operations)
+    ):
+        raise JobFailure(
+            "invalid_repair_settings",
+            "repairing",
+            "Repair settings are invalid",
+            "The requested repair operation list contains an unsupported value.",
+            recoverable=True,
+            recommended_action="Choose only repair operations offered by the current UI.",
+        )
+    selected = set(operations)
+    return RepairSettings(
+        **{field: operation in selected for operation, field in allowed.items()}
+    )
+
+
+def _segmentation_settings(payload: dict[str, Any]) -> Any:
+    from mesh2param import SegmentationSettings
+
+    raw = payload.get("settings", {})
+    allowed = {"maxDeviation", "minPatchArea", "maxAngleDeg"}
+    if not isinstance(raw, dict) or set(raw) - allowed:
+        raise JobFailure(
+            "invalid_segmentation_settings",
+            "fitting planes",
+            "Segmentation settings are invalid",
+            "Segmentation settings contain an unsupported field.",
+            recoverable=True,
+            recommended_action="Use the tolerance fields offered by the current UI.",
+        )
+    if not raw:
+        return SegmentationSettings()
+    try:
+        defaults = SegmentationSettings()
+        deviation = _bounded_number(
+            raw.get("maxDeviation", defaults.planar_fit_tolerance_mm),
+            name="maximum deviation",
+            minimum=0.0,
+            maximum=1_000_000.0,
+            minimum_inclusive=False,
+        )
+        minimum_area = _bounded_number(
+            raw.get("minPatchArea", defaults.minimum_patch_area_mm2),
+            name="minimum patch area",
+            minimum=0.0,
+            maximum=1_000_000_000_000.0,
+        )
+        maximum_angle = _bounded_number(
+            raw.get("maxAngleDeg", defaults.smooth_angle_deg),
+            name="maximum angle",
+            minimum=0.0,
+            maximum=90.0,
+            minimum_inclusive=False,
+            maximum_inclusive=False,
+        )
+        settings = SegmentationSettings(
+            smooth_angle_deg=maximum_angle,
+            planar_fit_tolerance_mm=(
+                deviation
+                if "maxDeviation" in raw
+                else defaults.planar_fit_tolerance_mm
+            ),
+            cylinder_fit_tolerance_mm=(
+                deviation
+                if "maxDeviation" in raw
+                else defaults.cylinder_fit_tolerance_mm
+            ),
+            minimum_patch_area_mm2=minimum_area,
+        )
+        settings.validate()
+        return settings
+    except (TypeError, ValueError) as exc:
+        raise JobFailure(
+            "invalid_segmentation_settings",
+            "fitting planes",
+            "Segmentation settings are invalid",
+            str(exc),
+            recoverable=True,
+            recommended_action="Use positive finite tolerances and an angle below 90 degrees.",
+        ) from exc
+
+
+def _bounded_number(
+    value: object,
+    *,
+    name: str,
+    minimum: float,
+    maximum: float,
+    minimum_inclusive: bool = True,
+    maximum_inclusive: bool = True,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a JSON number")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite")
+    minimum_valid = number >= minimum if minimum_inclusive else number > minimum
+    maximum_valid = number <= maximum if maximum_inclusive else number < maximum
+    if not minimum_valid or not maximum_valid:
+        left = "[" if minimum_inclusive else "("
+        right = "]" if maximum_inclusive else ")"
+        raise ValueError(f"{name} must be in {left}{minimum}, {maximum}{right}")
+    return number
+
+
+def _validation_surface_deviation(payload: dict[str, Any]) -> float | None:
+    raw = payload.get("settings", {})
+    if not isinstance(raw, dict) or set(raw) - {"surfaceDeviation"}:
+        raise JobFailure(
+            "invalid_validation_settings",
+            "building B-Rep",
+            "Validation settings are invalid",
+            "Validation settings must contain only surfaceDeviation.",
+            recoverable=True,
+            recommended_action="Use the surface-deviation field offered by the current UI.",
+        )
+    if "surfaceDeviation" not in raw:
+        return None
+    try:
+        return _bounded_number(
+            raw["surfaceDeviation"],
+            name="surface deviation",
+            minimum=0.0,
+            maximum=1_000_000.0,
+            minimum_inclusive=False,
+        )
+    except ValueError as exc:
+        raise JobFailure(
+            "invalid_validation_settings",
+            "building B-Rep",
+            "Validation settings are invalid",
+            str(exc),
+            recoverable=True,
+            recommended_action="Use a positive finite surface-deviation tolerance.",
+        ) from exc
+
+
 def _source_path(payload: dict[str, Any]) -> Path:
     raw = payload.get("sourcePath")
     if not isinstance(raw, str):
@@ -142,23 +312,33 @@ def _upload(payload: dict[str, Any], workdir: Path, progress: Progress) -> Handl
 
 def _repair(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
     from mesh2param import ingest_mesh, repair_mesh
-    from mesh2param.tessellation import write_binary_stl
+    from mesh2param.tessellation import write_binary_stl, write_glb
 
     source = ingest_mesh(_source_path(payload), limits=_mesh_limits(payload))
     progress("repairing", 25.0, "Applying explicit configured repair operations")
-    repaired = repair_mesh(source, limits=_mesh_limits(payload))
+    repaired = repair_mesh(
+        source,
+        settings=_repair_settings(payload),
+        limits=_mesh_limits(payload),
+    )
     result = repaired.to_dict()
     _json(workdir / "analysis.json", source.to_dict())
     _json(workdir / "repair.json", result)
+    write_glb(_mesh_tessellation(source.mesh), workdir / "source.glb")
     write_binary_stl(_mesh_tessellation(repaired.mesh), workdir / "repaired.stl")
+    write_glb(_mesh_tessellation(repaired.mesh), workdir / "repaired.glb")
     progress("finalizing artifacts", 95.0, "Repair artifacts written")
     return HandlerOutput(
         result=result,
         state_patch={"diagnostics": source.diagnostics.to_dict(), "repair": result},
         artifacts=(
             ArtifactOutput("analysis.json", "analysis.json", "application/json", "analysis"),
+            ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
             ArtifactOutput("repair.json", "repair.json", "application/json", "repair"),
             ArtifactOutput("repaired.stl", "repaired.stl", "model/stl", "repaired-mesh"),
+            ArtifactOutput(
+                "repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"
+            ),
         ),
     )
 
@@ -166,14 +346,17 @@ def _repair(payload: dict[str, Any], workdir: Path, progress: Progress) -> Handl
 def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
     from mesh2param import ingest_mesh, repair_mesh, segment_mesh
     from mesh2param.selection import write_patch_selection_artifacts
-    from mesh2param.tessellation import write_binary_stl
+    from mesh2param.tessellation import write_binary_stl, write_glb
 
     source = ingest_mesh(_source_path(payload), limits=_mesh_limits(payload))
     progress("repairing", 15.0, "Preparing a non-destructive analysis mesh")
     repaired = repair_mesh(source, limits=_mesh_limits(payload))
+    write_glb(_mesh_tessellation(source.mesh), workdir / "source.glb")
     write_binary_stl(_mesh_tessellation(repaired.mesh), workdir / "repaired.stl")
+    write_glb(_mesh_tessellation(repaired.mesh), workdir / "repaired.glb")
+    write_glb(_mesh_tessellation(repaired.mesh), workdir / "analysis-proxy.glb")
     progress("sharp boundaries", 35.0, "Computing adjacency and sharp boundaries")
-    segmentation = segment_mesh(repaired.mesh)
+    segmentation = segment_mesh(repaired.mesh, settings=_segmentation_settings(payload))
     progress("fitting cylinders", 75.0, "Plane and cylinder fitting completed")
     selection = write_patch_selection_artifacts(
         repaired.mesh,
@@ -202,8 +385,18 @@ def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> Hand
         },
         artifacts=(
             ArtifactOutput("analysis.json", "analysis.json", "application/json", "analysis"),
+            ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
             ArtifactOutput("repair.json", "repair.json", "application/json", "repair"),
             ArtifactOutput("repaired.stl", "repaired.stl", "model/stl", "repaired-mesh"),
+            ArtifactOutput(
+                "repaired.glb", "repaired.glb", "model/gltf-binary", "repaired-mesh"
+            ),
+            ArtifactOutput(
+                "analysis-proxy.glb",
+                "analysis-proxy.glb",
+                "model/gltf-binary",
+                "analysis-proxy",
+            ),
             ArtifactOutput("patches.json", "patches.json", "application/json", "patches"),
             ArtifactOutput("patches.glb", "patches.glb", "model/gltf-binary", "patches"),
             ArtifactOutput(
@@ -214,6 +407,23 @@ def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> Hand
             ),
         ),
     )
+
+
+def _reconstruction_project_settings(
+    payload: dict[str, Any], result: dict[str, Any]
+) -> dict[str, Any]:
+    project_state = payload.get("projectState")
+    previous_settings = (
+        project_state.get("settings") if isinstance(project_state, dict) else None
+    )
+    settings = copy.deepcopy(previous_settings) if isinstance(previous_settings, dict) else {}
+    candidates = result.get("candidates")
+    selected = result.get("selectedCandidate")
+    if not isinstance(candidates, list) or not isinstance(selected, str):
+        raise RuntimeError("reconstruction result omitted candidate histories")
+    settings["candidateHistories"] = copy.deepcopy(candidates)
+    settings["selectedCandidate"] = selected
+    return settings
 
 
 def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
@@ -287,6 +497,7 @@ def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
             "cadgraph": graph_document,
             "validation": graph_document["validation"],
             "metrics": graph_document["fitMetrics"],
+            "settings": _reconstruction_project_settings(payload, result),
         },
         artifacts=tuple(artifacts),
     )
@@ -303,8 +514,8 @@ def _graph_build(
     )
     from mesh2param_contracts import CADGraph, canonical_json
 
-    raw_graph = payload.get("cadgraph")
-    if not isinstance(raw_graph, dict):
+    payload_graph = payload.get("cadgraph")
+    if not isinstance(payload_graph, dict):
         raise JobFailure(
             "cadgraph_missing",
             "building B-Rep",
@@ -313,6 +524,20 @@ def _graph_build(
             recoverable=True,
             recommended_action="Reconstruct or restore a CADGraph before retrying.",
         )
+    raw_graph = copy.deepcopy(payload_graph)
+    surface_deviation = _validation_surface_deviation(payload)
+    if surface_deviation is not None:
+        project_tolerance = raw_graph.get("projectTolerance")
+        if not isinstance(project_tolerance, dict):
+            raise JobFailure(
+                "invalid_validation_settings",
+                "building B-Rep",
+                "Validation settings are invalid",
+                "CADGraph project tolerance is missing.",
+                recoverable=True,
+                recommended_action="Restore a valid CADGraph and retry validation.",
+            )
+        project_tolerance["surfaceDeviation"] = surface_deviation
     graph = CADGraph.model_validate(raw_graph)
     progress("building B-Rep", 30.0, "Compiling the authoritative CADGraph")
     compilation = compile_cadgraph(graph)
@@ -334,15 +559,35 @@ def _graph_build(
     progress("exporting STEP", 65.0, "Exporting the validated solid")
     step = export_step_validated(shape, workdir / "model.step", units=graph.units)
     progress("reimporting STEP", 82.0, "STEP reimport validation completed")
-    graph_path = workdir / "model.cadgraph.json"
-    graph_path.write_text(canonical_json(graph), encoding="utf-8", newline="\n")
-    write_cadquery_source(graph, workdir / "model.cq.py")
-    export_glb(shape, workdir / "reconstructed.glb")
-    validation = {
-        "status": "valid" if step.valid else "step-reimport-failed",
+    tolerance_satisfied = (
+        graph.fit_metrics.p95_surface_distance
+        <= graph.project_tolerance.surface_deviation
+        and graph.fit_metrics.max_surface_distance
+        <= graph.project_tolerance.surface_deviation
+    )
+    graph_document = graph.model_dump(mode="json", by_alias=True)
+    graph_document["validation"] = {
+        "status": "valid" if step.valid and tolerance_satisfied else "invalid",
         "brepValid": step.source.valid,
         "stepReimportValid": step.reimport.valid,
-        "toleranceSatisfied": graph.validation.tolerance_satisfied,
+        "toleranceSatisfied": tolerance_satisfied,
+        "checkedAt": graph.validation.checked_at,
+        "lastValidFeatureId": graph.validation.last_valid_feature_id,
+        "issues": [
+            issue.model_dump(mode="json", by_alias=True)
+            for issue in graph.validation.issues
+        ],
+    }
+    final_graph = CADGraph.model_validate(graph_document)
+    graph_path = workdir / "model.cadgraph.json"
+    graph_path.write_text(canonical_json(final_graph), encoding="utf-8", newline="\n")
+    write_cadquery_source(final_graph, workdir / "model.cq.py")
+    export_glb(shape, workdir / "reconstructed.glb")
+    validation = {
+        "status": "valid" if step.valid and tolerance_satisfied else "invalid",
+        "brepValid": step.source.valid,
+        "stepReimportValid": step.reimport.valid,
+        "toleranceSatisfied": tolerance_satisfied,
         "step": step.to_dict(),
         "compilation": compilation.to_dict(),
     }
@@ -449,10 +694,15 @@ def _graph_build(
             "modelVersionId": payload.get("versionId"),
             "parentVersionId": payload.get("parentVersionId"),
             "source": payload.get("source"),
-            "internalUnits": graph.units,
-            "engineVersion": graph.engine_versions.mesh2param,
-            "schemaVersions": {"cadgraph": graph.schema_version, "manifest": "1.0.0"},
-            "dependencyVersions": graph.engine_versions.model_dump(mode="json", by_alias=True),
+            "internalUnits": final_graph.units,
+            "engineVersion": final_graph.engine_versions.mesh2param,
+            "schemaVersions": {
+                "cadgraph": final_graph.schema_version,
+                "manifest": "1.0.0",
+            },
+            "dependencyVersions": final_graph.engine_versions.model_dump(
+                mode="json", by_alias=True
+            ),
             "settings": payload.get("settings", {}),
             "validation": validation,
             "timestamp": payload.get("timestamp"),
@@ -480,15 +730,19 @@ def _graph_build(
     return HandlerOutput(
         result={
             "validation": validation,
-            "artifactValidationState": "valid" if step.valid else "invalid",
+            "artifactValidationState": (
+                "valid" if step.valid and tolerance_satisfied else "invalid"
+            ),
         },
-        state_patch={"cadgraph": raw_graph, "validation": validation},
+        state_patch={"cadgraph": graph_document, "validation": validation},
         artifacts=tuple(artifacts),
     )
 
 
 def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
+    from mesh2param import ingest_mesh
     from mesh2param.samples import generate_sample, sample_spec
+    from mesh2param.tessellation import write_glb
 
     slug = str(payload.get("sampleId", ""))
     spec = sample_spec(slug)
@@ -497,12 +751,15 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
     sample_dir = Path(generated.directory)
     graph = json.loads((sample_dir / "model.cadgraph.json").read_text(encoding="utf-8"))
     metadata = json.loads((sample_dir / "metadata.json").read_text(encoding="utf-8"))
+    source = ingest_mesh(sample_dir / "source-random.stl", limits=_mesh_limits(payload))
+    write_glb(_mesh_tessellation(source.mesh), workdir / "source.glb")
     artifacts = (
         ArtifactOutput("source-high.stl", f"{slug}/source-high.stl", "model/stl", "source"),
         ArtifactOutput("source-low.stl", f"{slug}/source-low.stl", "model/stl", "source"),
         ArtifactOutput(
             "source-random.stl", f"{slug}/source-random.stl", "model/stl", "source"
         ),
+        ArtifactOutput("source.glb", "source.glb", "model/gltf-binary", "source-mesh"),
         ArtifactOutput("model.step", f"{slug}/model.step", "model/step", "step"),
         ArtifactOutput(
             "model.cadgraph.json",

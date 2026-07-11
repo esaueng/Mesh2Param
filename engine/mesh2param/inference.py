@@ -437,6 +437,7 @@ class CandidateEvaluation:
             "valid": self.valid,
             "rejectionReason": self.rejection_reason,
             "featureCount": len(self.graph.features),
+            "cadgraph": self.graph.model_dump(mode="json", by_alias=True),
             "kernel": self.compilation.to_dict(),
             "comparison": self.comparison.to_dict() if self.comparison is not None else None,
         }

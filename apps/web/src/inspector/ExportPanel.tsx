@@ -1,0 +1,16 @@
+import { Download, FileArchive, Save, Tag } from "lucide-react";
+import { Button, PanelSection, StatusGlyph } from "@mesh2param/ui";
+import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
+import { InspectorFrame } from "../workspace/InspectorFrame";
+import { JobProgress } from "./shared";
+import { apiClient } from "../api/client";
+import { useState } from "react";
+
+export function ExportPanel({vm,actions}:{vm:WorkspaceViewModel;actions:WorkspaceActions}){const valid=vm.project.state.validation?.brepValid===true&&vm.project.state.validation?.stepReimportValid===true;const [label,setLabel]=useState("Validated model");const safeArtifacts=valid?vm.artifacts:vm.artifacts.filter(artifact=>!isDerivedArtifact(artifact.name));return <InspectorFrame step="export" title="Export" helper="Download verified model artifacts or a self-contained project bundle." onStep={actions.setStep}>
+ {vm.activeJob?.job.kind==="export"?<JobProgress state={vm.activeJob} onCancel={()=>void actions.cancelJob()}/>:null}
+ <PanelSection title="Validation gate"><StatusGlyph state={valid?"complete":"warning"} label={valid?"B-Rep and STEP reimport valid":"Validate before exporting STEP"}/><p className="panel-note">STEP is never labeled valid until the exported file has been reimported through OCCT.</p><Button variant="primary" onClick={()=>void actions.run("export")} disabled={!vm.workerReady||!vm.serverWritable||!valid||Boolean(vm.activeJob)}><FileArchive size={16}/>Build export bundle</Button></PanelSection>
+ <PanelSection title={`Artifacts · ${safeArtifacts.length}`}>{!valid?<p className="panel-note">Derived model, STEP, validation, and export artifacts are hidden because the current CADGraph has not been validated. The viewport may continue showing the last valid geometry for recovery.</p>:null}<div className="artifact-list">{safeArtifacts.map(artifact=><a key={artifact.id} data-artifact-name={artifact.name} href={apiClient.artifactUrl(vm.project.id,artifact.name,artifact.sha256)} download={artifact.name}><span><strong>{artifact.name}</strong><small>{formatBytes(artifact.byteSize)} · {artifact.sha256.slice(0,12)}</small></span><Download size={15}/></a>)}</div></PanelSection>
+ <PanelSection title="Project and versions"><Button onClick={()=>void actions.saveProject()}><Save size={15}/>Save project</Button><label className="version-label"><span>Version label</span><input value={label} onChange={e=>setLabel(e.currentTarget.value)}/></label><Button onClick={()=>void actions.createVersion(label)} disabled={!vm.serverWritable||!label.trim()}><Tag size={15}/>Create version</Button><div className="version-list">{vm.versions.map(version=><button key={version.id} disabled={!vm.serverWritable} onClick={()=>void actions.restoreVersion(version.id)}><span>{version.label}</span><small>{new Date(version.createdAt).toLocaleString()}</small></button>)}</div></PanelSection>
+ </InspectorFrame>}
+function formatBytes(bytes:number){return bytes<1024*1024?`${(bytes/1024).toFixed(1)} KB`:`${(bytes/1024/1024).toFixed(1)} MB`}
+function isDerivedArtifact(name:string){return /^(model\.|reconstructed\.glb|residual\.glb|metrics\.json|validation\.json|manifest\.json|mesh2param-export\.zip|project\.mesh2param\.json)/.test(name)}
