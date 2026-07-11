@@ -38,10 +38,12 @@ interface CadViewportProps {
   artifacts: ArtifactDescriptor[];
   preferences: ViewerPreferences;
   theme: ViewerTheme;
-  sourceProxyActive: boolean;
+  sourceProxyActive?: boolean;
   selectedPatchId: string | null;
   onPreferences(patch: Partial<ViewerPreferences>): void;
   onSelectPatch(id: string | null): void;
+  /** "minimal" hides the built-in mode bar so an external control (e.g. the command dock) can drive the viewer. */
+  chrome?: "full" | "minimal";
 }
 
 export function CadViewport({
@@ -49,10 +51,11 @@ export function CadViewport({
   artifacts,
   preferences,
   theme,
-  sourceProxyActive,
+  sourceProxyActive = false,
   selectedPatchId,
   onPreferences,
   onSelectPatch,
+  chrome = "full",
 }: CadViewportProps) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
   const [command, setCommand] = useState<CameraCommand>({ fitRevision: 0, viewRevision: 0, preset: "iso" });
@@ -108,8 +111,16 @@ export function CadViewport({
   useEffect(() => setBounds(null), [artifactKey]);
   useEffect(() => {
     const fit = () => setCommand((current) => ({ ...current, fitRevision: current.fitRevision + 1 }));
+    const view = (event: Event) => {
+      const detail = (event as CustomEvent<ViewPreset>).detail;
+      if (detail) setCommand((current) => ({ ...current, preset: detail, viewRevision: current.viewRevision + 1 }));
+    };
     window.addEventListener("mesh2param:fit-view", fit);
-    return () => window.removeEventListener("mesh2param:fit-view", fit);
+    window.addEventListener("mesh2param:view-preset", view);
+    return () => {
+      window.removeEventListener("mesh2param:fit-view", fit);
+      window.removeEventListener("mesh2param:view-preset", view);
+    };
   }, []);
 
   function preset(value: ViewPreset) {
@@ -118,6 +129,7 @@ export function CadViewport({
 
   return (
     <section className="cad-viewport" aria-label="3D CAD viewer" data-testid="cad-viewport">
+      {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
         {MODES.map((mode) => (
           <button
@@ -200,6 +212,7 @@ export function CadViewport({
           />
         </label>
       </div>
+      ) : null}
 
       <ViewerErrorBoundary key={artifactKey}>
         <Canvas
@@ -260,8 +273,8 @@ export function CadViewport({
         </Canvas>
       </ViewerErrorBoundary>
 
-      {layers.length === 0 ? (
-        <div className="viewer-empty"><Box /><strong>No geometry artifact</strong><p>Import or load a sample to begin.</p></div>
+      {layers.length === 0 && chrome === "full" ? (
+        <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
       <div className="view-cube" aria-label="Standard views">
         <button onClick={() => preset("top")}>TOP</button>
