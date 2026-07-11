@@ -16,6 +16,8 @@ import type {
   WorkflowStep,
 } from "../state/types";
 import { normalizeProjectDetail } from "./normalize";
+import { automaticReconstructionCapability } from "./automaticReconstruction";
+import { failedStepStatus, formatJobFailure, formatJobSnapshotFailure } from "./jobFailure";
 import { WorkspaceShell } from "./WorkspaceShell";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
 
@@ -92,8 +94,9 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
         workspaceStore.getState().applyJobEvent(job.kind, event);
         if (event.type === "failed") {
           const step = COMPLETION_STEP[job.kind];
-          if (step !== undefined) workspaceStore.getState().setStepState(step, { status: "failed" });
-          setError(event.message ?? `${job.kind} failed`);
+          const current = workspaceStore.getState();
+          if (step !== undefined) current.setStepState(step, { status: failedStepStatus(job.kind, current.working) });
+          setError(formatJobFailure(job.kind, event, current.working));
         }
       },
       onSnapshot: (snapshot) => {
@@ -107,6 +110,16 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
               }
             })
             .catch((cause: unknown) => setError(normalizeApiError(cause).detail));
+          return;
+        }
+        if (snapshot.status === "failed") {
+          const current = workspaceStore.getState();
+          current.setJob(snapshot, "closed");
+          const step = COMPLETION_STEP[snapshot.kind];
+          if (step !== undefined) {
+            current.setStepState(step, { status: failedStepStatus(snapshot.kind, current.working) });
+          }
+          setError(formatJobSnapshotFailure(snapshot, current.working));
           return;
         }
         workspaceStore.getState().setJob(
@@ -198,6 +211,13 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
       return;
     }
     if (current.project === null || current.serverRevision === null || !requireServerWritable()) return;
+    if (operation === "reconstruct" && current.working !== null) {
+      const capability = automaticReconstructionCapability(current.working);
+      if (!capability.supported) {
+        setError(capability.reason ?? "Automatic reconstruction is unavailable for this sample.");
+        return;
+      }
+    }
     setError(null);
     try {
       const result = await apiClient.startOperation(current.project.id, operation, current.serverRevision, { settings });

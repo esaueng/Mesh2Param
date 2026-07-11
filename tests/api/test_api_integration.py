@@ -89,11 +89,13 @@ def test_sample_catalog_uses_generated_metadata_and_safe_thumbnails(
     assert items["l-bracket-with-holes"]["triangleCount"] == 2052
     assert items["l-bracket-with-holes"]["intendedOperations"] == ["Extrusion", "Hole"]
     assert items["l-bracket-with-holes"]["toleranceMm"] == pytest.approx(0.15)
+    assert items["l-bracket-with-holes"]["automaticReconstructionSupported"] is True
     assert (
         items["l-bracket-with-holes"]["thumbnailUrl"]
         == "/api/samples/l-bracket-with-holes/thumbnail"
     )
     assert items["flange"]["triangleCount"] == 4560
+    assert items["flange"]["automaticReconstructionSupported"] is False
     assert items["flange"]["intendedOperations"] == [
         "Revolution",
         "Hole",
@@ -244,6 +246,85 @@ def test_worker_timeout_crash_retry_and_running_cancel(client: TestClient) -> No
     cancelled = wait_job(client, running["id"])
     assert cancelled["status"] == "cancelled"
     assert cancelled["progress"] < 100
+
+
+@pytest.mark.geometry
+def test_flange_sample_exposes_exact_graph_and_rejects_unsupported_inference(
+    client: TestClient,
+) -> None:
+    opened = client.post("/api/samples/flange/open")
+    assert opened.status_code == 202, opened.text
+    project_id = opened.json()["data"]["project"]["id"]
+    sample_job = wait_job(client, opened.json()["data"]["job"]["id"])
+    assert sample_job["status"] == "completed", sample_job
+
+    project, etag = current_project(client, project_id)
+    initial_revision = project["revision"]
+    graph = project["state"]["cadgraph"]
+    assert [feature["operation"] for feature in graph["features"]] == [
+        "revolution",
+        "hole",
+        "hole",
+        "circularPattern",
+    ]
+    assert graph["validation"]["brepValid"] is True
+    assert graph["validation"]["stepReimportValid"] is True
+    assert project["state"]["settings"]["automaticReconstruction"] == {
+        "supported": False,
+        "sampleId": "flange",
+        "reason": (
+            "Automatic inference currently supports only the L-bracket with four "
+            "through holes. This exact sample already includes an editable CADGraph."
+        ),
+    }
+
+    rejected = client.post(
+        f"/api/projects/{project_id}/reconstruct",
+        headers={"If-Match": etag},
+        json={},
+    )
+    assert rejected.status_code == 409, rejected.text
+    error = rejected.json()["error"]
+    assert error["code"] == "automatic_reconstruction_unsupported"
+    assert "L-bracket" in error["detail"]
+    assert error["recommendedAction"] == (
+        "Use Rebuild sample CADGraph to exercise the exact editable model."
+    )
+
+    unchanged, replacement_etag = current_project(client, project_id)
+    assert unchanged["revision"] == initial_revision
+    assert unchanged["state"]["cadgraph"] == graph
+
+    replacement = client.post(
+        f"/api/projects/{project_id}/upload",
+        params={
+            "filename": "replacement.stl",
+            "units": "mm",
+            "unitsConfirmed": "true",
+            "scaleFactor": "1",
+        },
+        headers={
+            "If-Match": replacement_etag,
+            "Content-Type": "application/octet-stream",
+        },
+        content=binary_triangle_stl(),
+    )
+    assert replacement.status_code == 202, replacement.text
+    replacement_job = wait_job(client, replacement.json()["data"]["job"]["id"])
+    assert replacement_job["status"] == "completed", replacement_job
+    replaced, replaced_etag = current_project(client, project_id)
+    assert "automaticReconstruction" not in replaced["state"]["settings"]
+    assert replaced["state"]["cadgraph"] is None
+
+    accepted = client.post(
+        f"/api/projects/{project_id}/reconstruct",
+        headers={"If-Match": replaced_etag},
+        json={},
+    )
+    assert accepted.status_code == 202, accepted.text
+    attempted = wait_job(client, accepted.json()["data"]["id"])
+    assert attempted["status"] == "failed", attempted
+    assert attempted["error"]["code"] != "automatic_reconstruction_unsupported"
 
 
 @pytest.mark.geometry

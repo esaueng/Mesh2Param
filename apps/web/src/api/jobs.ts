@@ -89,6 +89,7 @@ export function parseJobEvent(value: string | unknown, expectedJobId?: string): 
     code: nullableString(raw.code, "code"),
     timestamp: raw.timestamp,
   };
+  if (raw.detail !== undefined) event.detail = nullableString(raw.detail, "detail");
   if (typeof status === "string") event.status = status as JobStatus;
   if (isRecord(raw.result)) event.result = raw.result as NonNullable<JobEvent["result"]>;
   if (typeof raw.recoverable === "boolean") event.recoverable = raw.recoverable;

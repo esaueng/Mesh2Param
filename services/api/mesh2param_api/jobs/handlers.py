@@ -741,7 +741,11 @@ def _graph_build(
 
 def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
     from mesh2param import ingest_mesh
-    from mesh2param.samples import generate_sample, sample_spec
+    from mesh2param.samples import (
+        AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE,
+        generate_sample,
+        sample_spec,
+    )
     from mesh2param.tessellation import write_glb
 
     slug = str(payload.get("sampleId", ""))
@@ -753,6 +757,15 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
     metadata = json.loads((sample_dir / "metadata.json").read_text(encoding="utf-8"))
     source = ingest_mesh(sample_dir / "source-random.stl", limits=_mesh_limits(payload))
     write_glb(_mesh_tessellation(source.mesh), workdir / "source.glb")
+    automatic_reconstruction: dict[str, Any] = {
+        "supported": spec.automatic_reconstruction_supported,
+        "sampleId": slug,
+    }
+    if not spec.automatic_reconstruction_supported:
+        automatic_reconstruction["reason"] = (
+            f"{AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE} "
+            "This exact sample already includes an editable CADGraph."
+        )
     artifacts = (
         ArtifactOutput("source-high.stl", f"{slug}/source-high.stl", "model/stl", "source"),
         ArtifactOutput("source-low.stl", f"{slug}/source-low.stl", "model/stl", "source"),
@@ -790,6 +803,7 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
             "cadgraph": graph,
             "validation": graph["validation"],
             "metrics": graph["fitMetrics"],
+            "settings": {"automaticReconstruction": automatic_reconstruction},
         },
         artifacts=artifacts,
     )

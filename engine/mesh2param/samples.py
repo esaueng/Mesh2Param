@@ -14,6 +14,9 @@ from mesh2param_contracts import CADGraph, canonical_json
 SAMPLE_SEED_BASE = 0x4D325000
 FIXED_TIMESTAMP = "1970-01-01T00:00:00Z"
 ZERO_SHA256 = "0" * 64
+AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE = (
+    "Automatic inference currently supports only the L-bracket with four through holes."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +31,7 @@ class SampleSpec:
     expected_planar_faces: int
     expected_cylindrical_faces: int
     factory: Callable[[SampleSpec], CADGraph]
+    automatic_reconstruction_supported: bool = False
 
     @property
     def seed(self) -> int:
@@ -776,6 +780,7 @@ SAMPLE_SPECS: tuple[SampleSpec, ...] = (
         8,
         4,
         _l_bracket,
+        True,
     ),
     SampleSpec(
         "flange",
