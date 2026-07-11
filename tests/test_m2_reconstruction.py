@@ -29,7 +29,12 @@ from mesh2param.ingest import IngestedMesh, ingest_mesh
 from mesh2param.reconstruction import ReconstructionSettings, reconstruct_file
 from mesh2param.repair import RepairResult, repair_mesh
 from mesh2param.samples import sample_graph, sample_spec, sample_transform
-from mesh2param.segmentation import PatchEditSession, SegmentationResult, segment_mesh
+from mesh2param.segmentation import (
+    PatchEditSession,
+    SegmentationResult,
+    SegmentationSettings,
+    segment_mesh,
+)
 from mesh2param.selection import write_patch_selection_artifacts
 from mesh2param.sketches import (
     ExtractedSketches,
@@ -70,6 +75,21 @@ def _rigid_vertex(
 ) -> tuple[float, float, float]:
     result = rotation @ np.asarray(vertex) + translation
     return float(result[0]), float(result[1]), float(result[2])
+
+
+def test_minimum_patch_area_classifies_small_regions_without_aborting() -> None:
+    mesh = trimesh.Trimesh(
+        vertices=np.asarray(((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))),
+        faces=np.asarray(((0, 1, 2),)),
+        process=False,
+    )
+    segmentation = segment_mesh(
+        mesh,
+        SegmentationSettings(minimum_patch_area_mm2=1.0),
+    )
+    assert len(segmentation.patches) == 1
+    assert segmentation.patches[0].kind == "freeform"
+    assert segmentation.patches[0].area_mm2 == pytest.approx(0.5)
 
 
 @pytest.fixture(scope="module")

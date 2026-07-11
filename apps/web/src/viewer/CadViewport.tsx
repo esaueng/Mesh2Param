@@ -38,6 +38,7 @@ interface CadViewportProps {
   artifacts: ArtifactDescriptor[];
   preferences: ViewerPreferences;
   theme: ViewerTheme;
+  sourceProxyActive?: boolean;
   selectedPatchId: string | null;
   onPreferences(patch: Partial<ViewerPreferences>): void;
   onSelectPatch(id: string | null): void;
@@ -50,6 +51,7 @@ export function CadViewport({
   artifacts,
   preferences,
   theme,
+  sourceProxyActive = false,
   selectedPatchId,
   onPreferences,
   onSelectPatch,
@@ -134,10 +136,13 @@ export function CadViewport({
             key={mode.id}
             aria-pressed={preferences.mode === mode.id}
             disabled={!canShow(mode.id, artifactMap)}
+            title={sourceProxyActive && mode.id === "reconstructed"
+              ? "Preserved source facets used as the 3D proxy; the STEP is validated separately."
+              : undefined}
             onClick={() => onPreferences({ mode: mode.id })}
           >
             <ModeIcon mode={mode.id} />
-            <span>{mode.label}</span>
+            <span>{sourceProxyActive && mode.id === "reconstructed" ? "Source proxy" : mode.label}</span>
           </button>
         ))}
         <span className="toolbar-separator" />
@@ -195,9 +200,9 @@ export function CadViewport({
           />
         </label>
         <label className="opacity-control">
-          <span>Result</span>
+          <span>{sourceProxyActive ? "Proxy" : "Result"}</span>
           <input
-            aria-label="Result opacity"
+            aria-label={sourceProxyActive ? "Preserved-source proxy opacity" : "Result opacity"}
             type="range"
             min="0"
             max="1"

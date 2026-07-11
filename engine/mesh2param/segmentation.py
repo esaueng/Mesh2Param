@@ -279,8 +279,9 @@ def fit_surface_patch(
         raise ValueError("patch face IDs are empty or out of range")
     face_areas = np.asarray(mesh.area_faces, dtype=np.float64)[face_ids]
     area = float(np.sum(face_areas))
-    if area <= settings.minimum_patch_area_mm2:
-        raise ValueError(f"patch area {area:g} is below the configured minimum")
+    if area <= 0:
+        raise ValueError("patch area must be positive")
+    below_minimum_area = area < settings.minimum_patch_area_mm2
     face_normals = np.asarray(mesh.face_normals, dtype=np.float64)[face_ids]
     face_centers = np.asarray(mesh.triangles_center, dtype=np.float64)[face_ids]
     vertex_ids = np.unique(np.asarray(mesh.faces, dtype=np.int64)[face_ids].reshape(-1))
@@ -298,7 +299,7 @@ def fit_surface_patch(
     triangle_id_tuple = tuple(int(value) for value in face_ids)
     vertex_id_tuple = tuple(int(value) for value in vertex_ids)
     centroid_tuple = _tuple3(centroid)
-    if plane_stats.p95 <= settings.planar_fit_tolerance_mm:
+    if not below_minimum_area and plane_stats.p95 <= settings.planar_fit_tolerance_mm:
         confidence = max(0.0, 1.0 - plane_stats.p95 / settings.planar_fit_tolerance_mm)
         patch = SurfacePatch(
             id="",
@@ -326,7 +327,8 @@ def fit_surface_patch(
     )
     axial_normal_p95 = float(np.quantile(np.abs(face_normals @ cylinder_axis), 0.95))
     if (
-        cylinder_stats.p95 <= settings.cylinder_fit_tolerance_mm
+        not below_minimum_area
+        and cylinder_stats.p95 <= settings.cylinder_fit_tolerance_mm
         and coverage >= settings.minimum_cylinder_coverage_deg
         and axial_normal_p95 <= settings.maximum_cylinder_axis_normal_component
     ):

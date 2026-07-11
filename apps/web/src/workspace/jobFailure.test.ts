@@ -33,6 +33,14 @@ describe("job failure presentation", () => {
     expect(formatJobFailure("analyze", failedEvent, working)).not.toMatch(/preserved/i);
   });
 
+  it("includes the worker's recommended recovery action", () => {
+    const working = { cadgraph: null, validation: null } as unknown as ProjectWorkingDocument;
+    expect(formatJobFailure("reconstruct", {
+      ...failedEvent,
+      recommendedAction: "Use the explicit faceted STEP fallback.",
+    }, working)).toMatch(/Use the explicit faceted STEP fallback\.$/);
+  });
+
   it("uses authoritative detail when a reconnect returns a failed snapshot", () => {
     const graph = structuredClone(baseGraphDocument) as unknown as CADGraph;
     graph.validation.brepValid = true;

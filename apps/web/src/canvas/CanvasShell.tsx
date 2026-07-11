@@ -81,6 +81,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const status = conversionStatus(vm);
   const hasGeometry = vm.artifacts.some((artifact) => artifact.name.toLowerCase().endsWith(".glb"));
+  // The "result" is a preserved-source facet proxy (not exact B-Rep) when reconstruction fell back to faceting.
+  const sourceProxy = vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy");
 
   return (
     <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
@@ -92,6 +94,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           artifacts={vm.artifacts}
           preferences={viewer}
           theme={theme}
+          sourceProxyActive={sourceProxy}
           selectedPatchId={vm.selectedPatchId}
           onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
           onSelectPatch={actions.selectPatch}
@@ -160,7 +163,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   aria-pressed={viewer.mode === option.mode}
                   onClick={() => setMode(option.mode)}
                 >
-                  {option.label}
+                  {option.mode === "reconstructed" && sourceProxy ? "Proxy" : option.label}
                 </button>
               ))}
             </div>

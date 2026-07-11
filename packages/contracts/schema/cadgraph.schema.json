@@ -459,7 +459,7 @@
     "importedFacetedFeature": {
       "allOf": [
         { "$ref": "#/$defs/featureBase" },
-        { "type": "object", "required": ["booleanMode", "sourceArtifactId", "meshSha256", "intent"], "properties": { "operation": { "const": "importedFaceted" }, "booleanMode": { "enum": ["base", "additive", "subtractive"] }, "sourceArtifactId": { "$ref": "#/$defs/identifier" }, "meshSha256": { "$ref": "#/$defs/sha256" }, "intent": { "enum": ["fallback", "reference"] } } }
+        { "type": "object", "required": ["booleanMode", "sourceArtifactId", "meshSha256", "intent"], "properties": { "operation": { "const": "importedFaceted" }, "booleanMode": { "enum": ["base", "additive", "subtractive"] }, "sourceArtifactId": { "$ref": "#/$defs/identifier" }, "meshSha256": { "$ref": "#/$defs/sha256" }, "intent": { "enum": ["fallback", "reference"] }, "sewingTolerance": { "type": "number", "exclusiveMinimum": 0, "maximum": 10, "description": "Explicit OCCT sewing tolerance in project units. The engine additionally enforces a physical maximum equivalent to 10 mm. Omit to require an already-watertight mesh." } } }
       ],
       "unevaluatedProperties": false
     },

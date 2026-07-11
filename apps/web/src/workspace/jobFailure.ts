@@ -11,16 +11,20 @@ export function failedStepStatus(kind: JobKind, working: ProjectWorkingDocument 
 
 export function formatJobFailure(
   kind: JobKind,
-  event: Pick<JobEvent, "message" | "detail">,
+  event: Pick<JobEvent, "message" | "detail" | "recommendedAction">,
   working: ProjectWorkingDocument | null,
 ): string {
   const summary = event.message ?? `${kind} failed`;
   const core = event.detail === undefined || event.detail === null || event.detail === summary
     ? summary
     : `${summary}: ${event.detail}`;
-  if (!preservesValidCadgraph(kind, working)) return core;
-  const punctuation = /[.!?]$/.test(core) ? "" : ".";
-  return `${core}${punctuation} Existing CADGraph preserved.`;
+  const action = event.recommendedAction?.trim();
+  const actionable = action === undefined || action === "" || core.includes(action)
+    ? core
+    : `${core}${/[.!?]$/.test(core) ? "" : "."} ${action}`;
+  if (!preservesValidCadgraph(kind, working)) return actionable;
+  const punctuation = /[.!?]$/.test(actionable) ? "" : ".";
+  return `${actionable}${punctuation} Existing CADGraph preserved.`;
 }
 
 export function formatJobSnapshotFailure(
@@ -30,5 +34,6 @@ export function formatJobSnapshotFailure(
   return formatJobFailure(snapshot.kind, {
     message: snapshot.error?.summary ?? `${snapshot.kind} failed`,
     detail: snapshot.error?.detail ?? null,
+    recommendedAction: snapshot.error?.recommendedAction ?? null,
   }, working);
 }
