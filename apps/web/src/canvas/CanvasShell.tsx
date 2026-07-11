@@ -79,21 +79,33 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const openFilePicker = () => fileRef.current?.click();
 
-  const downloadStep = useCallback(() => {
+  const downloadStep = useCallback(async () => {
     const step = stepArtifact(vm.artifacts);
     if (step === undefined) return;
-    debugLog.info("export", `Downloading ${step.name}`, { bytes: step.byteSize });
-    const anchor = document.createElement("a");
-    anchor.href = apiClient.artifactUrl(vm.project.id, step.name, step.sha256);
-    anchor.download = step.name;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  }, [vm.artifacts, vm.project.id]);
+    const filename = stepDownloadName(vm.project.state.source?.originalFileName ?? null, step.name);
+    // Fetch as a blob so our source-derived filename wins over the server's
+    // Content-Disposition (which names every export "model.step").
+    try {
+      const response = await fetch(apiClient.artifactUrl(vm.project.id, step.name, step.sha256));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      debugLog.info("export", `Downloaded ${filename}`, { bytes: blob.size, artifact: step.name });
+    } catch (cause) {
+      debugLog.error("export", `Download failed: ${filename}`, cause);
+    }
+  }, [vm.artifacts, vm.project.id, vm.project.state.source]);
 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
-    else if (action.kind === "download") downloadStep();
+    else if (action.kind === "download") void downloadStep();
     else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
   };
 
@@ -252,6 +264,16 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
   return <Download size={size} />;
+}
+
+/** Name the downloaded STEP after the source mesh (e.g. "ADP078 cast.stl" -> "ADP078 cast.step"). */
+function stepDownloadName(sourceFileName: string | null, artifactName: string): string {
+  const extension = /\.(step|stp)$/i.exec(artifactName)?.[0].toLowerCase() ?? ".step";
+  const base = (sourceFileName ?? "")
+    .replace(/\.[^./\\]+$/, "")
+    .replace(/[/\\?%*:|"<>]/g, "-")
+    .trim();
+  return `${base || "model"}${extension}`;
 }
 
 function fileMeta(vm: WorkspaceViewModel): string {
