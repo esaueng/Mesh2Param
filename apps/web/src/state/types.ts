@@ -505,6 +505,7 @@ export interface Mesh2ParamProjectFile {
   savedAt: IsoTimestamp;
   project: ProjectSummary;
   working: ProjectWorkingDocument;
+  ui: PersistedProjectUI;
   versions: ProjectVersionSnapshot[];
   source: ProjectFileSource | null;
   artifactManifest: ArtifactDescriptor[];

@@ -1,0 +1,109 @@
+schema_version = 1
+
+[policy]
+allowed_license_tokens = [
+  "0BSD",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BlueOak-1.0.0",
+  "CC-BY-4.0",
+  "CC0-1.0",
+  "HPND",
+  "ISC",
+  "LicenseRef-Matplotlib",
+  "LGPL-2.1-only",
+  "LGPL-3.0-or-later",
+  "MIT",
+  "MIT-0",
+  "MIT-CMU",
+  "MPL-2.0",
+  "OFL-1.1",
+  "PSF-2.0",
+  "Python-2.0",
+  "Unlicense",
+  "Unicode-3.0",
+  "Zlib",
+]
+forbidden_fragments = [
+  "AGPL",
+  "GPL-2.0",
+  "GPL-3.0",
+  "LGPL",
+  "SSPL",
+  "BUSL",
+  "COMMONS-CLAUSE",
+  "CC-BY-NC",
+  "UNLICENSED",
+]
+allowed_copyleft_packages = [
+  "python:cadquery-ocp",
+  "python:casadi",
+]
+ignored_packages = [
+  "python:mesh2param",
+  "python:mesh2param-contracts",
+]
+required_notice_packages = [
+  "python:cadquery",
+  "python:cadquery-ocp",
+  "python:casadi",
+  "javascript:@fontsource/ibm-plex-mono",
+  "javascript:@fontsource/ibm-plex-sans",
+  "javascript:@playwright/test",
+  "javascript:@react-three/drei",
+  "javascript:@react-three/fiber",
+  "javascript:dexie",
+  "javascript:lucide-react",
+  "javascript:react",
+  "javascript:three",
+  "javascript:vite",
+]
+
+[[overrides]]
+ecosystem = "python"
+name = "cadquery-ocp"
+license = "Apache-2.0 AND LGPL-2.1-only WITH OCCT-exception-1.0"
+source = "https://github.com/CadQuery/OCP/tree/7.9.3.1"
+reason = "The Python bindings declare Apache-2.0 and the wheel bundles OCCT 7.9.3 shared libraries under LGPL-2.1 with the Open CASCADE exception."
+
+[[overrides]]
+ecosystem = "python"
+name = "casadi"
+license = "LGPL-3.0-or-later"
+source = "https://github.com/casadi/casadi/tree/3.7.2"
+reason = "The wheel metadata uses the non-SPDX text LGPLv3+; the upstream 3.7.2 license grants LGPL version 3 or any later version."
+
+[[overrides]]
+ecosystem = "python"
+name = "matplotlib"
+license = "LicenseRef-Matplotlib"
+source = "https://github.com/matplotlib/matplotlib/blob/v3.10.8/LICENSE/LICENSE"
+reason = "Matplotlib ships its own PSF-derived permissive license rather than an SPDX expression."
+
+[[overrides]]
+ecosystem = "python"
+name = "python-dateutil"
+license = "BSD-3-Clause OR Apache-2.0"
+source = "https://github.com/dateutil/dateutil/blob/2.9.0.post0/LICENSE"
+reason = "The wheel metadata says Dual License and supplies BSD and Apache classifiers."
+
+[[required_files]]
+path = "LICENSE"
+sha256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+source = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+
+[[required_files]]
+path = "licenses/OCCT-LGPL-2.1.txt"
+sha256 = "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c"
+source = "https://github.com/Open-Cascade-SAS/OCCT/blob/V7_9_3/LICENSE_LGPL_21.txt"
+
+[[required_files]]
+path = "licenses/OCCT-LGPL-EXCEPTION-1.0.txt"
+sha256 = "04580a884ea6cea294402649ff7b5cbb167d47462d1340a4ed33e550db10a81b"
+source = "https://github.com/Open-Cascade-SAS/OCCT/blob/V7_9_3/OCCT_LGPL_EXCEPTION.txt"
+
+[[required_files]]
+path = "licenses/CASADI-LGPL-3.0-or-later.txt"
+sha256 = "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+source = "https://github.com/casadi/casadi/blob/3.7.2/LICENSE.txt"

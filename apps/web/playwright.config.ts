@@ -1,4 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const apiDataDir = mkdtempSync(join(tmpdir(), "mesh2param-playwright-"));
 
 export default defineConfig({
   testDir: "../../tests/browser",
@@ -16,13 +21,35 @@ export default defineConfig({
     acceptDownloads: true,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "pnpm dev",
-    cwd: "../..",
-    url: "http://127.0.0.1:5173",
-    timeout: 120_000,
-    reuseExistingServer: true,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      command: "pnpm dev:api",
+      cwd: "../..",
+      url: "http://127.0.0.1:8000/ready",
+      timeout: 120_000,
+      reuseExistingServer: false,
+      env: {
+        MESH2PARAM_ENVIRONMENT: "test",
+        MESH2PARAM_DATA_DIR: apiDataDir,
+        MESH2PARAM_DATABASE_URL: `sqlite:///${join(apiDataDir, "api.sqlite3")}`,
+        MESH2PARAM_STORAGE_PATH: join(apiDataDir, "storage"),
+        MESH2PARAM_CORS_ORIGINS:
+          "http://localhost:5173,http://127.0.0.1:5173",
+        MESH2PARAM_WORKER_COUNT: "1",
+        MESH2PARAM_JOB_RUNNER_MODE: "embedded",
+        MESH2PARAM_DEBUG: "false",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      command: "pnpm dev:web",
+      cwd: "../..",
+      url: "http://127.0.0.1:5173",
+      timeout: 120_000,
+      reuseExistingServer: !process.env.CI,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  ],
 });

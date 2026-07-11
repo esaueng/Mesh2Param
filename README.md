@@ -1,50 +1,117 @@
 # Mesh2Param
 
-Mesh2Param converts supported mechanical triangle meshes into a versioned, editable CADGraph, exact
-Open CASCADE B-Rep, reimport-validated STEP, deterministic tessellated artifacts, source/result
-metrics, and safe generated CadQuery source. M1 provides the exact compiler and procedural corpus.
-M2 adds a deliberately bounded, transform-blind reconstruction path for a sharp-edged,
-plane/full-cylinder L-bracket with four through holes. M3 adds the local-first FastAPI service,
-authoritative SQLite project/job/version state, immutable filesystem content-addressed storage,
-spawn-isolated geometry jobs, durable SSE progress, cancellation, recovery, and export bundles.
+Mesh2Param converts supported STL, OBJ, and PLY triangle meshes into an editable, versioned
+CADGraph, an exact Open CASCADE B-Rep, a STEP file that has been reimported and validated through
+the kernel, deterministic browser artifacts, and source-versus-result metrics.
 
-## Development
+> **Mesh2Param reconstructs an editable, geometrically equivalent CAD model. It does not guarantee recovery of the source designer's exact original feature history.**
 
-Requirements: Python 3.12, Node.js 20 or newer, pnpm, and uv.
+The automatic reconstruction claim is deliberately bounded. The shipped end-to-end inference path
+supports the deterministic, transform-blind, sharp-edged L-bracket sample with four complete
+through-hole cylinders. Other models still receive truthful ingestion diagnostics, explicit repair,
+analytic segmentation, manual CADGraph operations, validation tools, and artifacts; unsupported
+automatic histories fail or remain partial instead of being invented.
+
+## Workspace
+
+![Mesh2Param validation workspace in the dark theme](docs/images/workspace-dark.jpg)
+
+The same seven-step engineering workflow adapts to a compact viewport without replacing the real
+3D viewer or validation evidence with a simplified mock:
+
+![Mesh2Param validation workspace at a compact width](docs/images/workspace-responsive.jpg)
+
+## What is supported
+
+| Area | Current support |
+| --- | --- |
+| Input | Binary/ASCII STL, OBJ, PLY; explicit units and scale; preserved original bytes and SHA-256 |
+| Exact modeling | Extrusion, pocket, through/blind hole, counterbore, countersink, revolution, linear/circular pattern, mirror, chamfer, fillet, imported faceted fallback |
+| Automatic inference | Bounded L-profile extrusion plus four evidence-backed through holes from plane/full-cylinder evidence |
+| Analysis | Mesh health, explicit repair history, deterministic plane/cylinder patches, frame alternatives, residuals, source/result metrics |
+| Validation | CADGraph schema/invariants, feature-by-feature OCCT compilation, B-Rep checks, STEP export, STEP reimport, solid validation, tolerance comparison |
+| Workspace | Seven-step React UI, real Three.js artifacts, patch selection, feature editing, candidate histories, unified undo/redo, IndexedDB recovery, project save/open |
+| Service | FastAPI, SQLite/WAL, immutable filesystem CAS, durable jobs/SSE, process isolation, cancellation, versions, manifests |
+
+Not automatically inferred today: general prismatic parts, arbitrary hole counts, partial cylinders,
+freeform/organic surfaces, fillets/chamfers/patterns/mirrors, compound holes, damaged profile loops,
+or the source author's original constraint strategy. See [fallbacks and limitations](docs/fallbacks.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI["React workspace<br/>IndexedDB mirror"] -->|"typed HTTP + SSE"| API["FastAPI authority"]
+  API --> DB["SQLite / WAL<br/>projects, jobs, versions"]
+  API --> CAS["SHA-256 filesystem CAS"]
+  API --> Q["Durable job queue"]
+  Q --> W["Spawn-isolated worker"]
+  W --> ENG["Mesh2Param engine"]
+  ENG --> CQ["CadQuery + OCCT"]
+  CQ --> ART["validated STEP, GLB,<br/>CADGraph, metrics"]
+  ART --> CAS
+```
+
+The backend is authoritative for projects, revisions, jobs, versions, and artifact metadata. The
+browser mirrors the active working document for autosave and reload recovery; it never silently
+overwrites divergent server state. CADGraph—not generated Python—is the executable geometry model.
+See [architecture](docs/architecture.md) and [CADGraph](docs/cadgraph.md).
+
+## Prerequisites
+
+- Python 3.12 (the current dependency set is intentionally constrained to `<3.13`)
+- Node.js 20 or newer
+- pnpm 10 or newer (the repository pins pnpm 11.7.0)
+- [uv](https://docs.astral.sh/uv/)
+- Optional for production-container verification: Docker with Compose v2
+
+No login, paid API, cloud account, or runtime CDN is required for local use.
+
+## Quickstart
 
 ```sh
-pnpm install
-uv sync --extra dev
-pnpm verify
-pnpm mesh2param -- --help
+pnpm install --frozen-lockfile
+XDG_CACHE_HOME=.cache uv sync --extra dev
 pnpm db:migrate
 pnpm dev
 ```
 
-Generate the ten deterministic procedural samples with `pnpm samples:generate`.
+Open `http://127.0.0.1:5173`. The API is `http://127.0.0.1:8000`; liveness, readiness,
+the self-hosted endpoint index, and OpenAPI are `/health`, `/ready`, `/docs`, and `/openapi.json`.
+The default development profile starts the API and its embedded local geometry supervisor together.
 
-The API listens on `http://127.0.0.1:8000` by default. Health, readiness, the self-hosted endpoint
-index, and OpenAPI are available at `/health`, `/ready`, `/docs`, and `/openapi.json`. Create a
-project, preserve a raw STL/OBJ/PLY upload, enqueue geometry work, replay progress from the durable
-SSE event stream, and download content-addressed artifacts through the routes documented in
-[`docs/api.md`](docs/api.md). The default local profile has no login and binds to loopback.
+### Sample workflow
 
-## Service architecture
+1. Choose **Load sample** and open **L-bracket with mounting holes**.
+2. Confirm millimetres in Import; inspect the preserved source hash and mesh diagnostics.
+3. Run Repair and Surfaces; select a cylindrical patch and review its fit evidence.
+4. Run Auto reconstruct; inspect candidate scores and choose a kernel-valid history.
+5. Edit a hole diameter in Refine, rebuild, then run Validate.
+6. Confirm B-Rep validity and STEP reimport independently; inspect tolerance metrics.
+7. Download `model.step`, `model.cadgraph.json`, or the export bundle; save the project file and
+   reload to verify recovery.
 
-```text
-FastAPI request handlers
-  ├─ SQLite/WAL: projects, revisions, jobs, attempts, events, versions, audit records
-  ├─ SHA-256 CAS: immutable source and generated artifact bytes
-  └─ spawn supervisor: one isolated temp directory and process per geometry job
-       └─ trusted static operation map → mesh2param engine → validated artifacts
-```
+Only a completed validation job may present a STEP artifact as reimport-valid.
 
-Project mutations require an `If-Match: "rev-N"` precondition. Only one mutating job may be active
-per project. Successful artifact snapshots inherit prior immutable outputs, and export produces a
-ZIP containing the complete conversion artifact set plus a hash manifest. See
-[`docs/security.md`](docs/security.md) for the trust boundaries and production requirements.
+## Root commands
 
-## Reconstruction CLI
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start Vite, FastAPI, and the embedded local geometry supervisor |
+| `pnpm build` | Build contracts, UI/web production assets, and Python distributions |
+| `pnpm typecheck` | TypeScript strict checks plus mypy |
+| `pnpm lint` | Generated-contract drift, ESLint, and Ruff |
+| `pnpm test` | Contract, web, engine, API, security, and geometry tests |
+| `pnpm test:e2e` | Playwright primary workflow (requires installed browser binaries) |
+| `pnpm verify` | Full local delivery gate, including deterministic samples and browser acceptance |
+| `pnpm db:migrate` | Apply SQLite schema migrations |
+| `pnpm samples:generate` | Regenerate the seeded procedural corpus |
+| `pnpm mesh2param -- --help` | Show the shared engine CLI |
+| `uv run --extra dev python scripts/check_licenses.py` | Audit installed Python/pnpm licenses and notices |
+
+## CLI
+
+The CLI and API workers call the same engine functions:
 
 ```sh
 pnpm mesh2param -- analyze source.stl --units mm --output artifacts/
@@ -55,21 +122,104 @@ pnpm mesh2param -- rebuild model.cadgraph.json --output artifacts/
 pnpm mesh2param -- compare source.stl model.step --units mm --output artifacts/
 pnpm mesh2param -- validate model.step --units mm --output artifacts/
 pnpm mesh2param -- samples generate --sample l-bracket-with-holes
+pnpm mesh2param -- serve
 ```
 
-STL, OBJ, and PLY ingestion is extension- and content-validated with configurable byte, triangle,
-vertex, and coordinate limits. The original bytes and SHA-256 are preserved. Repair runs on a copy
-and records every enabled operation, parameters, before/after metrics, warnings, and version IDs.
+## Docker and production operations
 
-Successful L-bracket reconstruction writes diagnostics, repair records, analytic patches, inferred
-frame and sketch evidence, candidate scores, a schema-valid editable CADGraph, validated STEP,
-CadQuery export source, bidirectional distance/normal/area/volume metrics, a residual heatmap GLB,
-truthful source/repair/analysis GLBs, and a GLB-hash-bound patch triangle selection map.
+The production topology is a same-origin web proxy, one API process, and one external geometry
+worker sharing the absolute data volume. Start it with:
 
-The automatic claim is intentionally narrow. Equal-axis extents, coarse cylinder facets, partial
-cylinders, open/damaged loops, freeform remainder, fillets, chamfers, patterns, other hole counts,
-and general prismatic or organic parts return explicit partial/unsupported results instead of a
-fabricated parametric history. Open3D is not required; see `docs/fallbacks.md`.
+```sh
+cp .env.example .env
+docker compose config
+docker compose up --build
+```
 
-Mesh2Param reconstructs an editable, geometrically equivalent CAD model. It does not guarantee
-recovery of the source designer's exact original feature history.
+The copied `.env` is a Compose interpolation profile. Mesh2Param itself reads explicit process
+environment variables and does not auto-load dotenv files, so `pnpm dev` continues to use its safe
+embedded local-worker defaults after a container run.
+
+Production uses `MESH2PARAM_JOB_RUNNER_MODE=external` and exactly one SQLite worker. The API
+`/health` endpoint is process liveness; `/ready` also requires database/storage access and a fresh
+worker heartbeat. Do not expose the no-login profile to an untrusted network; terminate TLS at a
+trusted reverse proxy and configure exact hosts/origins. See [deployment](docs/deployment.md).
+
+## Project files and artifacts
+
+`project.mesh2param.json` is a schema-versioned working-project interchange file. It contains project
+metadata, CADGraph, repair/analysis state, versions, validation and artifact descriptors, and
+restore-relevant UI state. A source mesh is embedded only when policy and size allow; otherwise the
+file carries a hash-bound local reference and must not imply portability. Imports validate the
+extension, schema, bounds, source byte count, and SHA-256 before hydration. See
+[project-file format](docs/project-file.md).
+
+A complete conversion can produce:
+
+```text
+model.step                model.cadgraph.json       model.cq.py
+source.glb                repaired.glb              analysis-proxy.glb
+patches.glb               reconstructed.glb         residual.glb
+analysis.json             metrics.json              manifest.json
+project.mesh2param.json   mesh2param-export.zip
+```
+
+Artifact sets are immutable and content-addressed. `manifest.json` binds project/version/source
+identity, units, settings, validation, dependency versions, artifact sizes, and SHA-256 hashes.
+
+## API and security
+
+Project mutations require `If-Match: "rev-N"`; stale writes fail rather than overwrite. Geometry
+operations return durable jobs, stream real phase events over replayable SSE, and support
+cancellation. See the [API reference](docs/api.md).
+
+Uploads and generated geometry are untrusted. Mesh2Param uses structural parser allowlists, bounded
+streams and allocation limits, randomized private staging, no-follow content-addressed storage,
+static worker dispatch, process/resource isolation, egress denial in production, strict origins and
+hosts, and no uploaded/generated script execution. See [security model](docs/security.md) and
+[vulnerability reporting](SECURITY.md).
+
+## Validation methodology
+
+Validation is a chain, not a UI label:
+
+```text
+CADGraph validation → deterministic OCCT build → BRepCheck → STEP export
+→ independent STEP reimport → solid/BRepCheck → tessellation → source comparison
+```
+
+The project persists each stage and its failure state. A close mesh does not rescue an invalid
+B-Rep, and a valid B-Rep does not claim tolerance success without comparison evidence. See
+[validation](docs/validation.md).
+
+## Troubleshooting
+
+- **`node` or `pnpm` is too old:** use Node 20+ and reinstall with the pinned pnpm version.
+- **Python resolves outside 3.12:** run through `uv`; the system Python is not the project runtime.
+- **`/ready` is not ready:** check database/storage permissions and worker heartbeat; `/health`
+  alone does not prove geometry capacity.
+- **A reconstruction is unsupported:** keep the diagnostics/patches, use manual features or the
+  faceted fallback, and do not reinterpret an explicit failure as success.
+- **Playwright cannot launch in a managed sandbox:** run `pnpm test:e2e` on a normal host/CI runner;
+  the limitation and exact observed error are in [fallbacks](docs/fallbacks.md).
+- **License inventory is stale:** install both lockfiles, then run the checker with
+  `--write-notices` and rerun it without mutation.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [CADGraph](docs/cadgraph.md)
+- [Project-file format](docs/project-file.md)
+- [Validation](docs/validation.md)
+- [Security](docs/security.md)
+- [Deployment](docs/deployment.md)
+- [Fallbacks and limitations](docs/fallbacks.md)
+- [Contributing](CONTRIBUTING.md)
+
+## Licensing
+
+Mesh2Param original source is Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Native OCCT
+libraries remain LGPL-2.1 with the Open CASCADE exception, and the transitive CasADi dependency is
+LGPL-3.0-or-later. Their canonical texts, source references, override rationale, and the complete
+installed dependency inventory are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
+[`licenses/`](licenses/README.md).

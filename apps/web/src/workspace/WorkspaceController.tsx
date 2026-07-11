@@ -75,22 +75,44 @@ export function WorkspaceController({ workerReady, initialJob, onOpenStart }: Wo
     const stop = watchJob(job, {
       onConnection: (connection) => workspaceStore.getState().setJobConnection(job.kind, connection),
       onEvent: (event) => {
-        workspaceStore.getState().applyJobEvent(job.kind, event);
         if (event.type === "completed") {
-          const step = COMPLETION_STEP[job.kind];
-          if (step !== undefined) workspaceStore.getState().setStepState(step, { status: "complete" });
-          void refreshProject(`${job.kind} completed`).catch((cause: unknown) => {
-            setError(normalizeApiError(cause).detail);
-          });
-        } else if (event.type === "failed") {
+          void refreshProject(`${job.kind} completed`)
+            .then(() => {
+              workspaceStore.getState().applyJobEvent(job.kind, event);
+              const step = COMPLETION_STEP[job.kind];
+              if (step !== undefined) {
+                workspaceStore.getState().setStepState(step, { status: "complete" });
+              }
+            })
+            .catch((cause: unknown) => {
+              setError(normalizeApiError(cause).detail);
+            });
+          return;
+        }
+        workspaceStore.getState().applyJobEvent(job.kind, event);
+        if (event.type === "failed") {
           const step = COMPLETION_STEP[job.kind];
           if (step !== undefined) workspaceStore.getState().setStepState(step, { status: "failed" });
           setError(event.message ?? `${job.kind} failed`);
         }
       },
       onSnapshot: (snapshot) => {
-        workspaceStore.getState().setJob(snapshot, snapshot.status === "running" ? "reconnecting" : "closed");
-        if (snapshot.status === "completed") void refreshProject(`${job.kind} completed`);
+        if (snapshot.status === "completed") {
+          void refreshProject(`${job.kind} completed`)
+            .then(() => {
+              workspaceStore.getState().setJob(snapshot, "closed");
+              const step = COMPLETION_STEP[job.kind];
+              if (step !== undefined) {
+                workspaceStore.getState().setStepState(step, { status: "complete" });
+              }
+            })
+            .catch((cause: unknown) => setError(normalizeApiError(cause).detail));
+          return;
+        }
+        workspaceStore.getState().setJob(
+          snapshot,
+          snapshot.status === "running" ? "reconnecting" : "closed",
+        );
       },
       onError: (cause) => setError(cause.detail),
       onInvalidEvent: (cause) => setError(`Invalid worker event: ${cause.message}`),

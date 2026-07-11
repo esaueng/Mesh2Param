@@ -1,0 +1,23 @@
+Mesh2Param
+Copyright 2026 Mesh2Param contributors
+
+This product is licensed under the Apache License, Version 2.0.
+
+This product uses Open CASCADE Technology (OCCT). OCCT is Copyright (c)
+1999-2026 OPEN CASCADE S.A.S. and is distributed under the GNU Lesser General
+Public License version 2.1 with the Open CASCADE exception version 1.0. The
+applicable license texts are provided in licenses/.
+
+This product uses CasADi as a transitive CadQuery dependency. CasADi is
+distributed under the GNU Lesser General Public License version 3 or, at the
+recipient's option, any later version. The applicable license text is provided
+in licenses/.
+
+The compact engineering-shell organization, token approach, and accessibility
+conventions were informed by and selectively adapted from OpenCAE at commit
+a8aba0048dd21565b5b76357cfd9be62917cf6f6c, licensed under Apache-2.0.
+Mesh2Param does not reuse the OpenCAE name, logo, simulation terminology,
+sample data, or support links.
+
+All third-party names and marks belong to their respective owners. See
+THIRD_PARTY_NOTICES.md for the installed dependency inventory and source links.

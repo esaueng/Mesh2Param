@@ -294,7 +294,7 @@ function makeManualFeature(graph: CADGraph, kind: ManualFeatureKind, value: numb
     };
   }
   if (kind === "importedFaceted") {
-    if (graph.source === undefined) throw new Error("Imported fallback requires a preserved source descriptor.");
+    if (graph.source == null) throw new Error("Imported fallback requires a preserved source descriptor.");
     return {
       ...common,
       operation: "importedFaceted",

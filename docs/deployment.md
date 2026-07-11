@@ -1,0 +1,177 @@
+# Deployment and operations
+
+The supported production topology is a same-origin web proxy, one FastAPI process, and one external
+geometry worker. The API and worker share one absolute data volume containing SQLite, content-
+addressed artifacts, job work areas, a worker heartbeat, and a singleton worker lock.
+
+```mermaid
+flowchart LR
+  C["Browser"] -->|"TLS + authentication"| G["Trusted gateway"]
+  G -->|"127.0.0.1:8080"| WEB["nginx web + /api proxy"]
+  WEB -->|"private backend network"| API["FastAPI"]
+  API --> VOL["mesh2param-data"]
+  WORKER["Geometry worker\nno network"] --> VOL
+```
+
+Mesh2Param itself has no login or tenant authorization. The gateway shown above is mandatory for
+remote access. For local-only use, Compose publishes the web service on loopback and no gateway is
+required.
+
+## Compose quickstart
+
+Prerequisites are Docker Engine or Docker Desktop with Compose v2 and sufficient resources for the
+OCCT worker.
+
+```sh
+cp .env.example .env
+docker compose config
+docker compose up --build
+```
+
+`.env` is consumed by Docker Compose for interpolation. The application processes intentionally do
+not auto-load dotenv files; Compose passes an explicit allowlisted environment to each container.
+This keeps the production external-worker profile from leaking into a later `pnpm dev` session.
+
+Open `http://localhost:8080`. The default published address is
+`127.0.0.1:${COMPOSE_WEB_PORT:-8080}`; neither the API nor worker has a host port. Stop without
+deleting data using `docker compose down`. Do not add `--volumes` unless permanent data deletion is
+intended and backed up.
+
+The backend image build performs a real OCCT STEP export/reimport and B-Rep validation smoke test.
+Both runtime images include the project and third-party license bundle under
+`/usr/share/doc/mesh2param`; the web image also serves it at `/legal/`.
+
+## Service contract
+
+| Service | Command and responsibility | Health contract |
+| --- | --- | --- |
+| `web` | nginx static UI and same-origin reverse proxy on port 8080 | `GET /ready` through the API |
+| `api` | `python -P -m mesh2param_api.cli`; HTTP authority and durable queue producer | `GET /health` is liveness only |
+| `worker` | `python -P -m mesh2param_api.jobs.service run`; owns geometry execution | heartbeat age via `healthcheck --max-age 15` |
+
+`GET /ready` returns `200` only when SQLite, filesystem storage, and the configured job runner are
+ready. In external mode it requires a fresh `<data-dir>/worker-heartbeat.json`; otherwise it returns
+`503`. The singleton lock is `<data-dir>/worker.lock`. API and worker must use the identical absolute
+`MESH2PARAM_DATA_DIR`, database URL, and storage path.
+
+## Required production configuration
+
+The supplied Compose file sets these security-critical values:
+
+```text
+MESH2PARAM_ENVIRONMENT=production
+MESH2PARAM_DATA_DIR=/var/lib/mesh2param
+MESH2PARAM_DATABASE_URL=sqlite:////var/lib/mesh2param/db/mesh2param.sqlite3
+MESH2PARAM_STORAGE_PATH=/var/lib/mesh2param/storage
+MESH2PARAM_JOB_RUNNER_MODE=external
+MESH2PARAM_WORKER_COUNT=1
+MESH2PARAM_DEBUG=false
+```
+
+The `.env.example` file documents the supported bounds. Important operator settings include:
+
+| Setting | Compose default | Meaning |
+| --- | --- | --- |
+| `MESH2PARAM_PUBLIC_URL` | `http://localhost:8080` | Exact browser-visible origin |
+| `MESH2PARAM_API_URL` | `http://api:8000` | Internal proxy target, not the public API URL |
+| `MESH2PARAM_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Exact accepted HTTP hostnames |
+| `MESH2PARAM_CORS_ORIGINS` | Both local loopback origins on port `8080` | Exact allowed browser mutation origins |
+| `MESH2PARAM_MAX_UPLOAD_MB` | `100` | nginx and API upload cap |
+| `MESH2PARAM_MAX_TRIANGLES` | `2000000` | Parsed-mesh triangle cap |
+| `MESH2PARAM_MAX_VERTICES` | `6000000` | Parsed-mesh vertex cap |
+| `MESH2PARAM_JOB_TIMEOUT_SECONDS` | `900` | Geometry job wall-clock limit |
+| `MESH2PARAM_WORKER_MEMORY_MB` | `1024` | Worker child address-space target on supported Linux hosts |
+| `MESH2PARAM_RETENTION_DAYS` | `30` | Minimum age before unreferenced blob cleanup at startup |
+
+Compose-only `COMPOSE_API_CPUS`, `COMPOSE_API_MEMORY`, `COMPOSE_WORKER_CPUS`,
+`COMPOSE_WORKER_MEMORY`, `COMPOSE_WEB_CPUS`, `COMPOSE_WEB_MEMORY`, `COMPOSE_WEB_PORT`, and
+`COMPOSE_IMAGE_TAG` tune container resources or naming. They are intentionally not
+`MESH2PARAM_*` settings.
+
+Production settings reject unknown `MESH2PARAM_*` names and unsupported S3, Redis, PostgreSQL,
+multi-worker SQLite, relative-path, symlink-path, wildcard host/origin, and debug configurations.
+This is intentional fail-closed behavior. The only implemented persistent topology in this release
+is SQLite plus filesystem CAS with one external worker.
+
+## Remote TLS/authentication gateway
+
+Keep the Compose port bound to `127.0.0.1`, route a trusted TLS/authentication gateway to that port,
+and set values matching the public origin. For `https://cad.example.com`:
+
+```dotenv
+MESH2PARAM_PUBLIC_URL=https://cad.example.com
+MESH2PARAM_ALLOWED_HOSTS=cad.example.com
+MESH2PARAM_CORS_ORIGINS=https://cad.example.com
+MESH2PARAM_API_URL=http://api:8000
+```
+
+The gateway must set `Host` to the configured public hostname, enforce request size/time limits
+compatible with Mesh2Param, and avoid buffering the upload and SSE paths in a way that defeats
+streaming. The bundled nginx-to-API hop deliberately uses its own internal HTTP scheme and the API
+does not trust cross-container forwarding headers. The TLS gateway is therefore authoritative for
+HTTPS redirects, HSTS, and client-address logging; do not rely on application HSTS in this two-hop
+topology. It must authenticate all application paths, including `/api`, `/openapi.json`, `/health`,
+`/ready`, and `/legal` if those must not be public. Do not publish port 8000 or attach the worker to a
+network.
+
+## Persistence, backup, and restore
+
+The named `mesh2param-data` volume is the complete authoritative server state. Browser IndexedDB is
+only a recovery mirror and downloads are not a database backup.
+
+For a consistent offline backup:
+
+1. Stop the stack with `docker compose down` (without `--volumes`).
+2. Snapshot or archive the entire named volume, preserving file ownership, modes, and all paths.
+3. Record the application image tag/commit and `.env` settings separately; do not include secrets in
+   source control.
+4. Restart and require `GET /ready` to return `200`.
+
+Restore into an empty volume with the matching application version, restore the complete snapshot,
+start API and worker, and verify readiness plus an existing project's artifact hashes before
+accepting traffic. Test the procedure regularly. Copying only the SQLite file or only storage can
+leave references and content-addressed blobs inconsistent.
+
+## Upgrades and rollback
+
+Before upgrading, run repository verification, build both images, back up the data volume, and keep
+the previous image tag. API and worker apply database migrations on startup; deploy the matching API
+and worker image together. After start, verify `/health`, then `/ready`, create/rebuild a disposable
+project, validate STEP reimport, and inspect logs for recovery or migration failures.
+
+Application rollback is safe only when the previous version understands the migrated schema. If it
+does not, stop the stack and restore the pre-upgrade volume snapshot together with the prior images.
+Never point two independent workers or mixed application versions at the same SQLite data volume.
+
+## Monitoring and routine operations
+
+Monitor:
+
+- `/ready` status and its `database`, `storage`, `supervisor`, and `runnerMode` fields;
+- API/worker restarts, stale heartbeat events, job timeouts/crashes/cancellations, and queue age;
+- volume capacity/inodes and the age/size of backups;
+- reverse-proxy rejection/authentication events and application audit records; and
+- CPU, memory, PID, and temporary-filesystem pressure against Compose limits.
+
+Logs go to stdout/stderr. Use `INFO` or stricter in production; `DEBUG` is rejected. Request IDs and
+persisted audit rows support correlation, but operators remain responsible for log collection,
+access control, rotation, and retention.
+
+## Troubleshooting
+
+- **`/health` is 200 but `/ready` is 503:** inspect the response fields, then check volume
+  permissions, SQLite/storage availability, the worker container, and heartbeat freshness.
+- **Worker exits immediately:** confirm external runner mode, exactly one worker, one shared absolute
+  data root, and no competing process holding `worker.lock`.
+- **Browser mutations are rejected:** make public URL, CORS origin, allowed host, gateway Host, and
+  browser origin agree exactly, including scheme and port.
+- **Web container rejects startup:** `MESH2PARAM_API_URL` must be an internal
+  `http://host:port` URL and upload MB must be decimal `1..1024`.
+- **Production settings fail validation:** remove unknown/unsupported variables; do not bypass the
+  rejection by switching to development mode.
+- **Build fails at the STEP smoke:** treat the image as unusable; inspect the pinned CadQuery/OCP
+  runtime instead of deleting the smoke gate.
+- **Artifacts consume disk after deletion:** cleanup covers only unreferenced blobs older than the
+  retention period and runs at startup; verify references and backups before manual intervention.
+
+See the [security model](security.md) before changing networks, privileges, paths, or public exposure.

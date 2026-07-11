@@ -15,6 +15,10 @@ import {
 
 const fixtureUrl = new URL("../fixtures/base.cadgraph.json", import.meta.url);
 const schemaUrl = new URL("../../schema/cadgraph.schema.json", import.meta.url);
+const generatedBracketUrl = new URL(
+  "../../../../samples/generated/l-bracket-with-holes/model.cadgraph.json",
+  import.meta.url,
+);
 
 async function fixture(): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(fixtureUrl, "utf8")) as Record<string, unknown>;
@@ -62,6 +66,13 @@ describe("CADGraph contracts", () => {
     assertCADGraph(document);
     const kinds = new Set(document.sketches[0]?.entities.map((entity) => entity.kind));
     expect(kinds).toEqual(new Set(["point", "constructionPoint", "line", "constructionLine", "polyline", "rectangle", "circle", "circularArc", "closedProfile", "constructionAxis"]));
+  });
+
+  it("validates the generated bracket's explicit nullable fields", async () => {
+    const document = JSON.parse(
+      await readFile(generatedBracketUrl, "utf8"),
+    ) as Record<string, unknown>;
+    expect(validateCADGraph(document)).toEqual({ valid: true, issues: [] });
   });
 
   it.each(supportedFeatures)("validates supported operation $operation", async (feature) => {
