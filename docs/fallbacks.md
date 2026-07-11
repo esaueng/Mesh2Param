@@ -38,6 +38,32 @@ the 12 degree smooth-region threshold and create extra plane directions; this fa
 frame instead of guessing. Small-hole filling exists only as an explicit repair operation with a
 configured edge-count and planarity limit.
 
+## Explicit faceted STEP fallback
+
+Freeform STL geometry can be converted without inventing analytic history through the Features
+panel's **Faceted STEP fallback**. This is an explicit operation, never an automatic recovery from a
+failed parametric search. The user-selected sewing tolerance is stored on the `importedFaceted`
+feature as `sewingTolerance`; the original source bytes and SHA-256 remain authoritative and
+unchanged. The value is in project units and is capped at the equivalent of 10 mm regardless of the
+project's unit system.
+
+The worker builds one planar OCCT face per preserved triangle, sews coincident/open boundaries only
+within that tolerance, rejects any remaining free or multiply-connected edge, and requires exactly
+one closed positive-volume `BRepCheck`-valid solid. STEP is then exported, independently reimported,
+and checked for solid validity, volume stability, and matching face/edge counts. Large faceted
+B-Reps deliberately skip OCCT re-tessellation during those two validation passes because it is
+pathologically expensive; the already-validated preserved source facets are reused for the browser
+layer and are explicitly labeled as a proxy, not as an OCCT tessellation. This does not weaken the
+B-Rep or STEP reimport checks, and the UI labels the model non-parametric throughout. Because the
+fallback does not run a source-to-result distance comparison, `toleranceSatisfied` remains unknown
+and the overall validation state is partial even when both kernel gates pass.
+
+The current fallback accepts STL only. Increasing sewing tolerance can merge unintended nearby
+boundaries, so the control is bounded, visible, recorded, and rerunnable rather than silently tuned.
+This path currently requires the source's declared units to match the project units and its scale
+factor to equal 1. Unit conversion or manual scaling must first be applied to an explicit working
+copy; Mesh2Param rejects the fallback instead of producing a dimensionally mislabeled STEP.
+
 ## Self-intersection
 
 The deterministic fallback has no robust self-intersection backend installed. Diagnostics therefore

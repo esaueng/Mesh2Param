@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import os
 import tempfile
 from collections.abc import Callable
@@ -43,9 +44,7 @@ def _unsupported_sample_reconstruction_reason(state: dict[str, object]) -> str |
     settings = state.get("settings")
     if isinstance(settings, dict):
         capability = settings.get("automaticReconstruction")
-        capability_sample_id = (
-            capability.get("sampleId") if isinstance(capability, dict) else None
-        )
+        capability_sample_id = capability.get("sampleId") if isinstance(capability, dict) else None
         if (
             isinstance(capability, dict)
             and capability.get("supported") is False
@@ -66,6 +65,75 @@ def _unsupported_sample_reconstruction_reason(state: dict[str, object]) -> str |
         f"{AUTOMATIC_RECONSTRUCTION_SAMPLE_SCOPE} "
         "This exact sample already includes an editable CADGraph."
     )
+
+
+def _imported_faceted_features(cadgraph: dict[str, object]) -> list[dict[str, object]]:
+    features = cadgraph.get("features")
+    if not isinstance(features, list):
+        return []
+    return [
+        feature
+        for feature in features
+        if isinstance(feature, dict) and feature.get("operation") == "importedFaceted"
+    ]
+
+
+def _bounded_analysis_number(
+    value: object,
+    minimum: float,
+    maximum: float,
+    *,
+    open_minimum: bool = False,
+    open_maximum: bool = False,
+) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    number = float(value)
+    return (
+        math.isfinite(number)
+        and (number > minimum if open_minimum else number >= minimum)
+        and (number < maximum if open_maximum else number <= maximum)
+    )
+
+
+def _replayable_analysis_patches(state: dict[str, object]) -> list[dict[str, object]] | None:
+    analysis = state.get("analysis")
+    if not isinstance(analysis, dict):
+        return None
+    settings = analysis.get("settings")
+    patches = analysis.get("patches")
+    if not isinstance(settings, dict) or not isinstance(patches, list) or not patches:
+        return None
+    valid_settings = (
+        _bounded_analysis_number(
+            settings.get("smoothAngleDeg"), 0.0, 90.0, open_minimum=True, open_maximum=True
+        )
+        and _bounded_analysis_number(
+            settings.get("planarFitToleranceMm"), 0.0, 1_000_000.0, open_minimum=True
+        )
+        and _bounded_analysis_number(
+            settings.get("cylinderFitToleranceMm"), 0.0, 1_000_000.0, open_minimum=True
+        )
+        and _bounded_analysis_number(
+            settings.get("minimumCylinderCoverageDeg"), 0.0, 360.0, open_minimum=True
+        )
+        and _bounded_analysis_number(settings.get("maximumCylinderAxisNormalComponent"), 0.0, 1.0)
+        and _bounded_analysis_number(settings.get("minimumPatchAreaMm2"), 0.0, 1_000_000_000_000.0)
+        and _bounded_analysis_number(
+            settings.get("stableIdResolutionMm"), 0.0, 1_000_000.0, open_minimum=True
+        )
+    )
+    if not valid_settings or not all(isinstance(patch, dict) for patch in patches):
+        return None
+    return [patch for patch in patches if isinstance(patch, dict)]
+
+
+def _patch_area(patch: dict[str, object]) -> float:
+    value = patch.get("areaMm2", 0.0)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0.0
+    area = float(value)
+    return area if math.isfinite(area) and area > 0 else 0.0
 
 
 def _job_response(request: Request, job: dict[str, object]) -> JSONResponse:
@@ -126,11 +194,52 @@ def _operation_payload(
             {
                 "source": source,
                 "sourcePath": str(store.path_for(digest)),
-                "inputHash": digest,
+                "inputHash": content_sha256(
+                    {
+                        "sourceSha256": digest,
+                        "sourceFormat": source.get("format"),
+                        "sourceOriginalFileName": source.get("originalFileName"),
+                        "sourceDeclaredUnits": source.get("declaredUnits"),
+                        "sourceScaleFactor": source.get("scaleFactor"),
+                        "projectUnits": project.get("units"),
+                    }
+                ),
             }
         )
         if operation == "reconstruct":
-            unsupported_reason = _unsupported_sample_reconstruction_reason(state)
+            faceted_mode = body.settings.get("mode") == "faceted"
+            if faceted_mode and source.get("format") != "stl":
+                raise APIError(
+                    409,
+                    "faceted_source_format_unsupported",
+                    "Faceted source format is unsupported",
+                    "The explicit faceted STEP fallback currently supports STL sources only.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action="Use an STL source for the faceted fallback.",
+                )
+            if faceted_mode and (
+                source.get("declaredUnits") != project.get("units")
+                or source.get("scaleFactor") != 1.0
+            ):
+                raise APIError(
+                    409,
+                    "faceted_source_transform_unsupported",
+                    "Source normalization is required",
+                    (
+                        "Faceted fallback requires source units to match project units "
+                        "and scale factor 1."
+                    ),
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action=(
+                        "Re-import with matching units and scale factor 1; the original upload "
+                        "will remain unchanged."
+                    ),
+                )
+            unsupported_reason = (
+                None if faceted_mode else _unsupported_sample_reconstruction_reason(state)
+            )
             if unsupported_reason is not None:
                 raise APIError(
                     409,
@@ -143,6 +252,50 @@ def _operation_payload(
                         "Use Rebuild sample CADGraph to exercise the exact editable model."
                     ),
                 )
+            analysis_patches = None if faceted_mode else _replayable_analysis_patches(state)
+            if not faceted_mode and analysis_patches is None:
+                raise APIError(
+                    409,
+                    "analysis_required",
+                    "Surface analysis must be rerun",
+                    (
+                        "Automatic reconstruction requires complete persisted analysis "
+                        "settings and patch evidence."
+                    ),
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action="Re-run surface analysis before automatic reconstruction.",
+                )
+            if analysis_patches is not None:
+                unsupported_patches = [
+                    patch
+                    for patch in analysis_patches
+                    if patch.get("type") not in {"plane", "cylinder"}
+                ]
+                if unsupported_patches:
+                    total_area = sum(_patch_area(patch) for patch in analysis_patches)
+                    unsupported_area = sum(
+                        _patch_area(patch) for patch in unsupported_patches
+                    )
+                    coverage = (
+                        f" covering {unsupported_area / total_area * 100:.1f}% of the surface"
+                        if total_area > 0
+                        else ""
+                    )
+                    raise APIError(
+                        409,
+                        "automatic_reconstruction_unsupported",
+                        "Automatic parametric reconstruction is unsupported",
+                        (
+                            f"Analysis found {len(unsupported_patches)} non-plane/cylinder "
+                            f"patches{coverage}."
+                        ),
+                        project_id=str(project["id"]),
+                        recoverable=True,
+                        recommended_action=(
+                            "Use the explicit faceted STEP fallback for this source."
+                        ),
+                    )
     else:
         cadgraph = state.get("cadgraph")
         if not isinstance(cadgraph, dict):
@@ -161,6 +314,73 @@ def _operation_payload(
         payload["inputHash"] = content_sha256(identity)
         payload["source"] = source
         payload["versionId"] = state.get("currentVersionId")
+        imported_features = _imported_faceted_features(cadgraph)
+        if imported_features:
+            if not isinstance(source, dict) or not isinstance(source.get("sha256"), str):
+                raise APIError(
+                    409,
+                    "faceted_source_required",
+                    "Faceted source mesh is required",
+                    "The imported faceted feature is not bound to a preserved project source.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action=(
+                        "Restore or re-upload the source mesh used by the faceted feature."
+                    ),
+                )
+            digest = str(source["sha256"])
+            if source.get("format") != "stl":
+                raise APIError(
+                    409,
+                    "faceted_source_format_unsupported",
+                    "Faceted source format is unsupported",
+                    "Source-bound imported faceted features currently require an STL source.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action="Use the explicit fallback with an STL source.",
+                )
+            if any(feature.get("meshSha256") != digest for feature in imported_features):
+                raise APIError(
+                    409,
+                    "faceted_source_mismatch",
+                    "Faceted source does not match",
+                    "An imported faceted feature does not match the preserved source SHA-256.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action=(
+                        "Restore the exact source mesh or create a new faceted fallback."
+                    ),
+                )
+            graph_source = cadgraph.get("source")
+            if (
+                not isinstance(graph_source, dict)
+                or graph_source.get("sha256") != digest
+                or graph_source.get("format") != source.get("format")
+                or graph_source.get("declaredUnits") != source.get("declaredUnits")
+                or graph_source.get("scaleFactor") != source.get("scaleFactor")
+            ):
+                raise APIError(
+                    409,
+                    "faceted_graph_source_mismatch",
+                    "Faceted CADGraph source does not match",
+                    "The CADGraph source provenance does not match the preserved project source.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action=(
+                        "Restore the source-bound CADGraph or recreate the faceted fallback."
+                    ),
+                )
+            if not store.contains(digest):
+                raise APIError(
+                    409,
+                    "source_missing",
+                    "Source mesh blob is missing",
+                    "The preserved faceted source content is not available in local storage.",
+                    project_id=str(project["id"]),
+                    recoverable=True,
+                    recommended_action="Re-upload the unchanged source mesh.",
+                )
+            payload["sourcePath"] = str(store.path_for(digest))
     return payload
 
 
@@ -238,9 +458,7 @@ def _enqueue(
         "requestBody": {
             "required": True,
             "content": {
-                "application/octet-stream": {
-                    "schema": {"type": "string", "format": "binary"}
-                }
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
             },
         }
     },
@@ -402,9 +620,7 @@ def _operation_route(operation: OperationName) -> Callable[..., JSONResponse]:
         config: Settings = Depends(settings),
         store: LocalCAS = Depends(storage),
     ) -> JSONResponse:
-        return _enqueue(
-            request, project_id, operation, body, if_match, repo, config, store
-        )
+        return _enqueue(request, project_id, operation, body, if_match, repo, config, store)
 
     route.__name__ = f"{operation}_project"
     return route

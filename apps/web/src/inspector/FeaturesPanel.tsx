@@ -18,11 +18,48 @@ type ManualFeatureKind =
   | "extrusion" | "revolution" | "pocket" | "hole" | "counterbore" | "countersink"
   | "linearPattern" | "circularPattern" | "mirror" | "fillet" | "chamfer" | "importedFaceted";
 
+const MILLIMETERS_PER_PROJECT_UNIT = {
+  mm: 1,
+  cm: 10,
+  m: 1_000,
+  in: 25.4,
+  ft: 304.8,
+} as const;
+
+function millimetersPerProjectUnit(units: WorkspaceViewModel["project"]["units"]): number {
+  return MILLIMETERS_PER_PROJECT_UNIT[units];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function persistedSewingTolerance(
+  graph: CADGraph | null,
+  settings: WorkspaceViewModel["project"]["state"]["settings"],
+  units: WorkspaceViewModel["project"]["units"],
+): number {
+  const featureTolerance = graph?.features.find((feature) => feature.operation === "importedFaceted")?.sewingTolerance;
+  if (typeof featureTolerance === "number" && Number.isFinite(featureTolerance) && featureTolerance > 0) {
+    return featureTolerance;
+  }
+  const fallback = settings.facetedFallback;
+  const settingsTolerance = isRecord(fallback)
+    ? fallback.sewingTolerance ?? fallback.sewingToleranceMm
+    : undefined;
+  return typeof settingsTolerance === "number" && Number.isFinite(settingsTolerance) && settingsTolerance > 0
+    ? settingsTolerance
+    : 0.05 / millimetersPerProjectUnit(units);
+}
+
 export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions: WorkspaceActions }) {
   const graph = vm.project.state.cadgraph;
   const features = graph?.features ?? [];
   const [kind, setKind] = useState<ManualFeatureKind>("hole");
   const [value, setValue] = useState(5);
+  const millimetersPerUnit = millimetersPerProjectUnit(vm.project.units);
+  const persistedTolerance = persistedSewingTolerance(graph, vm.project.state.settings, vm.project.units);
+  const [sewingTolerance, setSewingTolerance] = useState(persistedTolerance);
   const [manualError, setManualError] = useState<string | null>(null);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [artifactCandidates, setArtifactCandidates] = useState<CandidateHistory[] | null>(null);
@@ -31,6 +68,26 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
   const candidates = artifactCandidates ?? persistedCandidates;
   const selectedCandidate = selectedCandidateLabel(graph, vm.project.state.settings);
   const automaticReconstruction = automaticReconstructionCapability(vm.project.state);
+  const sourceIsStl = vm.project.state.source?.format === "stl";
+  const sourceTransformSupported = vm.project.state.source?.declaredUnits === vm.project.units
+    && vm.project.state.source.scaleFactor === 1;
+  const facetedFallbackActive = graph?.extensions?.["mesh2param.dev/facetedFallback"] !== undefined;
+  const facetedFallbackRerunnable = Boolean(facetedFallbackActive
+    && graph?.features.length === 1
+    && graph.features[0]?.operation === "importedFaceted"
+    && graph.features[0].booleanMode === "base");
+  const editableGraphPreserved = graph !== null && !facetedFallbackRerunnable;
+  const fallbackUnavailableReason = !sourceIsStl
+    ? "The faceted STEP fallback currently supports STL sources."
+    : !sourceTransformSupported
+      ? "Re-import with source units matching project units and scale factor 1 before using the faceted fallback."
+    : editableGraphPreserved
+      ? "Unavailable while an editable CADGraph exists; Mesh2Param will not replace that feature history with a one-feature faceted fallback."
+      : undefined;
+  const diagnostics = vm.project.state.diagnostics;
+  useEffect(() => {
+    setSewingTolerance(persistedTolerance);
+  }, [persistedTolerance, vm.project.id]);
   useEffect(() => {
     setArtifactCandidates(null);
     if (candidateArtifact === undefined) return;
@@ -88,7 +145,7 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
         >
           <Sparkles size={16} />Auto reconstruct
         </Button>
-        {!automaticReconstruction.supported && graph !== null ? (
+        {!automaticReconstruction.supported && automaticReconstruction.sampleId !== undefined && graph !== null ? (
           <Button
             onClick={() => void actions.run("rebuild")}
             disabled={!vm.workerReady || !vm.serverWritable || Boolean(vm.activeJob)}
@@ -96,6 +153,34 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
             <RefreshCw size={16} />Rebuild sample CADGraph
           </Button>
         ) : null}
+      </PanelSection>
+      <PanelSection title="Faceted STEP fallback">
+        <p className="panel-note">
+          Attempt a non-parametric STEP from the preserved STL facets. A successful STEP is independently kernel-validated; when OCCT tessellation is skipped, the unchanged source mesh is explicitly labeled as the 3D proxy.
+        </p>
+        {diagnostics === null || diagnostics === undefined ? null : (
+          <p className="panel-note">
+            Source evidence: {diagnostics.connectedComponentCount} component{diagnostics.connectedComponentCount === 1 ? "" : "s"}, {diagnostics.openBoundaryCount} open boundar{diagnostics.openBoundaryCount === 1 ? "y" : "ies"}, {diagnostics.triangleCount.toLocaleString()} triangles.
+          </p>
+        )}
+        <NumberField
+          label="Sewing tolerance (project units)"
+          unit={vm.project.units}
+          value={sewingTolerance}
+          min={String(0.000001 / millimetersPerUnit)}
+          max={String(10 / millimetersPerUnit)}
+          step={String(0.01 / millimetersPerUnit)}
+          onChange={(event) => setSewingTolerance(Number(event.currentTarget.value))}
+        />
+        {facetedFallbackActive ? <p className="panel-note" role="status">Active model includes source-bound faceted geometry. STEP validity is independently checked; no analytic source history or measured mesh deviation is claimed.</p> : null}
+        {editableGraphPreserved ? <p className="panel-note" role="status">Existing editable CADGraph preserved. This fallback is disabled because completing it would replace the feature history.</p> : null}
+        <Button
+          onClick={() => void actions.run("reconstruct", { mode: "faceted", sewingTolerance })}
+          title={fallbackUnavailableReason}
+          disabled={fallbackUnavailableReason !== undefined || !vm.workerReady || !vm.serverWritable || Boolean(vm.activeJob)}
+        >
+          <Boxes size={16} />Sew source facets and create STEP
+        </Button>
       </PanelSection>
       <PanelSection title="Add feature">
         <SelectField
@@ -137,7 +222,7 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
       <PanelSection title={`Candidate histories · ${candidates.length}`}>
         {candidates.length === 0 ? <p className="panel-note">{automaticReconstruction.supported
           ? "Run automatic reconstruction to generate bounded, kernel-checked alternatives."
-          : "Automatic candidate histories are unavailable for this exact reference sample."}</p> : (
+          : "Automatic candidate histories are unavailable for the current source evidence."}</p> : (
           <div className="version-list candidate-list">
             {candidates.map((candidate) => (
               <button
@@ -158,7 +243,7 @@ export function FeaturesPanel({ vm, actions }: { vm: WorkspaceViewModel; actions
         <p className="panel-note">Selecting a valid history replaces the editable CADGraph and rebuilds it through the geometry worker.</p>
       </PanelSection>
       {features.length === 0 ? (
-        <div className="empty-state"><Boxes /><strong>No candidate features</strong><p>Run automatic reconstruction after surfaces are available.</p></div>
+        <div className="empty-state"><Boxes /><strong>No candidate features</strong><p>Analyze surfaces for parametric inference, or use the explicit faceted STEP fallback.</p></div>
       ) : null}
     </InspectorFrame>
   );
@@ -186,7 +271,9 @@ export function FeatureList({
           onClick={() => onSelect(feature.id)}
         >
           <span>{String(index + 1).padStart(2, "0")}</span>
-          <span><strong>{feature.name}</strong><small>{feature.operation} · {Math.round(feature.confidence * 100)}% confidence</small></span>
+          <span><strong>{feature.name}</strong><small>{feature.operation === "importedFaceted"
+            ? "importedFaceted · source-bound · non-parametric"
+            : `${feature.operation} · ${Math.round(feature.confidence * 100)}% confidence`}</small></span>
           {feature.suppressed ? <em>Suppressed</em> : null}
         </button>
       ))}
@@ -314,7 +401,7 @@ function makeManualFeature(graph: CADGraph, kind: ManualFeatureKind, value: numb
       ...common,
       operation: "importedFaceted",
       booleanMode: graph.features.length === 0 ? "base" : "additive",
-      sourceArtifactId: graph.source.sha256,
+      sourceArtifactId: "artifact.source",
       meshSha256: graph.source.sha256,
       intent: "fallback",
     };

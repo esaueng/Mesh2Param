@@ -51,6 +51,21 @@ POST /api/samples/{sampleId}/open
 GET /health                              GET /ready
 ```
 
+`POST /api/projects/{id}/reconstruct` accepts the ordinary bounded parametric request with empty
+settings. An explicit faceted fallback uses:
+
+```json
+{"settings":{"mode":"faceted","sewingTolerance":0.05}}
+```
+
+This mode is source-hash-bound, STL-only, non-parametric, and fails unless OCCT sewing produces one
+closed solid whose STEP export passes independent kernel reimport validation. `sewingTolerance` is
+expressed in the project's units (`0.05` above assumes a millimeter project) and is capped at the
+equivalent of 10 mm. Successful fallback validation is `partial`: B-Rep and STEP reimport validity
+are proven, while geometric deviation from the input mesh remains unmeasured. Until explicit mesh
+normalization is implemented for this path, the source units must match project units and the
+source scale factor must be `1`; other combinations fail before geometry is claimed.
+
 ## Configuration
 
 Settings use the `MESH2PARAM_` prefix. Supported local settings include `DATABASE_URL` (SQLite),

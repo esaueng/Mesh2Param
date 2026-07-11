@@ -3,6 +3,11 @@
 from .comparison import ComparisonReport, ComparisonSettings, compare_mesh_to_shape
 from .compiler import CompilationResult, FeatureRecord, compile_cadgraph
 from .errors import CompilationException, CompileError, FeatureBuildFailure
+from .faceted import (
+    FacetedFallbackError,
+    FacetedFallbackResult,
+    create_faceted_fallback,
+)
 from .frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
 from .ingest import IngestedMesh, MeshDiagnostics, MeshIngestionError, MeshLimits, ingest_mesh
 from .reconstruction import (
@@ -38,6 +43,8 @@ __all__ = [
     "CompilationResult",
     "CompileError",
     "CoordinateFrame",
+    "FacetedFallbackError",
+    "FacetedFallbackResult",
     "FeatureBuildFailure",
     "FeatureRecord",
     "FrameInferenceError",
@@ -60,6 +67,7 @@ __all__ = [
     "__version__",
     "compare_mesh_to_shape",
     "compile_cadgraph",
+    "create_faceted_fallback",
     "export_binary_stl",
     "export_glb",
     "export_step_validated",

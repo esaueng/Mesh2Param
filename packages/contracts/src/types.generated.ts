@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * GENERATED from schema/cadgraph.schema.json.
- * Schema SHA-256: 7242278e2358fd7e36a93905dff96f03b8e36f49d1326852f646b319976af2e0
+ * Schema SHA-256: e56825a8ec3c4a3afdda9110560ce449d3e9fbf19dc2d5732b94b58696a65bec
  * Run `pnpm generate` in this package after changing the schema.
  */
 
@@ -358,6 +358,10 @@ export type ImportedFacetedFeature = FeatureBase & {
   sourceArtifactId: Identifier;
   meshSha256: Sha256;
   intent: "fallback" | "reference";
+  /**
+   * Explicit OCCT sewing tolerance in project units. The engine additionally enforces a physical maximum equivalent to 10 mm. Omit to require an already-watertight mesh.
+   */
+  sewingTolerance?: number;
 };
 
 /**

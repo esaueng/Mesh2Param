@@ -43,6 +43,7 @@ export function WorkspaceShell({ vm, actions }: { vm: WorkspaceViewModel; action
           artifacts={vm.artifacts}
           preferences={viewer}
           theme={shell.theme}
+          sourceProxyActive={vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy")}
           selectedPatchId={vm.selectedPatchId}
           onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
           onSelectPatch={actions.selectPatch}

@@ -569,6 +569,7 @@ class ImportedFacetedFeature(FeatureBase):
     source_artifact_id: Identifier
     mesh_sha256: Sha256
     intent: Literal["fallback", "reference"]
+    sewing_tolerance: Annotated[float, Field(gt=0.0, le=10.0)] | None = None
 
 
 Feature = Annotated[
