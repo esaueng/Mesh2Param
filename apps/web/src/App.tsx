@@ -4,7 +4,13 @@ import { normalizeApiError } from "./api/errors";
 import { workspaceRepository } from "./persistence/repository";
 import { StartScreen } from "./start/StartScreen";
 import { workspaceStore } from "./state/store";
-import type { Job, ProjectDetail, Readiness, SampleDescriptor } from "./state/types";
+import type {
+  Job,
+  PersistedProjectUI,
+  ProjectDetail,
+  Readiness,
+  SampleDescriptor,
+} from "./state/types";
 import { normalizeProjectDetail } from "./workspace/normalize";
 
 const WorkspaceController = lazy(async () => ({
@@ -76,8 +82,19 @@ export default function App() {
     return () => controller.abort();
   }, [screen]);
 
-  function openWorkspace(project: ProjectDetail, job: Job | null = null) {
+  function openWorkspace(
+    project: ProjectDetail,
+    job: Job | null = null,
+    ui: PersistedProjectUI | null = null,
+  ) {
     workspaceStore.getState().hydrateProject(normalizeProjectDetail(project));
+    if (ui !== null) {
+      const state = workspaceStore.getState();
+      state.setWorkflowStep(ui.activeStep);
+      state.setSelection(ui.selection);
+      state.setViewerPreferences(ui.viewer);
+      state.setShellState(ui.shell);
+    }
     sessionStorage.setItem("mesh2param-active-project", project.id);
     setInitialJob(job);
     setError(null);
@@ -126,7 +143,11 @@ export default function App() {
       })}
       onOpen={(file) => void withBusy(async () => {
         const parsed = await workspaceRepository.importProjectFileBlob(file);
-        openWorkspace({ ...parsed.file.project, state: parsed.file.working });
+        openWorkspace(
+          { ...parsed.file.project, state: parsed.file.working },
+          null,
+          parsed.file.ui,
+        );
       })}
       onOpenRecent={(projectId) => void withBusy(async () => {
         try {

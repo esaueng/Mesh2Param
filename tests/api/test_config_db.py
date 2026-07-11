@@ -16,6 +16,30 @@ from mesh2param_api.schemas import OperationRequest
 from mesh2param_api.storage import LocalCAS
 
 
+def test_settings_do_not_auto_load_container_dotenv(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    for name in (
+        "MESH2PARAM_ENVIRONMENT",
+        "MESH2PARAM_DATA_DIR",
+        "MESH2PARAM_JOB_RUNNER_MODE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    (tmp_path / ".env").write_text(
+        "MESH2PARAM_ENVIRONMENT=production\n"
+        "MESH2PARAM_DATA_DIR=/var/lib/mesh2param\n"
+        "MESH2PARAM_JOB_RUNNER_MODE=external\n",
+        encoding="utf-8",
+    )
+
+    settings = Settings()
+
+    assert settings.environment == "development"
+    assert settings.data_dir == Path(".mesh2param-data")
+    assert settings.job_runner_mode == "embedded"
+
+
 def test_exact_environment_names_and_production_guards(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -25,9 +49,6 @@ def test_exact_environment_names_and_production_guards(
         "MESH2PARAM_ENVIRONMENT": "test",
         "MESH2PARAM_DATABASE_URL": f"sqlite:///{database_path}",
         "MESH2PARAM_STORAGE_PATH": str(storage_path),
-        "MESH2PARAM_S3_ENDPOINT": "https://s3.invalid",
-        "MESH2PARAM_S3_BUCKET": "mesh2param",
-        "MESH2PARAM_QUEUE_URL": "redis://queue.invalid/0",
         "MESH2PARAM_PUBLIC_URL": "https://mesh2param.invalid",
         "MESH2PARAM_API_URL": "https://mesh2param.invalid/api",
         "MESH2PARAM_MAX_UPLOAD_MB": "12",
@@ -43,9 +64,9 @@ def test_exact_environment_names_and_production_guards(
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.resolved_database_url == f"sqlite:///{database_path}"
     assert settings.storage_root == storage_path
-    assert settings.s3_endpoint == "https://s3.invalid"
-    assert settings.s3_bucket == "mesh2param"
-    assert settings.queue_url == "redis://queue.invalid/0"
+    assert settings.s3_endpoint is None
+    assert settings.s3_bucket is None
+    assert settings.queue_url is None
     assert settings.public_url == "https://mesh2param.invalid"
     assert settings.api_url == "https://mesh2param.invalid/api"
     assert settings.max_upload_bytes == 12 * 1024 * 1024
@@ -59,10 +80,89 @@ def test_exact_environment_names_and_production_guards(
         Settings(  # type: ignore[call-arg]
             environment="production", cors_origins=("*",), _env_file=None
         )
-    with pytest.raises(ValueError, match="configured together"):
+    with pytest.raises(ValueError, match="S3 storage is not implemented"):
+        Settings(s3_endpoint="https://s3.invalid", _env_file=None)  # type: ignore[call-arg]
+
+
+def test_production_configuration_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    production = {
+        "environment": "production",
+        "data_dir": tmp_path,
+        "storage_path": tmp_path / "storage",
+        "database_url": f"sqlite:///{tmp_path / 'mesh2param.sqlite3'}",
+        "public_url": "https://mesh2param.invalid",
+        "api_url": "http://api:8000/api",
+        "cors_origins": '["https://mesh2param.invalid"]',
+        "allowed_hosts": "mesh2param.invalid,api",
+        "job_runner_mode": "external",
+        "worker_count": 1,
+        "_env_file": None,
+    }
+    settings = Settings(**production)  # type: ignore[arg-type]
+    assert settings.cors_origins == ("https://mesh2param.invalid",)
+    assert settings.allowed_hosts == ("mesh2param.invalid", "api")
+    assert settings.public_url == "https://mesh2param.invalid"
+    assert settings.api_url == "http://api:8000/api"
+    same_origin_values = dict(production)
+    same_origin_values.update(cors_origins="[]", s3_endpoint="", queue_url="")
+    same_origin = Settings(**same_origin_values)  # type: ignore[arg-type]
+    assert same_origin.cors_origins == ()
+    assert same_origin.s3_endpoint is None and same_origin.queue_url is None
+
+    with pytest.raises(ValueError, match="extra_forbidden"):
         Settings(  # type: ignore[call-arg]
-            s3_endpoint="https://s3.invalid", s3_bucket=None, _env_file=None
+            environment="test", typo_setting=True, _env_file=None
         )
+    monkeypatch.setenv("MESH2PARAM_WORKER_COUNTT", "1")
+    with pytest.raises(ValueError, match="unknown Mesh2Param environment settings"):
+        Settings(**production)  # type: ignore[arg-type]
+    monkeypatch.delenv("MESH2PARAM_WORKER_COUNTT")
+
+    for override, message in (
+        ({"data_dir": Path("relative-data")}, "DATA_DIR must be absolute"),
+        ({"database_url": "sqlite:///relative.sqlite3"}, "absolute path"),
+        ({"debug": True}, "debug must be disabled"),
+        ({"log_level": "DEBUG"}, "DEBUG logging"),
+        ({"worker_count": 2}, "exactly one geometry worker"),
+        ({"cors_origins": "https://mesh2param.invalid/path"}, "invalid HTTP security"),
+        ({"allowed_hosts": "api/invalid"}, "invalid HTTP security"),
+        ({"public_url": "file:///tmp/app"}, r"HTTP\(S\) URL"),
+        ({"api_url": "https://user:secret@api.invalid"}, "without credentials"),
+        ({"s3_endpoint": "https://s3.invalid"}, "S3 storage is not implemented"),
+        ({"queue_url": "redis://queue.invalid/0"}, "queue is not implemented"),
+    ):
+        with pytest.raises(ValueError, match=message):
+            Settings(**{**production, **override})  # type: ignore[arg-type]
+
+    real_storage = tmp_path / "real-storage"
+    real_storage.mkdir()
+    linked_storage = tmp_path / "linked-storage"
+    linked_storage.symlink_to(real_storage, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink components"):
+        Settings(**{**production, "storage_path": linked_storage / "cas"})  # type: ignore[arg-type]
+
+    derived_data = tmp_path / "derived-data"
+    derived_data.mkdir()
+    (derived_data / "storage").symlink_to(real_storage, target_is_directory=True)
+    derived_values = {**production, "data_dir": derived_data, "storage_path": None}
+    with pytest.raises(ValueError, match="storage directory"):
+        Settings(**derived_values)  # type: ignore[arg-type]
+
+    database_data = tmp_path / "database-data"
+    database_data.mkdir()
+    database_target = tmp_path / "database-target.sqlite3"
+    database_target.touch()
+    (database_data / "mesh2param.sqlite3").symlink_to(database_target)
+    database_values = {
+        **production,
+        "data_dir": database_data,
+        "database_url": None,
+        "storage_path": real_storage,
+    }
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        Settings(**database_values)  # type: ignore[arg-type]
 
 
 def test_repository_revision_queue_attempt_and_durable_events(tmp_path: Path) -> None:

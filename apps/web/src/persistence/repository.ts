@@ -305,12 +305,27 @@ export class WorkspaceRepository {
       createdAt: snapshot.createdAt,
       snapshot: structuredClone(snapshot),
     }));
+    const ui: UIRecord = {
+      projectId: project.id,
+      updatedAt: now,
+      state: structuredClone(parsed.file.ui),
+      cameraPose: parsed.file.ui.cameraPose,
+    };
     await this.db.transaction(
       "rw",
-      [this.db.projects, this.db.documents, this.db.versions, this.db.blobs, this.db.history, this.db.outbox],
+      [
+        this.db.projects,
+        this.db.documents,
+        this.db.versions,
+        this.db.blobs,
+        this.db.ui,
+        this.db.history,
+        this.db.outbox,
+      ],
       async () => {
         await this.db.projects.put(project);
         await this.db.documents.put(document);
+        await this.db.ui.put(ui);
         await this.db.versions.where("projectId").equals(project.id).delete();
         if (versions.length > 0) await this.db.versions.bulkPut(versions);
         if (parsed.embeddedSource !== null) {
@@ -362,6 +377,7 @@ export class WorkspaceRepository {
     return createProjectFile({
       project: projectSummary(stored.project),
       working: structuredClone(stored.document.document),
+      ui: structuredClone(stored.ui?.state ?? defaultPersistedProjectUI()),
       versions: stored.versions.map((version) => structuredClone(version)),
       source,
       artifactManifest: structuredClone(stored.document.document.artifacts),
@@ -377,6 +393,43 @@ export class WorkspaceRepository {
     await this.flushAutosave();
     this.db.close();
   }
+}
+
+function defaultPersistedProjectUI(): PersistedProjectUI {
+  return {
+    activeStep: "import",
+    selection: {
+      patchId: null,
+      featureId: null,
+      sketchEntityId: null,
+      hoverId: null,
+    },
+    viewer: {
+      mode: "source",
+      visible: {
+        source: true,
+        repaired: false,
+        analysis: false,
+        patches: false,
+        reconstructed: false,
+        residual: false,
+      },
+      sourceOpacity: 1,
+      resultOpacity: 1,
+      projection: "perspective",
+      shading: "shaded",
+      edges: true,
+    },
+    shell: {
+      theme: "dark",
+      railCollapsed: false,
+      inspectorExpanded: true,
+      bottomDrawerExpanded: false,
+      bottomDrawerHeight: 220,
+      singleKeyShortcuts: true,
+    },
+    cameraPose: null,
+  };
 }
 
 export const workspaceRepository = new WorkspaceRepository();

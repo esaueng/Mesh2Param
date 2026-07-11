@@ -138,6 +138,11 @@ def test_health_projects_upload_diagnostics_reopen_and_delete(client: TestClient
     )
     docs = client.get("/docs")
     assert docs.status_code == 200 and "Mesh2Param API" in docs.text
+    assert "/api/projects" in docs.text
+    assert "<script" not in docs.text and "<style" not in docs.text
+    assert "default-src 'none'" in docs.headers["content-security-policy"]
+    assert "unsafe-inline" not in docs.headers["content-security-policy"]
+    assert docs.headers["cache-control"] == "no-store"
     missing_sample = client.post("/api/samples/not-a-sample/open")
     assert missing_sample.status_code == 404
     assert missing_sample.json()["error"]["code"] == "sample_not_found"

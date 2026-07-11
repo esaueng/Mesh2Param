@@ -145,11 +145,11 @@ function validateSketch(
       "radius",
       "diameter",
     ]);
-    if (dimensional.has(constraint.kind) && constraint.value === undefined) {
+    if (dimensional.has(constraint.kind) && constraint.value == null) {
       issues.push({ path: constraintPath, code: "missing-value", message: `${constraint.kind} requires value` });
     }
     if ((constraint.kind === "radius" || constraint.kind === "diameter") &&
-        constraint.value !== undefined && constraint.value <= 0) {
+        constraint.value != null && constraint.value <= 0) {
       issues.push({ path: `${constraintPath}/value`, code: "positive-value", message: "must be positive" });
     }
   });
@@ -170,10 +170,10 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
       if (norm(feature.direction) <= 1e-12) {
         issues.push({ path: `${path}/direction`, code: "zero-vector", message: "must be non-zero" });
       }
-      if ((feature.extent === "blind" || feature.extent === "symmetric") && feature.distance === undefined) {
+      if ((feature.extent === "blind" || feature.extent === "symmetric") && feature.distance == null) {
         issues.push({ path, code: "missing-distance", message: `${feature.extent} extrusion requires distance` });
       }
-      if (feature.extent === "toFace" && feature.targetFace === undefined) {
+      if (feature.extent === "toFace" && feature.targetFace == null) {
         issues.push({ path, code: "missing-target", message: "toFace extrusion requires targetFace" });
       }
       break;
@@ -181,7 +181,7 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
       if (norm(feature.direction) <= 1e-12) {
         issues.push({ path: `${path}/direction`, code: "zero-vector", message: "must be non-zero" });
       }
-      if (feature.extent === "toFace" && feature.targetFace === undefined) {
+      if (feature.extent === "toFace" && feature.targetFace == null) {
         issues.push({ path, code: "missing-target", message: "toFace pocket requires targetFace" });
       }
       break;
@@ -189,7 +189,7 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
       if (norm(feature.axis) <= 1e-12) {
         issues.push({ path: `${path}/axis`, code: "zero-vector", message: "must be non-zero" });
       }
-      if (feature.holeType === "blind" && feature.depth === undefined) {
+      if (feature.holeType === "blind" && feature.depth == null) {
         issues.push({ path, code: "missing-depth", message: "blind hole requires depth" });
       }
       break;
@@ -197,13 +197,13 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
       if (norm(feature.axis) <= 1e-12) {
         issues.push({ path: `${path}/axis`, code: "zero-vector", message: "must be non-zero" });
       }
-      if (feature.holeType === "blind" && feature.depth === undefined) {
+      if (feature.holeType === "blind" && feature.depth == null) {
         issues.push({ path, code: "missing-depth", message: "blind counterbore requires depth" });
       }
       if (feature.boreDiameter <= feature.diameter) {
         issues.push({ path: `${path}/boreDiameter`, code: "diameter-order", message: "must exceed diameter" });
       }
-      if (feature.depth !== undefined && feature.boreDepth >= feature.depth) {
+      if (feature.depth != null && feature.boreDepth >= feature.depth) {
         issues.push({ path: `${path}/boreDepth`, code: "depth-order", message: "must be less than depth" });
       }
       break;
@@ -211,7 +211,7 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
       if (norm(feature.axis) <= 1e-12) {
         issues.push({ path: `${path}/axis`, code: "zero-vector", message: "must be non-zero" });
       }
-      if (feature.holeType === "blind" && feature.depth === undefined) {
+      if (feature.holeType === "blind" && feature.depth == null) {
         issues.push({ path, code: "missing-depth", message: "blind countersink requires depth" });
       }
       if (feature.sinkDiameter <= feature.diameter) {
@@ -304,7 +304,7 @@ function graphInvariantIssues(graph: CADGraph): ContractIssue[] {
   graph.semanticTopology.forEach((reference, index) => {
     requireReferences([reference.producerFeatureId], featureIds, `/semanticTopology/${index}/producerFeatureId`, issues);
   });
-  if (graph.validation.lastValidFeatureId !== undefined) {
+  if (graph.validation.lastValidFeatureId != null) {
     requireReferences([graph.validation.lastValidFeatureId], featureIds, "/validation/lastValidFeatureId", issues);
   }
   if (graph.validation.status === "valid" &&

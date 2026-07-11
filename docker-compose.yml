@@ -1,0 +1,150 @@
+name: mesh2param
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: infra/backend.Dockerfile
+
+x-backend-environment: &backend-environment
+  MESH2PARAM_ENVIRONMENT: production
+  MESH2PARAM_DATA_DIR: /var/lib/mesh2param
+  MESH2PARAM_DATABASE_URL: ${MESH2PARAM_DATABASE_URL:-sqlite:////var/lib/mesh2param/db/mesh2param.sqlite3}
+  MESH2PARAM_STORAGE_PATH: ${MESH2PARAM_STORAGE_PATH:-/var/lib/mesh2param/storage}
+  MESH2PARAM_PUBLIC_URL: ${MESH2PARAM_PUBLIC_URL:-http://localhost:8080}
+  MESH2PARAM_API_URL: ${MESH2PARAM_API_URL:-http://api:8000}
+  MESH2PARAM_ALLOWED_HOSTS: ${MESH2PARAM_ALLOWED_HOSTS:-localhost,127.0.0.1}
+  MESH2PARAM_CORS_ORIGINS: ${MESH2PARAM_CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+  MESH2PARAM_MAX_UPLOAD_MB: ${MESH2PARAM_MAX_UPLOAD_MB:-100}
+  MESH2PARAM_MAX_TRIANGLES: ${MESH2PARAM_MAX_TRIANGLES:-2000000}
+  MESH2PARAM_MAX_VERTICES: ${MESH2PARAM_MAX_VERTICES:-6000000}
+  MESH2PARAM_MAX_ABS_COORDINATE: ${MESH2PARAM_MAX_ABS_COORDINATE:-1000000000}
+  MESH2PARAM_MAX_OPERATION_COUNT: ${MESH2PARAM_MAX_OPERATION_COUNT:-256}
+  MESH2PARAM_MAX_SEARCH_REBUILDS: ${MESH2PARAM_MAX_SEARCH_REBUILDS:-128}
+  MESH2PARAM_JOB_TIMEOUT_SECONDS: ${MESH2PARAM_JOB_TIMEOUT_SECONDS:-900}
+  MESH2PARAM_RETENTION_DAYS: ${MESH2PARAM_RETENTION_DAYS:-30}
+  MESH2PARAM_WORKER_COUNT: ${MESH2PARAM_WORKER_COUNT:-1}
+  MESH2PARAM_WORKER_MEMORY_MB: ${MESH2PARAM_WORKER_MEMORY_MB:-1024}
+  MESH2PARAM_LOG_LEVEL: ${MESH2PARAM_LOG_LEVEL:-INFO}
+  MESH2PARAM_DEBUG: "false"
+  HOME: /tmp/home
+  XDG_CACHE_HOME: /tmp/cache
+  MPLCONFIGDIR: /tmp/matplotlib
+
+services:
+  api:
+    image: mesh2param-backend:${COMPOSE_IMAGE_TAG:-local}
+    build: *backend-build
+    command: ["python", "-P", "-m", "mesh2param_api.cli"]
+    environment:
+      <<: *backend-environment
+      MESH2PARAM_BIND_HOST: 0.0.0.0
+      MESH2PARAM_PORT: "8000"
+      MESH2PARAM_JOB_RUNNER_MODE: external
+    user: "10001:10001"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    cpus: ${COMPOSE_API_CPUS:-0.75}
+    mem_limit: ${COMPOSE_API_MEMORY:-512m}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777
+    volumes:
+      - mesh2param-data:/var/lib/mesh2param
+    expose: ["8000"]
+    networks: [backend]
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -P
+        - -c
+        - "import os, urllib.parse, urllib.request; host = urllib.parse.urlsplit(os.environ['MESH2PARAM_PUBLIC_URL']).netloc; request = urllib.request.Request('http://127.0.0.1:8000/health', headers={'Host': host}); urllib.request.urlopen(request, timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    image: mesh2param-backend:${COMPOSE_IMAGE_TAG:-local}
+    build: *backend-build
+    command: ["python", "-P", "-m", "mesh2param_api.jobs.service", "run"]
+    environment:
+      <<: *backend-environment
+      MESH2PARAM_JOB_RUNNER_MODE: external
+    user: "10001:10001"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 192
+    cpus: ${COMPOSE_WORKER_CPUS:-1.25}
+    mem_limit: ${COMPOSE_WORKER_MEMORY:-1024m}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m,mode=1777
+    volumes:
+      - mesh2param-data:/var/lib/mesh2param
+    network_mode: none
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -P
+        - -m
+        - mesh2param_api.jobs.service
+        - healthcheck
+        - --max-age
+        - "15"
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  web:
+    image: mesh2param-web:${COMPOSE_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+    environment:
+      MESH2PARAM_API_URL: ${MESH2PARAM_API_URL:-http://api:8000}
+      MESH2PARAM_PUBLIC_URL: ${MESH2PARAM_PUBLIC_URL:-http://localhost:8080}
+      MESH2PARAM_MAX_UPLOAD_MB: ${MESH2PARAM_MAX_UPLOAD_MB:-100}
+    user: "101:101"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    cpus: ${COMPOSE_WEB_CPUS:-0.25}
+    mem_limit: ${COMPOSE_WEB_MEMORY:-128m}
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=32m
+    ports:
+      - "127.0.0.1:${COMPOSE_WEB_PORT:-8080}:8080"
+    networks: [edge, backend]
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 10s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'host="$${MESH2PARAM_PUBLIC_URL#*://}"; host="$${host%%/*}"; wget -qO- --header="Host: $${host}" http://127.0.0.1:8080/ready'
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 10s
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+
+volumes:
+  mesh2param-data: {}

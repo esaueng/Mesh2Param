@@ -87,7 +87,12 @@ export function RefinePanel({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 setValues((current) => ({ ...current, [field.key]: nextValue }));
               }}
               onBlur={() => void commitParameter(field)}
-              onKeyDown={(event) => { if (event.key === "Enter") void commitParameter(field); }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }
+              }}
             />
           ))}
           {fields.length === 0 ? <p className="panel-note">This operation has no directly editable scalar parameter.</p> : null}

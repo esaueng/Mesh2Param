@@ -8,6 +8,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from datetime import timedelta
+from html import escape
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -39,6 +40,7 @@ from .db.repository import (
     RevisionConflictError,
 )
 from .jobs import JobSupervisor
+from .jobs.lock import WorkerInstanceLock
 from .logging_config import configure_service_logging
 from .schemas import ErrorEnvelope
 from .security import (
@@ -64,30 +66,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        database.migrate()
-        config.jobs_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        descriptor, probe_name = tempfile.mkstemp(prefix="ready-", dir=config.storage_root)
-        with suppress(OSError):
-            os.close(descriptor)
-        Path(probe_name).unlink(missing_ok=True)
-        app.state.storage_ready = True
-        cutoff = utc_now() - timedelta(days=config.artifact_retention_days)
-        orphan_digests = await asyncio.to_thread(
-            repository.delete_orphan_blobs_before, cutoff
-        )
-        for digest in orphan_digests:
-            try:
-                await asyncio.to_thread(storage.delete_blob, digest)
-            except Exception:
-                LOGGER.exception("orphan_blob_cleanup_failed")
-        if orphan_digests:
-            LOGGER.info("orphan_blob_cleanup_complete", extra={"count": len(orphan_digests)})
-        await supervisor.start()
+        worker_lock: WorkerInstanceLock | None = None
+        supervisor_started = False
         try:
+            database.migrate()
+            config.jobs_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+            descriptor, probe_name = tempfile.mkstemp(prefix="ready-", dir=config.storage_root)
+            with suppress(OSError):
+                os.close(descriptor)
+            Path(probe_name).unlink(missing_ok=True)
+            app.state.storage_ready = True
+            cutoff = utc_now() - timedelta(days=config.artifact_retention_days)
+            orphan_digests = await asyncio.to_thread(
+                repository.delete_orphan_blobs_before, cutoff
+            )
+            for digest in orphan_digests:
+                try:
+                    await asyncio.to_thread(storage.delete_blob, digest)
+                except Exception:
+                    LOGGER.exception("orphan_blob_cleanup_failed")
+            if orphan_digests:
+                LOGGER.info(
+                    "orphan_blob_cleanup_complete", extra={"count": len(orphan_digests)}
+                )
+            if config.job_runner_mode == "embedded":
+                worker_lock = WorkerInstanceLock(config.worker_lock_path)
+                worker_lock.__enter__()
+                await supervisor.start()
+                supervisor_started = True
             yield
         finally:
-            await supervisor.stop()
-            database.dispose()
+            try:
+                if supervisor_started:
+                    await supervisor.stop()
+            finally:
+                if worker_lock is not None:
+                    worker_lock.__exit__(None, None, None)
+                database.dispose()
 
     app = FastAPI(
         title="Mesh2Param API",
@@ -132,30 +147,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/docs", include_in_schema=False)
     async def local_api_docs() -> HTMLResponse:
+        route_items: list[str] = []
+        for path, operations in sorted(app.openapi()["paths"].items()):
+            for method, operation in operations.items():
+                if method not in {"delete", "get", "head", "options", "patch", "post", "put"}:
+                    continue
+                summary = operation.get("summary", "") if isinstance(operation, dict) else ""
+                route_items.append(
+                    "<li><code>"
+                    + escape(method.upper())
+                    + "</code> <code>"
+                    + escape(path)
+                    + "</code> — "
+                    + escape(str(summary))
+                    + "</li>"
+                )
+        routes = "\n".join(route_items)
         return HTMLResponse(
-            """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Mesh2Param API docs</title><style>
-body{font:14px system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:0 20px;color:#17202b}
-code{font-family:ui-monospace,monospace}.route{padding:8px 0;border-bottom:1px solid #c8d2df}
-.method{display:inline-block;width:64px;font-weight:600}a{color:#0b63b6}
-</style></head><body><h1>Mesh2Param API</h1>
-<p>Self-hosted endpoint index. <a href="/openapi.json">OpenAPI JSON</a></p>
-<main id="routes">Loading…</main>
-<script>
-fetch('/openapi.json').then(r=>r.json()).then(s=>{
-  const e=document.querySelector('#routes');e.textContent='';
-  Object.entries(s.paths).forEach(([p,ops])=>Object.entries(ops).forEach(([m,o])=>{
-    const d=document.createElement('div');d.className='route';
-    d.textContent=m.toUpperCase()+'  '+p+' — '+(o.summary||'');e.appendChild(d)
-  }))
-})
-</script>
-</body></html>""",
+            "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            "<title>Mesh2Param API docs</title></head><body>"
+            "<header><h1>Mesh2Param API</h1>"
+            "<p>Self-hosted endpoint index. "
+            "<a href=\"/openapi.json\">OpenAPI JSON</a></p></header>"
+            f"<main><h2>Endpoints</h2><ul>{routes}</ul></main></body></html>",
             headers={
                 "Content-Security-Policy": (
-                    "default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; "
-                    "style-src 'unsafe-inline'; frame-ancestors 'none'"
+                    "default-src 'none'; base-uri 'none'; form-action 'none'; "
+                    "frame-ancestors 'none'"
                 ),
                 "Cache-Control": "no-store",
             },

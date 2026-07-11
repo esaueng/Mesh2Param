@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * GENERATED from schema/cadgraph.schema.json.
- * Schema SHA-256: 06613addf6659cab369f8c384f2459982b47ce723bafdaa344e94292662970a6
+ * Schema SHA-256: 7242278e2358fd7e36a93905dff96f03b8e36f49d1326852f646b319976af2e0
  * Run `pnpm generate` in this package after changing the schema.
  */
 
@@ -152,6 +152,11 @@ export type ConstructionAxisEntity = EntityBase & {
 };
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
+ * via the `definition` "nullableTimestamp".
+ */
+export type NullableTimestamp = string | null;
+/**
+ * This interface was referenced by `CADGraph`'s JSON-Schema
  * via the `definition` "jsonValue".
  */
 export type JsonValue =
@@ -194,9 +199,14 @@ export type ExtrusionFeature = FeatureBase & {
   profileIds: [Identifier, ...Identifier[]];
   direction: Vector3;
   extent: "blind" | "symmetric" | "throughAll" | "toFace";
-  distance?: number;
-  targetFace?: Identifier;
+  distance?: number | null;
+  targetFace?: NullableIdentifier;
 };
+/**
+ * This interface was referenced by `CADGraph`'s JSON-Schema
+ * via the `definition` "nullableIdentifier".
+ */
+export type NullableIdentifier = Identifier | null;
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
  * via the `definition` "pocketFeature".
@@ -212,7 +222,7 @@ export type PocketFeature = FeatureBase & {
   direction: Vector3;
   extent: "blind" | "throughAll" | "toFace";
   depth: number;
-  targetFace?: Identifier;
+  targetFace?: NullableIdentifier;
 };
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -225,8 +235,8 @@ export type HoleFeature = FeatureBase & {
   position: Vector3;
   axis: Vector3;
   diameter: number;
-  depth?: number;
-  terminationFace?: Identifier;
+  depth?: number | null;
+  terminationFace?: NullableIdentifier;
 };
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -239,7 +249,7 @@ export type CounterboreFeature = FeatureBase & {
   position: Vector3;
   axis: Vector3;
   diameter: number;
-  depth?: number;
+  depth?: number | null;
   boreDiameter: number;
   boreDepth: number;
 };
@@ -254,7 +264,7 @@ export type CountersinkFeature = FeatureBase & {
   position: Vector3;
   axis: Vector3;
   diameter: number;
-  depth?: number;
+  depth?: number | null;
   sinkDiameter: number;
   sinkAngleDeg: number;
 };
@@ -358,7 +368,7 @@ export interface CADGraph {
   id: Identifier;
   name: string;
   units: Units;
-  source?: SourceAsset;
+  source?: SourceAsset | null;
   sourceCoordinateFrame: SourceCoordinateFrame;
   projectTolerance: ProjectTolerance;
   sketches: Sketch[];
@@ -378,7 +388,7 @@ export interface CADGraph {
    */
   extensions?: {
     [k: string]: JsonValue;
-  };
+  } | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -389,9 +399,9 @@ export interface SourceAsset {
   sha256: Sha256;
   originalFileName: string;
   byteSize: number;
-  triangleCount?: number;
-  declaredUnits?: Units;
-  scaleFactor?: number;
+  triangleCount?: number | null;
+  declaredUnits?: Units | null;
+  scaleFactor?: number | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -456,7 +466,7 @@ export interface Plane3 {
  */
 export interface EntityBase {
   id: Identifier;
-  name?: string;
+  name?: string | null;
   kind: string;
   construction: boolean;
   sourceEvidence: Identifier[];
@@ -500,11 +510,11 @@ export interface SketchConstraint {
    * @minItems 1
    */
   entityIds: [Identifier, ...Identifier[]];
-  value?: number;
-  measuredValue?: number;
-  suggestedNominalValue?: number;
-  nominalAccepted?: boolean;
-  unit?: "length" | "angle" | "none";
+  value?: number | null;
+  measuredValue?: number | null;
+  suggestedNominalValue?: number | null;
+  nominalAccepted?: boolean | null;
+  unit?: "length" | "angle" | "none" | null;
   driving: boolean;
   sourceEvidence: Identifier[];
   confidence: Confidence;
@@ -516,7 +526,7 @@ export interface SketchConstraint {
  */
 export interface SketchProfile {
   id: Identifier;
-  name?: string;
+  name?: string | null;
   /**
    * @minItems 1
    */
@@ -536,8 +546,8 @@ export interface UserLock {
   target: Identifier;
   locked: boolean;
   reason: string;
-  lockedAt?: string;
-  lockedBy?: string;
+  lockedAt?: NullableTimestamp;
+  lockedBy?: string | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -548,8 +558,8 @@ export interface UserOverride {
   value: JsonValue;
   previousValue?: JsonValue;
   reason: string;
-  createdAt?: string;
-  createdBy?: string;
+  createdAt?: NullableTimestamp;
+  createdBy?: string | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -590,8 +600,8 @@ export interface SemanticTopologyReference {
   /**
    * Ephemeral diagnostic only; never the semantic identity.
    */
-  kernelReference?: string;
-  lastResolvedAt?: string;
+  kernelReference?: string | null;
+  lastResolvedAt?: NullableTimestamp;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -601,14 +611,14 @@ export interface SourceEvidence {
   id: Identifier;
   sourceType: "meshPatch" | "meshTriangle" | "sketchEntity" | "feature" | "user" | "engine" | "imported" | "derived";
   sourceIds: Identifier[];
-  measuredValue?: number;
-  suggestedNominalValue?: number;
-  residual?: number;
+  measuredValue?: number | null;
+  suggestedNominalValue?: number | null;
+  residual?: number | null;
   confidence: Confidence;
-  notes?: string;
+  notes?: string | null;
   metadata?: {
     [k: string]: JsonValue;
-  };
+  } | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -682,8 +692,8 @@ export interface ValidationStatus {
   brepValid: boolean | null;
   stepReimportValid: boolean | null;
   toleranceSatisfied: boolean | null;
-  checkedAt?: string;
-  lastValidFeatureId?: Identifier;
+  checkedAt?: NullableTimestamp;
+  lastValidFeatureId?: NullableIdentifier;
   issues: ValidationIssue[];
 }
 /**
@@ -694,11 +704,11 @@ export interface ValidationIssue {
   code: string;
   message: string;
   severity: "info" | "warning" | "error";
-  featureId?: Identifier;
-  semanticReference?: Identifier;
+  featureId?: NullableIdentifier;
+  semanticReference?: NullableIdentifier;
   details?: {
     [k: string]: JsonValue;
-  };
+  } | null;
 }
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
@@ -706,7 +716,7 @@ export interface ValidationIssue {
  */
 export interface VersionMetadata {
   versionId: Identifier;
-  parentVersionId?: Identifier;
+  parentVersionId?: NullableIdentifier;
   createdAt: string;
   createdBy: string;
   message: string;

@@ -19,3 +19,4 @@ coverage.xml
 htmlcov/
 playwright-report/
 test-results/
+artifacts/acceptance/

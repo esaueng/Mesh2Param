@@ -2,13 +2,21 @@ import { migrateCADGraph } from "@mesh2param/contracts";
 
 import type {
   ArtifactDescriptor,
+  DetailedValidationResult,
   EmbeddedBlob,
+  JsonObject,
   LocalBlobReference,
+  MeshDiagnostics,
+  MeshStateMetrics,
   Mesh2ParamProjectFile,
+  PersistedProjectUI,
   ProjectFileSource,
   ProjectSummary,
   ProjectVersionSnapshot,
   ProjectWorkingDocument,
+  RepairOperation,
+  RepairResult,
+  SurfacePatch,
   Units,
 } from "../state/types";
 import { blobKey } from "./db";
@@ -22,7 +30,12 @@ export const MAX_PROJECT_FILE_VERSIONS = 1_000;
 export const MAX_PROJECT_FILE_ARTIFACTS = 512;
 
 const SHA256 = /^[a-f0-9]{64}$/;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const UNITS = new Set<Units>(["mm", "cm", "m", "in", "ft"]);
+const SOURCE_FORMATS = new Set(["stl", "obj", "ply"]);
+const PATCH_TYPES = new Set(["plane", "cylinder", "cone", "sphere", "freeform", "unknown"]);
+const WORKFLOW_STEPS = new Set(["import", "repair", "surfaces", "features", "refine", "validate", "export"]);
+const VIEWER_MODES = new Set(["source", "repaired", "analysis", "patches", "reconstructed", "residual", "overlay"]);
 
 export class ProjectFileError extends TypeError {
   readonly code: string;
@@ -109,6 +122,444 @@ function nonNegativeInteger(record: Record<string, unknown>, key: string): numbe
   return value as number;
 }
 
+function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
+  const value = record[key];
+  if (typeof value !== "boolean") {
+    throw new ProjectFileError("invalid_ui", `${key} must be a boolean.`);
+  }
+  return value;
+}
+
+function boundedNumber(
+  record: Record<string, unknown>,
+  key: string,
+  minimum: number,
+  maximum: number,
+): number {
+  const value = record[key];
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value < minimum
+    || value > maximum
+  ) {
+    throw new ProjectFileError(
+      "invalid_ui",
+      `${key} must be a finite number in [${minimum}, ${maximum}].`,
+    );
+  }
+  return value;
+}
+
+function vector3Tuple(value: unknown, label: string): [number, number, number] {
+  if (
+    !Array.isArray(value)
+    || value.length !== 3
+    || !value.every((item) => typeof item === "number" && Number.isFinite(item))
+  ) {
+    throw new ProjectFileError("invalid_ui", `${label} must contain three finite numbers.`);
+  }
+  return [value[0] as number, value[1] as number, value[2] as number];
+}
+
+function defaultProjectFileUI(): PersistedProjectUI {
+  return {
+    activeStep: "import",
+    selection: { patchId: null, featureId: null, sketchEntityId: null, hoverId: null },
+    viewer: {
+      mode: "source",
+      visible: {
+        source: true,
+        repaired: false,
+        analysis: false,
+        patches: false,
+        reconstructed: false,
+        residual: false,
+      },
+      sourceOpacity: 1,
+      resultOpacity: 1,
+      projection: "perspective",
+      shading: "shaded",
+      edges: true,
+    },
+    shell: {
+      theme: "dark",
+      railCollapsed: false,
+      inspectorExpanded: true,
+      bottomDrawerExpanded: false,
+      bottomDrawerHeight: 220,
+      singleKeyShortcuts: true,
+    },
+    cameraPose: null,
+  };
+}
+
+function validatePersistedUI(value: unknown): PersistedProjectUI {
+  if (!isRecord(value)) {
+    throw new ProjectFileError("invalid_ui", "ui must be an object.");
+  }
+  const activeStep = requiredString(value, "activeStep");
+  if (!WORKFLOW_STEPS.has(activeStep)) {
+    throw new ProjectFileError("invalid_ui", "ui.activeStep is unsupported.");
+  }
+  if (
+    !isRecord(value.selection)
+    || !isRecord(value.viewer)
+    || !isRecord(value.shell)
+  ) {
+    throw new ProjectFileError("invalid_ui", "ui selection, viewer, and shell are required.");
+  }
+  const selection = value.selection;
+  const viewer = value.viewer;
+  const shell = value.shell;
+  if (!isRecord(viewer.visible)) {
+    throw new ProjectFileError("invalid_ui", "ui viewer visibility is required.");
+  }
+  const visible = viewer.visible;
+  const mode = requiredString(viewer, "mode");
+  const projection = requiredString(viewer, "projection");
+  const shading = requiredString(viewer, "shading");
+  const theme = requiredString(shell, "theme");
+  if (!VIEWER_MODES.has(mode) || !new Set(["perspective", "orthographic"]).has(projection)) {
+    throw new ProjectFileError("invalid_ui", "ui viewer mode or projection is unsupported.");
+  }
+  if (!new Set(["shaded", "wireframe"]).has(shading) || !new Set(["dark", "light"]).has(theme)) {
+    throw new ProjectFileError("invalid_ui", "ui shading or theme is unsupported.");
+  }
+  let cameraPose: PersistedProjectUI["cameraPose"] = null;
+  if (value.cameraPose !== null) {
+    if (!isRecord(value.cameraPose)) {
+      throw new ProjectFileError("invalid_ui", "ui.cameraPose must be an object or null.");
+    }
+    const cameraProjection = requiredString(value.cameraPose, "projection");
+    if (!new Set(["perspective", "orthographic"]).has(cameraProjection)) {
+      throw new ProjectFileError("invalid_ui", "ui camera projection is unsupported.");
+    }
+    cameraPose = {
+      projectId: requiredString(value.cameraPose, "projectId"),
+      artifactBoundsHash: requiredString(value.cameraPose, "artifactBoundsHash"),
+      position: vector3Tuple(value.cameraPose.position, "ui.cameraPose.position"),
+      target: vector3Tuple(value.cameraPose.target, "ui.cameraPose.target"),
+      up: vector3Tuple(value.cameraPose.up, "ui.cameraPose.up"),
+      projection: cameraProjection as "perspective" | "orthographic",
+      zoom: boundedNumber(value.cameraPose, "zoom", 0.000001, 1_000_000),
+    };
+  }
+  return {
+    activeStep: activeStep as PersistedProjectUI["activeStep"],
+    selection: {
+      patchId: nullableString(selection, "patchId"),
+      featureId: nullableString(selection, "featureId"),
+      sketchEntityId: nullableString(selection, "sketchEntityId"),
+      hoverId: nullableString(selection, "hoverId"),
+    },
+    viewer: {
+      mode: mode as PersistedProjectUI["viewer"]["mode"],
+      visible: {
+        source: requiredBoolean(visible, "source"),
+        repaired: requiredBoolean(visible, "repaired"),
+        analysis: requiredBoolean(visible, "analysis"),
+        patches: requiredBoolean(visible, "patches"),
+        reconstructed: requiredBoolean(visible, "reconstructed"),
+        residual: requiredBoolean(visible, "residual"),
+      },
+      sourceOpacity: boundedNumber(viewer, "sourceOpacity", 0, 1),
+      resultOpacity: boundedNumber(viewer, "resultOpacity", 0, 1),
+      projection: projection as "perspective" | "orthographic",
+      shading: shading as "shaded" | "wireframe",
+      edges: requiredBoolean(viewer, "edges"),
+    },
+    shell: {
+      theme: theme as "dark" | "light",
+      railCollapsed: requiredBoolean(shell, "railCollapsed"),
+      inspectorExpanded: requiredBoolean(shell, "inspectorExpanded"),
+      bottomDrawerExpanded: requiredBoolean(shell, "bottomDrawerExpanded"),
+      bottomDrawerHeight: boundedNumber(shell, "bottomDrawerHeight", 80, 2_000),
+      singleKeyShortcuts: requiredBoolean(shell, "singleKeyShortcuts"),
+    },
+    cameraPose,
+  };
+}
+
+function invalidNested(code: string, message: string): never {
+  throw new ProjectFileError(code, message);
+}
+
+function nestedRecord(value: unknown, label: string, code = "invalid_working"): Record<string, unknown> {
+  if (!isRecord(value)) invalidNested(code, `${label} must be an object.`);
+  return value;
+}
+
+function nestedString(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+  code = "invalid_working",
+): string {
+  const value = record[key];
+  if (typeof value !== "string" || value.length === 0) {
+    invalidNested(code, `${label}.${key} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function nestedBoolean(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+  code = "invalid_working",
+): boolean {
+  const value = record[key];
+  if (typeof value !== "boolean") invalidNested(code, `${label}.${key} must be a boolean.`);
+  return value;
+}
+
+function nestedNumber(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+  options: { minimum?: number; maximum?: number; integer?: boolean; nullable?: boolean } = {},
+  code = "invalid_working",
+): number | null {
+  const value = record[key];
+  if (options.nullable === true && value === null) return null;
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || (options.integer === true && !Number.isInteger(value))
+    || (options.minimum !== undefined && value < options.minimum)
+    || (options.maximum !== undefined && value > options.maximum)
+  ) {
+    invalidNested(code, `${label}.${key} must be a valid finite number.`);
+  }
+  return value;
+}
+
+function nestedArray(
+  value: unknown,
+  label: string,
+  code = "invalid_working",
+): unknown[] {
+  if (!Array.isArray(value)) invalidNested(code, `${label} must be an array.`);
+  return value;
+}
+
+function nestedStringArray(
+  value: unknown,
+  label: string,
+  code = "invalid_working",
+): string[] {
+  const items = nestedArray(value, label, code);
+  if (!items.every((item) => typeof item === "string")) {
+    invalidNested(code, `${label} must contain only strings.`);
+  }
+  return items as string[];
+}
+
+function nestedIntegerArray(value: unknown, label: string): number[] {
+  const items = nestedArray(value, label);
+  if (!items.every((item) => Number.isSafeInteger(item) && (item as number) >= 0)) {
+    invalidNested("invalid_working", `${label} must contain non-negative integers.`);
+  }
+  return items as number[];
+}
+
+function nestedVector3(value: unknown, label: string): [number, number, number] {
+  if (
+    !Array.isArray(value)
+    || value.length !== 3
+    || !value.every((item) => typeof item === "number" && Number.isFinite(item))
+  ) {
+    invalidNested("invalid_working", `${label} must contain three finite numbers.`);
+  }
+  return value as [number, number, number];
+}
+
+function validateIsoTimestamp(value: unknown, label: string, code = "invalid_timestamp"): string {
+  if (
+    typeof value !== "string"
+    || !ISO_TIMESTAMP.test(value)
+    || !Number.isFinite(Date.parse(value))
+  ) {
+    invalidNested(code, `${label} must be an ISO-8601 timestamp with a timezone.`);
+  }
+  return value;
+}
+
+function validateJsonObject(value: unknown, label: string, code = "invalid_working"): JsonObject {
+  if (!isRecord(value)) invalidNested(code, `${label} must be a JSON object.`);
+  return value as JsonObject;
+}
+
+function validateNullableJsonObject(value: unknown, label: string): JsonObject | null {
+  return value === null ? null : validateJsonObject(value, label);
+}
+
+function validateMeshDiagnostics(value: unknown, label: string): MeshDiagnostics {
+  const diagnostics = nestedRecord(value, label);
+  const format = nestedString(diagnostics, "format", label);
+  if (!SOURCE_FORMATS.has(format)) invalidNested("invalid_working", `${label}.format is unsupported.`);
+  nestedString(diagnostics, "encoding", label);
+  validateSha256(nestedString(diagnostics, "sha256", label));
+  for (const key of [
+    "byteSize",
+    "rawVertexCount",
+    "weldedVertexCount",
+    "duplicateVertexCount",
+    "triangleCount",
+    "connectedComponentCount",
+    "degenerateTriangleCount",
+    "duplicateFaceCount",
+    "nonManifoldEdgeCount",
+    "openBoundaryEdgeCount",
+    "openBoundaryCount",
+  ]) {
+    nestedNumber(diagnostics, key, label, { integer: true, minimum: 0 });
+  }
+  const bounds = nestedArray(diagnostics.bounds, `${label}.bounds`);
+  if (bounds.length !== 2) invalidNested("invalid_working", `${label}.bounds must contain two vectors.`);
+  nestedVector3(bounds[0], `${label}.bounds[0]`);
+  nestedVector3(bounds[1], `${label}.bounds[1]`);
+  nestedVector3(diagnostics.boundingDimensions, `${label}.boundingDimensions`);
+  const coordinateRange = nestedArray(diagnostics.coordinateRange, `${label}.coordinateRange`);
+  if (
+    coordinateRange.length !== 2
+    || !coordinateRange.every((item) => typeof item === "number" && Number.isFinite(item))
+  ) {
+    invalidNested("invalid_working", `${label}.coordinateRange must contain two finite numbers.`);
+  }
+  nestedNumber(diagnostics, "surfaceArea", label, { minimum: 0 });
+  nestedNumber(diagnostics, "closedVolume", label, { minimum: 0, nullable: true });
+  nestedBoolean(diagnostics, "watertight", label);
+  nestedBoolean(diagnostics, "windingConsistent", label);
+  nestedString(diagnostics, "selfIntersectionStatus", label);
+  for (const [index, warningValue] of nestedArray(diagnostics.warnings, `${label}.warnings`).entries()) {
+    const warningLabel = `${label}.warnings[${index}]`;
+    const warning = nestedRecord(warningValue, warningLabel);
+    nestedString(warning, "code", warningLabel);
+    nestedString(warning, "message", warningLabel);
+    if (warning.severity !== "warning") {
+      invalidNested("invalid_working", `${warningLabel}.severity must be warning.`);
+    }
+  }
+  return diagnostics as unknown as MeshDiagnostics;
+}
+
+function validateMeshStateMetrics(value: unknown, label: string): MeshStateMetrics {
+  const metrics = nestedRecord(value, label);
+  nestedString(metrics, "versionId", label);
+  for (const key of [
+    "vertexCount",
+    "triangleCount",
+    "connectedComponentCount",
+    "degenerateTriangleCount",
+    "duplicateFaceCount",
+    "nonManifoldEdgeCount",
+    "openBoundaryEdgeCount",
+    "openBoundaryCount",
+  ]) {
+    nestedNumber(metrics, key, label, { integer: true, minimum: 0 });
+  }
+  nestedNumber(metrics, "surfaceArea", label, { minimum: 0 });
+  nestedNumber(metrics, "closedVolume", label, { minimum: 0, nullable: true });
+  nestedBoolean(metrics, "watertight", label);
+  nestedBoolean(metrics, "windingConsistent", label);
+  return metrics as unknown as MeshStateMetrics;
+}
+
+function validateRepairOperation(value: unknown, label: string): RepairOperation {
+  const operation = nestedRecord(value, label);
+  nestedString(operation, "id", label);
+  nestedNumber(operation, "order", label, { integer: true, minimum: 0 });
+  nestedString(operation, "operation", label);
+  nestedBoolean(operation, "enabled", label);
+  validateJsonObject(operation.parameters, `${label}.parameters`);
+  nestedString(operation, "sourceVersionId", label);
+  nestedString(operation, "resultVersionId", label);
+  validateMeshStateMetrics(operation.before, `${label}.before`);
+  validateMeshStateMetrics(operation.after, `${label}.after`);
+  nestedStringArray(operation.warnings, `${label}.warnings`);
+  nestedBoolean(operation, "reversible", label);
+  validateIsoTimestamp(operation.timestamp, `${label}.timestamp`, "invalid_working");
+  nestedBoolean(operation, "changed", label);
+  return operation as unknown as RepairOperation;
+}
+
+function validateRepairResult(value: unknown, label: string): RepairResult {
+  const repair = nestedRecord(value, label);
+  nestedString(repair, "sourceId", label);
+  nestedString(repair, "resultId", label);
+  if (repair.sourceSha256 !== null) {
+    validateSha256(nestedString(repair, "sourceSha256", label));
+  }
+  validateJsonObject(repair.settings, `${label}.settings`);
+  nestedArray(repair.operations, `${label}.operations`).forEach((operation, index) => {
+    validateRepairOperation(operation, `${label}.operations[${index}]`);
+  });
+  validateMeshStateMetrics(repair.sourceMetrics, `${label}.sourceMetrics`);
+  validateMeshStateMetrics(repair.resultMetrics, `${label}.resultMetrics`);
+  validateMeshDiagnostics(repair.diagnostics, `${label}.diagnostics`);
+  nestedStringArray(repair.warnings, `${label}.warnings`);
+  return repair as unknown as RepairResult;
+}
+
+function validateSurfacePatch(value: unknown, label: string): SurfacePatch {
+  const patch = nestedRecord(value, label);
+  nestedString(patch, "id", label);
+  const type = nestedString(patch, "type", label);
+  if (!PATCH_TYPES.has(type)) invalidNested("invalid_working", `${label}.type is unsupported.`);
+  if (patch.name !== undefined && typeof patch.name !== "string") {
+    invalidNested("invalid_working", `${label}.name must be a string.`);
+  }
+  nestedNumber(patch, "triangleCount", label, { integer: true, minimum: 0, nullable: true });
+  nestedNumber(patch, "confidence", label, { minimum: 0, maximum: 1, nullable: true });
+  nestedBoolean(patch, "locked", label);
+  if (patch.triangleIds !== undefined) nestedIntegerArray(patch.triangleIds, `${label}.triangleIds`);
+  if (patch.vertexCount !== undefined) {
+    nestedNumber(patch, "vertexCount", label, { integer: true, minimum: 0 });
+  }
+  if (patch.areaMm2 !== undefined) nestedNumber(patch, "areaMm2", label, { minimum: 0 });
+  if (patch.centroid !== undefined) nestedVector3(patch.centroid, `${label}.centroid`);
+  if (patch.residualsMm !== undefined) {
+    const residuals = nestedRecord(patch.residualsMm, `${label}.residualsMm`);
+    for (const key of ["rms", "median", "p95", "max"]) {
+      nestedNumber(residuals, key, `${label}.residualsMm`, { minimum: 0 });
+    }
+  }
+  if (patch.neighborIds !== undefined) nestedStringArray(patch.neighborIds, `${label}.neighborIds`);
+  if (patch.boundaryLoops !== undefined) {
+    nestedArray(patch.boundaryLoops, `${label}.boundaryLoops`).forEach((loopValue, index) => {
+      const loopLabel = `${label}.boundaryLoops[${index}]`;
+      const loop = nestedRecord(loopValue, loopLabel);
+      nestedIntegerArray(loop.vertexIds, `${loopLabel}.vertexIds`);
+      nestedBoolean(loop, "closed", loopLabel);
+    });
+  }
+  if (patch.fit !== undefined) validateJsonObject(patch.fit, `${label}.fit`);
+  for (const key of ["userOverriddenClassification", "hidden"]) {
+    if (patch[key] !== undefined) nestedBoolean(patch, key, label);
+  }
+  if (patch.excludedTriangleIds !== undefined) {
+    nestedIntegerArray(patch.excludedTriangleIds, `${label}.excludedTriangleIds`);
+  }
+  if (patch.mergedFrom !== undefined) nestedStringArray(patch.mergedFrom, `${label}.mergedFrom`);
+  return patch as unknown as SurfacePatch;
+}
+
+function validateDetailedValidation(value: unknown, label: string): DetailedValidationResult {
+  const validation = nestedRecord(value, label);
+  nestedString(validation, "status", label);
+  for (const key of ["brepValid", "stepReimportValid", "toleranceSatisfied"]) {
+    if (validation[key] !== null) nestedBoolean(validation, key, label);
+  }
+  if (validation.issues !== undefined) nestedArray(validation.issues, `${label}.issues`);
+  if (validation.step !== undefined) validateJsonObject(validation.step, `${label}.step`);
+  if (validation.compilation !== undefined) {
+    validateJsonObject(validation.compilation, `${label}.compilation`);
+  }
+  return validation as unknown as DetailedValidationResult;
+}
+
 function validateSha256(value: string, field = "sha256"): string {
   if (!SHA256.test(value)) throw new ProjectFileError("invalid_hash", `${field} must be a lowercase SHA-256 digest.`);
   return value;
@@ -125,8 +576,8 @@ function validateProjectSummary(value: unknown): ProjectSummary {
     schemaVersion: requiredString(value, "schemaVersion"),
     revision: nonNegativeInteger(value, "revision"),
     basedOnVersionId: nullableString(value, "basedOnVersionId"),
-    createdAt: requiredString(value, "createdAt"),
-    updatedAt: requiredString(value, "updatedAt"),
+    createdAt: validateIsoTimestamp(value.createdAt, "project.createdAt"),
+    updatedAt: validateIsoTimestamp(value.updatedAt, "project.updatedAt"),
   };
 }
 
@@ -139,11 +590,23 @@ function validateArtifact(value: unknown): ArtifactDescriptor {
     byteSize,
     mediaType: requiredString(value, "mediaType"),
   };
-  if (typeof value.id === "string") descriptor.id = value.id;
-  if (typeof value.kind === "string") descriptor.kind = value.kind;
-  if (typeof value.storageKey === "string") descriptor.storageKey = value.storageKey;
-  if (isRecord(value.metadata)) descriptor.metadata = value.metadata as NonNullable<ArtifactDescriptor["metadata"]>;
-  if (typeof value.createdAt === "string") descriptor.createdAt = value.createdAt;
+  for (const key of ["id", "kind", "storageKey"] as const) {
+    if (value[key] !== undefined) {
+      if (typeof value[key] !== "string") {
+        throw new ProjectFileError("invalid_artifact", `artifact.${key} must be a string.`);
+      }
+      descriptor[key] = value[key];
+    }
+  }
+  if (value.metadata !== undefined) {
+    if (!isRecord(value.metadata)) {
+      throw new ProjectFileError("invalid_artifact", "artifact.metadata must be an object.");
+    }
+    descriptor.metadata = value.metadata as NonNullable<ArtifactDescriptor["metadata"]>;
+  }
+  if (value.createdAt !== undefined) {
+    descriptor.createdAt = validateIsoTimestamp(value.createdAt, "artifact.createdAt");
+  }
   return descriptor;
 }
 
@@ -152,19 +615,26 @@ function validateSourceAsset(value: unknown): ProjectWorkingDocument["source"] {
   if (!isRecord(value)) throw new ProjectFileError("invalid_source", "working.source must be an object or null.");
   const units = requiredString(value, "declaredUnits") as Units;
   if (!UNITS.has(units)) throw new ProjectFileError("invalid_units", "source declaredUnits is unsupported.");
+  const format = requiredString(value, "format");
+  if (!SOURCE_FORMATS.has(format)) {
+    throw new ProjectFileError("invalid_source", "source format is unsupported.");
+  }
   const scaleFactor = value.scaleFactor;
   if (typeof scaleFactor !== "number" || !Number.isFinite(scaleFactor) || scaleFactor <= 0) {
     throw new ProjectFileError("invalid_source", "source scaleFactor must be finite and positive.");
   }
+  if (typeof value.unitsConfirmed !== "boolean") {
+    throw new ProjectFileError("invalid_source", "source unitsConfirmed must be a boolean.");
+  }
   return {
     id: requiredString(value, "id"),
     originalFileName: requiredString(value, "originalFileName"),
-    format: requiredString(value, "format"),
+    format,
     encoding: requiredString(value, "encoding"),
     sha256: validateSha256(requiredString(value, "sha256")),
     byteSize: nonNegativeInteger(value, "byteSize"),
     declaredUnits: units,
-    unitsConfirmed: value.unitsConfirmed === true,
+    unitsConfirmed: value.unitsConfirmed,
     scaleFactor,
     state: requiredString(value, "state"),
   };
@@ -187,28 +657,53 @@ function validateWorking(value: unknown): ProjectWorkingDocument {
       });
     }
   }
+  const diagnostics = value.diagnostics === null
+    ? null
+    : validateMeshDiagnostics(value.diagnostics, "working.diagnostics");
+  const repair = value.repair === null
+    ? null
+    : validateRepairResult(value.repair, "working.repair");
+  const analysis = validateNullableJsonObject(value.analysis, "working.analysis");
+  const patches = value.patches.map((patch, index) => (
+    validateSurfacePatch(patch, `working.patches[${index}]`)
+  ));
+  const validation = value.validation === null
+    ? null
+    : validateDetailedValidation(value.validation, "working.validation");
+  const metrics = validateNullableJsonObject(value.metrics, "working.metrics");
+  const settings = validateJsonObject(value.settings, "working.settings");
   return {
     schemaVersion: requiredString(value, "schemaVersion"),
     projectId: requiredString(value, "projectId"),
     name: requiredString(value, "name"),
     units,
     source: validateSourceAsset(value.source),
-    diagnostics: value.diagnostics as ProjectWorkingDocument["diagnostics"],
-    repair: value.repair as ProjectWorkingDocument["repair"],
-    analysis: value.analysis as ProjectWorkingDocument["analysis"],
-    patches: value.patches as ProjectWorkingDocument["patches"],
+    diagnostics,
+    repair,
+    analysis,
+    patches,
     cadgraph,
-    validation: value.validation as ProjectWorkingDocument["validation"],
-    metrics: value.metrics as ProjectWorkingDocument["metrics"],
+    validation,
+    metrics,
     artifactSetId: nullableString(value, "artifactSetId"),
     artifacts: value.artifacts.map(validateArtifact),
     currentVersionId: nullableString(value, "currentVersionId"),
-    settings: value.settings as ProjectWorkingDocument["settings"],
+    settings,
   };
 }
 
 function validateVersion(value: unknown): ProjectVersionSnapshot {
   if (!isRecord(value)) throw new ProjectFileError("invalid_version", "version snapshot must be an object.");
+  const metrics = value.metrics === null || value.metrics === undefined
+    ? null
+    : validateJsonObject(value.metrics, "version.metrics", "invalid_version");
+  const dependencyVersions = value.dependencyVersions === undefined
+    ? {}
+    : validateJsonObject(
+        value.dependencyVersions,
+        "version.dependencyVersions",
+        "invalid_version",
+      );
   return {
     id: requiredString(value, "id"),
     projectId: requiredString(value, "projectId"),
@@ -217,13 +712,11 @@ function validateVersion(value: unknown): ProjectVersionSnapshot {
     state: validateWorking(value.state),
     sourceSha256: value.sourceSha256 === null ? null : validateSha256(requiredString(value, "sourceSha256")),
     validationStatus: requiredString(value, "validationStatus"),
-    metrics: value.metrics as ProjectVersionSnapshot["metrics"],
+    metrics,
     artifactSetId: nullableString(value, "artifactSetId"),
     engineVersion: requiredString(value, "engineVersion"),
-    dependencyVersions: isRecord(value.dependencyVersions)
-      ? value.dependencyVersions as ProjectVersionSnapshot["dependencyVersions"]
-      : {},
-    createdAt: requiredString(value, "createdAt"),
+    dependencyVersions,
+    createdAt: validateIsoTimestamp(value.createdAt, "version.createdAt", "invalid_version"),
   };
 }
 
@@ -251,7 +744,10 @@ export function migrateProjectFileDocument(value: unknown): Record<string, unkno
   if (document.format !== PROJECT_FILE_FORMAT) {
     throw new ProjectFileError("invalid_format", "This is not a Mesh2Param project file.");
   }
-  if (document.fileVersion === PROJECT_FILE_VERSION) return document;
+  if (document.fileVersion === PROJECT_FILE_VERSION) {
+    document.ui ??= defaultProjectFileUI();
+    return document;
+  }
   if (document.fileVersion === 0 || document.fileVersion === undefined) {
     document.fileVersion = PROJECT_FILE_VERSION;
     if (isRecord(document.working)) {
@@ -269,6 +765,7 @@ export function migrateProjectFileDocument(value: unknown): Record<string, unkno
       document.working.settings ??= {};
     }
     document.versions ??= [];
+    document.ui ??= defaultProjectFileUI();
     document.source ??= null;
     document.artifactManifest ??= isRecord(document.working) && Array.isArray(document.working.artifacts)
       ? document.working.artifacts
@@ -285,6 +782,7 @@ function validateProjectFile(value: unknown): Mesh2ParamProjectFile {
   const document = migrateProjectFileDocument(value);
   const project = validateProjectSummary(document.project);
   const working = validateWorking(document.working);
+  const ui = validatePersistedUI(document.ui);
   if (project.id !== working.projectId) {
     throw new ProjectFileError("project_mismatch", "project.id does not match working.projectId.");
   }
@@ -305,9 +803,10 @@ function validateProjectFile(value: unknown): Mesh2ParamProjectFile {
   return {
     format: PROJECT_FILE_FORMAT,
     fileVersion: PROJECT_FILE_VERSION,
-    savedAt: requiredString(document, "savedAt"),
+    savedAt: validateIsoTimestamp(document.savedAt, "savedAt"),
     project,
     working,
+    ui,
     versions,
     source,
     artifactManifest: document.artifactManifest.map(validateArtifact),
@@ -470,6 +969,7 @@ export function createProjectFile(input: Omit<Mesh2ParamProjectFile, "format" | 
     savedAt: input.savedAt ?? new Date().toISOString(),
     project: input.project,
     working: input.working,
+    ui: input.ui,
     versions: input.versions,
     source: input.source,
     artifactManifest: input.artifactManifest,

@@ -2,7 +2,12 @@ import { webcrypto } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { Mesh2ParamProjectFile, ProjectSummary, ProjectWorkingDocument } from "../state/types";
+import type {
+  Mesh2ParamProjectFile,
+  PersistedProjectUI,
+  ProjectSummary,
+  ProjectWorkingDocument,
+} from "../state/types";
 import { Mesh2ParamWorkspaceDB } from "./db";
 import {
   ProjectFileError,
@@ -67,6 +72,60 @@ function working(sha256: string, byteSize: number): ProjectWorkingDocument {
   };
 }
 
+function persistedUi(): PersistedProjectUI {
+  return {
+    activeStep: "refine",
+    selection: {
+      patchId: "patch.cylinder.1",
+      featureId: "feature.hole.1",
+      sketchEntityId: null,
+      hoverId: null,
+    },
+    viewer: {
+      mode: "reconstructed",
+      visible: {
+        source: false,
+        repaired: false,
+        analysis: false,
+        patches: false,
+        reconstructed: true,
+        residual: false,
+      },
+      sourceOpacity: 0.5,
+      resultOpacity: 1,
+      projection: "orthographic",
+      shading: "shaded",
+      edges: true,
+    },
+    shell: {
+      theme: "light",
+      railCollapsed: true,
+      inspectorExpanded: true,
+      bottomDrawerExpanded: true,
+      bottomDrawerHeight: 260,
+      singleKeyShortcuts: false,
+    },
+    cameraPose: null,
+  };
+}
+
+function projectFileFixture(): Mesh2ParamProjectFile {
+  const sha256 = "0".repeat(64);
+  return createProjectFile({
+    project: project(sha256, 0),
+    working: working(sha256, 0),
+    ui: persistedUi(),
+    versions: [],
+    source: null,
+    artifactManifest: [],
+    savedAt: "2026-07-11T12:30:00Z",
+  });
+}
+
+function rawProjectFileFixture(): Record<string, unknown> {
+  return JSON.parse(serializeProjectFile(projectFileFixture())) as Record<string, unknown>;
+}
+
 const databases: Mesh2ParamWorkspaceDB[] = [];
 
 afterEach(async () => {
@@ -90,6 +149,7 @@ describe("Mesh2Param project files", () => {
     const file = createProjectFile({
       project: project(sha256, bytes.byteLength),
       working: working(sha256, bytes.byteLength),
+      ui: persistedUi(),
       versions: [],
       source,
       artifactManifest: [],
@@ -108,6 +168,7 @@ describe("Mesh2Param project files", () => {
     const file = createProjectFile({
       project: project(sha256, 17),
       working: working(sha256, 17),
+      ui: persistedUi(),
       versions: [],
       source: {
         kind: "embedded",
@@ -130,6 +191,121 @@ describe("Mesh2Param project files", () => {
     await expect(openProjectFile(file)).rejects.toMatchObject({ code: "unsupported_extension" });
   });
 
+  it("fills safe UI defaults for an older version-1 envelope without UI state", async () => {
+    const sha256 = "0".repeat(64);
+    const file = createProjectFile({
+      project: project(sha256, 0),
+      working: working(sha256, 0),
+      ui: persistedUi(),
+      versions: [],
+      source: null,
+      artifactManifest: [],
+    });
+    const legacy = JSON.parse(serializeProjectFile(file)) as Record<string, unknown>;
+    delete legacy.ui;
+
+    const parsed = await parseProjectFile(JSON.stringify(legacy));
+
+    expect(parsed.file.ui.activeStep).toBe("import");
+    expect(parsed.file.ui.selection.featureId).toBeNull();
+    expect(parsed.file.ui.shell.theme).toBe("dark");
+  });
+
+  it.each([
+    ["diagnostics strings", (state: Record<string, unknown>) => { state.diagnostics = "truthy"; }],
+    ["empty repair objects", (state: Record<string, unknown>) => { state.repair = {}; }],
+    ["null patch entries", (state: Record<string, unknown>) => { state.patches = [null]; }],
+    [
+      "truthy non-boolean validation claims",
+      (state: Record<string, unknown>) => {
+        state.validation = {
+          status: "valid",
+          brepValid: "yes",
+          stepReimportValid: [],
+          toleranceSatisfied: {},
+        };
+      },
+    ],
+    ["array analysis payloads", (state: Record<string, unknown>) => { state.analysis = []; }],
+    ["string metrics payloads", (state: Record<string, unknown>) => { state.metrics = "oops"; }],
+    [
+      "non-boolean source confirmation",
+      (state: Record<string, unknown>) => {
+        (state.source as Record<string, unknown>).unitsConfirmed = "yes";
+      },
+    ],
+  ])("rejects malformed working state: %s", async (_label, mutate) => {
+    const raw = rawProjectFileFixture();
+    const state = raw.working as Record<string, unknown>;
+    mutate(state);
+
+    await expect(parseProjectFile(JSON.stringify(raw))).rejects.toBeInstanceOf(ProjectFileError);
+  });
+
+  it.each([
+    ["savedAt", (raw: Record<string, unknown>) => { raw.savedAt = "not-a-date"; }],
+    [
+      "project.createdAt",
+      (raw: Record<string, unknown>) => {
+        (raw.project as Record<string, unknown>).createdAt = "not-a-date";
+      },
+    ],
+  ])("rejects malformed timestamps in %s", async (_label, mutate) => {
+    const raw = rawProjectFileFixture();
+    mutate(raw);
+
+    await expect(parseProjectFile(JSON.stringify(raw))).rejects.toMatchObject({
+      code: "invalid_timestamp",
+    });
+  });
+
+  it.each([
+    ["metrics", []],
+    ["dependencyVersions", []],
+  ])("rejects invalid version %s", async (field, malformed) => {
+    const raw = rawProjectFileFixture();
+    raw.versions = [{
+      id: "version-1",
+      projectId: "project-file-test",
+      parentId: null,
+      label: "Version 1",
+      state: raw.working,
+      sourceSha256: "0".repeat(64),
+      validationStatus: "not-run",
+      metrics: null,
+      artifactSetId: null,
+      engineVersion: "test",
+      dependencyVersions: {},
+      createdAt: "2026-07-11T12:00:00Z",
+      [field]: malformed,
+    }];
+
+    await expect(parseProjectFile(JSON.stringify(raw))).rejects.toMatchObject({
+      code: "invalid_version",
+    });
+  });
+
+  it("keeps additive defaults for version metadata omitted by early files", async () => {
+    const raw = rawProjectFileFixture();
+    raw.versions = [{
+      id: "version-1",
+      projectId: "project-file-test",
+      parentId: null,
+      label: "Version 1",
+      state: raw.working,
+      sourceSha256: "0".repeat(64),
+      validationStatus: "not-run",
+      artifactSetId: null,
+      engineVersion: "test",
+      createdAt: "2026-07-11T12:00:00Z",
+    }];
+
+    const parsed = await parseProjectFile(JSON.stringify(raw));
+
+    expect(parsed.file.versions[0]?.metrics).toBeNull();
+    expect(parsed.file.versions[0]?.dependencyVersions).toEqual({});
+  });
+
   it("rejects source content whose SHA-256 does not match", async () => {
     const bytes = new TextEncoder().encode("mesh");
     const sha256 = await sha256Hex(bytes);
@@ -143,6 +319,7 @@ describe("Mesh2Param project files", () => {
     const file = createProjectFile({
       project: project(sha256, bytes.byteLength),
       working: working(sha256, bytes.byteLength),
+      ui: persistedUi(),
       versions: [],
       source,
       artifactManifest: [],
@@ -168,6 +345,7 @@ describe("Mesh2Param project files", () => {
     const file: Mesh2ParamProjectFile = createProjectFile({
       project: project(sha256, bytes.byteLength),
       working: working(sha256, bytes.byteLength),
+      ui: persistedUi(),
       versions: [],
       source,
       artifactManifest: [],
@@ -179,8 +357,10 @@ describe("Mesh2Param project files", () => {
     await repository.importProjectFile(serializeProjectFile(file));
 
     const stored = await db.blobs.get(`source:${sha256}`);
+    const storedUi = await db.ui.get(file.project.id);
     expect(stored?.projectId).toBe(file.project.id);
     expect(stored?.byteSize).toBe(bytes.byteLength);
     expect(stored?.blob).toBeDefined();
+    expect(storedUi?.state).toEqual(file.ui);
   });
 });

@@ -1,8 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { RefinePanel } from "./RefinePanel";
+
+afterEach(cleanup);
 
 function fixture() {
   const feature = {
@@ -51,5 +53,22 @@ describe("RefinePanel parameter editing", () => {
     await user.type(diameter, "11");
     expect(diameter).toHaveValue(11);
     expect(screen.queryByRole("spinbutton", { name: "Depth (mm)" })).not.toBeInTheDocument();
+  });
+
+  it("commits Enter once and leaves rebuild actionable", async () => {
+    const user = userEvent.setup();
+    const { vm, actions } = fixture();
+    render(<RefinePanel vm={vm} actions={actions} />);
+    const diameter = screen.getByRole("spinbutton", { name: "Diameter (mm)" });
+
+    await user.clear(diameter);
+    await user.type(diameter, "11");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(actions.updateCadgraph).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Rebuild" }));
+
+    expect(actions.updateCadgraph).toHaveBeenCalledTimes(1);
+    expect(actions.run).toHaveBeenCalledWith("rebuild");
   });
 });
