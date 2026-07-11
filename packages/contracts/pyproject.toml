@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mesh2param-contracts"
+version = "0.1.0"
+description = "Strict CADGraph contracts shared by Mesh2Param services"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+test = [
+  "jsonschema[format]>=4.23,<5",
+  "pytest>=8.3,<9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["python/mesh2param_contracts"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schema/cadgraph.schema.json" = "mesh2param_contracts/schema/cadgraph.schema.json"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests/python"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
