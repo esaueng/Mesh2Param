@@ -6,7 +6,7 @@ import hashlib
 import math
 from collections.abc import Callable, Mapping, Sequence
 from copy import copy
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -56,9 +56,17 @@ class FeatureRecord:
     topology_hash: str | None
 
     def to_dict(self) -> dict[str, Any]:
-        result = asdict(self)
-        result["validation"] = self.validation.to_dict() if self.validation else None
-        return result
+        return {
+            "featureId": self.feature_id,
+            "featureType": self.feature_type,
+            "order": self.order,
+            "status": self.status,
+            "volumeBefore": self.volume_before,
+            "volumeAfter": self.volume_after,
+            "validation": self.validation.to_dict() if self.validation else None,
+            "semanticOutputs": list(self.semantic_outputs),
+            "topologyHash": self.topology_hash,
+        }
 
 
 @dataclass(slots=True)
@@ -844,8 +852,7 @@ def compile_cadgraph(
             continue
         before = body
         topology_before = {
-            semantic_id: copy(record)
-            for semantic_id, record in registry.records.items()
+            semantic_id: copy(record) for semantic_id, record in registry.records.items()
         }
         topology_issues_before = list(registry.issues)
         direction: cq.Vector | None = None

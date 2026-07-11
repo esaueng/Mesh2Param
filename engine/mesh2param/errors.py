@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -21,7 +21,17 @@ class CompileError:
     recommendation: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            "code": self.code,
+            "featureId": self.feature_id,
+            "featureType": self.feature_type,
+            "order": self.order,
+            "parameters": self.parameters,
+            "dependencies": list(self.dependencies),
+            "kernelError": self.kernel_error,
+            "lastValidFeatureId": self.last_valid_feature_id,
+            "recommendation": self.recommendation,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +44,12 @@ class TopologyIssue:
     severity: str = "error"
 
     def to_dict(self) -> dict[str, str]:
-        return asdict(self)
+        return {
+            "semanticId": self.semantic_id,
+            "producerFeatureId": self.producer_feature_id,
+            "message": self.message,
+            "severity": self.severity,
+        }
 
 
 class FeatureBuildFailure(RuntimeError):

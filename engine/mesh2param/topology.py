@@ -13,7 +13,7 @@ import json
 import math
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
 import cadquery as cq
@@ -119,12 +119,8 @@ def edge_descriptor(edge: cq.Edge, resolution: float) -> dict[str, Any]:
 
 def _face_orientation(face: cq.Face, axis: Any, sample: cq.Vector) -> int:
     normal = face.normalAt(sample)
-    axis_point = cq.Vector(
-        axis.Location().X(), axis.Location().Y(), axis.Location().Z()
-    )
-    axis_direction = cq.Vector(
-        axis.Direction().X(), axis.Direction().Y(), axis.Direction().Z()
-    )
+    axis_point = cq.Vector(axis.Location().X(), axis.Location().Y(), axis.Location().Z())
+    axis_direction = cq.Vector(axis.Direction().X(), axis.Direction().Y(), axis.Direction().Z())
     radial = sample - (
         axis_point + axis_direction.multiply((sample - axis_point).dot(axis_direction))
     )
@@ -267,7 +263,14 @@ class ProvenanceRecord:
     result_descriptor: str | None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            "featureId": self.feature_id,
+            "relation": self.relation,
+            "sourceKind": self.source_kind,
+            "sourceDescriptor": self.source_descriptor,
+            "resultKind": self.result_kind,
+            "resultDescriptor": self.result_descriptor,
+        }
 
 
 @dataclass(slots=True)
@@ -350,9 +353,7 @@ class TopologyRegistry:
         elif isinstance(previous, Mapping):
             raw_hash = previous.get("descriptorHash", previous.get("descriptor_hash"))
             previous_hash = str(raw_hash) if raw_hash else None
-        descriptor = (
-            shape_descriptor(shape, self.resolution) if shape is not None else None
-        )
+        descriptor = shape_descriptor(shape, self.resolution) if shape is not None else None
         record = ResolvedTopology(
             semantic_id=semantic_id,
             kind=kind,
@@ -531,8 +532,7 @@ class TopologyRegistry:
         unresolved_outputs = [
             semantic_id
             for semantic_id in feature.semantic_outputs
-            if semantic_id not in self.records
-            or self.records[semantic_id].status != "resolved"
+            if semantic_id not in self.records or self.records[semantic_id].status != "resolved"
         ]
         if unresolved_outputs:
             raise SemanticResolutionFailure(
@@ -589,9 +589,7 @@ class TopologyRegistry:
 
         index_match = re.search(r"(?:profileedge|edge|face)\.?([0-9]+)$", role)
         if index_match is None:
-            index_match = re.search(
-                rf"{kind}\.([0-9]+)$", _normalize_role(reference.id)
-            )
+            index_match = re.search(rf"{kind}\.([0-9]+)$", _normalize_role(reference.id))
         if index_match is not None:
             ordered = sorted(
                 selected or all_items,
