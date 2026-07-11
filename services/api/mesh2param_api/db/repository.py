@@ -621,17 +621,32 @@ class Repository:
             document = copy.deepcopy(state.document_json)
             document.update(copy.deepcopy(state_patch))
             source_result = result.get("sourceAsset")
-            if isinstance(source_result, dict) and artifact_set_id is not None:
+            if job.kind == "sample_open":
+                if not isinstance(source_result, dict) or artifact_set_id is None:
+                    raise RepositoryError("sample completion omitted its source artifact")
                 source_artifact_name = source_result.get("artifactName")
+                if (
+                    source_artifact_name != "source-random.stl"
+                    or source_result.get("originalFileName") != "source-random.stl"
+                    or source_result.get("format") != "stl"
+                    or source_result.get("encoding") != "binary"
+                    or source_result.get("declaredUnits", "mm") != "mm"
+                    or source_result.get("scaleFactor", 1.0) != 1.0
+                ):
+                    raise RepositoryError("sample completion selected an invalid source artifact")
                 source_blob = next(
                     (
                         raw
-                        for raw in artifacts
+                        for raw in published_artifacts
                         if raw.get("name") == source_artifact_name
                     ),
                     None,
                 )
-                if source_blob is None:
+                if (
+                    source_blob is None
+                    or source_blob.get("kind") != "source"
+                    or source_blob.get("mediaType") != "model/stl"
+                ):
                     raise RepositoryError("sample source artifact is missing")
                 source_id = _uuid()
                 source = SourceAsset(

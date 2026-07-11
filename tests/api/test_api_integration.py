@@ -78,6 +78,41 @@ def current_project(client: TestClient, project_id: str) -> tuple[dict[str, Any]
     return response.json()["data"], response.headers["etag"]
 
 
+def test_sample_catalog_uses_generated_metadata_and_safe_thumbnails(
+    client: TestClient,
+) -> None:
+    response = client.get("/api/samples")
+    assert response.status_code == 200, response.text
+    catalog = response.json()["data"]
+    assert catalog["total"] == 10
+    items = {item["id"]: item for item in catalog["items"]}
+    assert items["l-bracket-with-holes"]["triangleCount"] == 2052
+    assert items["l-bracket-with-holes"]["intendedOperations"] == ["Extrusion", "Hole"]
+    assert items["l-bracket-with-holes"]["toleranceMm"] == pytest.approx(0.15)
+    assert (
+        items["l-bracket-with-holes"]["thumbnailUrl"]
+        == "/api/samples/l-bracket-with-holes/thumbnail"
+    )
+    assert items["flange"]["triangleCount"] == 4560
+    assert items["flange"]["intendedOperations"] == [
+        "Revolution",
+        "Hole",
+        "Circular pattern",
+    ]
+
+    thumbnail = client.get(items["l-bracket-with-holes"]["thumbnailUrl"])
+    assert thumbnail.status_code == 200
+    assert thumbnail.headers["content-type"].startswith("image/svg+xml")
+    assert thumbnail.headers["x-content-type-options"] == "nosniff"
+    assert "default-src 'none'" in thumbnail.headers["content-security-policy"]
+    assert thumbnail.headers["etag"].startswith('"sha256-')
+    assert thumbnail.content.startswith(b"<svg ")
+
+    missing = client.get("/api/samples/not-a-sample/thumbnail")
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "sample_not_found"
+
+
 def test_health_projects_upload_diagnostics_reopen_and_delete(client: TestClient) -> None:
     assert client.get("/health").status_code == 200
     assert client.get("/ready").status_code == 200
@@ -217,7 +252,25 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
     assert sample_job["status"] == "completed", sample_job
 
     project, etag = current_project(client, project_id)
-    assert project["state"]["source"]["originalFileName"] == "source-random.stl"
+    source = project["state"]["source"]
+    sample_artifacts = client.get(f"/api/projects/{project_id}/artifacts").json()["data"][
+        "items"
+    ]
+    random_source = next(item for item in sample_artifacts if item["name"] == "source-random.stl")
+    source_glb = next(item for item in sample_artifacts if item["name"] == "source.glb")
+    assert source_glb["kind"] == "source-mesh"
+    assert source == {
+        "id": source["id"],
+        "originalFileName": "source-random.stl",
+        "format": "stl",
+        "encoding": "binary",
+        "sha256": random_source["sha256"],
+        "byteSize": random_source["byteSize"],
+        "declaredUnits": "mm",
+        "unitsConfirmed": True,
+        "scaleFactor": 1.0,
+        "state": "valid",
+    }
     assert project["state"]["cadgraph"]
 
     repair = client.post(

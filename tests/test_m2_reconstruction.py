@@ -432,6 +432,9 @@ def test_reconstruction_orchestrator_writes_valid_artifact_bundle(
         "manifest.json",
     }
     assert required <= {path.name for path in tmp_path.iterdir()}
+    candidate_documents = json.loads((tmp_path / "candidates.json").read_text(encoding="utf-8"))
+    assert candidate_documents
+    assert all(CADGraph.model_validate(item["cadgraph"]) for item in candidate_documents)
 
 
 def test_cli_exposes_exact_m2_commands_and_service_arguments(

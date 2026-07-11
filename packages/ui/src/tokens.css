@@ -1,0 +1,18 @@
+:root {
+  --color-bg: #0b0f14; --color-surface: #111821; --color-surface-2: #17202b; --color-hover: #1b2430;
+  --color-border: #2a3441; --color-border-strong: #3a4554; --color-text: #e6edf3; --color-muted: #8b949e; --color-subtle: #828d99;
+  --color-accent: #4da3ff; --color-accent-dim: rgba(77,163,255,.12); --color-accent-border: rgba(77,163,255,.45);
+  --color-warning: #f59e0b; --color-error: #ef4444; --color-success: #22c55e; --color-viewport: #070b10;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif; --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --fs-mini: 10.5px; --fs-xs: 11.5px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 22px; --fs-display: 38px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --radius-sm: 3px; --radius-md: 4px; --radius-pill: 10px;
+  --topbar-h: 44px; --statusbar-h: 30px; --rail-w: 124px; --rail-collapsed-w: 56px; --inspector-w: 344px;
+  --dur-fast: 100ms; --dur-base: 200ms; --dur-slow: 500ms; --ease-out: cubic-bezier(.16,1,.3,1); color-scheme: dark;
+}
+.theme-light {
+  --color-bg:#edf2f7; --color-surface:#f8fafc; --color-surface-2:#e9eff6; --color-hover:#dfe8f2;
+  --color-border:#c8d2df; --color-border-strong:#aebbc9; --color-text:#17202b; --color-muted:#536170; --color-subtle:#5f6b7a;
+  --color-accent:#0b63b6; --color-accent-dim:rgba(22,119,210,.12); --color-accent-border:rgba(22,119,210,.42);
+  --color-warning:#a16207; --color-error:#b91c1c; --color-success:#15803d; --color-viewport:#f7f9fc; color-scheme: light;
+}
