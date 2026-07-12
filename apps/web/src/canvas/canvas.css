@@ -1,6 +1,9 @@
-.canvas-shell{position:relative;width:100%;height:100dvh;overflow:hidden;background:var(--color-viewport);color:var(--color-text)}
+.canvas-shell{width:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) 236px;overflow:hidden;background:var(--color-viewport);color:var(--color-text)}
+.canvas-main{position:relative;min-width:0;overflow:hidden}
+.canvas-stage{position:absolute;inset:0}
 .canvas-shell .cad-viewport{inset:0}
-.canvas-shell .selection-chip{bottom:74px}
+.canvas-shell .selection-chip{bottom:16px}
+.canvas-shell .scale-bar{left:14px;right:auto;bottom:14px}
 
 .skip-link{position:absolute;z-index:1000;left:8px;top:-60px;padding:8px 14px;background:var(--color-accent);color:#04121f;border-radius:var(--radius-md)}
 .skip-link:focus{top:8px}
@@ -31,51 +34,50 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-chip.info{background:var(--color-accent-dim);color:var(--color-accent);border:1px solid var(--color-accent-border)}
 .canvas-chip.warn{background:rgba(245,158,11,.13);color:var(--color-warning);border:1px solid rgba(245,158,11,.4)}
 
-/* ---------- job progress pill (above the dock) ---------- */
-.canvas-progress{position:absolute;z-index:7;left:50%;bottom:74px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));padding:7px 12px;border:1px solid var(--color-border-strong);border-radius:var(--radius-pill);background:rgba(17,24,33,.94);color:var(--color-muted);font:var(--fs-xs) var(--font-mono);box-shadow:0 10px 30px -12px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+/* ---------- job progress (lives in the panel's Convert group) ---------- */
+.canvas-progress{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-muted);font:var(--fs-xs) var(--font-mono)}
 .canvas-progress .spin{color:var(--color-accent);animation:ui-spin 1.1s linear infinite}
-.canvas-progress-phase{color:var(--color-text);white-space:nowrap}
-.canvas-progress-track{width:120px;height:6px;overflow:hidden;border-radius:var(--radius-pill);background:var(--color-border)}
+.canvas-progress-phase{overflow:hidden;color:var(--color-text);text-overflow:ellipsis;white-space:nowrap}
+.canvas-progress-track{grid-column:1/-1;height:6px;overflow:hidden;border-radius:var(--radius-pill);background:var(--color-border)}
 .canvas-progress-track>span{display:block;height:100%;background:var(--color-accent);transition:width var(--dur-base) var(--ease-out)}
 .canvas-progress-pct{color:var(--color-subtle)}
-.canvas-progress-cancel{height:24px;padding:0 9px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);background:transparent;color:var(--color-muted);font:var(--fs-mini) var(--font-mono)}
+.canvas-progress-cancel{grid-column:1/-1;height:26px;padding:0 9px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);background:transparent;color:var(--color-muted);font:var(--fs-mini) var(--font-mono)}
 .canvas-progress-cancel:hover:not(:disabled){color:var(--color-text);border-color:var(--color-accent-border)}
 
-/* ---------- floating command dock ---------- */
-.canvas-dock{position:absolute;z-index:8;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;max-width:calc(100vw - 24px);padding:6px;border:1px solid var(--color-border-strong);border-radius:12px;background:rgba(17,24,33,.94);box-shadow:0 14px 40px -14px rgba(0,0,0,.7);backdrop-filter:blur(8px)}
-.canvas-dock>*{flex:none}
-.canvas-dock .dock-btn{width:38px;height:38px;display:grid;place-items:center;padding:0;border:0;border-radius:8px;background:transparent;color:var(--color-muted)}
-.canvas-dock .dock-btn:hover{color:var(--color-text);background:var(--color-hover)}
-.dock-sep{flex:none;width:1px;height:24px;background:var(--color-border);margin:0 4px}
-.dock-modes{display:flex;align-items:center;gap:2px}
-.dock-modes button{height:30px;padding:0 11px;border:0;border-radius:6px;background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
-.dock-modes button:hover{color:var(--color-text);background:var(--color-hover)}
-.dock-modes button.active{color:var(--color-accent);background:var(--color-accent-dim)}
-.canvas-dock .dock-primary{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border:1px solid #268cf4;border-radius:8px;background:#1673de;color:#fff;font:500 var(--fs-base) var(--font-ui);white-space:nowrap}
-.canvas-dock .dock-primary:hover:not(:disabled){background:#1264c6}
-.canvas-dock .dock-primary svg{flex:none}
+/* ---------- right command panel ---------- */
+.canvas-panel{display:flex;flex-direction:column;gap:16px;padding:14px 14px 16px;border-left:1px solid var(--color-border);background:var(--color-surface);overflow-y:auto;scrollbar-width:thin}
+.panel-group{display:grid;gap:7px;align-content:start}
+.panel-label{margin:0;color:var(--color-subtle);font:500 10px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase}
+.panel-btn{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui);white-space:nowrap}
+.panel-btn svg{flex:none}
+.panel-btn:hover{color:var(--color-text);background:var(--color-hover);border-color:var(--color-border-strong)}
+.panel-btn.active{color:var(--color-accent);background:var(--color-accent-dim);border-color:var(--color-accent-border)}
+.panel-btn.has-issues:not(.active){color:var(--color-warning)}
+.panel-count{min-width:16px;margin-left:auto;padding:1px 4px;border-radius:var(--radius-pill);background:var(--color-warning);color:#111821;font:700 9px/1.4 var(--font-mono);text-align:center}
+.panel-view-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.panel-view-grid .panel-btn{padding:0 9px}
+.panel-modes{display:grid;gap:4px}
+.panel-modes button{display:flex;align-items:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
+.panel-modes button:hover{color:var(--color-text);background:var(--color-hover)}
+.panel-modes button.active{color:var(--color-accent);background:var(--color-accent-dim);border-color:var(--color-accent-border)}
+.panel-convert{margin-top:auto;padding-top:14px;border-top:1px solid var(--color-border)}
+.canvas-panel .dock-primary{display:flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 12px;border:1px solid #268cf4;border-radius:var(--radius-md);background:#1673de;color:#fff;font:500 var(--fs-base) var(--font-ui);white-space:nowrap}
+.canvas-panel .dock-primary:hover:not(:disabled){background:#1264c6}
+.canvas-panel .dock-primary:disabled{opacity:.6}
+.canvas-panel .dock-primary svg{flex:none}
+.panel-hint{display:flex;gap:7px;margin:0;font:var(--fs-mini)/1.5 var(--font-ui)}
+.panel-hint>svg{flex:none;margin-top:2px}
+.panel-hint.warn>svg{color:var(--color-warning)}
+.panel-hint.info>svg{color:var(--color-accent)}
+.panel-hint>span{color:var(--color-muted)}
 
 @media(prefers-reduced-motion:reduce){.canvas-progress .spin{animation:none}}
 
-.theme-light .canvas-dock,.theme-light .canvas-progress{background:rgba(248,250,252,.94)}
 .theme-light .canvas-brand svg{color:var(--color-accent)}
 .theme-light .skip-link{color:#fff}
 
-/* ---------- console toggle badge + inline note ---------- */
-.canvas-dock .dock-btn{position:relative}
-.canvas-dock .dock-btn.active{color:var(--color-accent);background:var(--color-accent-dim)}
-.canvas-dock .dock-btn.has-issues:not(.active){color:var(--color-warning)}
-.dock-badge{position:absolute;top:0;right:0;min-width:15px;height:15px;padding:0 3px;display:grid;place-items:center;border-radius:8px;background:var(--color-warning);color:#111821;font:700 9px/1 var(--font-mono)}
-
-.canvas-note{position:absolute;z-index:7;left:50%;bottom:74px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:min(640px,calc(100vw - 24px));padding:8px 13px;border-radius:var(--radius-md);background:rgba(17,24,33,.95);font:var(--fs-xs)/1.45 var(--font-ui);box-shadow:0 10px 30px -14px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
-.canvas-note>svg{flex:none}
-.canvas-note>span{color:var(--color-text)}
-.canvas-note.warn{border:1px solid rgba(245,158,11,.5);color:var(--color-warning)}
-.canvas-note.info{border:1px solid var(--color-accent-border);color:var(--color-accent)}
-.theme-light .canvas-note{background:rgba(248,250,252,.96)}
-
-/* ---------- debug console ---------- */
-.debug-console{position:absolute;z-index:9;left:50%;bottom:74px;transform:translateX(-50%);width:min(940px,calc(100vw - 24px));max-height:min(46vh,440px);display:grid;grid-template-rows:auto minmax(0,1fr);border:1px solid var(--color-border-strong);border-radius:10px;background:rgba(13,18,24,.98);box-shadow:0 22px 54px -18px rgba(0,0,0,.75);backdrop-filter:blur(10px);overflow:hidden}
+/* ---------- debug console (bottom sheet over the viewport column) ---------- */
+.debug-console{position:absolute;z-index:9;left:50%;bottom:12px;transform:translateX(-50%);width:min(940px,calc(100% - 24px));max-height:min(46vh,440px);display:grid;grid-template-rows:auto minmax(0,1fr);border:1px solid var(--color-border-strong);border-radius:10px;background:rgba(13,18,24,.98);box-shadow:0 22px 54px -18px rgba(0,0,0,.75);backdrop-filter:blur(10px);overflow:hidden}
 .theme-light .debug-console{background:rgba(248,250,252,.98)}
 .dc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--color-border);background:var(--color-surface-2)}
 .dc-title{display:inline-flex;align-items:center;gap:7px;color:var(--color-text);font:500 var(--fs-sm) var(--font-ui)}
@@ -127,17 +129,26 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .landing-worker.up{color:var(--color-success)}
 .landing-worker.down .dot{background:var(--color-warning)}
 
+/* Stack the panel under the viewport when the window is too narrow for a side column. */
+@media(max-width:720px){
+  .canvas-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  .canvas-panel{flex-flow:row wrap;align-items:center;gap:8px 14px;max-height:42dvh;overflow-y:auto;border-left:0;border-top:1px solid var(--color-border);padding:10px 12px}
+  .panel-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .panel-label{display:none}
+  .panel-modes{display:flex;gap:4px}
+  .panel-view-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .panel-btn,.panel-modes button{height:44px}
+  .panel-convert{flex:1 1 100%;display:grid;gap:6px;margin:0;padding:0;border-top:0}
+  .canvas-panel .dock-primary{height:44px}
+  .debug-console{max-height:34dvh}
+}
+
 @media(max-width:640px){
   .canvas-topbar{padding:10px 12px}
   .canvas-brand strong{display:none}
   .canvas-file-name{max-width:16ch}
   .canvas-file-meta{display:none}
-  .canvas-dock{gap:2px;padding:5px;bottom:14px;overflow-x:auto;scrollbar-width:thin}
-  .canvas-dock .dock-btn{width:44px;height:44px}
-  .dock-modes button{height:44px;padding:0 12px}
-  .canvas-dock .dock-primary{height:44px;padding:0 12px}
   .landing-recents-chips button{height:44px}
   .dc-actions button{height:44px;padding:0 12px}
   .dc-actions .dc-close{width:44px}
-  .canvas-progress-track{width:80px}
 }
