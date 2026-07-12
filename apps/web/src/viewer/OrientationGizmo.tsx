@@ -1,9 +1,10 @@
 import { Billboard, GizmoHelper, Line, Text } from "@react-three/drei";
 import gizmoFontUrl from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { configureTextBuilder } from "troika-three-text";
+import "./orientationGizmo.css";
 
 // Troika's worker typesetter rebuilds code with new Function(), which the
 // production CSP blocks. Keep the OpenCAE gizmo labels on the main thread.
@@ -15,6 +16,7 @@ export type ViewCubeFaceLabel = "Front" | "Back" | "Right" | "Left" | "Top" | "B
 
 export const VIEWER_GIZMO_ALIGNMENT = "bottom-right";
 export const VIEWER_GIZMO_MARGIN: [number, number] = [112, 112];
+export const VIEWER_GIZMO_DPR: [number, number] = [2, 3];
 export const VIEWER_GIZMO_SCALE = 40;
 export const VIEWER_AXIS_HEAD_RADIUS = 0.26;
 export const VIEWER_AXIS_LABEL_BADGE_RADIUS = 0.18;
@@ -56,6 +58,44 @@ export function viewerGizmoLayout() {
 
 export function OrientationGizmo({ onSelectView }: { onSelectView: (view: GizmoViewRequest) => void }) {
   return <GizmoHelper alignment={VIEWER_GIZMO_ALIGNMENT} margin={VIEWER_GIZMO_MARGIN}><CleanAxisGizmo onSelectView={onSelectView} /></GizmoHelper>;
+}
+
+/**
+ * Render the screen-space gizmo independently from the model canvas. The model
+ * can then use a conservative DPR for dense meshes without rasterizing this
+ * small HUD below the display's native resolution.
+ */
+export function OrientationGizmoCanvas({ cameraRef, onSelectView }: {
+  cameraRef: MutableRefObject<THREE.Camera | null>;
+  onSelectView: (view: GizmoViewRequest) => void;
+}) {
+  return (
+    <div className="orientation-gizmo-layer">
+      <Canvas
+        dpr={VIEWER_GIZMO_DPR}
+        frameloop="always"
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        camera={{ position: [0, 0, 200] }}
+      >
+        <SyncedGizmoCamera cameraRef={cameraRef} />
+        <OrientationGizmo onSelectView={onSelectView} />
+      </Canvas>
+    </div>
+  );
+}
+
+function SyncedGizmoCamera({ cameraRef }: { cameraRef: MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useFrame(() => {
+    const source = cameraRef.current;
+    if (source === null) return;
+    camera.position.copy(source.position);
+    camera.quaternion.copy(source.quaternion);
+    camera.up.copy(source.up);
+    camera.updateMatrix();
+    camera.updateMatrixWorld();
+  }, -1);
+  return null;
 }
 
 function CleanAxisGizmo({ onSelectView }: { onSelectView: (view: GizmoViewRequest) => void }) {
