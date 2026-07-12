@@ -222,6 +222,10 @@ export class BrowserApiClient {
       }
       if (operation === "analyze") {
         const next = await this.requireProject(projectId);
+        const existingArtifacts = next.state.artifacts;
+        const preserveGeneratedResult = next.state.cadgraph !== null
+          || next.state.validation !== null
+          || existingArtifacts.some((artifact) => artifact.name === "model.step");
         const source = await this.sourceBlob(next);
         const tolerance = Math.max(0.01, Number(options.settings?.tolerance ?? 0.1));
         const importedProjectPreview = options.settings?.importedProjectPreview === true;
@@ -231,7 +235,9 @@ export class BrowserApiClient {
         });
         const diagnostics = compiled.diagnostics;
         const preview = await this.putArtifact(projectId, "source.glb", meshToGlb(compiled.mesh), "source");
-        next.state.artifacts = [preview];
+        next.state.artifacts = preserveGeneratedResult
+          ? [...existingArtifacts.filter((artifact) => artifact.name !== "source.glb"), preview]
+          : [preview];
         if (importedProjectPreview) {
           const saved = await this.save(next, true);
           return { operation, revision: saved.revision, mode: "browser-local-import-preview" };

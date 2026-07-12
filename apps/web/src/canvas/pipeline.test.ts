@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
-import { nextAction, regenerationAction, reconstructedRevealPreferences } from "./pipeline";
+import {
+  analysisRerunAction,
+  nextAction,
+  regenerationAction,
+  reconstructedRevealPreferences,
+} from "./pipeline";
 
 describe("canvas pipeline actions", () => {
   it("labels the source-bound faceted fallback explicitly", () => {
@@ -93,6 +98,39 @@ describe("canvas pipeline actions", () => {
     vm.activeJob = { job: { kind: "export" } } as WorkspaceViewModel["activeJob"];
 
     expect(regenerationAction(vm)).toMatchObject({
+      disabled: true,
+      reason: "A job is already running.",
+    });
+  });
+
+  it("offers a non-destructive analysis rerun for a completed project", () => {
+    const vm = completedWorkspace({ analysis: { settings: {}, patches: [] } });
+
+    expect(analysisRerunAction(vm)).toMatchObject({
+      kind: "analyze",
+      label: "Rerun analysis",
+      operation: "analyze",
+      disabled: false,
+    });
+  });
+
+  it("hides analysis rerun before a project has existing work", () => {
+    const vm = completedWorkspace({
+      analysis: null,
+      patches: [],
+      cadgraph: null,
+      validation: null,
+    });
+    vm.artifacts = [];
+
+    expect(analysisRerunAction(vm)).toBeNull();
+  });
+
+  it("disables analysis rerun while another geometry job is active", () => {
+    const vm = completedWorkspace({ analysis: { settings: {}, patches: [] } });
+    vm.activeJob = { job: { kind: "export" } } as WorkspaceViewModel["activeJob"];
+
+    expect(analysisRerunAction(vm)).toMatchObject({
       disabled: true,
       reason: "A job is already running.",
     });

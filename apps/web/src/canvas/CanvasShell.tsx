@@ -27,6 +27,7 @@ import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
 import { DisplayModeMenu } from "./DisplayModeMenu";
 import {
+  analysisRerunAction,
   availableModes,
   humanPhase,
   isValidated,
@@ -49,6 +50,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const state = vm.project.state;
   const action = nextAction(vm);
+  const rerunAnalysis = analysisRerunAction(vm);
   const regenerate = regenerationAction(vm);
   const modes = availableModes(vm.artifacts);
   const activeJob = vm.activeJob;
@@ -116,6 +118,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const onRegenerate = () => {
     if (regenerate?.operation !== undefined) void actions.run(regenerate.operation, regenerate.settings);
+  };
+
+  const onRerunAnalysis = () => {
+    if (rerunAnalysis?.operation !== undefined) void actions.run(rerunAnalysis.operation, rerunAnalysis.settings);
   };
 
   const status = conversionStatus(vm);
@@ -258,15 +264,28 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         </button>
 
         <span className="dock-sep" />
+        {rerunAnalysis !== null ? (
+          <button
+            className="dock-secondary dock-secondary-compact"
+            onClick={onRerunAnalysis}
+            disabled={rerunAnalysis.disabled}
+            title={rerunAnalysis.reason ?? rerunAnalysis.hint}
+            aria-label={rerunAnalysis.label}
+          >
+            <ScanSearch size={14} />
+            Analysis
+          </button>
+        ) : null}
         {regenerate !== null ? (
           <button
-            className="dock-secondary"
+            className="dock-secondary dock-secondary-compact"
             onClick={onRegenerate}
             disabled={regenerate.disabled}
             title={regenerate.reason ?? regenerate.hint}
+            aria-label={regenerate.label}
           >
-            <RefreshCw size={16} />
-            {regenerate.label}
+            <RefreshCw size={14} />
+            STEP
           </button>
         ) : null}
         <button
