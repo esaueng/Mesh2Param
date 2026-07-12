@@ -1,15 +1,30 @@
 import type { SVGProps } from "react";
 
+// ---- "Split Resolve" mark: a shaded iso cube whose top + left faces stay raw
+// triangulated mesh while the right face has resolved into a clean parametric
+// solid. Mesh + edges track currentColor (themed by .canvas-brand); the resolved
+// face and the core node use the accent so the transition reads on any background.
 export function Mesh2ParamLogoMark({ title = "", ...props }: SVGProps<SVGSVGElement> & { title?: string }) {
   const titleId = title ? "mesh2param-mark-title" : undefined;
   return (
-    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" role={title ? "img" : undefined} aria-labelledby={titleId} aria-hidden={title ? undefined : true} {...props}>
+    <svg viewBox="0 0 40 40" fill="none" strokeLinecap="round" strokeLinejoin="round" role={title ? "img" : undefined} aria-labelledby={titleId} aria-hidden={title ? undefined : true} {...props}>
       {title ? <title id={titleId}>{title}</title> : null}
-      <path d="M20 2.8 35 11.4v17.2L20 37.2 5 28.6V11.4L20 2.8Z" />
-      <path d="m5 11.4 15 8.7 15-8.7M20 20.1v17.1M5 28.6l15-8.5 15 8.5" opacity=".9" />
-      <path d="m5 11.4 8.2 4.7L20 2.8m0 17.3-6.8-4v8l6.8 4m0-8 7.4-4.3v8.5L20 28.6" opacity=".7" />
-      <path d="m13.2 16.1 6.8 4-6.8 4 6.8 4 7.4-4.3M20 2.8v17.3l7.4 4.2" opacity=".55" />
-      <circle cx="20" cy="20.1" r="2.7" fill="var(--color-bg)" />
+      {/* shaded faces */}
+      <path d="M20 20.1 5 11.4 20 2.7 35 11.4Z" fill="currentColor" fillOpacity=".12" />
+      <path d="M20 20.1 5 11.4 5 28.5 20 37.2Z" fill="currentColor" fillOpacity=".07" />
+      <path d="M20 20.1 35 11.4 35 28.5 20 37.2Z" fill="var(--color-accent)" fillOpacity=".26" />
+      {/* triangulated mesh on the two raw faces */}
+      <g stroke="currentColor" strokeWidth="1" strokeOpacity=".55">
+        <path d="M20 20.1L35 11.4M12.5 15.75L27.5 7.05M5 11.4L20 2.7M20 20.1L5 11.4M27.5 15.75L12.5 7.05M35 11.4L20 2.7M20 20.1L20 11.4M27.5 15.75L27.5 7.05M12.5 15.75L12.5 7.05M20 11.4L20 2.7" />
+        <path d="M20 20.1L20 37.2M12.5 15.75L12.5 32.85M5 11.4L5 28.5M20 20.1L5 11.4M20 28.65L5 19.95M20 37.2L5 28.5M20 20.1L12.5 24.3M20 28.65L12.5 32.85M12.5 15.75L5 19.95M12.5 24.3L5 28.5" />
+      </g>
+      {/* cube edges — three meeting at the front corner make it read as a box */}
+      <g stroke="currentColor" strokeWidth="1.55">
+        <path d="M20 2.8 35 11.4v17.2L20 37.2 5 28.6V11.4Z" />
+        <path d="M20 20.1 5 11.4M20 20.1 35 11.4M20 20.1 20 37.2" />
+      </g>
+      {/* accent core */}
+      <circle cx="20" cy="20.1" r="3" fill="var(--color-accent)" />
     </svg>
   );
 }
