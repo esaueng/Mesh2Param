@@ -15,6 +15,7 @@
     "cf:typecheck": "tsc -p tsconfig.cloudflare.json",
     "cf:check": "pnpm build:web && pnpm cf:types && pnpm cf:typecheck && wrangler deploy --dry-run",
     "cf:dev": "pnpm build:web && pnpm cf:types && pnpm cf:typecheck && wrangler dev",
+    "cf:test": "pnpm --filter @mesh2param/web test:cloudflare",
     "cf:deploy": "pnpm build:web && pnpm cf:types && pnpm cf:typecheck && wrangler deploy",
     "db:migrate": "uv run --frozen python -m mesh2param_api.migrate",
     "dev": "concurrently --kill-others --names api,web --prefix-colors blue,cyan \"pnpm dev:api\" \"pnpm dev:web\"",

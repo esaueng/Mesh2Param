@@ -20,14 +20,23 @@ required.
 ## Cloudflare Worker frontend
 
 The repository includes a Cloudflare Worker entrypoint and `wrangler.jsonc`. It deploys the Vite
-build through Workers Static Assets, uses SPA fallback routing, and invokes the Worker first only
-for `/api`, `/health`, `/ready`, `/docs`, and `/openapi.json`. API request and response bodies are
-streamed so uploads, artifact downloads, and job event streams are not buffered in Worker memory.
+build through Workers Static Assets with SPA fallback routing. The production UI is browser-first:
 
-The Python service is deliberately not bundled into the Worker. Mesh2Param's geometry runtime uses
-native CadQuery/OCCT dependencies, child-process isolation, SQLite, and a persistent filesystem CAS.
-Host the existing API and external geometry worker using the production topology in this document,
-then point the edge Worker at that HTTPS API origin.
+- IndexedDB is the project, revision, source, version, and artifact store.
+- A dedicated browser Web Worker loads `occt-wasm` and compiles supported CADGraph operations.
+- Exact validation checks the OCCT B-Rep, exports STEP, reimports it, and checks the result.
+- Bundled samples and their source/reference artifacts are static same-origin assets.
+- Generated STEP/GLB/CADGraph artifacts are Blob URLs and survive reload through IndexedDB.
+
+Cloudflare does not execute the 22 MB WASM module in a request handler; it only serves it to the
+browser. This keeps Worker CPU/memory limits out of geometry execution and keeps every static asset
+under Cloudflare's 25 MiB per-file limit. The document CSP remains free of `unsafe-eval`.
+Emscripten Embind requires dynamic invoker generation, so that permission is narrowly overridden
+only on the hashed `geometry.worker-*` response.
+
+The Python service is not bundled into the Worker. Native automatic mesh inference, full repair and
+segmentation, process isolation, and shared multi-user persistence still require the self-hosted
+FastAPI/CadQuery/OCCT topology below. Browser-local mode fails clearly for those unsupported paths.
 
 Install and validate the deployment without publishing it:
 
@@ -36,20 +45,26 @@ pnpm install --frozen-lockfile
 pnpm cf:check
 ```
 
-Run the Worker locally. With the default empty API origin, the UI works and API routes return a
-structured `503`, which is useful for checking the static deployment boundary:
+Run the complete browser-local Worker app locally:
 
 ```sh
 pnpm cf:dev
 ```
 
-Deploy a UI-only Worker:
+In another terminal, verify sample loading, IndexedDB reload, the worker-only CSP exception, OCCT
+WASM compilation, B-Rep/STEP validation, and artifact rendering:
+
+```sh
+pnpm cf:test
+```
+
+Deploy the self-contained browser-local Worker:
 
 ```sh
 pnpm cf:deploy
 ```
 
-Deploy with the same-origin API proxy enabled:
+Optional: enable the legacy/same-origin API proxy for an explicitly self-hosted backend:
 
 ```sh
 pnpm cf:deploy --var MESH2PARAM_API_ORIGIN:https://api.example.com
@@ -69,10 +84,10 @@ MESH2PARAM_ALLOWED_HOSTS=api.example.com
 MESH2PARAM_CORS_ORIGINS=https://cad.example.com
 ```
 
-Protect the Worker with a trusted authentication gateway such as Cloudflare Access, and prevent the
-API origin from being used as an unauthenticated bypass. The Worker does not add application login
-or tenant authorization. The API must remain paired with exactly one external geometry worker and
-their shared persistent volume; only the static frontend and HTTP proxy run at the edge.
+Browser-local data is isolated to a browser profile and is not shared across devices. Protect a
+server-connected deployment with a trusted authentication gateway such as Cloudflare Access, and
+prevent the API origin from being used as an unauthenticated bypass. The optional backend must
+remain paired with exactly one external geometry worker and their shared persistent volume.
 
 ## Compose quickstart
 

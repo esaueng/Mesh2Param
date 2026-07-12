@@ -1,4 +1,5 @@
 import { Billboard, GizmoHelper, Line, Text } from "@react-three/drei";
+import gizmoFontUrl from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -103,8 +104,8 @@ function AxisCap({ label, color, position, target, hovered, onHoverChange, onSel
       {hovered ? <mesh position={[0, 0, -0.002]}><ringGeometry args={[VIEWER_AXIS_HEAD_RADIUS * 1.02, VIEWER_AXIS_HEAD_RADIUS * 1.18, 40]} /><meshBasicMaterial color="#f8fbff" depthTest={false} transparent opacity={0.38} toneMapped={false} /></mesh> : null}
       <mesh><ringGeometry args={[VIEWER_AXIS_LABEL_BADGE_RADIUS, VIEWER_AXIS_HEAD_RADIUS, 40]} /><meshBasicMaterial color={color} depthTest={false} toneMapped={false} /></mesh>
       <mesh position={[0, 0, 0.004]}><circleGeometry args={[VIEWER_AXIS_LABEL_BADGE_RADIUS, 36]} /><meshBasicMaterial color={VIEWER_AXIS_LABEL_BADGE_COLOR} depthTest={false} toneMapped={false} /></mesh>
-      <Text anchorX="center" anchorY="middle" color={VIEWER_AXIS_LABEL_COLOR} fontSize={VIEWER_AXIS_LABEL_FONT_SIZE} fontWeight={VIEWER_AXIS_LABEL_FONT_WEIGHT} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={VIEWER_AXIS_LABEL_OUTLINE_WIDTH} position={[0, 0, 0.01]}>{label}</Text>
-      <Text anchorX="center" anchorY="middle" color="#d7e3ee" fontSize={0.105} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={0.01} position={[0, -0.095, 0.011]}>+</Text>
+      <Text anchorX="center" anchorY="middle" color={VIEWER_AXIS_LABEL_COLOR} font={gizmoFontUrl} fontSize={VIEWER_AXIS_LABEL_FONT_SIZE} fontWeight={VIEWER_AXIS_LABEL_FONT_WEIGHT} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={VIEWER_AXIS_LABEL_OUTLINE_WIDTH} position={[0, 0, 0.01]}>{label}</Text>
+      <Text anchorX="center" anchorY="middle" color="#d7e3ee" font={gizmoFontUrl} fontSize={0.105} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={0.01} position={[0, -0.095, 0.011]}>+</Text>
     </Billboard>
   );
 }
@@ -229,7 +230,7 @@ function IsoOriginButton({ onSelectView }: { onSelectView: (view: GizmoViewReque
 function GizmoTextLabel({ children, color, fontSize, depthTest = false, opacity = 1, position = [0, 0, 0.01] }: {
   children: string; color: string; fontSize: number; depthTest?: boolean; opacity?: number; position?: [number, number, number];
 }) {
-  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor="#07111d" outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
+  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} font={gizmoFontUrl} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor="#07111d" outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
 }
 
 export function shouldShowViewCubeFaceLabel(faceNormalWorld: THREE.Vector3, toCameraWorld: THREE.Vector3, threshold = VIEWER_VIEW_CUBE_FACE_VISIBILITY_THRESHOLD) {
