@@ -31,7 +31,8 @@ The same seven-step engineering workflow adapts to a compact viewport without re
 | Analysis | Mesh health, explicit repair history, deterministic plane/cylinder patches, frame alternatives, residuals, source/result metrics |
 | Validation | CADGraph schema/invariants, feature-by-feature OCCT compilation, B-Rep checks, STEP export, STEP reimport, solid validation, tolerance comparison |
 | Workspace | Seven-step React UI, real Three.js artifacts, patch selection, feature editing, candidate histories, unified undo/redo, IndexedDB recovery, project save/open |
-| Service | FastAPI, SQLite/WAL, immutable filesystem CAS, durable jobs/SSE, process isolation, cancellation, versions, manifests |
+| Browser-local Worker mode | IndexedDB project/version/artifact authority, local jobs, bundled samples, OCCT WebAssembly CADGraph rebuild, STEP export/reimport validation |
+| Server mode | FastAPI, SQLite/WAL, immutable filesystem CAS, durable jobs/SSE, process isolation, cancellation, versions, manifests |
 
 Not automatically inferred today: general prismatic parts, arbitrary hole counts, partial cylinders,
 freeform/organic surfaces, fillets/chamfers/patterns/mirrors, compound holes, damaged profile loops,
@@ -52,9 +53,10 @@ flowchart LR
   ART --> CAS
 ```
 
-The backend is authoritative for projects, revisions, jobs, versions, and artifact metadata. The
-browser mirrors the active working document for autosave and reload recovery; it never silently
-overwrites divergent server state. CADGraph—not generated Python—is the executable geometry model.
+Mesh2Param has two execution profiles. The Cloudflare profile is browser-authoritative: IndexedDB
+stores projects, revisions, jobs, versions, sources, and artifacts, while a dedicated Web Worker
+runs OCCT WebAssembly. The self-hosted profile keeps FastAPI as the authority and uses native
+CadQuery/OCCT workers. CADGraph—not generated Python—is the executable geometry model in both.
 See [architecture](docs/architecture.md) and [CADGraph](docs/cadgraph.md).
 
 ## Prerequisites
@@ -103,6 +105,7 @@ Only a completed validation job may present a STEP artifact as reimport-valid.
 | `pnpm lint` | Generated-contract drift, ESLint, and Ruff |
 | `pnpm test` | Contract, web, engine, API, security, and geometry tests |
 | `pnpm test:e2e` | Playwright primary workflow (requires installed browser binaries) |
+| `pnpm cf:test` | Browser-local Cloudflare/OCCT WebAssembly integration test (run `pnpm cf:dev` first) |
 | `pnpm verify` | Full local delivery gate, including deterministic samples and browser acceptance |
 | `pnpm db:migrate` | Apply SQLite schema migrations |
 | `pnpm samples:generate` | Regenerate the seeded procedural corpus |
@@ -144,6 +147,24 @@ Production uses `MESH2PARAM_JOB_RUNNER_MODE=external` and exactly one SQLite wor
 `/health` endpoint is process liveness; `/ready` also requires database/storage access and a fresh
 worker heartbeat. Do not expose the no-login profile to an untrusted network; terminate TLS at a
 trusted reverse proxy and configure exact hosts/origins. See [deployment](docs/deployment.md).
+
+### Cloudflare Worker frontend
+
+The React application can also be deployed as a Cloudflare Worker with Workers Static Assets:
+
+```sh
+pnpm cf:check
+pnpm cf:deploy
+```
+
+The default Worker deployment is self-contained: Cloudflare serves the SPA, sample corpus, and
+22 MB OCCT WebAssembly asset; projects and artifacts live in the browser's IndexedDB and geometry
+runs in a dedicated browser worker. No Python API is required for bundled samples or exact CADGraph
+rebuild/validation/export. Arbitrary-mesh automatic inference and production-scale faceted STEP
+conversion are native-server capabilities; browser-local mode reports that boundary instead of
+inventing geometry. Configure `MESH2PARAM_API_ORIGIN` for complex uploads. The web client detects a
+ready same-origin backend automatically and otherwise retains its browser-local workspace. See
+[Cloudflare Worker deployment](docs/deployment.md#cloudflare-worker-frontend).
 
 ## Project files and artifacts
 

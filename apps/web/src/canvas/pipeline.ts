@@ -1,4 +1,10 @@
-import type { ArtifactDescriptor, JsonObject, ProjectWorkingDocument, ViewerMode } from "../state/types";
+import type {
+  ArtifactDescriptor,
+  JsonObject,
+  ProjectWorkingDocument,
+  ViewerMode,
+  ViewerPreferences,
+} from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
 import { automaticReconstructionCapability } from "../workspace/automaticReconstruction";
 
@@ -24,6 +30,21 @@ export interface PipelineAction {
 }
 
 /**
+ * A reconstructed CAD result should first appear as a shaded solid. Carrying a
+ * source-mesh wireframe preference into this view exposes the GLB display
+ * tessellation and makes analytic cylinders and arcs look like faceted STEP
+ * geometry even though the underlying B-Rep is smooth.
+ */
+export function reconstructedRevealPreferences(): Partial<ViewerPreferences> {
+  return {
+    mode: "reconstructed",
+    resultOpacity: 1,
+    shading: "shaded",
+    edges: true,
+  };
+}
+
+/**
  * The source-bound faceted STEP fallback is offered when exact parametric inference is
  * unavailable. The worker requires an STL source at project units and unit scale.
  */
@@ -44,18 +65,79 @@ export function stepArtifact(artifacts: readonly ArtifactDescriptor[]): Artifact
   return artifacts.find((artifact) => /\.(step|stp)$/i.test(artifact.name));
 }
 
-export function nextAction(vm: WorkspaceViewModel): PipelineAction {
-  const state = vm.project.state;
-  const runBlocked = !vm.workerReady
+function operationBlockReason(vm: WorkspaceViewModel): string | null {
+  return !vm.workerReady
     ? "The geometry worker is not ready yet."
     : !vm.serverWritable
       ? "Resolve queued local edits before running geometry jobs."
       : vm.activeJob !== null
         ? "A job is already running."
         : null;
+}
+
+/**
+ * Regenerate an existing STEP from the project's authoritative geometry.
+ * Browser-local faceted projects do not carry a CADGraph. Regeneration gives
+ * the bounded analytic solver another chance from the preserved source rather
+ * than silently repeating the faceted conversion.
+ */
+export function regenerationAction(vm: WorkspaceViewModel): PipelineAction | null {
+  const state = vm.project.state;
+  if (!isValidated(state) || stepArtifact(vm.artifacts) === undefined) return null;
+
+  const runBlocked = operationBlockReason(vm);
+  if (state.cadgraph !== null) {
+    return {
+      kind: "export",
+      operation: "export",
+      label: "Regenerate STEP",
+      hint: "Rebuild the STEP file from the current project model",
+      disabled: runBlocked !== null,
+      ...(runBlocked !== null ? { reason: runBlocked } : {}),
+    };
+  }
+
+  if (!facetedApplicable(state)) return null;
+  return {
+    kind: "reconstruct",
+    operation: "reconstruct",
+    label: "Recover smooth STEP",
+    hint: "Re-analyze the preserved source and rebuild it with analytic lines and curves",
+    disabled: runBlocked !== null,
+    ...(runBlocked !== null ? { reason: runBlocked } : {}),
+  };
+}
+
+/** Offer a non-destructive analysis refresh once a project has analysis or CAD output. */
+export function analysisRerunAction(vm: WorkspaceViewModel): PipelineAction | null {
+  const state = vm.project.state;
+  const hasExistingWork = state.analysis !== null
+    || state.patches.length > 0
+    || state.cadgraph !== null
+    || stepArtifact(vm.artifacts) !== undefined;
+  if (state.source === null || !hasExistingWork) return null;
+
+  const runBlocked = operationBlockReason(vm);
+  return {
+    kind: "analyze",
+    operation: "analyze",
+    label: "Rerun analysis",
+    hint: "Recheck mesh health and surface evidence without discarding the current STEP",
+    disabled: runBlocked !== null,
+    ...(runBlocked !== null ? { reason: runBlocked } : {}),
+  };
+}
+
+export function nextAction(vm: WorkspaceViewModel): PipelineAction {
+  const state = vm.project.state;
+  const runBlocked = operationBlockReason(vm);
 
   if (state.source === null) {
     return { kind: "open", label: "Open a mesh", hint: "Load an STL, OBJ, or PLY file", disabled: false };
+  }
+
+  if (isValidated(state) && stepArtifact(vm.artifacts) !== undefined) {
+    return { kind: "download", label: "Download STEP", hint: "Save the validated STEP file", disabled: false };
   }
 
   if (state.cadgraph === null) {
@@ -89,10 +171,10 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
         kind: "faceted",
         operation: "reconstruct",
         settings: { mode: "faceted" },
-        label: "Generate STEP",
+        label: "Generate faceted STEP",
         hint: capability.reason
-          ? `Exact inference unavailable. ${capability.reason}`
-          : "Build a source-bound faceted STEP (not an exact parametric model)",
+          ? `Smooth analytic reconstruction unavailable. ${capability.reason}`
+          : "Preserve the source triangles as flat STEP faces (not smooth analytic CAD)",
         disabled: runBlocked !== null,
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
       };

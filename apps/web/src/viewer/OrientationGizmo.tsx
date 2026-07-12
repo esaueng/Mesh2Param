@@ -1,8 +1,10 @@
 import { Billboard, GizmoHelper, Line, Text } from "@react-three/drei";
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import gizmoFontUrl from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { configureTextBuilder } from "troika-three-text";
+import "./orientationGizmo.css";
 
 // Troika's worker typesetter rebuilds code with new Function(), which the
 // production CSP blocks. Keep the OpenCAE gizmo labels on the main thread.
@@ -14,6 +16,7 @@ export type ViewCubeFaceLabel = "Front" | "Back" | "Right" | "Left" | "Top" | "B
 
 export const VIEWER_GIZMO_ALIGNMENT = "bottom-right";
 export const VIEWER_GIZMO_MARGIN: [number, number] = [112, 112];
+export const VIEWER_GIZMO_DPR: [number, number] = [2, 3];
 export const VIEWER_GIZMO_SCALE = 40;
 export const VIEWER_AXIS_HEAD_RADIUS = 0.26;
 export const VIEWER_AXIS_LABEL_BADGE_RADIUS = 0.18;
@@ -55,6 +58,44 @@ export function viewerGizmoLayout() {
 
 export function OrientationGizmo({ onSelectView }: { onSelectView: (view: GizmoViewRequest) => void }) {
   return <GizmoHelper alignment={VIEWER_GIZMO_ALIGNMENT} margin={VIEWER_GIZMO_MARGIN}><CleanAxisGizmo onSelectView={onSelectView} /></GizmoHelper>;
+}
+
+/**
+ * Render the screen-space gizmo independently from the model canvas. The model
+ * can then use a conservative DPR for dense meshes without rasterizing this
+ * small HUD below the display's native resolution.
+ */
+export function OrientationGizmoCanvas({ cameraRef, onSelectView }: {
+  cameraRef: MutableRefObject<THREE.Camera | null>;
+  onSelectView: (view: GizmoViewRequest) => void;
+}) {
+  return (
+    <div className="orientation-gizmo-layer">
+      <Canvas
+        dpr={VIEWER_GIZMO_DPR}
+        frameloop="always"
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        camera={{ position: [0, 0, 200] }}
+      >
+        <SyncedGizmoCamera cameraRef={cameraRef} />
+        <OrientationGizmo onSelectView={onSelectView} />
+      </Canvas>
+    </div>
+  );
+}
+
+function SyncedGizmoCamera({ cameraRef }: { cameraRef: MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useFrame(() => {
+    const source = cameraRef.current;
+    if (source === null) return;
+    camera.position.copy(source.position);
+    camera.quaternion.copy(source.quaternion);
+    camera.up.copy(source.up);
+    camera.updateMatrix();
+    camera.updateMatrixWorld();
+  }, -1);
+  return null;
 }
 
 function CleanAxisGizmo({ onSelectView }: { onSelectView: (view: GizmoViewRequest) => void }) {
@@ -103,8 +144,8 @@ function AxisCap({ label, color, position, target, hovered, onHoverChange, onSel
       {hovered ? <mesh position={[0, 0, -0.002]}><ringGeometry args={[VIEWER_AXIS_HEAD_RADIUS * 1.02, VIEWER_AXIS_HEAD_RADIUS * 1.18, 40]} /><meshBasicMaterial color="#f8fbff" depthTest={false} transparent opacity={0.38} toneMapped={false} /></mesh> : null}
       <mesh><ringGeometry args={[VIEWER_AXIS_LABEL_BADGE_RADIUS, VIEWER_AXIS_HEAD_RADIUS, 40]} /><meshBasicMaterial color={color} depthTest={false} toneMapped={false} /></mesh>
       <mesh position={[0, 0, 0.004]}><circleGeometry args={[VIEWER_AXIS_LABEL_BADGE_RADIUS, 36]} /><meshBasicMaterial color={VIEWER_AXIS_LABEL_BADGE_COLOR} depthTest={false} toneMapped={false} /></mesh>
-      <Text anchorX="center" anchorY="middle" color={VIEWER_AXIS_LABEL_COLOR} fontSize={VIEWER_AXIS_LABEL_FONT_SIZE} fontWeight={VIEWER_AXIS_LABEL_FONT_WEIGHT} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={VIEWER_AXIS_LABEL_OUTLINE_WIDTH} position={[0, 0, 0.01]}>{label}</Text>
-      <Text anchorX="center" anchorY="middle" color="#d7e3ee" fontSize={0.105} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={0.01} position={[0, -0.095, 0.011]}>+</Text>
+      <Text anchorX="center" anchorY="middle" color={VIEWER_AXIS_LABEL_COLOR} font={gizmoFontUrl} fontSize={VIEWER_AXIS_LABEL_FONT_SIZE} fontWeight={VIEWER_AXIS_LABEL_FONT_WEIGHT} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={VIEWER_AXIS_LABEL_OUTLINE_WIDTH} position={[0, 0, 0.01]}>{label}</Text>
+      <Text anchorX="center" anchorY="middle" color="#d7e3ee" font={gizmoFontUrl} fontSize={0.105} letterSpacing={0} outlineColor={VIEWER_AXIS_LABEL_OUTLINE_COLOR} outlineWidth={0.01} position={[0, -0.095, 0.011]}>+</Text>
     </Billboard>
   );
 }
@@ -229,7 +270,7 @@ function IsoOriginButton({ onSelectView }: { onSelectView: (view: GizmoViewReque
 function GizmoTextLabel({ children, color, fontSize, depthTest = false, opacity = 1, position = [0, 0, 0.01] }: {
   children: string; color: string; fontSize: number; depthTest?: boolean; opacity?: number; position?: [number, number, number];
 }) {
-  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor="#07111d" outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
+  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} font={gizmoFontUrl} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor="#07111d" outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
 }
 
 export function shouldShowViewCubeFaceLabel(faceNormalWorld: THREE.Vector3, toCameraWorld: THREE.Vector3, threshold = VIEWER_VIEW_CUBE_FACE_VISIBILITY_THRESHOLD) {

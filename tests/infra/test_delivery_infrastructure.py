@@ -159,4 +159,5 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     assert action_references
     assert all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in action_references)
     assert "pnpm verify" in workflow
+    assert "pnpm cf:check" in workflow
     assert "verify_container_security.py" in workflow
