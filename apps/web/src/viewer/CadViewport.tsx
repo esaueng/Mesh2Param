@@ -252,17 +252,16 @@ export function CadViewport({
 
       <ViewerErrorBoundary key={artifactKey}>
         <Canvas
-          frameloop="demand"
-          dpr={[1, 1.75]}
+          frameloop="always"
+          dpr={[1, 1.25]}
           gl={{ alpha: true, preserveDrawingBuffer: true }}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}
-          onCreated={({ gl, invalidate }) => {
+          onCreated={({ gl }) => {
             gl.localClippingEnabled = true;
-            // Keep the context restorable and repaint the preserved drawing buffer after
-            // recovery instead of exposing an empty browser backing surface.
+            // Keep the context restorable; the active frame loop repaints immediately
+            // after recovery instead of exposing an empty browser backing surface.
             gl.domElement.addEventListener("webglcontextlost", (event) => event.preventDefault());
-            gl.domElement.addEventListener("webglcontextrestored", () => invalidate());
           }}
         >
           <color key={palette.background} attach="background" args={[palette.background]} />
