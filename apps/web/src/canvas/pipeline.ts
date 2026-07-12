@@ -108,6 +108,26 @@ export function regenerationAction(vm: WorkspaceViewModel): PipelineAction | nul
   };
 }
 
+/** Offer a non-destructive analysis refresh once a project has analysis or CAD output. */
+export function analysisRerunAction(vm: WorkspaceViewModel): PipelineAction | null {
+  const state = vm.project.state;
+  const hasExistingWork = state.analysis !== null
+    || state.patches.length > 0
+    || state.cadgraph !== null
+    || stepArtifact(vm.artifacts) !== undefined;
+  if (state.source === null || !hasExistingWork) return null;
+
+  const runBlocked = operationBlockReason(vm);
+  return {
+    kind: "analyze",
+    operation: "analyze",
+    label: "Rerun analysis",
+    hint: "Recheck mesh health and surface evidence without discarding the current STEP",
+    disabled: runBlocked !== null,
+    ...(runBlocked !== null ? { reason: runBlocked } : {}),
+  };
+}
+
 export function nextAction(vm: WorkspaceViewModel): PipelineAction {
   const state = vm.project.state;
   const runBlocked = operationBlockReason(vm);
