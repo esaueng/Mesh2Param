@@ -2,6 +2,7 @@ import { OcctKernel } from "occt-wasm";
 import wasmUrl from "occt-wasm/dist/occt-wasm.wasm?url";
 
 import { compileCadGraph, compileStl } from "./compiler";
+import { analyzeStl } from "./stl";
 import type { BrowserGeometryRequest, GeometryResponse } from "./types";
 
 let kernelPromise: Promise<OcctKernel> | null = null;
@@ -14,12 +15,15 @@ function kernel(): Promise<OcctKernel> {
 
 self.onmessage = (event: MessageEvent<BrowserGeometryRequest>) => {
   const request = event.data;
-  void kernel().then((value) => {
+  const operation = request.operation === "stl" && !request.solidify && !request.validateStep
+    ? Promise.resolve(analyzeStl(request.bytes))
+    : kernel().then((value) => {
     value.releaseAll();
     return request.operation === "cadgraph"
       ? compileCadGraph(value, request.graph)
       : compileStl(value, request.bytes, request.tolerance, request.solidify, request.validateStep);
-  }).then((result) => {
+  });
+  void operation.then((result) => {
     const response: GeometryResponse = { id: request.id, ok: true, result };
     workerScope.postMessage(response, [
       result.mesh.positions.buffer as ArrayBuffer,

@@ -160,9 +160,10 @@ pnpm cf:deploy
 The default Worker deployment is self-contained: Cloudflare serves the SPA, sample corpus, and
 22 MB OCCT WebAssembly asset; projects and artifacts live in the browser's IndexedDB and geometry
 runs in a dedicated browser worker. No Python API is required for bundled samples or exact CADGraph
-rebuild/validation/export. Arbitrary-mesh automatic inference is still a native-server capability;
-browser-local mode reports that boundary instead of inventing geometry. The edge proxy remains
-available for explicit legacy/server integrations through `MESH2PARAM_API_ORIGIN`. See
+rebuild/validation/export. Arbitrary-mesh automatic inference and production-scale faceted STEP
+conversion are native-server capabilities; browser-local mode reports that boundary instead of
+inventing geometry. Configure `MESH2PARAM_API_ORIGIN` for complex uploads. The web client detects a
+ready same-origin backend automatically and otherwise retains its browser-local workspace. See
 [Cloudflare Worker deployment](docs/deployment.md#cloudflare-worker-frontend).
 
 ## Project files and artifacts
