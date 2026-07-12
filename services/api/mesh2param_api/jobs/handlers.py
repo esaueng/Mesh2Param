@@ -473,7 +473,13 @@ def _repair(payload: dict[str, Any], workdir: Path, progress: Progress) -> Handl
 
 
 def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
-    from mesh2param import ingest_mesh, repair_mesh, segment_mesh
+    from mesh2param import (
+        detect_extrusion_candidate,
+        ingest_mesh,
+        repair_mesh,
+        segment_mesh,
+        validate_prismatic_candidate,
+    )
     from mesh2param.selection import write_patch_selection_artifacts
     from mesh2param.tessellation import write_binary_stl, write_glb
 
@@ -486,7 +492,11 @@ def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> Hand
     write_glb(_mesh_tessellation(repaired.mesh), workdir / "analysis-proxy.glb")
     progress("sharp boundaries", 35.0, "Computing adjacency and sharp boundaries")
     segmentation = segment_mesh(repaired.mesh, settings=_segmentation_settings(payload))
-    progress("fitting cylinders", 75.0, "Plane and cylinder fitting completed")
+    progress("fitting curves", 65.0, "Testing bounded line and circular-arc extrusion evidence")
+    prismatic = validate_prismatic_candidate(
+        detect_extrusion_candidate(repaired.mesh, segmentation.patches)
+    )
+    progress("fitting curves", 75.0, "Plane, cylinder, line, and arc fitting completed")
     selection = write_patch_selection_artifacts(
         repaired.mesh,
         segmentation.patches,
@@ -496,6 +506,7 @@ def _analyze(payload: dict[str, Any], workdir: Path, progress: Progress) -> Hand
     analysis = source.to_dict()
     repair = repaired.to_dict()
     segmented = segmentation.to_dict()
+    segmented["prismaticCandidate"] = prismatic.to_dict()
     _json(workdir / "analysis.json", analysis)
     _json(workdir / "repair.json", repair)
     _json(workdir / "patches.json", segmented)

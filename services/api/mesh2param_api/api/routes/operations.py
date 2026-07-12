@@ -154,6 +154,61 @@ def _patch_area(patch: dict[str, object]) -> float:
     return area if math.isfinite(area) and area > 0 else 0.0
 
 
+def _unit_patch_normal(patch: dict[str, object]) -> tuple[float, float, float] | None:
+    if patch.get("type") != "plane":
+        return None
+    fit = patch.get("fit")
+    normal = fit.get("normal") if isinstance(fit, dict) else None
+    if (
+        not isinstance(normal, list)
+        or len(normal) != 3
+        or any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in normal)
+    ):
+        return None
+    values = tuple(float(value) for value in normal)
+    if not all(math.isfinite(value) for value in values):
+        return None
+    magnitude = math.sqrt(sum(value * value for value in values))
+    if magnitude <= 1e-12:
+        return None
+    return (
+        values[0] / magnitude,
+        values[1] / magnitude,
+        values[2] / magnitude,
+    )
+
+
+def _has_opposing_prismatic_caps(patches: list[dict[str, object]]) -> bool:
+    """Recognize legacy analysis evidence that can safely enter the bounded extrusion solver."""
+
+    planes = [
+        (patch, normal)
+        for patch in patches
+        if (normal := _unit_patch_normal(patch)) is not None and _patch_area(patch) > 0
+    ]
+    maximum_dot = -math.cos(math.radians(2.0))
+    for index, (left, left_normal) in enumerate(planes):
+        left_area = _patch_area(left)
+        for right, right_normal in planes[index + 1 :]:
+            right_area = _patch_area(right)
+            area_delta = abs(left_area - right_area) / max(left_area, right_area)
+            dot = sum(a * b for a, b in zip(left_normal, right_normal, strict=True))
+            if area_delta <= 0.03 and dot <= maximum_dot:
+                return True
+    return False
+
+
+def _analysis_supports_prismatic_reconstruction(
+    state: dict[str, object], patches: list[dict[str, object]]
+) -> bool:
+    analysis = state.get("analysis")
+    candidate = analysis.get("prismaticCandidate") if isinstance(analysis, dict) else None
+    if isinstance(candidate, dict) and isinstance(candidate.get("accepted"), bool):
+        profiles = candidate.get("profiles")
+        return candidate["accepted"] is True and isinstance(profiles, list) and bool(profiles)
+    return _has_opposing_prismatic_caps(patches)
+
+
 def _job_response(request: Request, job: dict[str, object]) -> JSONResponse:
     job_id = str(job["id"])
     return success(
@@ -290,7 +345,9 @@ def _operation_payload(
                     for patch in analysis_patches
                     if patch.get("type") not in {"plane", "cylinder"}
                 ]
-                if unsupported_patches:
+                if unsupported_patches and not _analysis_supports_prismatic_reconstruction(
+                    state, analysis_patches
+                ):
                     total_area = sum(_patch_area(patch) for patch in analysis_patches)
                     unsupported_area = sum(
                         _patch_area(patch) for patch in unsupported_patches
