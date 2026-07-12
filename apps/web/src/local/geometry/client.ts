@@ -32,12 +32,23 @@ class BrowserGeometryClient {
     });
   }
 
-  async compileStl(blob: Blob, tolerance: number): Promise<BrowserCadResult> {
+  async compileStl(
+    blob: Blob,
+    tolerance: number,
+    options: { solidify?: boolean; validateStep?: boolean } = {},
+  ): Promise<BrowserCadResult> {
     const id = crypto.randomUUID();
     const bytes = await blob.arrayBuffer();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.worker().postMessage({ id, operation: "stl", bytes, tolerance } satisfies StlGeometryRequest, [bytes]);
+      this.worker().postMessage({
+        id,
+        operation: "stl",
+        bytes,
+        tolerance,
+        solidify: options.solidify ?? true,
+        validateStep: options.validateStep ?? true,
+      } satisfies StlGeometryRequest, [bytes]);
     });
   }
 }

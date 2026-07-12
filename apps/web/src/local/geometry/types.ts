@@ -31,6 +31,8 @@ export interface StlGeometryRequest {
   operation: "stl";
   bytes: ArrayBuffer;
   tolerance: number;
+  solidify: boolean;
+  validateStep: boolean;
 }
 
 export type BrowserGeometryRequest = GeometryRequest | StlGeometryRequest;

@@ -223,9 +223,17 @@ export class BrowserApiClient {
         const next = await this.requireProject(projectId);
         const source = await this.sourceBlob(next);
         const tolerance = Math.max(0.01, Number(options.settings?.tolerance ?? 0.1));
-        const compiled = await browserGeometry.compileStl(source, tolerance);
+        const importedProjectPreview = options.settings?.importedProjectPreview === true;
+        const compiled = await browserGeometry.compileStl(source, tolerance, {
+          solidify: !importedProjectPreview,
+          validateStep: false,
+        });
         const preview = await this.putArtifact(projectId, "source.glb", meshToGlb(compiled.mesh), "source");
         next.state.artifacts = [preview];
+        if (importedProjectPreview) {
+          const saved = await this.save(next, true);
+          return { operation, revision: saved.revision, mode: "browser-local-import-preview" };
+        }
         next.state.patches = [{
           id: "patch.browser-local.source", type: "freeform", name: "Imported STL surface",
           triangleCount: compiled.mesh.triangleCount, vertexCount: compiled.mesh.vertexCount,

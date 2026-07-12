@@ -18,7 +18,7 @@ self.onmessage = (event: MessageEvent<BrowserGeometryRequest>) => {
     value.releaseAll();
     return request.operation === "cadgraph"
       ? compileCadGraph(value, request.graph)
-      : compileStl(value, request.bytes, request.tolerance);
+      : compileStl(value, request.bytes, request.tolerance, request.solidify, request.validateStep);
   }).then((result) => {
     const response: GeometryResponse = { id: request.id, ok: true, result };
     workerScope.postMessage(response, [

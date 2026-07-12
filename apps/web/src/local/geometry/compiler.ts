@@ -259,12 +259,12 @@ function shapeResult(
   featureCount: number,
   linearDeflection: number,
   angularDeflection: number,
+  validateStep = true,
 ): BrowserCadResult {
   const valid = kernel.isValid(current);
   const solid = kernel.isSolid(current) || kernel.getSubShapes(current, "solid").length === 1;
-  const step = kernel.exportStep(current);
-  const reimported = kernel.importStep(step);
-  const stepReimportValid = kernel.isValid(reimported);
+  const step = validateStep ? kernel.exportStep(current) : "";
+  const stepReimportValid = validateStep ? kernel.isValid(kernel.importStep(step)) : false;
   const mesh = kernel.tessellate(current, {
     linearDeflection,
     angularDeflection,
@@ -276,21 +276,29 @@ function shapeResult(
     valid,
     solid,
     stepReimportValid,
-    volume: kernel.getVolume(current),
+    // STL orientation can make OCCT report a signed mass property. Volume is
+    // a physical magnitude throughout the project-file contract.
+    volume: Math.abs(kernel.getVolume(current)),
     surfaceArea: kernel.getSurfaceArea(current),
     bounds: [[bbox.xmin, bbox.ymin, bbox.zmin], [bbox.xmax, bbox.ymax, bbox.zmax]],
     featureCount,
   };
 }
 
-export function compileStl(kernel: OcctKernel, bytes: ArrayBuffer, tolerance: number): BrowserCadResult {
+export function compileStl(
+  kernel: OcctKernel,
+  bytes: ArrayBuffer,
+  tolerance: number,
+  solidify = true,
+  validateStep = true,
+): BrowserCadResult {
   let shape = kernel.importStl(stlText(bytes));
-  if (!kernel.isSolid(shape)) {
+  if (solidify && !kernel.isSolid(shape)) {
     const faces = kernel.getSubShapes(shape, "face");
     if (faces.length === 0) throw new Error("The STL did not contain any importable faces");
     shape = kernel.sewAndSolidify(faces, tolerance);
   }
-  return shapeResult(kernel, shape, 1, tolerance, 0.35);
+  return shapeResult(kernel, shape, 1, tolerance, 0.35, validateStep);
 }
 
 function stlText(bytes: ArrayBuffer): string {
