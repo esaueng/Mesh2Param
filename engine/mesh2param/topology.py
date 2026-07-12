@@ -20,6 +20,9 @@ import cadquery as cq
 from OCP.Bnd import Bnd_Box
 from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
 from OCP.BRepBndLib import BRepBndLib
+from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE
+from OCP.TopExp import TopExp
+from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
 
 from .errors import SemanticResolutionFailure, TopologyIssue
 
@@ -127,12 +130,30 @@ def _face_orientation(face: cq.Face, axis: Any, sample: cq.Vector) -> int:
     return 1 if normal.dot(radial) >= 0 else -1
 
 
+def edge_face_ancestor_map(owner: cq.Shape) -> TopTools_IndexedDataMapOfShapeListOfShape:
+    """Map every edge of ``owner`` to the faces that contain it, built in a single pass.
+
+    ``cq.Edge.ancestors`` rebuilds this map from scratch on every call, so computing an
+    adjacency descriptor per edge is O(edges * subshapes).  Building it once and reusing it
+    keeps face descriptors linear without changing their contents.
+    """
+
+    shape_map = TopTools_IndexedDataMapOfShapeListOfShape()
+    TopExp.MapShapesAndAncestors_s(owner.wrapped, TopAbs_EDGE, TopAbs_FACE, shape_map)
+    return shape_map
+
+
 def face_descriptor(
     face: cq.Face,
     resolution: float,
     owner: cq.Shape | None = None,
+    edge_face_map: TopTools_IndexedDataMapOfShapeListOfShape | None = None,
 ) -> dict[str, Any]:
-    """Return an analytic, boundary, orientation and adjacency face descriptor."""
+    """Return an analytic, boundary, orientation and adjacency face descriptor.
+
+    When ``owner`` is given, adjacency to neighbouring faces is derived from ``edge_face_map``
+    (built once by the caller for the whole shape) or, if omitted, from a map built once here.
+    """
 
     kind = str(face.geomType())
     boundaries = [edge_descriptor(edge, resolution) for edge in face.Edges()]
@@ -191,13 +212,18 @@ def face_descriptor(
         result["analyticParametersUnavailable"] = True
 
     if owner is not None:
+        if edge_face_map is None:
+            edge_face_map = edge_face_ancestor_map(owner)
         adjacency: list[tuple[str, ...]] = []
         for edge in face.Edges():
             try:
+                neighbors = [
+                    cq.Shape.cast(item) for item in edge_face_map.FindFromKey(edge.wrapped)
+                ]
                 kinds = sorted(
-                    str(item.geomType())
-                    for item in edge.ancestors(owner, "Face").Faces()
-                    if not item.isSame(face)
+                    str(neighbor.geomType())
+                    for neighbor in neighbors
+                    if not neighbor.isSame(face)
                 )
             except (RuntimeError, ValueError):
                 kinds = []
@@ -228,8 +254,10 @@ def shape_descriptor(
             **face_descriptor(cq.Face(shape.wrapped), resolution, owner),
         }
     if shape_type in {"solid", "compsolid", "compound"}:
+        edge_face_map = edge_face_ancestor_map(shape)
         face_hashes = sorted(
-            descriptor_hash(face_descriptor(face, resolution, shape)) for face in shape.Faces()
+            descriptor_hash(face_descriptor(face, resolution, shape, edge_face_map))
+            for face in shape.Faces()
         )
         return {
             "shapeType": shape_type,
@@ -242,7 +270,8 @@ def shape_descriptor(
 
 
 def topology_descriptor(shape: cq.Shape, resolution: float) -> dict[str, Any]:
-    faces = [face_descriptor(face, resolution, shape) for face in shape.Faces()]
+    edge_face_map = edge_face_ancestor_map(shape)
+    faces = [face_descriptor(face, resolution, shape, edge_face_map) for face in shape.Faces()]
     edges = [edge_descriptor(edge, resolution) for edge in shape.Edges()]
     faces.sort(key=_canonical_json)
     edges.sort(key=_canonical_json)

@@ -239,17 +239,44 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
       }
     }
     setError(null);
-    try {
-      const result = await apiClient.startOperation(current.project.id, operation, current.serverRevision, { settings });
+    const startWith = async (revision: number | string) => {
+      const store = workspaceStore.getState();
+      if (store.project === null) throw new Error("No open project");
+      const result = await apiClient.startOperation(store.project.id, operation, revision, { settings });
       debugLog.info("run", `${operation} job accepted`, { jobId: result.data.id });
       trackJob(result.data);
+    };
+    try {
+      await startWith(current.serverRevision);
     } catch (cause) {
       const apiError = normalizeApiError(cause);
+      const store = workspaceStore.getState();
+      // The server can advance the project revision on its own (e.g. an ingest/pre-analysis
+      // step) without a tracked local edit. When there are no queued local edits, a stale
+      // revision is not a real conflict: re-sync and retry once instead of blocking.
+      const staleRevision = (apiError.status === 409 || apiError.status === 412)
+        && store.localRevision === store.lastAckedLocalRevision;
+      if (staleRevision) {
+        debugLog.warn("run", `${operation} hit a stale revision; re-syncing and retrying`, apiError.detail);
+        try {
+          await refreshProject(`${operation} revision resync`);
+          const fresh = workspaceStore.getState().serverRevision;
+          if (fresh !== null) {
+            await startWith(fresh);
+            return;
+          }
+        } catch (retryCause) {
+          const retryError = normalizeApiError(retryCause);
+          debugLog.error("run", `${operation} retry failed`, retryError);
+          setError(`${retryError.summary}: ${retryError.detail}`);
+          return;
+        }
+      }
       debugLog.error("run", `${operation} request failed`, apiError);
       setError(`${apiError.summary}: ${apiError.detail}`);
-      current.setSyncState({ state: apiError.status === 409 || apiError.status === 412 ? "conflict" : "error", error: apiError });
+      workspaceStore.getState().setSyncState({ state: apiError.status === 409 || apiError.status === 412 ? "conflict" : "error", error: apiError });
     }
-  }, [requireServerWritable, trackJob, workerReady]);
+  }, [refreshProject, requireServerWritable, trackJob, workerReady]);
 
   const actions = useMemo<WorkspaceActions>(() => ({
     setStep(step) {
