@@ -371,6 +371,70 @@ def test_analyzed_freeform_source_is_preflighted_but_faceted_mode_remains_availa
     assert mm_repair["inputHash"] != inch_repair["inputHash"]
 
 
+def test_analyzed_filleted_extrusion_can_enter_bounded_line_arc_solver(tmp_path: Path) -> None:
+    store = LocalCAS(tmp_path / "storage")
+    blob = store.put_bytes(b"solid source\nendsolid source\n")
+    analysis_settings = {
+        "smoothAngleDeg": 12.0,
+        "planarFitToleranceMm": 0.005,
+        "cylinderFitToleranceMm": 0.01,
+        "minimumCylinderCoverageDeg": 300.0,
+        "maximumCylinderAxisNormalComponent": 0.05,
+        "minimumPatchAreaMm2": 1e-8,
+        "stableIdResolutionMm": 1e-5,
+    }
+    patches = [
+        {"id": "patch.curved-sides", "type": "freeform", "areaMm2": 15_062.0},
+        {
+            "id": "patch.top",
+            "type": "plane",
+            "areaMm2": 604.476,
+            "fit": {"normal": [0.0, 0.0, 1.0]},
+        },
+        {
+            "id": "patch.bottom",
+            "type": "plane",
+            "areaMm2": 604.476,
+            "fit": {"normal": [0.0, 0.0, -1.0]},
+        },
+    ]
+    project: dict[str, object] = {
+        "id": "project.filleted-extrusion",
+        "name": "Filleted extrusion",
+        "units": "mm",
+        "state": {
+            "cadgraph": None,
+            "source": {
+                "sha256": blob.sha256,
+                "format": "stl",
+                "originalFileName": "stand.stl",
+                "declaredUnits": "mm",
+                "scaleFactor": 1.0,
+            },
+            "analysis": {"settings": analysis_settings, "patches": patches},
+            "patches": patches,
+        },
+    }
+
+    payload = _operation_payload(project, "reconstruct", OperationRequest(), store)
+    assert payload["settings"] == {}
+
+    state = project["state"]
+    assert isinstance(state, dict)
+    analysis = state["analysis"]
+    assert isinstance(analysis, dict)
+    analysis["prismaticCandidate"] = {"accepted": False, "profiles": []}
+    with pytest.raises(APIError) as rejected:
+        _operation_payload(project, "reconstruct", OperationRequest(), store)
+    assert rejected.value.code == "automatic_reconstruction_unsupported"
+
+    analysis["prismaticCandidate"] = {
+        "accepted": True,
+        "profiles": [[{"kind": "arc"}, {"kind": "line"}]],
+    }
+    assert _operation_payload(project, "reconstruct", OperationRequest(), store)["settings"] == {}
+
+
 def test_event_history_is_bounded_and_orphan_blobs_are_retained_then_cleaned(
     tmp_path: Path,
 ) -> None:

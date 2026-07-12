@@ -143,6 +143,7 @@ class PrismaticReconstructionResult:
             "repair": self.repair.to_dict(),
             "segmentation": self.segmentation.to_dict(),
             "prismaticReconstruction": self.prismatic.to_dict(),
+            "candidates": [self.selected.to_dict()],
             "selectedCandidate": self.selected.label,
             "comparison": self.comparison.to_dict(),
             "stepValidation": self.step.to_dict(),

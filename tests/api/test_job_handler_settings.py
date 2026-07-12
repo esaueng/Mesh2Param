@@ -109,6 +109,10 @@ def test_analyze_handler_applies_segmentation_settings_and_writes_viewer_glbs(
 
     analysis = output.state_patch["analysis"]
     assert isinstance(analysis, dict)
+    assert analysis["prismaticCandidate"]["accepted"] is False
+    assert analysis["prismaticCandidate"]["diagnostics"][0]["code"] == (
+        "no_opposing_planar_caps"
+    )
     assert analysis["settings"] == {
         "smoothAngleDeg": 27.5,
         "planarFitToleranceMm": 0.125,

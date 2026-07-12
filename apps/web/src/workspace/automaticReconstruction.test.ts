@@ -118,6 +118,40 @@ describe("automaticReconstructionCapability", () => {
     expect(capability.reason).toMatch(/faceted STEP fallback/i);
   });
 
+  it("allows filleted line-arc extrusions with opposing cap evidence", () => {
+    const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
+    document.cadgraph = null;
+    document.analysis = {
+      ...(document.analysis ?? {}),
+      patches: [
+        { id: "patch.curved-sides", type: "freeform", areaMm2: 15_062, triangleCount: 3_764, confidence: 0, locked: false },
+        { id: "patch.top", type: "plane", areaMm2: 604.476, fit: { normal: [0, 0, 1] }, triangleCount: 198, confidence: 1, locked: false },
+        { id: "patch.bottom", type: "plane", areaMm2: 604.476, fit: { normal: [0, 0, -1] }, triangleCount: 198, confidence: 1, locked: false },
+      ],
+    };
+    expect(automaticReconstructionCapability(document)).toEqual({ supported: true });
+  });
+
+  it("uses the analyzed line-arc candidate as authoritative evidence", () => {
+    const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
+    document.cadgraph = null;
+    document.analysis = {
+      ...(document.analysis ?? {}),
+      patches: [
+        { id: "patch.curved-sides", type: "freeform", areaMm2: 99, triangleCount: 20, confidence: 0, locked: false },
+        { id: "patch.top", type: "plane", areaMm2: 1, fit: { normal: [0, 0, 1] }, triangleCount: 2, confidence: 1, locked: false },
+        { id: "patch.bottom", type: "plane", areaMm2: 1, fit: { normal: [0, 0, -1] }, triangleCount: 2, confidence: 1, locked: false },
+      ],
+      prismaticCandidate: { accepted: false, profiles: [] },
+    };
+    expect(automaticReconstructionCapability(document).supported).toBe(false);
+    document.analysis.prismaticCandidate = {
+      accepted: true,
+      profiles: [[{ kind: "arc" }, { kind: "line" }]],
+    };
+    expect(automaticReconstructionCapability(document)).toEqual({ supported: true });
+  });
+
   it("requires complete persisted analysis settings before enabling inference", () => {
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;

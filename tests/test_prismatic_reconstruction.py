@@ -36,6 +36,7 @@ from mesh2param.validation import (
     export_step_validated,
     import_step_shape,
 )
+from mesh2param_contracts.models import ExtrusionFeature
 
 STRICT_FIT = PrismaticSettings(
     line_rms_tolerance_mm=0.01,
@@ -209,6 +210,11 @@ def test_automatic_reconstruction_uses_prismatic_path(tmp_path: Path) -> None:
     )
     assert isinstance(result, PrismaticReconstructionResult)
     assert result.prismatic.accepted
+    serialized = result.to_dict()
+    assert serialized["selectedCandidate"] == "analytic-prismatic"
+    assert [candidate["label"] for candidate in serialized["candidates"]] == [
+        "analytic-prismatic"
+    ]
     assert [feature.operation for feature in result.graph.features] == ["extrusion"]
     assert all(feature.operation != "importedFaceted" for feature in result.graph.features)
     entity_kinds = [entity.kind for entity in result.graph.sketches[0].entities]
@@ -246,6 +252,7 @@ def test_polygonal_stl_hole_becomes_one_analytic_step_cylinder(tmp_path: Path) -
     assert entity_kinds.count("circularArc") == 0
     assert entity_kinds.count("line") == 4
     assert result.step.source.face_count == 7
+    assert result.selected.shape is not None
     assert classify_face_surfaces(result.selected.shape)["cylinder"] == 1
     reimported = import_step_shape(result.step.path)
     assert classify_face_surfaces(reimported)["cylinder"] == 1
@@ -276,7 +283,9 @@ def test_supplied_stand_regression_when_fixture_is_available(tmp_path: Path) -> 
     assert sum(entity.kind == "line" for entity in entities) == 6
     assert sum(entity.kind == "circularArc" for entity in entities) == 8
     assert sum(entity.kind == "closedProfile" for entity in entities) == 1
-    assert result.graph.features[0].distance == pytest.approx(60.0, abs=0.05)
+    feature = result.graph.features[0]
+    assert isinstance(feature, ExtrusionFeature)
+    assert feature.distance == pytest.approx(60.0, abs=0.05)
     assert result.step.source.face_count < 32
     assert result.selected.shape is not None
     surfaces = classify_face_surfaces(result.selected.shape)
