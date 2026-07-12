@@ -132,100 +132,86 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   return (
     <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
       <a className="skip-link" href="#canvas-viewport">Skip to 3D viewport</a>
-      <div id="canvas-viewport" className="canvas-stage">
-        {hasGeometry ? (
-          <CadViewport
-            chrome="minimal"
-            projectId={vm.project.id}
-            artifacts={vm.artifacts}
-            preferences={viewer}
-            theme={theme}
-            denseMesh={(state.diagnostics?.triangleCount ?? 0) > 20_000}
-            sourceProxyActive={sourceProxy}
-            selectedPatchId={vm.selectedPatchId}
-            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-            onSelectPatch={actions.selectPatch}
-          />
-        ) : (
-          <div
-            className={`canvas-empty ${activeJob !== null ? "canvas-empty-loading" : ""}`}
-            role={activeJob !== null ? "status" : undefined}
-            aria-live={activeJob !== null ? "polite" : undefined}
-          >
-            {activeJob !== null ? (
-              <>
-                <LoaderCircle className="spin" size={40} strokeWidth={1.25} />
-                <strong>{humanPhase(activeJob.job.phase || activeJob.job.kind)}</strong>
-                <p>Preparing the 3D preview…</p>
-              </>
-            ) : state.source === null ? (
-              <>
-                <Box size={40} strokeWidth={1.25} />
-                <strong>No mesh loaded</strong>
-                <p>Open an STL, OBJ, or PLY to begin.</p>
-                <button className="landing-secondary" onClick={openFilePicker}><FolderOpen size={16} />Open a mesh</button>
-              </>
-            ) : (
-              <>
-                <Box size={40} strokeWidth={1.25} />
-                <strong>Mesh loaded</strong>
-                <p>Run <b>{action.label}</b> to view the {state.patches.length > 0 ? "geometry" : "mesh and its surfaces"}.</p>
-              </>
-            )}
-          </div>
-        )}
+      <div className="canvas-main">
+        <div id="canvas-viewport" className="canvas-stage">
+          {hasGeometry ? (
+            <CadViewport
+              chrome="minimal"
+              projectId={vm.project.id}
+              artifacts={vm.artifacts}
+              preferences={viewer}
+              theme={theme}
+              denseMesh={(state.diagnostics?.triangleCount ?? 0) > 20_000}
+              sourceProxyActive={sourceProxy}
+              selectedPatchId={vm.selectedPatchId}
+              onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+              onSelectPatch={actions.selectPatch}
+            />
+          ) : (
+            <div
+              className={`canvas-empty ${activeJob !== null ? "canvas-empty-loading" : ""}`}
+              role={activeJob !== null ? "status" : undefined}
+              aria-live={activeJob !== null ? "polite" : undefined}
+            >
+              {activeJob !== null ? (
+                <>
+                  <LoaderCircle className="spin" size={40} strokeWidth={1.25} />
+                  <strong>{humanPhase(activeJob.job.phase || activeJob.job.kind)}</strong>
+                  <p>Preparing the 3D preview…</p>
+                </>
+              ) : state.source === null ? (
+                <>
+                  <Box size={40} strokeWidth={1.25} />
+                  <strong>No mesh loaded</strong>
+                  <p>Open an STL, OBJ, or PLY to begin.</p>
+                  <button className="landing-secondary" onClick={openFilePicker}><FolderOpen size={16} />Open a mesh</button>
+                </>
+              ) : (
+                <>
+                  <Box size={40} strokeWidth={1.25} />
+                  <strong>Mesh loaded</strong>
+                  <p>Run <b>{action.label}</b> to view the {state.patches.length > 0 ? "geometry" : "mesh and its surfaces"}.</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <header className="canvas-topbar">
+          <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
+            <Mesh2ParamLogoMark aria-hidden />
+            <strong>Mesh2Param</strong>
+            <span className="canvas-badge">Beta</span>
+          </button>
+          {state.source !== null ? (
+            <div className="canvas-file">
+              <span className="canvas-file-name" title={state.source.originalFileName}>{state.source.originalFileName}</span>
+              <span className="canvas-file-meta">{fileMeta(vm)}</span>
+              {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
+            </div>
+          ) : null}
+        </header>
+
+        {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
       </div>
 
-      <header className="canvas-topbar">
-        <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
-          <Mesh2ParamLogoMark aria-hidden />
-          <strong>Mesh2Param</strong>
-          <span className="canvas-badge">Beta</span>
-        </button>
-        {state.source !== null ? (
-          <div className="canvas-file">
-            <span className="canvas-file-name" title={state.source.originalFileName}>{state.source.originalFileName}</span>
-            <span className="canvas-file-meta">{fileMeta(vm)}</span>
-            {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
-          </div>
-        ) : null}
-      </header>
-
-      {activeJob !== null ? (
-        <div className="canvas-progress" role="status" aria-live="polite" data-job-kind={activeJob.job.kind} data-job-state={activeJob.job.status}>
-          <LoaderCircle className="spin" size={15} />
-          <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
-          <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
-          <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
-          {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
-            <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
-              {activeJob.cancelling ? "Cancelling…" : "Cancel"}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
-
-      {!consoleOpen && activeJob === null && (action.reason !== undefined || action.kind === "faceted") ? (
-        <div className={`canvas-note ${action.disabled ? "warn" : "info"}`} role="status">
-          <AlertTriangle size={13} />
-          <span>{action.reason ?? action.hint}</span>
-        </div>
-      ) : null}
-
-      <nav className="canvas-dock" aria-label="Conversion commands">
-        <button className="dock-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"} aria-label={state.source === null ? "Open a mesh" : "Replace the mesh"}>
-          <FolderOpen size={17} />
-        </button>
-        <button className="dock-btn" onClick={() => void actions.saveProject()} title="Save project" aria-label="Save project">
-          <Save size={17} />
-        </button>
+      <nav className="canvas-panel" aria-label="Conversion commands">
+        <section className="panel-group">
+          <h2 className="panel-label">File</h2>
+          <button className="panel-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"}>
+            <FolderOpen size={16} />
+            {state.source === null ? "Open a mesh…" : "Replace mesh…"}
+          </button>
+          <button className="panel-btn" onClick={() => void actions.saveProject()} title="Save project">
+            <Save size={16} />
+            Save project
+          </button>
+        </section>
 
         {modes.length >= 2 ? (
-          <>
-            <span className="dock-sep" />
-            <div className="dock-modes" role="group" aria-label="Display mode">
+          <section className="panel-group">
+            <h2 className="panel-label" id="panel-display-label">Display</h2>
+            <div className="panel-modes" role="group" aria-labelledby="panel-display-label">
               {modes.map((option) => (
                 <button
                   key={option.mode}
@@ -237,9 +223,67 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 </button>
               ))}
             </div>
-          </>
+          </section>
         ) : null}
 
+<<<<<<< HEAD
+        <section className="panel-group">
+          <h2 className="panel-label">View</h2>
+          <div className="panel-view-grid">
+            <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
+            <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme">
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
+            <button
+              className={`panel-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
+              onClick={() => setConsoleOpen((value) => !value)}
+              title="Toggle debug console"
+              aria-pressed={consoleOpen}
+            >
+              <TerminalSquare size={16} />
+              Console
+              {issueCount > 0 ? <span className="panel-count">{issueCount > 99 ? "99+" : issueCount}</span> : null}
+            </button>
+          </div>
+        </section>
+
+        <section className="panel-group panel-convert">
+          <h2 className="panel-label">Convert</h2>
+          {activeJob !== null ? (
+            <div className="canvas-progress" role="status" aria-live="polite" data-job-kind={activeJob.job.kind} data-job-state={activeJob.job.status}>
+              <LoaderCircle className="spin" size={15} />
+              <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
+              <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
+              <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
+              {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
+                <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
+                  {activeJob.cancelling ? "Cancelling…" : "Cancel"}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <button
+                className="dock-primary"
+                onClick={onPrimary}
+                disabled={action.disabled}
+                title={action.reason ?? action.hint}
+                data-action={action.kind}
+              >
+                <PrimaryIcon kind={action.kind} />
+                {action.label}
+              </button>
+              {action.reason !== undefined || action.kind === "faceted" ? (
+                <p className={`panel-hint ${action.disabled ? "warn" : "info"}`} role="status">
+                  <AlertTriangle size={13} />
+                  <span>{action.reason ?? action.hint}</span>
+                </p>
+              ) : null}
+            </>
+          )}
+        </section>
+=======
         <span className="dock-sep" />
         <button className="dock-btn" onClick={fit} title="Fit to view" aria-label="Fit to view"><Focus size={17} /></button>
         <DisplayModeMenu
@@ -298,6 +342,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           <PrimaryIcon kind={action.kind} />
           {action.label}
         </button>
+>>>>>>> origin/cloud
       </nav>
 
       <input
