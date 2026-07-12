@@ -178,13 +178,13 @@ export function CadViewport({
             onClick={() => onPreferences({ mode: mode.id })}
           >
             <ModeIcon mode={mode.id} />
-            <span>{sourceProxyActive && mode.id === "reconstructed" ? "Source proxy" : mode.label}</span>
+            <span>{sourceProxyActive && mode.id === "reconstructed" ? "Converted" : mode.label}</span>
           </button>
         ))}
         <span className="toolbar-separator" />
         <button
-          aria-pressed={preferences.shading === "wireframe"}
-          onClick={() => onPreferences({ shading: preferences.shading === "wireframe" ? "shaded" : "wireframe" })}
+          aria-pressed={preferences.edges}
+          onClick={() => onPreferences({ edges: !preferences.edges })}
         >
           <Grid3X3 /><span>Edges</span>
         </button>
@@ -236,9 +236,9 @@ export function CadViewport({
           />
         </label>
         <label className="opacity-control">
-          <span>{sourceProxyActive ? "Proxy" : "Result"}</span>
+          <span>{sourceProxyActive ? "Converted" : "Result"}</span>
           <input
-            aria-label={sourceProxyActive ? "Preserved-source proxy opacity" : "Result opacity"}
+            aria-label={sourceProxyActive ? "Converted model opacity" : "Result opacity"}
             type="range"
             min="0"
             max="1"
@@ -279,11 +279,12 @@ export function CadViewport({
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
               <ArtifactLayer
-                key={`${layer.artifact.sha256}-${layer.opacity}-${preferences.shading}-${theme}`}
+                key={`${layer.artifact.sha256}-${layer.opacity}-${preferences.shading}-${preferences.edges}-${theme}`}
                 url={apiClient.artifactUrl(projectId, layer.artifact.name, layer.artifact.sha256)}
                 mode={layer.mode}
                 opacity={layer.opacity}
                 wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
+                edges={preferences.edges}
                 theme={theme}
                 selectionRanges={layer.mode === "patches" ? selection : []}
                 selectedPatchId={selectedPatchId}

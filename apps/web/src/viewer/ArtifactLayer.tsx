@@ -35,11 +35,16 @@ export function usesAnalyticResultShading(mode: string): boolean {
   return mode === "reconstructed";
 }
 
+export function usesShadedEdgeOverlay(wireframe: boolean, edges: boolean): boolean {
+  return edges && !wireframe;
+}
+
 interface ArtifactLayerProps {
   url: string;
   mode: string;
   opacity: number;
   wireframe: boolean;
+  edges: boolean;
   theme: ViewerTheme;
   selectionRanges: SelectionRange[];
   selectedPatchId: string | null;
@@ -55,6 +60,7 @@ export function ArtifactLayer({
   mode,
   opacity,
   wireframe,
+  edges,
   theme,
   selectionRanges,
   selectedPatchId,
@@ -80,6 +86,9 @@ export function ArtifactLayer({
       material.opacity = opacity;
       material.depthWrite = opacity > 0.55;
       material.wireframe = wireframe;
+      material.polygonOffset = usesShadedEdgeOverlay(wireframe, edges);
+      material.polygonOffsetFactor = 1;
+      material.polygonOffsetUnits = 1;
       material.side = THREE.DoubleSide;
       material.clippingPlanes = sectionPlane === null ? null : [sectionPlane];
       if (material instanceof THREE.MeshStandardMaterial) {
@@ -93,8 +102,9 @@ export function ArtifactLayer({
       if (mode === "patches") material.vertexColors = false;
       child.material = material;
     });
+    if (usesShadedEdgeOverlay(wireframe, edges)) addShadedEdgeOverlays(clone, palette, opacity, sectionPlane);
     return clone;
-  }, [gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
+  }, [edges, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
@@ -141,6 +151,35 @@ export function ArtifactLayer({
       {highlight === null ? null : <primitive object={highlight} data-testid="selected-patch-highlight" />}
     </group>
   );
+}
+
+/** Add a dark triangle network over the solid surface, matching shaded-with-edges CAD views. */
+function addShadedEdgeOverlays(
+  object: THREE.Object3D,
+  palette: ReturnType<typeof viewerPalette>,
+  opacity: number,
+  sectionPlane: THREE.Plane | null,
+) {
+  const meshes: THREE.Mesh[] = [];
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.geometry instanceof THREE.BufferGeometry) meshes.push(child);
+  });
+  for (const mesh of meshes) {
+    const material = new THREE.MeshBasicMaterial({
+      color: palette.edge,
+      transparent: true,
+      opacity: palette.edgeOpacity * opacity,
+      depthWrite: false,
+      wireframe: true,
+      side: THREE.DoubleSide,
+      clippingPlanes: sectionPlane === null ? null : [sectionPlane],
+    });
+    const overlay = new THREE.Mesh(mesh.geometry, material);
+    overlay.name = "mesh2param-shaded-edges";
+    overlay.renderOrder = 10;
+    overlay.userData.mesh2paramEdgeOverlay = true;
+    mesh.add(overlay);
+  }
 }
 
 /** Build a display-only triangle overlay from the signed selection map. */
