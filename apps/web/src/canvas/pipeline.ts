@@ -89,7 +89,7 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
         kind: "faceted",
         operation: "reconstruct",
         settings: { mode: "faceted" },
-        label: "Faceted STEP",
+        label: "Generate STEP",
         hint: capability.reason
           ? `Exact inference unavailable. ${capability.reason}`
           : "Build a source-bound faceted STEP (not an exact parametric model)",

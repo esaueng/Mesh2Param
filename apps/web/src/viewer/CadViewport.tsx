@@ -40,6 +40,7 @@ interface CadViewportProps {
   artifacts: ArtifactDescriptor[];
   preferences: ViewerPreferences;
   theme: ViewerTheme;
+  denseMesh?: boolean;
   sourceProxyActive?: boolean;
   selectedPatchId: string | null;
   onPreferences(patch: Partial<ViewerPreferences>): void;
@@ -53,6 +54,7 @@ export function CadViewport({
   artifacts,
   preferences,
   theme,
+  denseMesh = false,
   sourceProxyActive = false,
   selectedPatchId,
   onPreferences,
@@ -66,6 +68,26 @@ export function CadViewport({
   const [measurementEnabled, setMeasurementEnabled] = useState(false);
   const [measurementPoints, setMeasurementPoints] = useState<THREE.Vector3[]>([]);
   const [scaleBar, setScaleBar] = useState<ScaleBarSpec | null>(null);
+  const [contextLost, setContextLost] = useState(false);
+  const [rendererRevision, setRendererRevision] = useState(0);
+  const recoveryTimer = useRef<number | null>(null);
+  const handleContextLost = useCallback(() => {
+    setContextLost(true);
+    if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
+    recoveryTimer.current = window.setTimeout(() => {
+      recoveryTimer.current = null;
+      setRendererRevision((revision) => revision + 1);
+      setContextLost(false);
+    }, 250);
+  }, []);
+  const handleContextRestored = useCallback(() => {
+    if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
+    recoveryTimer.current = null;
+    setContextLost(false);
+  }, []);
+  useEffect(() => () => {
+    if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
+  }, []);
   const controls = useRef<OrbitControlsImpl | null>(null);
   const palette = viewerPalette(theme);
   const artifactMap = useMemo(() => new Map(artifacts.map((artifact) => [artifact.name, artifact])), [artifacts]);
@@ -252,17 +274,13 @@ export function CadViewport({
 
       <ViewerErrorBoundary resetKey={artifactKey}>
         <Canvas
+          key={`webgl-${rendererRevision}`}
           frameloop="always"
-          dpr={[1, 1.25]}
-          gl={{ alpha: true, preserveDrawingBuffer: true }}
+          dpr={denseMesh ? 1 : [1, 1.25]}
+          gl={{ alpha: false, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false }}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}
-          onCreated={({ gl }) => {
-            gl.localClippingEnabled = true;
-            // Keep the context restorable; the active frame loop repaints immediately
-            // after recovery instead of exposing an empty browser backing surface.
-            gl.domElement.addEventListener("webglcontextlost", (event) => event.preventDefault());
-          }}
+          onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
         >
           <color key={palette.background} attach="background" args={[palette.background]} />
           <ambientLight intensity={palette.ambientIntensity} />
@@ -276,6 +294,7 @@ export function CadViewport({
           />
           <axesHelper args={[35]} />
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
+          <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
               <ArtifactLayer
@@ -286,6 +305,7 @@ export function CadViewport({
                 wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
                 edges={preferences.edges}
                 comparisonGhost={preferences.mode === "overlay" && layer.mode === "source"}
+                facetedProxy={sourceProxyActive && layer.mode === "reconstructed"}
                 theme={theme}
                 selectionRanges={layer.mode === "patches" ? selection : []}
                 selectedPatchId={selectedPatchId}
@@ -316,6 +336,13 @@ export function CadViewport({
         </Canvas>
       </ViewerErrorBoundary>
 
+      {contextLost ? (
+        <div className="viewer-recovering" role="status" aria-live="polite">
+          <strong>Recovering 3D viewer…</strong>
+          <span>The model will remain available when the graphics context is restored.</span>
+        </div>
+      ) : null}
+
       {layers.length === 0 && chrome === "full" ? (
         <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
@@ -327,6 +354,30 @@ export function CadViewport({
       )}
     </section>
   );
+}
+
+function WebGLContextMonitor({ onLost, onRestored }: { onLost(): void; onRestored(): void }) {
+  const { gl, invalidate } = useThree();
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLost = (event: Event) => {
+      event.preventDefault();
+      debugLog.debug("viewer", "WebGL context lost; remounting renderer");
+      onLost();
+    };
+    const handleRestored = () => {
+      debugLog.info("viewer", "WebGL context restored");
+      onRestored();
+      invalidate();
+    };
+    canvas.addEventListener("webglcontextlost", handleLost);
+    canvas.addEventListener("webglcontextrestored", handleRestored);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", handleLost);
+      canvas.removeEventListener("webglcontextrestored", handleRestored);
+    };
+  }, [gl, invalidate, onLost, onRestored]);
+  return null;
 }
 
 /** Reports screen pixels per world unit (measured at the orbit target) whenever a frame renders. */

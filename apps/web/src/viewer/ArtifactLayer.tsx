@@ -36,9 +36,14 @@ export function usesAnalyticResultShading(mode: string): boolean {
 }
 
 export type EdgeOverlayKind = "none" | "triangles" | "creases";
+export const MAX_TRIANGLE_EDGE_OVERLAY = 20_000;
 
-export function usesCreasedSurfaceNormals(mode: string, comparisonGhost: boolean): boolean {
-  return usesAnalyticResultShading(mode) || comparisonGhost;
+export function usesCreasedSurfaceNormals(
+  mode: string,
+  comparisonGhost: boolean,
+  facetedProxy = false,
+): boolean {
+  return !facetedProxy && (usesAnalyticResultShading(mode) || comparisonGhost);
 }
 
 export function edgeOverlayKind(
@@ -46,8 +51,16 @@ export function edgeOverlayKind(
   wireframe: boolean,
   edges: boolean,
   comparisonGhost: boolean,
+  triangleCount = 0,
+  facetedProxy = false,
 ): EdgeOverlayKind {
-  if (!edges || wireframe || comparisonGhost) return "none";
+  if (
+    !edges
+    || wireframe
+    || comparisonGhost
+    || facetedProxy
+    || (mode === "source" && triangleCount > MAX_TRIANGLE_EDGE_OVERLAY)
+  ) return "none";
   return mode === "reconstructed" ? "creases" : "triangles";
 }
 
@@ -58,6 +71,7 @@ interface ArtifactLayerProps {
   wireframe: boolean;
   edges: boolean;
   comparisonGhost: boolean;
+  facetedProxy: boolean;
   theme: ViewerTheme;
   selectionRanges: SelectionRange[];
   selectedPatchId: string | null;
@@ -75,6 +89,7 @@ export function ArtifactLayer({
   wireframe,
   edges,
   comparisonGhost,
+  facetedProxy,
   theme,
   selectionRanges,
   selectedPatchId,
@@ -88,8 +103,16 @@ export function ArtifactLayer({
   const palette = viewerPalette(theme);
   const object = useMemo(() => {
     const clone = gltf.scene.clone(true);
-    const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost);
-    const overlayKind = edgeOverlayKind(mode, wireframe, edges, comparisonGhost);
+    const triangleCount = objectTriangleCount(clone);
+    const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost, facetedProxy);
+    const overlayKind = edgeOverlayKind(
+      mode,
+      wireframe,
+      edges,
+      comparisonGhost,
+      triangleCount,
+      facetedProxy,
+    );
     clone.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       if (smoothSurface && child.geometry instanceof THREE.BufferGeometry) {
@@ -122,7 +145,7 @@ export function ArtifactLayer({
       addShadedEdgeOverlays(clone, palette, opacity, sectionPlane, overlayKind);
     }
     return clone;
-  }, [comparisonGhost, edges, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
+  }, [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
@@ -172,6 +195,17 @@ export function ArtifactLayer({
       {highlight === null ? null : <primitive object={highlight} data-testid="selected-patch-highlight" />}
     </group>
   );
+}
+
+function objectTriangleCount(object: THREE.Object3D): number {
+  let total = 0;
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || !(child.geometry instanceof THREE.BufferGeometry)) return;
+    const position = child.geometry.getAttribute("position");
+    const index = child.geometry.index;
+    total += Math.floor((index?.count ?? position?.count ?? 0) / 3);
+  });
+  return total;
 }
 
 /** Add a dark triangle network over the solid surface, matching shaded-with-edges CAD views. */
