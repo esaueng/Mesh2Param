@@ -228,6 +228,7 @@ export class BrowserApiClient {
           solidify: !importedProjectPreview,
           validateStep: false,
         });
+        const diagnostics = compiled.diagnostics;
         const preview = await this.putArtifact(projectId, "source.glb", meshToGlb(compiled.mesh), "source");
         next.state.artifacts = [preview];
         if (importedProjectPreview) {
@@ -236,13 +237,16 @@ export class BrowserApiClient {
         }
         next.state.patches = [{
           id: "patch.browser-local.source", type: "freeform", name: "Imported STL surface",
-          triangleCount: compiled.mesh.triangleCount, vertexCount: compiled.mesh.vertexCount,
+          triangleCount: compiled.mesh.triangleCount, vertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
           areaMm2: compiled.surfaceArea, confidence: 1, locked: false,
         }];
         next.state.diagnostics = {
           format: "stl", encoding: "binary-or-text", byteSize: source.size, sha256: next.state.source!.sha256,
-          rawVertexCount: compiled.mesh.vertexCount, weldedVertexCount: compiled.mesh.vertexCount,
-          duplicateVertexCount: 0, triangleCount: compiled.mesh.triangleCount, connectedComponentCount: 1,
+          rawVertexCount: diagnostics?.rawVertexCount ?? compiled.mesh.vertexCount,
+          weldedVertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
+          duplicateVertexCount: diagnostics?.duplicateVertexCount ?? 0,
+          triangleCount: compiled.mesh.triangleCount,
+          connectedComponentCount: diagnostics?.connectedComponentCount ?? 1,
           bounds: compiled.bounds, boundingDimensions: [
             compiled.bounds[1][0] - compiled.bounds[0][0],
             compiled.bounds[1][1] - compiled.bounds[0][1],
@@ -250,9 +254,14 @@ export class BrowserApiClient {
           ],
           coordinateRange: [Math.min(...compiled.bounds[0]), Math.max(...compiled.bounds[1])],
           surfaceArea: compiled.surfaceArea, closedVolume: compiled.solid ? compiled.volume : null,
-          watertight: compiled.solid, windingConsistent: compiled.valid, degenerateTriangleCount: 0,
-          duplicateFaceCount: 0, nonManifoldEdgeCount: 0, openBoundaryEdgeCount: compiled.solid ? 0 : 1,
-          openBoundaryCount: compiled.solid ? 0 : 1, selfIntersectionStatus: "not-evaluated-in-browser",
+          watertight: diagnostics?.watertight ?? compiled.solid,
+          windingConsistent: diagnostics?.windingConsistent ?? compiled.valid,
+          degenerateTriangleCount: diagnostics?.degenerateTriangleCount ?? 0,
+          duplicateFaceCount: diagnostics?.duplicateFaceCount ?? 0,
+          nonManifoldEdgeCount: diagnostics?.nonManifoldEdgeCount ?? 0,
+          openBoundaryEdgeCount: diagnostics?.openBoundaryEdgeCount ?? (compiled.solid ? 0 : 1),
+          openBoundaryCount: diagnostics?.openBoundaryCount ?? (compiled.solid ? 0 : 1),
+          selfIntersectionStatus: "not-evaluated-in-browser",
           warnings: compiled.solid ? [] : [{ code: "not-solid", message: "OCCT could not solidify the imported STL.", severity: "warning" }],
         };
         next.state.metrics = {

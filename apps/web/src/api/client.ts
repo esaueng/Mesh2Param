@@ -417,9 +417,70 @@ export class ApiClient {
   }
 }
 
+type ApiClientSurface = Pick<ApiClient, keyof ApiClient> & {
+  subscribeJob?: BrowserApiClient["subscribeJob"];
+};
+
+const BACKEND_PROBE_TIMEOUT_MS = 2_000;
+
 /**
- * The production Cloudflare build is browser-first: this compatibility client
- * keeps the existing UI contract while persisting and executing locally.
- * `ApiClient` remains exported for explicit remote/backend integrations and tests.
+ * Prefer the full FastAPI/OCCT service whenever the same-origin `/ready` route is
+ * reachable. Cloudflare proxies that route when MESH2PARAM_API_ORIGIN is set;
+ * UI-only deployments return 503 and retain the browser-local workspace.
  */
-export const apiClient = new BrowserApiClient();
+export async function backendAvailable(
+  client: Pick<ApiClientSurface, "ready">,
+  timeoutMs = BACKEND_PROBE_TIMEOUT_MS,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await client.ready(controller.signal);
+    return response.data.status === "ready";
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+export function createAdaptiveApiClient(
+  remote: ApiClientSurface = new ApiClient(),
+  local: ApiClientSurface = new BrowserApiClient(),
+): ApiClientSurface {
+  let selected: ApiClientSurface | null = null;
+  let selection: Promise<ApiClientSurface> | null = null;
+
+  const resolveClient = (): Promise<ApiClientSurface> => {
+    if (selected !== null) return Promise.resolve(selected);
+    selection ??= backendAvailable(remote).then((available) => {
+      selected = available ? remote : local;
+      return selected;
+    });
+    return selection;
+  };
+
+  return new Proxy({} as ApiClientSurface, {
+    get(_target, property) {
+      if (property === "subscribeJob") {
+        if (selected === null || selected.subscribeJob === undefined) return undefined;
+        return selected.subscribeJob.bind(selected);
+      }
+      if (property === "artifactUrl") {
+        return (...args: unknown[]) => {
+          if (selected === null) {
+            throw new Error("The geometry execution mode has not been selected yet");
+          }
+          return Reflect.apply(selected.artifactUrl, selected, args);
+        };
+      }
+      return (...args: unknown[]) => resolveClient().then((client) => {
+        const member = Reflect.get(client, property);
+        if (typeof member !== "function") return member;
+        return Reflect.apply(member, client, args);
+      });
+    },
+  });
+}
+
+export const apiClient = createAdaptiveApiClient();

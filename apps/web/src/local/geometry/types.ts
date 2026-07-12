@@ -8,6 +8,20 @@ export interface BrowserMesh {
   triangleCount: number;
 }
 
+export interface BrowserMeshDiagnostics {
+  rawVertexCount: number;
+  weldedVertexCount: number;
+  duplicateVertexCount: number;
+  connectedComponentCount: number;
+  degenerateTriangleCount: number;
+  duplicateFaceCount: number;
+  nonManifoldEdgeCount: number;
+  openBoundaryEdgeCount: number;
+  openBoundaryCount: number;
+  watertight: boolean;
+  windingConsistent: boolean;
+}
+
 export interface BrowserCadResult {
   step: string;
   mesh: BrowserMesh;
@@ -18,6 +32,7 @@ export interface BrowserCadResult {
   surfaceArea: number;
   bounds: [[number, number, number], [number, number, number]];
   featureCount: number;
+  diagnostics?: BrowserMeshDiagnostics;
 }
 
 export interface GeometryRequest {

@@ -64,7 +64,8 @@ Deploy the self-contained browser-local Worker:
 pnpm cf:deploy
 ```
 
-Optional: enable the legacy/same-origin API proxy for an explicitly self-hosted backend:
+For large or highly faceted meshes, enable the same-origin API proxy to an explicitly self-hosted
+backend:
 
 ```sh
 pnpm cf:deploy --var MESH2PARAM_API_ORIGIN:https://api.example.com
@@ -74,6 +75,14 @@ pnpm cf:deploy --var MESH2PARAM_API_ORIGIN:https://api.example.com
 query, or fragment. Use HTTPS outside local development. Wrangler's `--var` value is deployment
 configuration, not a secret; the API origin is visible to operators and need not contain
 credentials.
+
+At startup the web client probes the same-origin `/ready` route. A ready response selects the
+FastAPI/OCCT backend for the whole workspace; a missing or unavailable origin keeps the project in
+browser-local mode. Browser-local analysis parses STL triangles directly and avoids an OCCT
+retessellation round-trip, but native conversion is recommended for complex meshes because sewing,
+STEP export, and STEP reimport are memory- and CPU-intensive. The default native job timeout is 300
+seconds; size the API/worker host for the configured 4 GiB worker memory limit and raise the timeout
+deliberately when production models require it.
 
 For a browser-visible Worker origin such as `https://cad.example.com` and an API origin such as
 `https://api.example.com`, the backend must use exact production values that include:

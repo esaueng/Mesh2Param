@@ -11,6 +11,7 @@ import type {
 import { OcctKernel, type ShapeHandle, type Vec3 } from "occt-wasm";
 
 import type { BrowserCadResult } from "./types";
+import { analyzeStl } from "./stl";
 
 interface ProducedFeature {
   tool: ShapeHandle;
@@ -260,16 +261,17 @@ function shapeResult(
   linearDeflection: number,
   angularDeflection: number,
   validateStep = true,
+  meshProxy?: BrowserCadResult,
 ): BrowserCadResult {
   const valid = kernel.isValid(current);
   const solid = kernel.isSolid(current) || kernel.getSubShapes(current, "solid").length === 1;
   const step = validateStep ? kernel.exportStep(current) : "";
   const stepReimportValid = validateStep ? kernel.isValid(kernel.importStep(step)) : false;
-  const mesh = kernel.tessellate(current, {
+  const mesh = meshProxy?.mesh ?? kernel.tessellate(current, {
     linearDeflection,
     angularDeflection,
   });
-  const bbox = kernel.getBoundingBox(current, true);
+  const bbox = meshProxy === undefined ? kernel.getBoundingBox(current, true) : null;
   return {
     step,
     mesh,
@@ -278,10 +280,11 @@ function shapeResult(
     stepReimportValid,
     // STL orientation can make OCCT report a signed mass property. Volume is
     // a physical magnitude throughout the project-file contract.
-    volume: Math.abs(kernel.getVolume(current)),
-    surfaceArea: kernel.getSurfaceArea(current),
-    bounds: [[bbox.xmin, bbox.ymin, bbox.zmin], [bbox.xmax, bbox.ymax, bbox.zmax]],
+    volume: meshProxy?.volume ?? Math.abs(kernel.getVolume(current)),
+    surfaceArea: meshProxy?.surfaceArea ?? kernel.getSurfaceArea(current),
+    bounds: meshProxy?.bounds ?? [[bbox!.xmin, bbox!.ymin, bbox!.zmin], [bbox!.xmax, bbox!.ymax, bbox!.zmax]],
     featureCount,
+    ...(meshProxy?.diagnostics === undefined ? {} : { diagnostics: meshProxy.diagnostics }),
   };
 }
 
@@ -292,13 +295,14 @@ export function compileStl(
   solidify = true,
   validateStep = true,
 ): BrowserCadResult {
+  const source = analyzeStl(bytes);
   let shape = kernel.importStl(stlText(bytes));
   if (solidify && !kernel.isSolid(shape)) {
     const faces = kernel.getSubShapes(shape, "face");
     if (faces.length === 0) throw new Error("The STL did not contain any importable faces");
     shape = kernel.sewAndSolidify(faces, tolerance);
   }
-  return shapeResult(kernel, shape, 1, tolerance, 0.35, validateStep);
+  return shapeResult(kernel, shape, 1, tolerance, 0.35, validateStep, source);
 }
 
 function stlText(bytes: ArrayBuffer): string {
