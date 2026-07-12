@@ -51,6 +51,28 @@ test("L-bracket sample opens validated and exports a STEP", async ({ page }) => 
   await expect(page.getByTestId("start-screen")).toBeVisible();
 });
 
+test("display preferences survive a page reload", async ({ page }) => {
+  await openCleanStart(page);
+  await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
+  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
+  await waitForJob(page, "sample_open");
+
+  await page.getByRole("button", { name: "Compare", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings" }).click();
+  await page.getByRole("menuitemradio", { name: /X-Ray/i }).click();
+  await page.getByRole("button", { name: "Display settings" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Show edges" }).click();
+  await page.getByRole("button", { name: "Toggle light or dark theme" }).click();
+
+  await page.reload();
+
+  await expect(page.getByTestId("cad-viewport")).toHaveAttribute("data-display-mode", "xray");
+  await expect(page.getByRole("button", { name: "Compare", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".canvas-shell")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Display settings" }).click();
+  await expect(page.getByRole("menuitemcheckbox", { name: "Show edges" })).toHaveAttribute("aria-checked", "false");
+});
+
 test("uploaded mesh advances through analyze, reconstruct, and download", async ({ page }) => {
   await openCleanStart(page);
   await page.getByLabel("Choose source mesh").setInputFiles(SAMPLE_STL);

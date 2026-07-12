@@ -3,6 +3,13 @@ import { useStore } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
+import {
+  loadAppPreferences,
+  persistedShellPreferences,
+  saveAppPreferences,
+  type AppPreferences,
+} from "../persistence/appPreferences";
+
 import type {
   ApiErrorDetails,
   HistoryEntry,
@@ -230,7 +237,7 @@ function plainError(error: ApiErrorDetails): ApiErrorDetails {
   };
 }
 
-function initialState(): Pick<
+function initialState(preferences: AppPreferences | null = null): Pick<
   WorkspaceStore,
   | "project"
   | "working"
@@ -257,18 +264,18 @@ function initialState(): Pick<
     sync: { state: "clean" },
     workflow: initialWorkflow(),
     selection: { ...EMPTY_SELECTION },
-    viewer: structuredClone(defaultViewerPreferences),
-    shell: { ...defaultShellState },
+    viewer: structuredClone(preferences?.viewer ?? defaultViewerPreferences),
+    shell: { ...defaultShellState, ...preferences?.shell },
     jobs: {},
     history: { past: [], future: [] },
     rebuildRequired: false,
   };
 }
 
-export function createWorkspaceStore(): StoreApi<WorkspaceStore> {
+export function createWorkspaceStore(preferences: AppPreferences | null = null): StoreApi<WorkspaceStore> {
   return createStore<WorkspaceStore>()(
     subscribeWithSelector((set, get) => ({
-      ...initialState(),
+      ...initialState(preferences),
 
       hydrateProject(project, options = {}) {
         const localRevision = options.localRevision ?? 0;
@@ -607,7 +614,16 @@ export function createWorkspaceStore(): StoreApi<WorkspaceStore> {
   );
 }
 
-export const workspaceStore = createWorkspaceStore();
+const savedAppPreferences = loadAppPreferences();
+export const workspaceStore = createWorkspaceStore(savedAppPreferences);
+
+workspaceStore.subscribe((next, previous) => {
+  if (next.viewer === previous.viewer && next.shell === previous.shell) return;
+  saveAppPreferences({
+    viewer: next.viewer,
+    shell: persistedShellPreferences(next.shell),
+  });
+});
 
 export function useWorkspaceSelector<T>(selector: (state: WorkspaceStore) => T): T {
   return useStore(workspaceStore, selector);
