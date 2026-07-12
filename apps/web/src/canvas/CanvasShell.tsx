@@ -30,6 +30,7 @@ import {
   humanPhase,
   isValidated,
   nextAction,
+  reconstructedRevealPreferences,
   type PipelineActionKind,
   stepArtifact,
 } from "./pipeline";
@@ -70,8 +71,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
     if (revealedRef.current || !names.has("reconstructed.glb")) return;
     revealedRef.current = true;
-    if (workspaceStore.getState().viewer.mode === "source") setMode("reconstructed");
-  }, [vm.artifacts, setMode]);
+    const store = workspaceStore.getState();
+    debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
+    store.setViewerPreferences(reconstructedRevealPreferences());
+  }, [vm.artifacts]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
@@ -306,8 +309,11 @@ function fileMeta(vm: WorkspaceViewModel): string {
   return parts.join(" · ");
 }
 
-function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
+export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
+  ))) return { label: "Faceted STEP", tone: "warn" };
   if (isValidated(state)) return { label: "Validated", tone: "ok" };
   if (state.cadgraph !== null) return { label: "Reconstructed", tone: "info" };
   if (state.patches.length > 0) return { label: "Analyzed", tone: "info" };

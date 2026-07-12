@@ -1,4 +1,10 @@
-import type { ArtifactDescriptor, JsonObject, ProjectWorkingDocument, ViewerMode } from "../state/types";
+import type {
+  ArtifactDescriptor,
+  JsonObject,
+  ProjectWorkingDocument,
+  ViewerMode,
+  ViewerPreferences,
+} from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
 import { automaticReconstructionCapability } from "../workspace/automaticReconstruction";
 
@@ -21,6 +27,21 @@ export interface PipelineAction {
   operation?: RunOperation;
   /** Extra settings forwarded to the worker operation (e.g. the faceted fallback mode). */
   settings?: JsonObject;
+}
+
+/**
+ * A reconstructed CAD result should first appear as a shaded solid. Carrying a
+ * source-mesh wireframe preference into this view exposes the GLB display
+ * tessellation and makes analytic cylinders and arcs look like faceted STEP
+ * geometry even though the underlying B-Rep is smooth.
+ */
+export function reconstructedRevealPreferences(): Partial<ViewerPreferences> {
+  return {
+    mode: "reconstructed",
+    resultOpacity: 1,
+    shading: "shaded",
+    edges: true,
+  };
 }
 
 /**
@@ -93,10 +114,10 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
         kind: "faceted",
         operation: "reconstruct",
         settings: { mode: "faceted" },
-        label: "Generate STEP",
+        label: "Generate faceted STEP",
         hint: capability.reason
-          ? `Exact inference unavailable. ${capability.reason}`
-          : "Build a source-bound faceted STEP (not an exact parametric model)",
+          ? `Smooth analytic reconstruction unavailable. ${capability.reason}`
+          : "Preserve the source triangles as flat STEP faces (not smooth analytic CAD)",
         disabled: runBlocked !== null,
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
       };
