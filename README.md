@@ -145,6 +145,21 @@ Production uses `MESH2PARAM_JOB_RUNNER_MODE=external` and exactly one SQLite wor
 worker heartbeat. Do not expose the no-login profile to an untrusted network; terminate TLS at a
 trusted reverse proxy and configure exact hosts/origins. See [deployment](docs/deployment.md).
 
+### Cloudflare Worker frontend
+
+The React application can also be deployed as a Cloudflare Worker with Workers Static Assets:
+
+```sh
+pnpm cf:check
+pnpm cf:deploy
+```
+
+The Worker serves the SPA and optionally proxies the same-origin API routes to a separately hosted
+Mesh2Param API. The CadQuery/OCCT geometry service remains outside Cloudflare Workers because it
+requires native CPython libraries, subprocess isolation, SQLite, and persistent filesystem storage.
+Set `MESH2PARAM_API_ORIGIN` at deploy time to enable the proxy; an unset value produces an explicit
+`503` for API routes while leaving the UI available. See [Cloudflare Worker deployment](docs/deployment.md#cloudflare-worker-frontend).
+
 ## Project files and artifacts
 
 `project.mesh2param.json` is a schema-versioned working-project interchange file. It contains project
