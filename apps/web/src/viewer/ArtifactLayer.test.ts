@@ -33,6 +33,7 @@ describe("analytic result shading", () => {
     expect(usesAnalyticResultShading("source")).toBe(false);
     expect(usesAnalyticResultShading("patches")).toBe(false);
     expect(usesCreasedSurfaceNormals("reconstructed", false)).toBe(true);
+    expect(usesCreasedSurfaceNormals("reconstructed", false, true)).toBe(false);
     expect(usesCreasedSurfaceNormals("source", true)).toBe(true);
     expect(usesCreasedSurfaceNormals("source", false)).toBe(false);
   });
@@ -45,5 +46,11 @@ describe("shaded edge overlay", () => {
     expect(edgeOverlayKind("source", false, true, true)).toBe("none");
     expect(edgeOverlayKind("reconstructed", true, true, false)).toBe("none");
     expect(edgeOverlayKind("reconstructed", false, false, false)).toBe("none");
+  });
+
+  it("keeps dense meshes and preserved-source result proxies on the lightweight path", () => {
+    expect(edgeOverlayKind("source", false, true, false, 45_615)).toBe("none");
+    expect(edgeOverlayKind("source", false, true, false, 20_000)).toBe("triangles");
+    expect(edgeOverlayKind("reconstructed", false, true, false, 45_615, true)).toBe("none");
   });
 });

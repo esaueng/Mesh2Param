@@ -125,6 +125,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             artifacts={vm.artifacts}
             preferences={viewer}
             theme={theme}
+            denseMesh={(state.diagnostics?.triangleCount ?? 0) > 20_000}
             sourceProxyActive={sourceProxy}
             selectedPatchId={vm.selectedPatchId}
             onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
