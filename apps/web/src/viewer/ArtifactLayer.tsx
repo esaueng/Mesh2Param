@@ -35,8 +35,20 @@ export function usesAnalyticResultShading(mode: string): boolean {
   return mode === "reconstructed";
 }
 
-export function usesShadedEdgeOverlay(wireframe: boolean, edges: boolean): boolean {
-  return edges && !wireframe;
+export type EdgeOverlayKind = "none" | "triangles" | "creases";
+
+export function usesCreasedSurfaceNormals(mode: string, comparisonGhost: boolean): boolean {
+  return usesAnalyticResultShading(mode) || comparisonGhost;
+}
+
+export function edgeOverlayKind(
+  mode: string,
+  wireframe: boolean,
+  edges: boolean,
+  comparisonGhost: boolean,
+): EdgeOverlayKind {
+  if (!edges || wireframe || comparisonGhost) return "none";
+  return mode === "reconstructed" ? "creases" : "triangles";
 }
 
 interface ArtifactLayerProps {
@@ -45,6 +57,7 @@ interface ArtifactLayerProps {
   opacity: number;
   wireframe: boolean;
   edges: boolean;
+  comparisonGhost: boolean;
   theme: ViewerTheme;
   selectionRanges: SelectionRange[];
   selectedPatchId: string | null;
@@ -61,6 +74,7 @@ export function ArtifactLayer({
   opacity,
   wireframe,
   edges,
+  comparisonGhost,
   theme,
   selectionRanges,
   selectedPatchId,
@@ -74,9 +88,11 @@ export function ArtifactLayer({
   const palette = viewerPalette(theme);
   const object = useMemo(() => {
     const clone = gltf.scene.clone(true);
+    const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost);
+    const overlayKind = edgeOverlayKind(mode, wireframe, edges, comparisonGhost);
     clone.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
-      if (usesAnalyticResultShading(mode) && child.geometry instanceof THREE.BufferGeometry) {
+      if (smoothSurface && child.geometry instanceof THREE.BufferGeometry) {
         child.geometry = toCreasedNormals(child.geometry, Math.PI / 6);
         child.geometry.userData.mesh2paramOwned = true;
       }
@@ -86,13 +102,13 @@ export function ArtifactLayer({
       material.opacity = opacity;
       material.depthWrite = opacity > 0.55;
       material.wireframe = wireframe;
-      material.polygonOffset = usesShadedEdgeOverlay(wireframe, edges);
+      material.polygonOffset = overlayKind !== "none";
       material.polygonOffsetFactor = 1;
       material.polygonOffsetUnits = 1;
-      material.side = THREE.DoubleSide;
+      material.side = comparisonGhost ? THREE.FrontSide : THREE.DoubleSide;
       material.clippingPlanes = sectionPlane === null ? null : [sectionPlane];
       if (material instanceof THREE.MeshStandardMaterial) {
-        material.flatShading = !usesAnalyticResultShading(mode);
+        material.flatShading = !smoothSurface;
         material.roughness = 0.72;
         material.metalness = 0.04;
         const color = surfaceColor(mode, palette);
@@ -102,9 +118,11 @@ export function ArtifactLayer({
       if (mode === "patches") material.vertexColors = false;
       child.material = material;
     });
-    if (usesShadedEdgeOverlay(wireframe, edges)) addShadedEdgeOverlays(clone, palette, opacity, sectionPlane);
+    if (overlayKind !== "none") {
+      addShadedEdgeOverlays(clone, palette, opacity, sectionPlane, overlayKind);
+    }
     return clone;
-  }, [edges, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
+  }, [comparisonGhost, edges, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
@@ -116,8 +134,11 @@ export function ArtifactLayer({
     if (!box.isEmpty()) onBounds(box);
     return () => {
       object.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        if (child.geometry.userData.mesh2paramOwned === true) child.geometry.dispose();
+        if (!(child instanceof THREE.Mesh || child instanceof THREE.LineSegments)) return;
+        if (
+          child.geometry.userData.mesh2paramOwned === true
+          && child.userData.mesh2paramSharedGeometry !== true
+        ) child.geometry.dispose();
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         for (const material of materials) material.dispose();
       });
@@ -159,12 +180,30 @@ function addShadedEdgeOverlays(
   palette: ReturnType<typeof viewerPalette>,
   opacity: number,
   sectionPlane: THREE.Plane | null,
+  kind: Exclude<EdgeOverlayKind, "none">,
 ) {
   const meshes: THREE.Mesh[] = [];
   object.traverse((child) => {
     if (child instanceof THREE.Mesh && child.geometry instanceof THREE.BufferGeometry) meshes.push(child);
   });
   for (const mesh of meshes) {
+    if (kind === "creases") {
+      const geometry = new THREE.EdgesGeometry(mesh.geometry, 30);
+      geometry.userData.mesh2paramOwned = true;
+      const material = new THREE.LineBasicMaterial({
+        color: palette.edge,
+        transparent: true,
+        opacity: palette.edgeOpacity * opacity,
+        depthWrite: false,
+        clippingPlanes: sectionPlane === null ? null : [sectionPlane],
+      });
+      const overlay = new THREE.LineSegments(geometry, material);
+      overlay.name = "mesh2param-feature-edges";
+      overlay.renderOrder = 10;
+      overlay.userData.mesh2paramEdgeOverlay = true;
+      mesh.add(overlay);
+      continue;
+    }
     const material = new THREE.MeshBasicMaterial({
       color: palette.edge,
       transparent: true,
@@ -178,6 +217,7 @@ function addShadedEdgeOverlays(
     overlay.name = "mesh2param-shaded-edges";
     overlay.renderOrder = 10;
     overlay.userData.mesh2paramEdgeOverlay = true;
+    overlay.userData.mesh2paramSharedGeometry = true;
     mesh.add(overlay);
   }
 }

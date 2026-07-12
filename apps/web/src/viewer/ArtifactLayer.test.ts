@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  edgeOverlayKind,
   patchForFace,
   selectedTriangleRanges,
   usesAnalyticResultShading,
-  usesShadedEdgeOverlay,
+  usesCreasedSurfaceNormals,
   type SelectionRange,
 } from "./ArtifactLayer";
 
@@ -27,17 +28,22 @@ describe("selection map lookup", () => {
 });
 
 describe("analytic result shading", () => {
-  it("smooths only reconstructed B-Rep tessellation while preserving source facets", () => {
+  it("smooths reconstructed B-Rep tessellation and the source comparison ghost", () => {
     expect(usesAnalyticResultShading("reconstructed")).toBe(true);
     expect(usesAnalyticResultShading("source")).toBe(false);
     expect(usesAnalyticResultShading("patches")).toBe(false);
+    expect(usesCreasedSurfaceNormals("reconstructed", false)).toBe(true);
+    expect(usesCreasedSurfaceNormals("source", true)).toBe(true);
+    expect(usesCreasedSurfaceNormals("source", false)).toBe(false);
   });
 });
 
 describe("shaded edge overlay", () => {
-  it("adds edges over shaded surfaces without duplicating pure wireframe rendering", () => {
-    expect(usesShadedEdgeOverlay(false, true)).toBe(true);
-    expect(usesShadedEdgeOverlay(true, true)).toBe(false);
-    expect(usesShadedEdgeOverlay(false, false)).toBe(false);
+  it("shows feature creases on results without exposing their tessellation triangles", () => {
+    expect(edgeOverlayKind("reconstructed", false, true, false)).toBe("creases");
+    expect(edgeOverlayKind("source", false, true, false)).toBe("triangles");
+    expect(edgeOverlayKind("source", false, true, true)).toBe("none");
+    expect(edgeOverlayKind("reconstructed", true, true, false)).toBe("none");
+    expect(edgeOverlayKind("reconstructed", false, false, false)).toBe("none");
   });
 });
