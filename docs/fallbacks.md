@@ -33,10 +33,12 @@ unattributed copy or an invented source history.
 ## Damaged and coarse meshes
 
 The engine never silently fills large holes or smooths detail. Missing patch boundaries are retained
-as open loops and stop automatic L-profile inference. Very coarse cylinder tessellation can exceed
-the 12 degree smooth-region threshold and create extra plane directions; this fails as an ambiguous
-frame instead of guessing. Small-hole filling exists only as an explicit repair operation with a
-configured edge-count and planarity limit.
+as open loops and stop automatic L-profile inference. Cylinder facets that exceed the 12 degree
+smooth-region threshold may still be recovered when they form a sufficiently dense closed,
+common-radius ring within the configured chordal-sagitta limit. Sparse polygons, open rings,
+irregular radii, excessive sagitta, or inconsistent axes still fail instead of being rounded by
+guesswork. Small-hole filling exists only as an explicit repair operation with a configured
+edge-count and planarity limit.
 
 ## Prismatic analytic path and faceted distinction
 

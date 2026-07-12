@@ -122,6 +122,24 @@ def _replayable_analysis_patches(state: dict[str, object]) -> list[dict[str, obj
         and _bounded_analysis_number(
             settings.get("stableIdResolutionMm"), 0.0, 1_000_000.0, open_minimum=True
         )
+        and (
+            "minimumFacetedCylinderSideCount" not in settings
+            or (
+                _bounded_analysis_number(
+                    settings.get("minimumFacetedCylinderSideCount"), 6.0, 10_000.0
+                )
+                and float(settings["minimumFacetedCylinderSideCount"]).is_integer()
+            )
+        )
+        and (
+            "maximumFacetedCylinderSagittaMm" not in settings
+            or _bounded_analysis_number(
+                settings.get("maximumFacetedCylinderSagittaMm"),
+                0.0,
+                1_000_000.0,
+                open_minimum=True,
+            )
+        )
     )
     if not valid_settings or not all(isinstance(patch, dict) for patch in patches):
         return None

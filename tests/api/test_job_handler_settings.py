@@ -115,6 +115,8 @@ def test_analyze_handler_applies_segmentation_settings_and_writes_viewer_glbs(
         "cylinderFitToleranceMm": 0.125,
         "minimumCylinderCoverageDeg": 300.0,
         "maximumCylinderAxisNormalComponent": 0.05,
+        "minimumFacetedCylinderSideCount": 8,
+        "maximumFacetedCylinderSagittaMm": 0.1,
         "minimumPatchAreaMm2": 0.25,
         "stableIdResolutionMm": 1e-05,
     }
@@ -421,6 +423,8 @@ def test_reconstruction_replays_persisted_analysis_segmentation_settings() -> No
                         "cylinderFitToleranceMm": 0.125,
                         "minimumCylinderCoverageDeg": 300.0,
                         "maximumCylinderAxisNormalComponent": 0.05,
+                        "minimumFacetedCylinderSideCount": 10,
+                        "maximumFacetedCylinderSagittaMm": 0.2,
                         "minimumPatchAreaMm2": 0.25,
                         "stableIdResolutionMm": 1e-5,
                     }
@@ -435,6 +439,8 @@ def test_reconstruction_replays_persisted_analysis_segmentation_settings() -> No
     assert settings.minimum_patch_area_mm2 == 0.25
     assert settings.minimum_cylinder_coverage_deg == 300.0
     assert settings.maximum_cylinder_axis_normal_component == 0.05
+    assert settings.minimum_faceted_cylinder_side_count == 10
+    assert settings.maximum_faceted_cylinder_sagitta_mm == 0.2
     assert settings.stable_id_resolution_mm == 1e-5
 
 
@@ -459,6 +465,8 @@ def test_reconstruction_rejects_patches_without_their_analysis_settings() -> Non
         ("cylinderFitToleranceMm", 0.0),
         ("minimumCylinderCoverageDeg", 361.0),
         ("maximumCylinderAxisNormalComponent", 1.1),
+        ("minimumFacetedCylinderSideCount", 7.5),
+        ("maximumFacetedCylinderSagittaMm", 0.0),
         ("minimumPatchAreaMm2", -1.0),
         ("stableIdResolutionMm", 0.0),
     ],
@@ -473,6 +481,8 @@ def test_reconstruction_rejects_invalid_persisted_segmentation_settings(
         "cylinderFitToleranceMm": 0.01,
         "minimumCylinderCoverageDeg": 300.0,
         "maximumCylinderAxisNormalComponent": 0.05,
+        "minimumFacetedCylinderSideCount": 8,
+        "maximumFacetedCylinderSagittaMm": 0.1,
         "minimumPatchAreaMm2": 1e-8,
         "stableIdResolutionMm": 1e-5,
     }
@@ -528,6 +538,8 @@ def test_reconstruct_handler_passes_persisted_segmentation_to_engine(
                     "cylinderFitToleranceMm": 0.075,
                     "minimumCylinderCoverageDeg": 300.0,
                     "maximumCylinderAxisNormalComponent": 0.05,
+                    "minimumFacetedCylinderSideCount": 12,
+                    "maximumFacetedCylinderSagittaMm": 0.3,
                     "minimumPatchAreaMm2": 2.5,
                     "stableIdResolutionMm": 1e-5,
                 }
@@ -546,6 +558,8 @@ def test_reconstruct_handler_passes_persisted_segmentation_to_engine(
     assert segmentation.minimum_patch_area_mm2 == 2.5
     assert segmentation.minimum_cylinder_coverage_deg == 300.0
     assert segmentation.maximum_cylinder_axis_normal_component == 0.05
+    assert segmentation.minimum_faceted_cylinder_side_count == 12
+    assert segmentation.maximum_faceted_cylinder_sagitta_mm == 0.3
     assert segmentation.stable_id_resolution_mm == 1e-5
 
 

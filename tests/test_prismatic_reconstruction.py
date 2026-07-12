@@ -31,7 +31,11 @@ from mesh2param.reconstruction import (
     reconstruct_file,
 )
 from mesh2param.segmentation import segment_mesh
-from mesh2param.validation import classify_face_surfaces, export_step_validated
+from mesh2param.validation import (
+    classify_face_surfaces,
+    export_step_validated,
+    import_step_shape,
+)
 
 STRICT_FIT = PrismaticSettings(
     line_rms_tolerance_mm=0.01,
@@ -212,6 +216,39 @@ def test_automatic_reconstruction_uses_prismatic_path(tmp_path: Path) -> None:
     assert entity_kinds.count("circularArc") == 1
     assert entity_kinds.count("closedProfile") == 1
     assert result.step.valid
+
+
+@pytest.mark.geometry
+def test_polygonal_stl_hole_becomes_one_analytic_step_cylinder(tmp_path: Path) -> None:
+    exact = cq.Workplane("XY").box(20.0, 20.0, 4.0).faces(">Z").workplane().hole(4.0)
+    mesh = mesh_from_shape(exact, linear_tolerance=0.5, angular_tolerance=0.5)
+    segmentation = segment_mesh(mesh)
+    recovered = [
+        patch
+        for patch in segmentation.patches
+        if patch.kind == "cylinder" and patch.recovered_from_facets
+    ]
+    assert len(recovered) == 1
+    assert recovered[0].facet_sagitta_mm == pytest.approx(0.0145823, abs=1e-5)
+
+    source = tmp_path / "polygonal-hole.stl"
+    mesh.export(source)
+    result = reconstruct_file(
+        source,
+        tmp_path / "polygonal-hole-result",
+        settings=ReconstructionSettings(
+            comparison=ComparisonSettings(sample_count_each_direction=96)
+        ),
+    )
+    assert isinstance(result, PrismaticReconstructionResult)
+    entity_kinds = [entity.kind for entity in result.graph.sketches[0].entities]
+    assert entity_kinds.count("circle") == 1
+    assert entity_kinds.count("circularArc") == 0
+    assert entity_kinds.count("line") == 4
+    assert result.step.source.face_count == 7
+    assert classify_face_surfaces(result.selected.shape)["cylinder"] == 1
+    reimported = import_step_shape(result.step.path)
+    assert classify_face_surfaces(reimported)["cylinder"] == 1
 
 
 def test_non_prismatic_mesh_is_rejected_with_diagnostic() -> None:

@@ -102,6 +102,20 @@ penalties. The segmentation threshold for a complete cylinder remains high (300 
 default). A partial profile arc needs only its own sweep and sagitta evidence; lowering full-cylinder
 coverage to admit a 2-D fillet would conflate two different geometric claims.
 
+Polygonal STL cylinders receive a second, conservative segmentation pass. When the normal jump
+between adjacent wall facets is too large for smooth-region grouping, the engine seeds a cylinder
+from two adjacent planar strips, grows only a closed cycle of coaxial/common-radius strips, and
+checks full angular coverage, minimum side count, radial residual, shared longitudinal edges, and
+the polygon-to-circle sagitta. An accepted cycle becomes one cylinder patch before frame and hole
+inference. Complete circular cap loops are emitted as `circle` sketch entities, so a through-hole
+extrusion compiles to one OCCT cylindrical face rather than a nearly complete arc plus a closing
+line. The measured facet sagitta and recovery flag remain in the patch evidence.
+
+The browser still receives triangles because WebGL cannot display an OCCT surface directly. Source,
+repair, and patch layers retain flat shading so their tessellation remains visible; reconstructed
+B-Rep layers recompute crease-aware normals, smoothing cylindrical tessellation while keeping sharp
+mechanical edges crisp. This display treatment does not substitute for the STEP surface-type gate.
+
 ## Jobs and process isolation
 
 Development defaults to `job_runner_mode=embedded`: the API owns the local supervisor. Production

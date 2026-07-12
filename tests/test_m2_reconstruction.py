@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,7 @@ from mesh2param.comparison import (
     write_residual_heatmap_glb,
 )
 from mesh2param.compiler import compile_cadgraph
-from mesh2param.frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
+from mesh2param.frame import CoordinateFrame, infer_coordinate_frame
 from mesh2param.inference import (
     CandidateEvaluation,
     InferredHole,
@@ -43,7 +44,12 @@ from mesh2param.sketches import (
     infer_l_profile,
 )
 from mesh2param.tessellation import tessellate_shape, transform_tessellation, write_binary_stl
-from mesh2param.validation import export_step_validated, import_step_shape, validate_shape
+from mesh2param.validation import (
+    classify_face_surfaces,
+    export_step_validated,
+    import_step_shape,
+    validate_shape,
+)
 from mesh2param_contracts import CADGraph
 
 
@@ -277,8 +283,8 @@ def test_comparison_heatmap_and_hash_bound_patch_selection(
 
 
 @pytest.mark.geometry
-def test_coarse_and_damaged_inputs_fail_without_claiming_reconstruction(
-    bracket: BracketEvidence,
+def test_coarse_faceted_holes_recover_as_cylinders_while_damage_still_fails(
+    bracket: BracketEvidence, tmp_path: Path
 ) -> None:
     assert bracket.candidate.shape is not None
     shape = bracket.candidate.shape
@@ -292,8 +298,39 @@ def test_coarse_and_damaged_inputs_fail_without_claiming_reconstruction(
     )
     coarse_mesh = trimesh.Trimesh(coarse.vertices, coarse.triangles, process=False)
     coarse_segmentation = segment_mesh(coarse_mesh)
-    with pytest.raises(FrameInferenceError, match="dominant antipodal plane directions"):
-        infer_coordinate_frame(coarse_mesh, coarse_segmentation.patches)
+    recovered_cylinders = [
+        patch
+        for patch in coarse_segmentation.patches
+        if patch.kind == "cylinder" and patch.recovered_from_facets
+    ]
+    assert len(recovered_cylinders) == 4
+    assert all((patch.facet_sagitta_mm or math.inf) < 0.1 for patch in recovered_cylinders)
+    coarse_frame = infer_coordinate_frame(coarse_mesh, coarse_segmentation.patches)
+    coarse_sketches = extract_planar_sketches(
+        coarse_mesh, coarse_segmentation.patches, coarse_frame
+    )
+    coarse_profile = infer_l_profile(coarse_segmentation.patches, coarse_sketches, coarse_frame)
+    coarse_holes = infer_through_holes(coarse_mesh, coarse_segmentation.patches, coarse_frame)
+    assert len(coarse_holes) == 4
+    assert [hole.diameter_mm for hole in coarse_holes] == pytest.approx([8.0] * 4, abs=1e-5)
+    coarse_graph = build_l_bracket_cadgraph(
+        source={
+            "sha256": "0" * 64,
+            "format": "stl",
+            "originalFileName": "coarse.stl",
+            "byteSize": 1,
+            "triangleCount": len(coarse_mesh.faces),
+            "units": "mm",
+            "scaleFactor": 1.0,
+        },
+        frame=coarse_frame,
+        profile=coarse_profile,
+        holes=coarse_holes,
+    )
+    coarse_candidate = compile_candidate("coarse-cylinder-recovery", coarse_graph)
+    assert coarse_candidate.valid and coarse_candidate.shape is not None
+    assert classify_face_surfaces(coarse_candidate.shape)["cylinder"] >= 4
+    assert export_step_validated(coarse_candidate.shape, tmp_path / "coarse-holes.step").valid
 
     normals = np.asarray(bracket.repair.mesh.face_normals)
     remove = normals @ rotation[:, 0] > 0.999999
@@ -476,8 +513,6 @@ def test_cli_exposes_exact_m2_commands_and_service_arguments(
     assert main(["analyze", str(bracket_path), "--units", "mm", "--output", str(tmp_path)]) == 0
     assert (tmp_path / "analysis.json").is_file()
     capsys.readouterr()
-    serve = build_parser().parse_args(
-        ["serve", "--host", "127.0.0.1", "--port", "8765"]
-    )
+    serve = build_parser().parse_args(["serve", "--host", "127.0.0.1", "--port", "8765"])
     assert serve.host == "127.0.0.1"
     assert serve.port == 8765

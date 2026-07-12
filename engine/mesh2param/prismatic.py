@@ -178,7 +178,23 @@ class ArcPrimitive(ProfilePrimitive):
         return self._tangent(self.end)
 
 
-type Primitive = LinePrimitive | ArcPrimitive
+@dataclass(frozen=True, slots=True)
+class CirclePrimitive(ProfilePrimitive):
+    center: tuple[float, float] = (0.0, 0.0)
+    radius_mm: float = 0.0
+
+    @property
+    def kind(self) -> Literal["circle"]:
+        return "circle"
+
+    def start_tangent(self) -> np.ndarray:
+        return np.asarray((0.0, 1.0), dtype=np.float64)
+
+    def end_tangent(self) -> np.ndarray:
+        return self.start_tangent()
+
+
+type Primitive = LinePrimitive | ArcPrimitive | CirclePrimitive
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,7 +246,14 @@ class ExtrusionCandidate:
                                 "sweepDeg": primitive.sweep_deg,
                             }
                             if isinstance(primitive, ArcPrimitive)
-                            else {}
+                            else (
+                                {
+                                    "center": list(primitive.center),
+                                    "radiusMm": primitive.radius_mm,
+                                }
+                                if isinstance(primitive, CirclePrimitive)
+                                else {}
+                            )
                         ),
                     }
                     for primitive in profile
@@ -590,6 +613,57 @@ def fit_arc_primitive(
     )
 
 
+def fit_circle_primitive(
+    points: np.ndarray, settings: PrismaticSettings | None = None
+) -> CirclePrimitive | None:
+    """Fit a complete circle to a closed polygonal loop with a chordal-error gate."""
+
+    settings = settings or PrismaticSettings()
+    points = np.asarray(points, dtype=np.float64)
+    if len(points) < 8:
+        return None
+    center = _circle_initial(points)
+    if center is None:
+        return None
+    radial = np.linalg.norm(points - center, axis=1)
+    radius = float(np.mean(radial))
+    if radius < settings.minimum_primitive_length_mm:
+        return None
+    residuals = np.abs(radial - radius)
+    rms = float(np.sqrt(np.mean(residuals * residuals)))
+    maximum = float(np.max(residuals))
+    if rms > settings.arc_rms_tolerance_mm or maximum > settings.arc_max_residual_tolerance_mm:
+        return None
+    angles = np.sort(
+        np.unique(
+            np.round(
+                np.mod(np.arctan2(points[:, 1] - center[1], points[:, 0] - center[0]), 2 * np.pi),
+                12,
+            )
+        )
+    )
+    if len(angles) < 8:
+        return None
+    gaps = np.diff(np.concatenate((angles, angles[:1] + 2 * np.pi)))
+    maximum_gap = float(np.max(gaps))
+    coverage_deg = math.degrees(2 * np.pi - maximum_gap)
+    chordal_deviation = radius * (1.0 - math.cos(maximum_gap / 2.0))
+    maximum = max(maximum, chordal_deviation)
+    if coverage_deg < 300.0 or maximum > settings.arc_max_residual_tolerance_mm:
+        return None
+    start = (float(center[0] + radius), float(center[1]))
+    return CirclePrimitive(
+        start,
+        start,
+        rms,
+        maximum,
+        2 * math.pi * radius,
+        0.0,
+        (float(center[0]), float(center[1])),
+        radius,
+    )
+
+
 def _primitive_cost(primitive: Primitive, settings: PrismaticSettings) -> float:
     if isinstance(primitive, LinePrimitive):
         residual = primitive.rms_residual_mm / settings.line_rms_tolerance_mm
@@ -699,6 +773,9 @@ def fit_closed_line_arc_chain(
     ring = LinearRing(points)
     if not ring.is_simple:
         raise PrismaticFitError("self_intersecting_profile", "projected profile self-intersects")
+    circle = fit_circle_primitive(points, settings)
+    if circle is not None:
+        return (circle,)
     lexicographic = min(range(len(points)), key=lambda index: tuple(points[index]))
     edges_before = points - np.roll(points, 1, axis=0)
     edges_after = np.roll(points, -1, axis=0) - points
@@ -1001,6 +1078,7 @@ def validate_prismatic_candidate(
 
 __all__ = [
     "ArcPrimitive",
+    "CirclePrimitive",
     "ExtrusionCandidate",
     "LinePrimitive",
     "PrismaticDiagnostic",
@@ -1012,6 +1090,7 @@ __all__ = [
     "detect_extrusion_candidate",
     "extract_cap_boundary_loops",
     "fit_arc_primitive",
+    "fit_circle_primitive",
     "fit_closed_line_arc_chain",
     "fit_extrusion_axis",
     "fit_line_primitive",

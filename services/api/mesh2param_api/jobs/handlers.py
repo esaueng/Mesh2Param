@@ -245,6 +245,18 @@ def _reconstruction_segmentation_settings(payload: dict[str, Any]) -> Any:
             recommended_action="Re-run surface analysis before automatic reconstruction.",
         )
     try:
+        defaults = SegmentationSettings()
+        faceted_side_count = _bounded_number(
+            persisted.get(
+                "minimumFacetedCylinderSideCount",
+                defaults.minimum_faceted_cylinder_side_count,
+            ),
+            name="persisted minimum faceted-cylinder side count",
+            minimum=6.0,
+            maximum=10_000.0,
+        )
+        if not faceted_side_count.is_integer():
+            raise ValueError("persisted minimum faceted-cylinder side count must be an integer")
         settings = SegmentationSettings(
             smooth_angle_deg=_bounded_number(
                 persisted["smoothAngleDeg"],
@@ -280,6 +292,17 @@ def _reconstruction_segmentation_settings(payload: dict[str, Any]) -> Any:
                 name="persisted maximum cylinder axis-normal component",
                 minimum=0.0,
                 maximum=1.0,
+            ),
+            minimum_faceted_cylinder_side_count=int(faceted_side_count),
+            maximum_faceted_cylinder_sagitta_mm=_bounded_number(
+                persisted.get(
+                    "maximumFacetedCylinderSagittaMm",
+                    defaults.maximum_faceted_cylinder_sagitta_mm,
+                ),
+                name="persisted maximum faceted-cylinder sagitta",
+                minimum=0.0,
+                maximum=1_000_000.0,
+                minimum_inclusive=False,
             ),
             minimum_patch_area_mm2=_bounded_number(
                 persisted["minimumPatchAreaMm2"],

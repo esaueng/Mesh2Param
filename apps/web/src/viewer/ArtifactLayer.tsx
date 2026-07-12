@@ -2,6 +2,7 @@ import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { GLTF } from "three-stdlib";
 import { surfaceColor, viewerPalette, type ViewerTheme } from "./viewerTheme";
 
@@ -28,6 +29,10 @@ export function patchForFace(ranges: SelectionRange[], faceIndex: number): strin
 
 export function selectedTriangleRanges(ranges: SelectionRange[], patchId: string | null): SelectionRange[] {
   return patchId === null ? [] : ranges.filter((range) => range.patchId === patchId);
+}
+
+export function usesAnalyticResultShading(mode: string): boolean {
+  return mode === "reconstructed";
 }
 
 interface ArtifactLayerProps {
@@ -65,6 +70,10 @@ export function ArtifactLayer({
     const clone = gltf.scene.clone(true);
     clone.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
+      if (usesAnalyticResultShading(mode) && child.geometry instanceof THREE.BufferGeometry) {
+        child.geometry = toCreasedNormals(child.geometry, Math.PI / 6);
+        child.geometry.userData.mesh2paramOwned = true;
+      }
       const source = Array.isArray(child.material) ? child.material[0] : child.material;
       const material = (source ?? new THREE.MeshStandardMaterial()).clone();
       material.transparent = opacity < 1;
@@ -74,7 +83,7 @@ export function ArtifactLayer({
       material.side = THREE.DoubleSide;
       material.clippingPlanes = sectionPlane === null ? null : [sectionPlane];
       if (material instanceof THREE.MeshStandardMaterial) {
-        material.flatShading = true;
+        material.flatShading = !usesAnalyticResultShading(mode);
         material.roughness = 0.72;
         material.metalness = 0.04;
         const color = surfaceColor(mode, palette);
@@ -98,6 +107,7 @@ export function ArtifactLayer({
     return () => {
       object.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
+        if (child.geometry.userData.mesh2paramOwned === true) child.geometry.dispose();
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         for (const material of materials) material.dispose();
       });
