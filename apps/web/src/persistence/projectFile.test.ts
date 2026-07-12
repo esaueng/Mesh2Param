@@ -211,6 +211,19 @@ describe("Mesh2Param project files", () => {
     expect(parsed.file.ui.shell.theme).toBe("dark");
   });
 
+  it.each(["wireframe", "xray", "normals", "zebra"] as const)(
+    "round-trips the %s display mode",
+    async (shading) => {
+      const raw = rawProjectFileFixture();
+      const ui = raw.ui as Record<string, unknown>;
+      (ui.viewer as Record<string, unknown>).shading = shading;
+
+      const parsed = await parseProjectFile(JSON.stringify(raw));
+
+      expect(parsed.file.ui.viewer.shading).toBe(shading);
+    },
+  );
+
   it("migrates signed browser OCCT volume magnitudes in saved projects", async () => {
     const raw = rawProjectFileFixture();
     const state = raw.working as Record<string, unknown>;
