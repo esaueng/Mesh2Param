@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { apiClient } from "./api/client";
 import { normalizeApiError } from "./api/errors";
 import { workspaceRepository } from "./persistence/repository";
+import { loadAppPreferences } from "./persistence/appPreferences";
 import { CanvasLanding } from "./canvas/CanvasLanding";
 import { workspaceStore } from "./state/store";
 import type {
@@ -215,6 +216,10 @@ function mergeRecents(
 }
 
 function hydrateStoredWorkspace(stored: NonNullable<Awaited<ReturnType<typeof workspaceRepository.getWorkspace>>>) {
+  // localStorage is synchronous and therefore captures even the final preference
+  // change immediately before a reload. Keep it authoritative over an older,
+  // asynchronously flushed per-project UI record.
+  const appPreferences = loadAppPreferences();
   workspaceStore.getState().hydrateProject(normalizeProjectDetail({
     id: stored.project.id,
     name: stored.project.name,
@@ -239,5 +244,10 @@ function hydrateStoredWorkspace(stored: NonNullable<Awaited<ReturnType<typeof wo
     state.setSelection(stored.ui.state.selection);
     state.setViewerPreferences(stored.ui.state.viewer);
     state.setShellState(stored.ui.state.shell);
+  }
+  if (appPreferences !== null) {
+    const state = workspaceStore.getState();
+    state.setViewerPreferences(appPreferences.viewer);
+    state.setShellState(appPreferences.shell);
   }
 }

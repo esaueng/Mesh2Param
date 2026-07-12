@@ -5,6 +5,7 @@ import { normalizeApiError } from "../api/errors";
 import { watchJob } from "../api/jobs";
 import { saveProjectFile } from "../persistence/projectFile";
 import { workspaceRepository } from "../persistence/repository";
+import { hasPersistedWorkspaceChanges, snapshotForPersistence } from "../persistence/workspaceState";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type {
   Job,
@@ -170,7 +171,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
 
   useEffect(() => {
     const unsubscribe = workspaceStore.subscribe((next, previous) => {
-      if (next.project === null || next.working === null || next.localRevision === previous.localRevision) return;
+      if (next.project === null || next.working === null || !hasPersistedWorkspaceChanges(next, previous)) return;
       void workspaceRepository.scheduleAutosave(snapshotForPersistence(next)).catch((cause: unknown) => {
         setError(`Local autosave failed: ${String(cause)}`);
       });
@@ -503,34 +504,6 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
 
 function findActiveJob(jobs: ReturnType<typeof workspaceStore.getState>["jobs"]) {
   return Object.values(jobs).find((view) => view?.job.status === "queued" || view?.job.status === "running") ?? null;
-}
-
-function snapshotForPersistence(state: ReturnType<typeof workspaceStore.getState>) {
-  if (state.project === null || state.working === null) throw new Error("No project is open");
-  return {
-    project: state.project,
-    working: state.working,
-    localRevision: state.localRevision,
-    serverRevision: state.serverRevision,
-    lastAckedLocalRevision: state.lastAckedLocalRevision,
-    baseVersionId: state.baseVersionId,
-    syncState: state.sync.state,
-    ui: {
-      activeStep: state.workflow.active,
-      selection: state.selection,
-      viewer: state.viewer,
-      shell: {
-        theme: state.shell.theme,
-        railCollapsed: state.shell.railCollapsed,
-        inspectorExpanded: state.shell.inspectorExpanded,
-        bottomDrawerExpanded: state.shell.bottomDrawerExpanded,
-        bottomDrawerHeight: state.shell.bottomDrawerHeight,
-        singleKeyShortcuts: state.shell.singleKeyShortcuts,
-      },
-      cameraPose: null,
-    },
-    history: state.history,
-  };
 }
 
 function safeFilename(value: string) {
