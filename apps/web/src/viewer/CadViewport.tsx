@@ -286,12 +286,6 @@ export function CadViewport({
           <ambientLight intensity={palette.ambientIntensity} />
           <directionalLight position={[80, -60, 100]} intensity={palette.keyIntensity} />
           <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
-          <gridHelper
-            key={`${palette.gridMajor}-${palette.gridMinor}`}
-            args={[300, 30, palette.gridMajor, palette.gridMinor]}
-            rotation={[Math.PI / 2, 0, 0]}
-            position={[0, 0, -0.02]}
-          />
           <axesHelper args={[35]} />
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />

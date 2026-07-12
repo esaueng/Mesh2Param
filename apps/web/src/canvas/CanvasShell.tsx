@@ -9,7 +9,7 @@ import {
   Layers,
   LoaderCircle,
   Moon,
-  Rotate3D,
+  Save,
   ScanSearch,
   ShieldCheck,
   Sparkles,
@@ -21,7 +21,6 @@ import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type { ViewerMode } from "../state/types";
 import { CadViewport } from "../viewer/CadViewport";
-import type { ViewPreset } from "../viewer/cameraMath";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
@@ -74,7 +73,6 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   }, [vm.artifacts, setMode]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
-  const view = (preset: ViewPreset) => window.dispatchEvent(new CustomEvent<ViewPreset>("mesh2param:view-preset", { detail: preset }));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
 
   const openFilePicker = () => fileRef.current?.click();
@@ -203,6 +201,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         <button className="dock-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"} aria-label={state.source === null ? "Open a mesh" : "Replace the mesh"}>
           <FolderOpen size={17} />
         </button>
+        <button className="dock-btn" onClick={() => void actions.saveProject()} title="Save project" aria-label="Save project">
+          <Save size={17} />
+        </button>
 
         {modes.length >= 2 ? (
           <>
@@ -224,7 +225,6 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
         <span className="dock-sep" />
         <button className="dock-btn" onClick={fit} title="Fit to view" aria-label="Fit to view"><Focus size={17} /></button>
-        <button className="dock-btn" onClick={() => view("iso")} title="Isometric view" aria-label="Isometric view"><Rotate3D size={17} /></button>
         <button className="dock-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle light or dark theme">
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
         </button>
