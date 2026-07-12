@@ -250,7 +250,7 @@ export function CadViewport({
       </div>
       ) : null}
 
-      <ViewerErrorBoundary key={artifactKey}>
+      <ViewerErrorBoundary resetKey={artifactKey}>
         <Canvas
           frameloop="always"
           dpr={[1, 1.25]}
@@ -458,10 +458,15 @@ function isSelectionMap(value: unknown): value is { artifact: { sha256: string }
   );
 }
 
-class ViewerErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+class ViewerErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(error: unknown) {
     return { error: error instanceof Error ? error.message : String(error) };
+  }
+  componentDidUpdate(previous: Readonly<{ children: ReactNode; resetKey: string }>) {
+    if (previous.resetKey !== this.props.resetKey && this.state.error !== null) {
+      this.setState({ error: null });
+    }
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
     debugLog.error("viewer", `Geometry render failed: ${error.message}`, info.componentStack ?? undefined);
