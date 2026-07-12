@@ -77,8 +77,9 @@ function operationBlockReason(vm: WorkspaceViewModel): string | null {
 
 /**
  * Regenerate an existing STEP from the project's authoritative geometry.
- * Browser-local faceted projects do not carry a CADGraph, so they must repeat
- * the source-bound faceted conversion instead of using the graph exporter.
+ * Browser-local faceted projects do not carry a CADGraph. Regeneration gives
+ * the bounded analytic solver another chance from the preserved source rather
+ * than silently repeating the faceted conversion.
  */
 export function regenerationAction(vm: WorkspaceViewModel): PipelineAction | null {
   const state = vm.project.state;
@@ -98,11 +99,10 @@ export function regenerationAction(vm: WorkspaceViewModel): PipelineAction | nul
 
   if (!facetedApplicable(state)) return null;
   return {
-    kind: "faceted",
+    kind: "reconstruct",
     operation: "reconstruct",
-    settings: { mode: "faceted" },
-    label: "Regenerate STEP",
-    hint: "Rebuild the faceted STEP from the preserved source mesh",
+    label: "Recover smooth STEP",
+    hint: "Re-analyze the preserved source and rebuild it with analytic lines and curves",
     disabled: runBlocked !== null,
     ...(runBlocked !== null ? { reason: runBlocked } : {}),
   };
