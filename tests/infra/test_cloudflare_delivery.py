@@ -11,6 +11,9 @@ def test_cloudflare_worker_delivery_contract() -> None:
     wrangler = (REPOSITORY_ROOT / "wrangler.jsonc").read_text(encoding="utf-8")
     worker = (REPOSITORY_ROOT / "cloudflare/worker.ts").read_text(encoding="utf-8")
     headers = (REPOSITORY_ROOT / "apps/web/public/_headers").read_text(encoding="utf-8")
+    validator = (REPOSITORY_ROOT / "packages/contracts/src/validator.generated.ts").read_text(
+        encoding="utf-8"
+    )
 
     scripts = package["scripts"]
     assert "wrangler deploy --dry-run" in scripts["cf:check"]
@@ -24,4 +27,7 @@ def test_cloudflare_worker_delivery_contract() -> None:
     assert "return env.ASSETS.fetch(request)" in worker
     assert "api_origin_not_configured" in worker
     assert "Content-Security-Policy: default-src 'self'" in headers
+    assert "'unsafe-eval'" not in headers
     assert "Cache-Control: public, max-age=31536000, immutable" in headers
+    assert "ajv.compile" not in validator
+    assert 'from "ajv/dist/2020.js"' not in validator
