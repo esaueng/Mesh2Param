@@ -12,6 +12,7 @@ from .frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
 from .ingest import IngestedMesh, MeshDiagnostics, MeshIngestionError, MeshLimits, ingest_mesh
 from .prismatic import (
     ArcPrimitive,
+    CirclePrimitive,
     ExtrusionCandidate,
     LinePrimitive,
     PrismaticSettings,
@@ -49,6 +50,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "ArcPrimitive",
+    "CirclePrimitive",
     "ComparisonReport",
     "ComparisonSettings",
     "CompilationException",

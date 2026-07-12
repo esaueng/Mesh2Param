@@ -14,7 +14,7 @@ from mesh2param_contracts import CADGraph
 
 from .compiler import CompilationResult, compile_cadgraph
 from .frame import CoordinateFrame
-from .prismatic import ArcPrimitive, ExtrusionCandidate
+from .prismatic import ArcPrimitive, CirclePrimitive, ExtrusionCandidate
 from .segmentation import SurfacePatch
 from .sketches import InferredProfile
 
@@ -452,7 +452,16 @@ def build_prismatic_cadgraph(
                 "locked": False,
                 "suppressed": False,
             }
-            if isinstance(primitive, ArcPrimitive):
+            if isinstance(primitive, CirclePrimitive):
+                entities.append(
+                    {
+                        **common,
+                        "kind": "circle",
+                        "center": _vector2(primitive.center),
+                        "radius": float(primitive.radius_mm),
+                    }
+                )
+            elif isinstance(primitive, ArcPrimitive):
                 start_angle = math.degrees(
                     math.atan2(
                         primitive.start[1] - primitive.center[1],

@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass, replace
+from itertools import combinations
 from typing import Any, Literal
 
 import numpy as np
@@ -60,6 +61,8 @@ class SurfacePatch:
     cylinder_axis: tuple[float, float, float] | None = None
     cylinder_radius_mm: float | None = None
     angular_coverage_deg: float | None = None
+    recovered_from_facets: bool = False
+    facet_sagitta_mm: float | None = None
     user_overridden: bool = False
     locked: bool = False
     excluded_triangle_ids: tuple[int, ...] = ()
@@ -96,6 +99,8 @@ class SurfacePatch:
                 "axis": list(self.cylinder_axis or ()),
                 "radiusMm": self.cylinder_radius_mm,
                 "angularCoverageDeg": self.angular_coverage_deg,
+                "recoveredFromFacets": self.recovered_from_facets,
+                "facetSagittaMm": self.facet_sagitta_mm,
             }
         return result
 
@@ -107,6 +112,8 @@ class SegmentationSettings:
     cylinder_fit_tolerance_mm: float = 0.01
     minimum_cylinder_coverage_deg: float = 300.0
     maximum_cylinder_axis_normal_component: float = 0.05
+    minimum_faceted_cylinder_side_count: int = 8
+    maximum_faceted_cylinder_sagitta_mm: float = 0.1
     minimum_patch_area_mm2: float = 1e-8
     stable_id_resolution_mm: float = 1e-5
 
@@ -117,6 +124,10 @@ class SegmentationSettings:
             raise ValueError("fit tolerances must be positive")
         if not 0 < self.minimum_cylinder_coverage_deg <= 360:
             raise ValueError("minimum cylinder coverage must be in (0, 360]")
+        if self.minimum_faceted_cylinder_side_count < 6:
+            raise ValueError("minimum faceted-cylinder side count must be at least 6")
+        if self.maximum_faceted_cylinder_sagitta_mm <= 0:
+            raise ValueError("maximum faceted-cylinder sagitta must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +152,12 @@ class SegmentationResult:
                 "minimumCylinderCoverageDeg": self.settings.minimum_cylinder_coverage_deg,
                 "maximumCylinderAxisNormalComponent": (
                     self.settings.maximum_cylinder_axis_normal_component
+                ),
+                "minimumFacetedCylinderSideCount": (
+                    self.settings.minimum_faceted_cylinder_side_count
+                ),
+                "maximumFacetedCylinderSagittaMm": (
+                    self.settings.maximum_faceted_cylinder_sagitta_mm
                 ),
                 "minimumPatchAreaMm2": self.settings.minimum_patch_area_mm2,
                 "stableIdResolutionMm": self.settings.stable_id_resolution_mm,
@@ -442,6 +459,222 @@ def _boundary_loops(mesh: trimesh.Trimesh, face_ids: tuple[int, ...]) -> tuple[B
     )
 
 
+def _patch_adjacency(mesh: trimesh.Trimesh, patches: list[SurfacePatch]) -> dict[int, set[int]]:
+    face_to_patch = {
+        face_id: index for index, patch in enumerate(patches) for face_id in patch.triangle_ids
+    }
+    neighbors: dict[int, set[int]] = {index: set() for index in range(len(patches))}
+    for left, right in np.asarray(mesh.face_adjacency, dtype=np.int64):
+        left_index = face_to_patch[int(left)]
+        right_index = face_to_patch[int(right)]
+        if left_index != right_index:
+            neighbors[left_index].add(right_index)
+            neighbors[right_index].add(left_index)
+    return neighbors
+
+
+def _faceted_cylinder_candidate(
+    mesh: trimesh.Trimesh,
+    patches: list[SurfacePatch],
+    neighbors: dict[int, set[int]],
+    left_index: int,
+    right_index: int,
+    settings: SegmentationSettings,
+) -> tuple[frozenset[int], SurfacePatch] | None:
+    """Grow one analytic cylinder hypothesis from two adjacent planar strips.
+
+    Polygonal STL cylinders are frequently split before surface fitting because their
+    per-facet normal jump exceeds ``smooth_angle_deg``.  Two adjacent strips still expose
+    the intended cylinder axis through the cross product of their normals and three or
+    more common-radius vertices.  This routine grows only a closed cycle of matching
+    strips and applies a chordal-sagitta gate before replacing them with cylinder evidence.
+    """
+
+    left, right = patches[left_index], patches[right_index]
+    if (
+        left.kind != "plane"
+        or right.kind != "plane"
+        or left.plane_normal is None
+        or right.plane_normal is None
+    ):
+        return None
+    left_normal = np.asarray(left.plane_normal, dtype=np.float64)
+    right_normal = np.asarray(right.plane_normal, dtype=np.float64)
+    normal_dot = float(np.dot(left_normal, right_normal))
+    maximum_seed_angle_deg = min(
+        75.0,
+        360.0 / settings.minimum_faceted_cylinder_side_count * 1.5,
+    )
+    if normal_dot >= math.cos(math.radians(settings.smooth_angle_deg)) or normal_dot <= math.cos(
+        math.radians(maximum_seed_angle_deg)
+    ):
+        return None
+    axis = np.cross(left_normal, right_normal)
+    axis_magnitude = float(np.linalg.norm(axis))
+    if axis_magnitude <= 1e-12:
+        return None
+    axis = _canonical_direction(axis / axis_magnitude)
+    shared_ids = sorted(set(left.vertex_ids) & set(right.vertex_ids))
+    if len(shared_ids) < 2:
+        return None
+    vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    shared_points = vertices[shared_ids]
+    edge_start, edge_end = max(
+        combinations(range(len(shared_points)), 2),
+        key=lambda pair: float(np.linalg.norm(shared_points[pair[1]] - shared_points[pair[0]])),
+    )
+    shared_direction = _canonical_direction(shared_points[edge_end] - shared_points[edge_start])
+    if abs(float(np.dot(shared_direction, axis))) < math.cos(math.radians(2.0)):
+        return None
+    basis_u, basis_v = _orthogonal_basis(axis)
+    seed_vertex_ids = sorted(set(left.vertex_ids) | set(right.vertex_ids))
+    seed_points = vertices[seed_vertex_ids]
+    seed_projected = np.column_stack((seed_points @ basis_u, seed_points @ basis_v))
+    try:
+        center_2d, radius, seed_stats, _ = _fit_circle_2d(seed_projected)
+    except (ValueError, np.linalg.LinAlgError):
+        return None
+    radial_tolerance = max(
+        settings.cylinder_fit_tolerance_mm,
+        settings.stable_id_resolution_mm * 10,
+    )
+    if radius <= radial_tolerance or seed_stats.maximum > radial_tolerance:
+        return None
+    seed_axial = seed_points @ axis
+    axial_min = float(np.min(seed_axial))
+    axial_max = float(np.max(seed_axial))
+    axial_tolerance = max(radial_tolerance * 2, settings.stable_id_resolution_mm * 20)
+
+    eligibility: dict[int, bool] = {}
+
+    def eligible(index: int) -> bool:
+        if index in eligibility:
+            return eligibility[index]
+        patch = patches[index]
+        if patch.kind != "plane" or patch.plane_normal is None:
+            eligibility[index] = False
+            return False
+        normal = np.asarray(patch.plane_normal, dtype=np.float64)
+        if abs(float(np.dot(normal, axis))) > settings.maximum_cylinder_axis_normal_component:
+            eligibility[index] = False
+            return False
+        points = vertices[list(patch.vertex_ids)]
+        projected = np.column_stack((points @ basis_u, points @ basis_v))
+        radial = np.linalg.norm(projected - center_2d, axis=1)
+        if float(np.max(np.abs(radial - radius))) > radial_tolerance:
+            eligibility[index] = False
+            return False
+        axial = points @ axis
+        if (
+            abs(float(np.min(axial)) - axial_min) > axial_tolerance
+            or abs(float(np.max(axial)) - axial_max) > axial_tolerance
+        ):
+            eligibility[index] = False
+            return False
+        eligibility[index] = True
+        return True
+
+    if not eligible(left_index) or not eligible(right_index):
+        return None
+
+    component: set[int] = set()
+    pending = [left_index]
+    while pending:
+        index = pending.pop()
+        if index in component or not eligible(index):
+            continue
+        component.add(index)
+        pending.extend(sorted(neighbors[index] - component, reverse=True))
+    if (
+        right_index not in component
+        or len(component) < settings.minimum_faceted_cylinder_side_count
+        or any(len(neighbors[index] & component) != 2 for index in component)
+    ):
+        return None
+    triangle_ids = np.asarray(
+        sorted(face_id for index in component for face_id in patches[index].triangle_ids),
+        dtype=np.int64,
+    )
+    fitted = fit_surface_patch(mesh, triangle_ids, settings)
+    if (
+        fitted.kind != "cylinder"
+        or fitted.cylinder_axis is None
+        or fitted.cylinder_radius_mm is None
+    ):
+        return None
+    final_axis = np.asarray(fitted.cylinder_axis, dtype=np.float64)
+    final_u, final_v = _orthogonal_basis(final_axis)
+    final_points = vertices[list(fitted.vertex_ids)]
+    final_projected = np.column_stack((final_points @ final_u, final_points @ final_v))
+    final_center, final_radius, _, _ = _fit_circle_2d(final_projected)
+    angles = np.mod(
+        np.arctan2(
+            final_projected[:, 1] - final_center[1],
+            final_projected[:, 0] - final_center[0],
+        ),
+        2 * np.pi,
+    )
+    unique_angles = np.unique(np.round(angles, 12))
+    if len(unique_angles) < settings.minimum_faceted_cylinder_side_count:
+        return None
+    gaps = np.diff(np.concatenate((unique_angles, unique_angles[:1] + 2 * np.pi)))
+    maximum_gap = float(np.max(gaps))
+    sagitta = final_radius * (1.0 - math.cos(maximum_gap / 2.0))
+    if sagitta > settings.maximum_faceted_cylinder_sagitta_mm:
+        return None
+    confidence = min(
+        fitted.confidence,
+        max(0.0, 1.0 - sagitta / settings.maximum_faceted_cylinder_sagitta_mm),
+    )
+    return (
+        frozenset(component),
+        replace(
+            fitted,
+            confidence=confidence,
+            recovered_from_facets=True,
+            facet_sagitta_mm=sagitta,
+        ),
+    )
+
+
+def _coalesce_faceted_cylinders(
+    mesh: trimesh.Trimesh,
+    patches: list[SurfacePatch],
+    settings: SegmentationSettings,
+) -> tuple[list[SurfacePatch], int]:
+    neighbors = _patch_adjacency(mesh, patches)
+    candidates: dict[frozenset[int], SurfacePatch] = {}
+    for left_index in range(len(patches)):
+        for right_index in sorted(neighbors[left_index]):
+            if right_index <= left_index:
+                continue
+            candidate = _faceted_cylinder_candidate(
+                mesh,
+                patches,
+                neighbors,
+                left_index,
+                right_index,
+                settings,
+            )
+            if candidate is not None:
+                members, cylinder = candidate
+                candidates[members] = cylinder
+    selected: list[tuple[frozenset[int], SurfacePatch]] = []
+    claimed: set[int] = set()
+    for members, cylinder in sorted(
+        candidates.items(),
+        key=lambda item: (-len(item[0]), item[1].id, tuple(sorted(item[0]))),
+    ):
+        if members & claimed:
+            continue
+        selected.append((members, cylinder))
+        claimed.update(members)
+    result = [patch for index, patch in enumerate(patches) if index not in claimed]
+    result.extend(cylinder for _, cylinder in selected)
+    result.sort(key=lambda patch: patch.id)
+    return result, len(selected)
+
+
 def segment_mesh(
     mesh: trimesh.Trimesh,
     settings: SegmentationSettings | None = None,
@@ -456,6 +689,7 @@ def segment_mesh(
         fit_surface_patch(mesh, region, settings)
         for region in _smooth_regions(mesh, settings.smooth_angle_deg)
     ]
+    patches, recovered_cylinder_count = _coalesce_faceted_cylinders(mesh, patches, settings)
     patches.sort(key=lambda patch: patch.id)
     face_to_patch: dict[int, str] = {
         face_id: patch.id for patch in patches for face_id in patch.triangle_ids
@@ -481,6 +715,11 @@ def segment_mesh(
         )
     if any(patch.kind == "freeform" for patch in patches):
         warnings.append("freeform remainder preserved; automatic feature inference is partial")
+    if recovered_cylinder_count:
+        warnings.append(
+            f"recovered {recovered_cylinder_count} analytic cylinder patch(es) from "
+            "closed rings of planar STL facets"
+        )
     return SegmentationResult(tuple(patches), settings, tuple(warnings))
 
 
