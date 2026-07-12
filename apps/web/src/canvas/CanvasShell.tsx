@@ -118,34 +118,46 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
       <a className="skip-link" href="#canvas-viewport">Skip to 3D viewport</a>
       <div id="canvas-viewport" className="canvas-stage">
-        <CadViewport
-          chrome="minimal"
-          projectId={vm.project.id}
-          artifacts={vm.artifacts}
-          preferences={viewer}
-          theme={theme}
-          sourceProxyActive={sourceProxy}
-          selectedPatchId={vm.selectedPatchId}
-          onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-          onSelectPatch={actions.selectPatch}
-        />
-        {!hasGeometry && activeJob === null ? (
-          <div className="canvas-empty">
-            <Box size={40} strokeWidth={1.25} />
-            {state.source === null ? (
+        {hasGeometry ? (
+          <CadViewport
+            chrome="minimal"
+            projectId={vm.project.id}
+            artifacts={vm.artifacts}
+            preferences={viewer}
+            theme={theme}
+            sourceProxyActive={sourceProxy}
+            selectedPatchId={vm.selectedPatchId}
+            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+            onSelectPatch={actions.selectPatch}
+          />
+        ) : (
+          <div
+            className={`canvas-empty ${activeJob !== null ? "canvas-empty-loading" : ""}`}
+            role={activeJob !== null ? "status" : undefined}
+            aria-live={activeJob !== null ? "polite" : undefined}
+          >
+            {activeJob !== null ? (
               <>
+                <LoaderCircle className="spin" size={40} strokeWidth={1.25} />
+                <strong>{humanPhase(activeJob.job.phase || activeJob.job.kind)}</strong>
+                <p>Preparing the 3D preview…</p>
+              </>
+            ) : state.source === null ? (
+              <>
+                <Box size={40} strokeWidth={1.25} />
                 <strong>No mesh loaded</strong>
                 <p>Open an STL, OBJ, or PLY to begin.</p>
                 <button className="landing-secondary" onClick={openFilePicker}><FolderOpen size={16} />Open a mesh</button>
               </>
             ) : (
               <>
+                <Box size={40} strokeWidth={1.25} />
                 <strong>Mesh loaded</strong>
                 <p>Run <b>{action.label}</b> to view the {state.patches.length > 0 ? "geometry" : "mesh and its surfaces"}.</p>
               </>
             )}
           </div>
-        ) : null}
+        )}
       </div>
 
       <header className="canvas-topbar">
