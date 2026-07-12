@@ -29,6 +29,7 @@ import type {
   VersionPage,
 } from "../state/types";
 import { browserGeometry } from "./geometry/client";
+import { inferBrowserPrismaticCadGraph } from "./geometry/prismatic";
 import { meshToGlb } from "./glb";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
 
@@ -240,6 +241,24 @@ export class BrowserApiClient {
           triangleCount: compiled.mesh.triangleCount, vertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
           areaMm2: compiled.surfaceArea, confidence: 1, locked: false,
         }];
+        const prismatic = inferBrowserPrismaticCadGraph(compiled.mesh.positions, next.state.source!, next.units);
+        next.state.analysis = {
+          settings: {
+            smoothAngleDeg: 12,
+            planarFitToleranceMm: 0.005,
+            cylinderFitToleranceMm: 0.01,
+            minimumCylinderCoverageDeg: 300,
+            maximumCylinderAxisNormalComponent: 0.05,
+            minimumPatchAreaMm2: 1e-8,
+            stableIdResolutionMm: 1e-5,
+          },
+          patches: next.state.patches,
+          prismaticCandidate: prismatic?.analysis ?? {
+            accepted: false,
+            profiles: [],
+            diagnostics: [{ code: "browser-prismatic-unsupported", message: "No bounded orthogonal line/arc extrusion was detected." }],
+          },
+        } as unknown as JsonObject;
         next.state.diagnostics = {
           format: "stl", encoding: "binary-or-text", byteSize: source.size, sha256: next.state.source!.sha256,
           rawVertexCount: diagnostics?.rawVertexCount ?? compiled.mesh.vertexCount,
@@ -293,6 +312,19 @@ export class BrowserApiClient {
         return { operation, revision: saved.revision, mode: "preserved-source-faceted", exactParametric: false };
       }
       const next = await this.requireProject(projectId);
+      if (next.state.cadgraph === null && operation === "reconstruct") {
+        const source = await this.sourceBlob(next);
+        const analyzed = await browserGeometry.compileStl(source, 0.1, { solidify: false, validateStep: false });
+        const prismatic = inferBrowserPrismaticCadGraph(analyzed.mesh.positions, next.state.source!, next.units);
+        if (prismatic === null) {
+          throw new Error("Smooth browser-local reconstruction is unavailable for this mesh. The faceted fallback remains available explicitly.");
+        }
+        next.state.cadgraph = prismatic.graph;
+        next.state.analysis = {
+          ...(next.state.analysis ?? {}),
+          prismaticCandidate: prismatic.analysis,
+        } as JsonObject;
+      }
       if (next.state.cadgraph === null) throw new Error("This project does not have a CADGraph to compile");
       const compiled = await browserGeometry.compile(next.state.cadgraph);
       const step = new Blob([compiled.step], { type: "model/step" });
@@ -303,7 +335,10 @@ export class BrowserApiClient {
         this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(next.state.cadgraph, null, 2)], { type: "application/json" }), "cadgraph"),
       ]);
       next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
-      next.state.artifacts = artifacts;
+      next.state.artifacts = [
+        ...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"),
+        ...artifacts,
+      ];
       next.state.validation = {
         status: compiled.valid && compiled.solid && compiled.stepReimportValid ? "valid" : "invalid-brep",
         brepValid: compiled.valid && compiled.solid,

@@ -74,16 +74,16 @@ describe("canvas pipeline actions", () => {
     });
   });
 
-  it("regenerates a browser-local faceted STEP from its preserved STL", () => {
+  it("retries analytic recovery for a browser-local faceted STEP", () => {
     const vm = completedWorkspace({
       cadgraph: null,
       source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
     });
 
     expect(regenerationAction(vm)).toMatchObject({
-      label: "Regenerate STEP",
+      kind: "reconstruct",
+      label: "Recover smooth STEP",
       operation: "reconstruct",
-      settings: { mode: "faceted" },
       disabled: false,
     });
   });
