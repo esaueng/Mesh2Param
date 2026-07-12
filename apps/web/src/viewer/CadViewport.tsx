@@ -186,6 +186,7 @@ export function CadViewport({
       aria-label="3D CAD viewer"
       data-testid="cad-viewport"
       data-camera-view={command.direction?.join(",") ?? command.preset}
+      data-display-mode={preferences.shading}
     >
       {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
@@ -296,7 +297,7 @@ export function CadViewport({
                 url={apiClient.artifactUrl(projectId, layer.artifact.name, layer.artifact.sha256)}
                 mode={layer.mode}
                 opacity={layer.opacity}
-                wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
+                shading={layer.mode === "patches" ? "wireframe" : preferences.shading}
                 edges={preferences.edges}
                 comparisonGhost={preferences.mode === "overlay" && layer.mode === "source"}
                 facetedProxy={sourceProxyActive && layer.mode === "reconstructed"}

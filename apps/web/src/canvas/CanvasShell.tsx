@@ -24,6 +24,7 @@ import { CadViewport } from "../viewer/CadViewport";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
+import { DisplayModeMenu } from "./DisplayModeMenu";
 import {
   availableModes,
   humanPhase,
@@ -225,6 +226,13 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
         <span className="dock-sep" />
         <button className="dock-btn" onClick={fit} title="Fit to view" aria-label="Fit to view"><Focus size={17} /></button>
+        <DisplayModeMenu
+          shading={viewer.shading}
+          edges={viewer.edges}
+          theme={theme}
+          disabled={!hasGeometry}
+          onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+        />
         <button className="dock-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle light or dark theme">
           {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
         </button>

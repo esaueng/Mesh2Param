@@ -254,7 +254,7 @@ function validatePersistedUI(value: unknown): PersistedProjectUI {
   if (!VIEWER_MODES.has(mode) || !new Set(["perspective", "orthographic"]).has(projection)) {
     throw new ProjectFileError("invalid_ui", "ui viewer mode or projection is unsupported.");
   }
-  if (!new Set(["shaded", "wireframe"]).has(shading) || !new Set(["dark", "light"]).has(theme)) {
+  if (!new Set(["shaded", "wireframe", "xray", "normals", "zebra"]).has(shading) || !new Set(["dark", "light"]).has(theme)) {
     throw new ProjectFileError("invalid_ui", "ui shading or theme is unsupported.");
   }
   let cameraPose: PersistedProjectUI["cameraPose"] = null;
@@ -297,7 +297,7 @@ function validatePersistedUI(value: unknown): PersistedProjectUI {
       sourceOpacity: boundedNumber(viewer, "sourceOpacity", 0, 1),
       resultOpacity: boundedNumber(viewer, "resultOpacity", 0, 1),
       projection: projection as "perspective" | "orthographic",
-      shading: shading as "shaded" | "wireframe",
+      shading: shading as PersistedProjectUI["viewer"]["shading"],
       edges: requiredBoolean(viewer, "edges"),
     },
     shell: {
