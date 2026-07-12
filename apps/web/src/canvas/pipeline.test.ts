@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
-import { nextAction, reconstructedRevealPreferences } from "./pipeline";
+import { nextAction, regenerationAction, reconstructedRevealPreferences } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
   it("labels the source-bound faceted fallback explicitly", () => {
@@ -63,4 +63,58 @@ describe("canvas pipeline actions", () => {
       edges: true,
     });
   });
+
+  it("regenerates a completed parametric STEP through the validated exporter", () => {
+    const vm = completedWorkspace({ cadgraph: { features: [] } });
+
+    expect(regenerationAction(vm)).toMatchObject({
+      label: "Regenerate STEP",
+      operation: "export",
+      disabled: false,
+    });
+  });
+
+  it("regenerates a browser-local faceted STEP from its preserved STL", () => {
+    const vm = completedWorkspace({
+      cadgraph: null,
+      source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
+    });
+
+    expect(regenerationAction(vm)).toMatchObject({
+      label: "Regenerate STEP",
+      operation: "reconstruct",
+      settings: { mode: "faceted" },
+      disabled: false,
+    });
+  });
+
+  it("disables STEP regeneration while another geometry job is active", () => {
+    const vm = completedWorkspace({ cadgraph: { features: [] } });
+    vm.activeJob = { job: { kind: "export" } } as WorkspaceViewModel["activeJob"];
+
+    expect(regenerationAction(vm)).toMatchObject({
+      disabled: true,
+      reason: "A job is already running.",
+    });
+  });
 });
+
+function completedWorkspace(overrides: Record<string, unknown>): WorkspaceViewModel {
+  const state = {
+    units: "mm",
+    source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
+    patches: [],
+    cadgraph: null,
+    validation: { brepValid: true, stepReimportValid: true },
+    artifacts: [],
+    settings: {},
+    ...overrides,
+  } as unknown as ProjectWorkingDocument;
+  return {
+    project: { units: "mm", state },
+    activeJob: null,
+    artifacts: [{ name: "model.step", kind: "step" }],
+    workerReady: true,
+    serverWritable: true,
+  } as unknown as WorkspaceViewModel;
+}

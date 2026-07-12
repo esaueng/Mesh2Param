@@ -51,6 +51,9 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .dock-modes button{height:30px;padding:0 11px;border:0;border-radius:6px;background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
 .dock-modes button:hover{color:var(--color-text);background:var(--color-hover)}
 .dock-modes button.active{color:var(--color-accent);background:var(--color-accent-dim)}
+.canvas-dock .dock-secondary{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 12px;border:1px solid var(--color-border-strong);border-radius:8px;background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui);white-space:nowrap}
+.canvas-dock .dock-secondary:hover:not(:disabled){color:var(--color-text);background:var(--color-hover);border-color:var(--color-accent-border)}
+.canvas-dock .dock-secondary:disabled,.canvas-dock .dock-primary:disabled{opacity:.5;cursor:not-allowed}
 .canvas-dock .dock-primary{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border:1px solid #268cf4;border-radius:8px;background:#1673de;color:#fff;font:500 var(--fs-base) var(--font-ui);white-space:nowrap}
 .canvas-dock .dock-primary:hover:not(:disabled){background:#1264c6}
 .canvas-dock .dock-primary svg{flex:none}
@@ -158,6 +161,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .canvas-dock{left:12px;right:12px;transform:none;gap:2px;max-width:none;padding:5px;bottom:14px;overflow-x:auto;scrollbar-width:thin}
   .canvas-dock .dock-btn{width:44px;height:44px}
   .dock-modes button{height:44px;padding:0 12px}
+  .canvas-dock .dock-secondary{height:44px;padding:0 12px}
   .canvas-dock .dock-primary{height:44px;padding:0 12px}
   .landing-recents-chips button{height:44px}
   .dc-actions button{height:44px;padding:0 12px}
