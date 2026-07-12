@@ -151,9 +151,26 @@ export default function App() {
       })}
       onOpenProjectFile={(file) => void withBusy(async () => {
         const parsed = await workspaceRepository.importProjectFileBlob(file);
+        const imported = { ...parsed.file.project, state: parsed.file.working };
+        let regenerationJob: Job | null = null;
+        if (parsed.file.artifactManifest.length > 0) {
+          const operation = imported.state.cadgraph !== null
+            ? "rebuild"
+            : imported.state.source?.format === "stl"
+              ? "analyze"
+              : null;
+          if (operation !== null) {
+            regenerationJob = (await apiClient.startOperation(
+              imported.id,
+              operation,
+              imported.revision,
+              operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
+            )).data;
+          }
+        }
         openWorkspace(
-          { ...parsed.file.project, state: parsed.file.working },
-          null,
+          imported,
+          regenerationJob,
           parsed.file.ui,
         );
       })}

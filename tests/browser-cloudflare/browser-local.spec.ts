@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 test("opens persisted geometry and rebuilds an exact CADGraph in browser WASM", async ({ page }) => {
@@ -59,6 +60,36 @@ test("analyzes an uploaded STL and exports a browser-local faceted STEP", async 
   await expect(page.getByRole("button", { name: "Generate STEP" })).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Generate STEP" }).click();
   await expect(page.getByRole("button", { name: "Download STEP" })).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator(".global-error")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "3D CAD viewer" })).not.toContainText("Viewer could not load geometry");
+
+  await page.evaluate(() => {
+    Object.defineProperty(window, "showSaveFilePicker", { value: undefined, configurable: true });
+  });
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save project" }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  if (downloadPath === null) throw new Error("Saved project download was unavailable");
+  const saved = JSON.parse(await readFile(downloadPath, "utf8")) as {
+    working: { diagnostics: { closedVolume: number | null }; metrics: { volume?: number } | null };
+  };
+  if (saved.working.diagnostics.closedVolume !== null) {
+    saved.working.diagnostics.closedVolume = -Math.abs(saved.working.diagnostics.closedVolume);
+  }
+  if (typeof saved.working.metrics?.volume === "number") {
+    saved.working.metrics.volume = -Math.abs(saved.working.metrics.volume);
+  }
+
+  await page.getByRole("button", { name: "Back to start screen" }).click();
+  await page.locator('input[type="file"]').nth(1).setInputFiles({
+    name: "signed-volume.mesh2param.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(saved)),
+  });
+
+  await expect(page.getByText("source-high.stl", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate STEP" })).toBeVisible({ timeout: 120_000 });
   await expect(page.locator(".global-error")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "3D CAD viewer" })).not.toContainText("Viewer could not load geometry");
 });

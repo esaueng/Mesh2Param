@@ -281,16 +281,22 @@ export class WorkspaceRepository {
 
   async importParsedProjectFile(parsed: ParsedProjectFile): Promise<ParsedProjectFile> {
     const now = new Date().toISOString();
-    const contentHash = await contentSha256(parsed.file.working);
+    // Project files carry an artifact manifest, not the artifact bytes. Do not
+    // hydrate stale descriptors into the active viewer; the browser client can
+    // deterministically regenerate a preview from the embedded source/CADGraph.
+    const working = structuredClone(parsed.file.working);
+    working.artifacts = [];
+    working.artifactSetId = null;
+    const contentHash = await contentSha256(working);
     const project: ProjectRecord = {
       ...parsed.file.project,
       lastOpenedAt: now,
-      activeVersionId: parsed.file.working.currentVersionId,
+      activeVersionId: working.currentVersionId,
       syncState: "clean",
     };
     const document: DocumentRecord = {
       projectId: project.id,
-      document: structuredClone(parsed.file.working),
+      document: working,
       updatedAt: now,
       baseVersionId: project.basedOnVersionId,
       localRevision: 0,
@@ -340,7 +346,7 @@ export class WorkspaceRepository {
         await this.db.outbox.where("projectId").equals(project.id).delete();
       },
     );
-    return parsed;
+    return { ...parsed, file: { ...parsed.file, working } };
   }
 
   async exportProjectFile(
