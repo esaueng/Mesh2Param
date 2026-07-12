@@ -285,6 +285,7 @@ export function CadViewport({
                 opacity={layer.opacity}
                 wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
                 edges={preferences.edges}
+                comparisonGhost={preferences.mode === "overlay" && layer.mode === "source"}
                 theme={theme}
                 selectionRanges={layer.mode === "patches" ? selection : []}
                 selectedPatchId={selectedPatchId}
