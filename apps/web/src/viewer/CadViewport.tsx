@@ -1,5 +1,5 @@
 import { Html, Line } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Box, Camera, Expand, Focus, Grid3X3, Layers3, Ruler, Rotate3D, ScanLine, Slice, View } from "lucide-react";
 import {
   Component,
@@ -21,7 +21,7 @@ import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
 import { OrientationGizmo, type GizmoViewRequest } from "./OrientationGizmo";
-import type { ViewPreset } from "./cameraMath";
+import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
 
@@ -65,6 +65,7 @@ export function CadViewport({
   const [sectionEnabled, setSectionEnabled] = useState(false);
   const [measurementEnabled, setMeasurementEnabled] = useState(false);
   const [measurementPoints, setMeasurementPoints] = useState<THREE.Vector3[]>([]);
+  const [scaleBar, setScaleBar] = useState<ScaleBarSpec | null>(null);
   const controls = useRef<OrbitControlsImpl | null>(null);
   const palette = viewerPalette(theme);
   const artifactMap = useMemo(() => new Map(artifacts.map((artifact) => [artifact.name, artifact])), [artifacts]);
@@ -100,17 +101,30 @@ export function CadViewport({
 
   const layers = layersForMode(preferences, artifactMap);
   const artifactKey = layers.map((layer) => layer.artifact.sha256).join("|") || projectId;
+  // Reset bounds synchronously when the displayed artifacts change; an effect would let
+  // CameraRig pair the new key with the previous artifact's stale box and skip the auto-fit.
+  const boundsKeyRef = useRef(artifactKey);
+  if (boundsKeyRef.current !== artifactKey) {
+    boundsKeyRef.current = artifactKey;
+    setBounds(null);
+  }
   const sectionZ = sectionEnabled && bounds !== null ? bounds.getCenter(new THREE.Vector3()).z : null;
   const sectionPlane = useMemo(() => sectionZ === null
     ? null
     : new THREE.Plane(new THREE.Vector3(0, 0, -1), sectionZ), [sectionZ]);
+  const onScaleChange = useCallback((pxPerUnit: number) => {
+    const next = scaleBarForPixelsPerUnit(pxPerUnit);
+    if (next === null) return;
+    setScaleBar((current) => current !== null && current.value === next.value && current.width === next.width
+      ? current
+      : next);
+  }, []);
   const onBounds = useCallback((box: THREE.Box3) => {
     setBounds((current) => {
       const next = current?.clone().union(box) ?? box.clone();
       return current !== null && current.min.equals(next.min) && current.max.equals(next.max) ? current : next;
     });
   }, []);
-  useEffect(() => setBounds(null), [artifactKey]);
   useEffect(() => {
     const fit = () => setCommand((current) => ({ ...current, fitRevision: current.fitRevision + 1 }));
     const view = (event: Event) => {
@@ -242,9 +256,12 @@ export function CadViewport({
           dpr={[1, 1.75]}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}
-          onCreated={({ gl }) => {
+          onCreated={({ gl, invalidate }) => {
             gl.localClippingEnabled = true;
+            // preventDefault opts into context restoration; with frameloop="demand" the
+            // restored context stays black until something invalidates, so request a frame.
             gl.domElement.addEventListener("webglcontextlost", (event) => event.preventDefault());
+            gl.domElement.addEventListener("webglcontextrestored", () => invalidate());
           }}
         >
           <color key={palette.background} attach="background" args={[palette.background]} />
@@ -293,18 +310,44 @@ export function CadViewport({
           </Suspense>
           <CameraRig bounds={bounds} artifactKey={artifactKey} command={command} controlsRef={controls} />
           <OrientationGizmo onSelectView={gizmoView} />
+          <ScaleProbe controlsRef={controls} onScale={onScaleChange} />
         </Canvas>
       </ViewerErrorBoundary>
 
       {layers.length === 0 && chrome === "full" ? (
         <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
-      <div className="scale-bar" aria-hidden="true"><span />10 mm</div>
+      {scaleBar === null ? null : (
+        <div className="scale-bar" aria-hidden="true"><span style={{ width: scaleBar.width }} />{scaleBar.value} mm</div>
+      )}
       {selectedPatchId === null ? null : (
         <div className="selection-chip">Selected patch <strong>{selectedPatchId}</strong></div>
       )}
     </section>
   );
+}
+
+/** Reports screen pixels per world unit (measured at the orbit target) whenever a frame renders. */
+function ScaleProbe({
+  controlsRef,
+  onScale,
+}: {
+  controlsRef: MutableRefObject<OrbitControlsImpl | null>;
+  onScale(pxPerUnit: number): void;
+}) {
+  const { camera, size } = useThree();
+  useFrame(() => {
+    if (camera instanceof THREE.OrthographicCamera) {
+      onScale(camera.zoom);
+      return;
+    }
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const target = controlsRef.current?.target;
+    const distance = Math.max(target === undefined ? camera.position.length() : camera.position.distanceTo(target), 1e-6);
+    const worldHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    onScale(size.height / worldHeight);
+  });
+  return null;
 }
 
 function ProjectionController({
