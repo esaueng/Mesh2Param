@@ -6,6 +6,8 @@ export interface ViewerPalette {
   background: string;
   gridMajor: string;
   gridMinor: string;
+  edge: string;
+  edgeOpacity: number;
   patch: string;
   highlight: string;
   highlightEmissive: string;
@@ -21,6 +23,8 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     background: "#070b10",
     gridMajor: "#1d4a73",
     gridMinor: "#132e49",
+    edge: "#05080b",
+    edgeOpacity: 0.72,
     patch: "#4da3ff",
     highlight: "#9dd7ff",
     highlightEmissive: "#0a78d4",
@@ -39,6 +43,8 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     background: "#f7f9fc",
     gridMajor: "#8fa5b8",
     gridMinor: "#cbd6e0",
+    edge: "#111820",
+    edgeOpacity: 0.62,
     patch: "#0b63b6",
     highlight: "#07599f",
     highlightEmissive: "#063b69",

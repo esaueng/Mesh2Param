@@ -3,6 +3,7 @@ import {
   patchForFace,
   selectedTriangleRanges,
   usesAnalyticResultShading,
+  usesShadedEdgeOverlay,
   type SelectionRange,
 } from "./ArtifactLayer";
 
@@ -30,5 +31,13 @@ describe("analytic result shading", () => {
     expect(usesAnalyticResultShading("reconstructed")).toBe(true);
     expect(usesAnalyticResultShading("source")).toBe(false);
     expect(usesAnalyticResultShading("patches")).toBe(false);
+  });
+});
+
+describe("shaded edge overlay", () => {
+  it("adds edges over shaded surfaces without duplicating pure wireframe rendering", () => {
+    expect(usesShadedEdgeOverlay(false, true)).toBe(true);
+    expect(usesShadedEdgeOverlay(true, true)).toBe(false);
+    expect(usesShadedEdgeOverlay(false, false)).toBe(false);
   });
 });

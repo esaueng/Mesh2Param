@@ -202,7 +202,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   aria-pressed={viewer.mode === option.mode}
                   onClick={() => setMode(option.mode)}
                 >
-                  {option.mode === "reconstructed" && sourceProxy ? "Proxy" : option.label}
+                  {option.mode === "reconstructed" && sourceProxy ? "Converted" : option.label}
                 </button>
               ))}
             </div>
