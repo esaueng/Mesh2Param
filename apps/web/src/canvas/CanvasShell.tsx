@@ -226,11 +226,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </section>
         ) : null}
 
-<<<<<<< HEAD
         <section className="panel-group">
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
+            <DisplayModeMenu
+              shading={viewer.shading}
+              edges={viewer.edges}
+              theme={theme}
+              disabled={!hasGeometry}
+              onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+            />
             <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               {theme === "dark" ? "Light" : "Dark"}
@@ -264,6 +270,32 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </div>
           ) : (
             <>
+              {rerunAnalysis !== null || regenerate !== null ? (
+                <div className="panel-secondary-grid">
+                  {rerunAnalysis !== null ? (
+                    <button
+                      className="panel-btn"
+                      onClick={onRerunAnalysis}
+                      disabled={rerunAnalysis.disabled}
+                      title={rerunAnalysis.reason ?? rerunAnalysis.hint}
+                    >
+                      <ScanSearch size={14} />
+                      Analysis
+                    </button>
+                  ) : null}
+                  {regenerate !== null ? (
+                    <button
+                      className="panel-btn"
+                      onClick={onRegenerate}
+                      disabled={regenerate.disabled}
+                      title={regenerate.reason ?? regenerate.hint}
+                    >
+                      <RefreshCw size={14} />
+                      STEP
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 className="dock-primary"
                 onClick={onPrimary}
@@ -283,66 +315,6 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </>
           )}
         </section>
-=======
-        <span className="dock-sep" />
-        <button className="dock-btn" onClick={fit} title="Fit to view" aria-label="Fit to view"><Focus size={17} /></button>
-        <DisplayModeMenu
-          shading={viewer.shading}
-          edges={viewer.edges}
-          theme={theme}
-          disabled={!hasGeometry}
-          onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-        />
-        <button className="dock-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle light or dark theme">
-          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
-        <button
-          className={`dock-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
-          onClick={() => setConsoleOpen((value) => !value)}
-          title="Toggle console"
-          aria-label="Toggle debug console"
-          aria-pressed={consoleOpen}
-        >
-          <TerminalSquare size={17} />
-          {issueCount > 0 ? <span className="dock-badge">{issueCount > 99 ? "99+" : issueCount}</span> : null}
-        </button>
-
-        <span className="dock-sep" />
-        {rerunAnalysis !== null ? (
-          <button
-            className="dock-secondary dock-secondary-compact"
-            onClick={onRerunAnalysis}
-            disabled={rerunAnalysis.disabled}
-            title={rerunAnalysis.reason ?? rerunAnalysis.hint}
-            aria-label={rerunAnalysis.label}
-          >
-            <ScanSearch size={14} />
-            Analysis
-          </button>
-        ) : null}
-        {regenerate !== null ? (
-          <button
-            className="dock-secondary dock-secondary-compact"
-            onClick={onRegenerate}
-            disabled={regenerate.disabled}
-            title={regenerate.reason ?? regenerate.hint}
-            aria-label={regenerate.label}
-          >
-            <RefreshCw size={14} />
-            STEP
-          </button>
-        ) : null}
-        <button
-          className="dock-primary"
-          onClick={onPrimary}
-          disabled={action.disabled}
-          title={action.reason ?? action.hint}
-          data-action={action.kind}
-        >
-          <PrimaryIcon kind={action.kind} />
-          {action.label}
-        </button>
->>>>>>> origin/cloud
       </nav>
 
       <input
