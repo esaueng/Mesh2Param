@@ -35,6 +35,15 @@ const MODES: ReadonlyArray<{ id: ViewerMode; label: string }> = [
   { id: "residual", label: "Heatmap" },
 ];
 
+/**
+ * Keep screen-space viewer chrome crisp on HiDPI displays. Dense geometry still
+ * gets a lower pixel ratio, but no longer forces the whole canvas (including the
+ * orientation gizmo) down to a visibly pixelated 1x backing buffer.
+ */
+export function viewerDpr(denseMesh: boolean): number {
+  return denseMesh ? 1.5 : 2;
+}
+
 interface CadViewportProps {
   projectId: string;
   artifacts: ArtifactDescriptor[];
@@ -277,7 +286,7 @@ export function CadViewport({
         <Canvas
           key={`webgl-${rendererRevision}`}
           frameloop="always"
-          dpr={denseMesh ? 1 : [1, 1.25]}
+          dpr={viewerDpr(denseMesh)}
           gl={{ alpha: false, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false }}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}

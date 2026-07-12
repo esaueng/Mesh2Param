@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
-import { nextAction } from "./pipeline";
+import { nextAction, reconstructedRevealPreferences } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
-  it("labels the source-bound faceted fallback as Generate STEP", () => {
+  it("labels the source-bound faceted fallback explicitly", () => {
     const patches = [{
       id: "patch.freeform",
       type: "freeform",
@@ -48,10 +48,19 @@ describe("canvas pipeline actions", () => {
 
     expect(nextAction(vm)).toMatchObject({
       kind: "faceted",
-      label: "Generate STEP",
+      label: "Generate faceted STEP",
       operation: "reconstruct",
       settings: { mode: "faceted" },
       disabled: false,
+    });
+  });
+
+  it("reveals reconstructed CAD as a shaded solid instead of inherited mesh wireframe", () => {
+    expect(reconstructedRevealPreferences()).toEqual({
+      mode: "reconstructed",
+      resultOpacity: 1,
+      shading: "shaded",
+      edges: true,
     });
   });
 });
