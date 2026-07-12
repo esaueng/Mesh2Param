@@ -9,6 +9,7 @@ import {
   Layers,
   LoaderCircle,
   Moon,
+  RefreshCw,
   Save,
   ScanSearch,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
   humanPhase,
   isValidated,
   nextAction,
+  regenerationAction,
   reconstructedRevealPreferences,
   type PipelineActionKind,
   stepArtifact,
@@ -47,6 +49,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const state = vm.project.state;
   const action = nextAction(vm);
+  const regenerate = regenerationAction(vm);
   const modes = availableModes(vm.artifacts);
   const activeJob = vm.activeJob;
 
@@ -109,6 +112,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") void downloadStep();
     else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
+  };
+
+  const onRegenerate = () => {
+    if (regenerate?.operation !== undefined) void actions.run(regenerate.operation, regenerate.settings);
   };
 
   const status = conversionStatus(vm);
@@ -251,6 +258,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         </button>
 
         <span className="dock-sep" />
+        {regenerate !== null ? (
+          <button
+            className="dock-secondary"
+            onClick={onRegenerate}
+            disabled={regenerate.disabled}
+            title={regenerate.reason ?? regenerate.hint}
+          >
+            <RefreshCw size={16} />
+            {regenerate.label}
+          </button>
+        ) : null}
         <button
           className="dock-primary"
           onClick={onPrimary}

@@ -65,15 +65,52 @@ export function stepArtifact(artifacts: readonly ArtifactDescriptor[]): Artifact
   return artifacts.find((artifact) => /\.(step|stp)$/i.test(artifact.name));
 }
 
-export function nextAction(vm: WorkspaceViewModel): PipelineAction {
-  const state = vm.project.state;
-  const runBlocked = !vm.workerReady
+function operationBlockReason(vm: WorkspaceViewModel): string | null {
+  return !vm.workerReady
     ? "The geometry worker is not ready yet."
     : !vm.serverWritable
       ? "Resolve queued local edits before running geometry jobs."
       : vm.activeJob !== null
         ? "A job is already running."
         : null;
+}
+
+/**
+ * Regenerate an existing STEP from the project's authoritative geometry.
+ * Browser-local faceted projects do not carry a CADGraph, so they must repeat
+ * the source-bound faceted conversion instead of using the graph exporter.
+ */
+export function regenerationAction(vm: WorkspaceViewModel): PipelineAction | null {
+  const state = vm.project.state;
+  if (!isValidated(state) || stepArtifact(vm.artifacts) === undefined) return null;
+
+  const runBlocked = operationBlockReason(vm);
+  if (state.cadgraph !== null) {
+    return {
+      kind: "export",
+      operation: "export",
+      label: "Regenerate STEP",
+      hint: "Rebuild the STEP file from the current project model",
+      disabled: runBlocked !== null,
+      ...(runBlocked !== null ? { reason: runBlocked } : {}),
+    };
+  }
+
+  if (!facetedApplicable(state)) return null;
+  return {
+    kind: "faceted",
+    operation: "reconstruct",
+    settings: { mode: "faceted" },
+    label: "Regenerate STEP",
+    hint: "Rebuild the faceted STEP from the preserved source mesh",
+    disabled: runBlocked !== null,
+    ...(runBlocked !== null ? { reason: runBlocked } : {}),
+  };
+}
+
+export function nextAction(vm: WorkspaceViewModel): PipelineAction {
+  const state = vm.project.state;
+  const runBlocked = operationBlockReason(vm);
 
   if (state.source === null) {
     return { kind: "open", label: "Open a mesh", hint: "Load an STL, OBJ, or PLY file", disabled: false };
