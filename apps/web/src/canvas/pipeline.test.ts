@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
-import { nextAction } from "./pipeline";
+import {
+  analysisRerunAction,
+  nextAction,
+  regenerationAction,
+  reconstructedRevealPreferences,
+} from "./pipeline";
 
 describe("canvas pipeline actions", () => {
-  it("labels the source-bound faceted fallback as Generate STEP", () => {
+  it("labels the source-bound faceted fallback explicitly", () => {
     const patches = [{
       id: "patch.freeform",
       type: "freeform",
@@ -48,10 +53,106 @@ describe("canvas pipeline actions", () => {
 
     expect(nextAction(vm)).toMatchObject({
       kind: "faceted",
-      label: "Generate STEP",
+      label: "Generate faceted STEP",
       operation: "reconstruct",
       settings: { mode: "faceted" },
       disabled: false,
     });
   });
+
+  it("reveals reconstructed CAD as a shaded solid instead of inherited mesh wireframe", () => {
+    expect(reconstructedRevealPreferences()).toEqual({
+      mode: "reconstructed",
+      resultOpacity: 1,
+      shading: "shaded",
+      edges: true,
+    });
+  });
+
+  it("regenerates a completed parametric STEP through the validated exporter", () => {
+    const vm = completedWorkspace({ cadgraph: { features: [] } });
+
+    expect(regenerationAction(vm)).toMatchObject({
+      label: "Regenerate STEP",
+      operation: "export",
+      disabled: false,
+    });
+  });
+
+  it("retries analytic recovery for a browser-local faceted STEP", () => {
+    const vm = completedWorkspace({
+      cadgraph: null,
+      source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
+    });
+
+    expect(regenerationAction(vm)).toMatchObject({
+      kind: "reconstruct",
+      label: "Recover smooth STEP",
+      operation: "reconstruct",
+      disabled: false,
+    });
+  });
+
+  it("disables STEP regeneration while another geometry job is active", () => {
+    const vm = completedWorkspace({ cadgraph: { features: [] } });
+    vm.activeJob = { job: { kind: "export" } } as WorkspaceViewModel["activeJob"];
+
+    expect(regenerationAction(vm)).toMatchObject({
+      disabled: true,
+      reason: "A job is already running.",
+    });
+  });
+
+  it("offers a non-destructive analysis rerun for a completed project", () => {
+    const vm = completedWorkspace({ analysis: { settings: {}, patches: [] } });
+
+    expect(analysisRerunAction(vm)).toMatchObject({
+      kind: "analyze",
+      label: "Rerun analysis",
+      operation: "analyze",
+      disabled: false,
+    });
+  });
+
+  it("hides analysis rerun before a project has existing work", () => {
+    const vm = completedWorkspace({
+      analysis: null,
+      patches: [],
+      cadgraph: null,
+      validation: null,
+    });
+    vm.artifacts = [];
+
+    expect(analysisRerunAction(vm)).toBeNull();
+  });
+
+  it("disables analysis rerun while another geometry job is active", () => {
+    const vm = completedWorkspace({ analysis: { settings: {}, patches: [] } });
+    vm.activeJob = { job: { kind: "export" } } as WorkspaceViewModel["activeJob"];
+
+    expect(analysisRerunAction(vm)).toMatchObject({
+      disabled: true,
+      reason: "A job is already running.",
+    });
+  });
 });
+
+function completedWorkspace(overrides: Record<string, unknown>): WorkspaceViewModel {
+  const state = {
+    units: "mm",
+    source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
+    patches: [],
+    cadgraph: null,
+    validation: { brepValid: true, stepReimportValid: true },
+    artifacts: [],
+    settings: {},
+    ...overrides,
+  } as unknown as ProjectWorkingDocument;
+  return {
+    project: { units: "mm", state },
+    activeJob: null,
+    artifacts: [{ name: "model.step", kind: "step" }],
+    workerReady: true,
+    serverWritable: true,
+  } as unknown as WorkspaceViewModel;
+}

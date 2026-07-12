@@ -9,6 +9,7 @@ import {
   Layers,
   LoaderCircle,
   Moon,
+  RefreshCw,
   Save,
   ScanSearch,
   ShieldCheck,
@@ -24,11 +25,15 @@ import { CadViewport } from "../viewer/CadViewport";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
+import { DisplayModeMenu } from "./DisplayModeMenu";
 import {
+  analysisRerunAction,
   availableModes,
   humanPhase,
   isValidated,
   nextAction,
+  regenerationAction,
+  reconstructedRevealPreferences,
   type PipelineActionKind,
   stepArtifact,
 } from "./pipeline";
@@ -45,6 +50,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const state = vm.project.state;
   const action = nextAction(vm);
+  const rerunAnalysis = analysisRerunAction(vm);
+  const regenerate = regenerationAction(vm);
   const modes = availableModes(vm.artifacts);
   const activeJob = vm.activeJob;
 
@@ -69,8 +76,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
     if (revealedRef.current || !names.has("reconstructed.glb")) return;
     revealedRef.current = true;
-    if (workspaceStore.getState().viewer.mode === "source") setMode("reconstructed");
-  }, [vm.artifacts, setMode]);
+    const store = workspaceStore.getState();
+    debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
+    store.setViewerPreferences(reconstructedRevealPreferences());
+  }, [vm.artifacts]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
@@ -105,6 +114,14 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") void downloadStep();
     else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
+  };
+
+  const onRegenerate = () => {
+    if (regenerate?.operation !== undefined) void actions.run(regenerate.operation, regenerate.settings);
+  };
+
+  const onRerunAnalysis = () => {
+    if (rerunAnalysis?.operation !== undefined) void actions.run(rerunAnalysis.operation, rerunAnalysis.settings);
   };
 
   const status = conversionStatus(vm);
@@ -209,6 +226,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </section>
         ) : null}
 
+<<<<<<< HEAD
         <section className="panel-group">
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
@@ -265,6 +283,66 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </>
           )}
         </section>
+=======
+        <span className="dock-sep" />
+        <button className="dock-btn" onClick={fit} title="Fit to view" aria-label="Fit to view"><Focus size={17} /></button>
+        <DisplayModeMenu
+          shading={viewer.shading}
+          edges={viewer.edges}
+          theme={theme}
+          disabled={!hasGeometry}
+          onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+        />
+        <button className="dock-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle light or dark theme">
+          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+        <button
+          className={`dock-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
+          onClick={() => setConsoleOpen((value) => !value)}
+          title="Toggle console"
+          aria-label="Toggle debug console"
+          aria-pressed={consoleOpen}
+        >
+          <TerminalSquare size={17} />
+          {issueCount > 0 ? <span className="dock-badge">{issueCount > 99 ? "99+" : issueCount}</span> : null}
+        </button>
+
+        <span className="dock-sep" />
+        {rerunAnalysis !== null ? (
+          <button
+            className="dock-secondary dock-secondary-compact"
+            onClick={onRerunAnalysis}
+            disabled={rerunAnalysis.disabled}
+            title={rerunAnalysis.reason ?? rerunAnalysis.hint}
+            aria-label={rerunAnalysis.label}
+          >
+            <ScanSearch size={14} />
+            Analysis
+          </button>
+        ) : null}
+        {regenerate !== null ? (
+          <button
+            className="dock-secondary dock-secondary-compact"
+            onClick={onRegenerate}
+            disabled={regenerate.disabled}
+            title={regenerate.reason ?? regenerate.hint}
+            aria-label={regenerate.label}
+          >
+            <RefreshCw size={14} />
+            STEP
+          </button>
+        ) : null}
+        <button
+          className="dock-primary"
+          onClick={onPrimary}
+          disabled={action.disabled}
+          title={action.reason ?? action.hint}
+          data-action={action.kind}
+        >
+          <PrimaryIcon kind={action.kind} />
+          {action.label}
+        </button>
+>>>>>>> origin/cloud
       </nav>
 
       <input
@@ -313,8 +391,11 @@ function fileMeta(vm: WorkspaceViewModel): string {
   return parts.join(" · ");
 }
 
-function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
+export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
+  ))) return { label: "Faceted STEP", tone: "warn" };
   if (isValidated(state)) return { label: "Validated", tone: "ok" };
   if (state.cadgraph !== null) return { label: "Reconstructed", tone: "info" };
   if (state.patches.length > 0) return { label: "Analyzed", tone: "info" };

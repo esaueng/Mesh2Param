@@ -10,6 +10,7 @@ the exact binaries and source it ships.
 | Component | Version in `uv.lock` | License | Use and source |
 | --- | --- | --- | --- |
 | Open CASCADE Technology (OCCT) | 7.9.3, embedded by `cadquery-ocp` 7.9.3.1.1 | LGPL-2.1-only with Open CASCADE exception 1.0 | Exact B-Rep construction, validation, STEP import/export, and tessellation. [OCCT source](https://github.com/Open-Cascade-SAS/OCCT/tree/V7_9_3). |
+| occt-wasm | 3.6.1 | TypeScript tooling MIT OR Apache-2.0; embedded OCCT WebAssembly remains LGPL-2.1-only | Browser-local B-Rep construction, STEP import/export, validation, and tessellation. [occt-wasm source](https://github.com/andymai/occt-wasm). |
 | CadQuery OCP bindings | 7.9.3.1.1 | Apache-2.0 for the bindings; bundled OCCT remains LGPL-2.1 with the exception | Python bindings distributed by [CadQuery/OCP](https://github.com/CadQuery/OCP/tree/7.9.3.1). |
 | CasADi | 3.7.2 | LGPL-3.0-or-later | Transitive dependency of CadQuery. [CasADi source](https://github.com/casadi/casadi/tree/3.7.2). Mesh2Param does not call it directly. |
 | OpenCAE reference | commit `a8aba0048dd21565b5b76357cfd9be62917cf6f6c` | Apache-2.0 | Generic shell organization, design-token approach, control density, and accessibility conventions informed the distinct Mesh2Param UI. |
@@ -32,7 +33,7 @@ engineering, and modification requirements. Mesh2Param does not modify OCCT or C
 | --- | --- | --- |
 | Geometry/runtime | CadQuery, cadquery-ocp, trimesh, NumPy, SciPy, Shapely, NetworkX | Apache-2.0; OCCT LGPL-2.1 + exception; MIT; BSD-family and bundled permissive notices |
 | API/runtime | FastAPI, Pydantic Settings, SQLAlchemy, Uvicorn | MIT and BSD-3-Clause |
-| Browser/runtime | React, React DOM, Three.js, R3F, Drei, Dexie, Immer, Lucide, Zustand | MIT, Apache-2.0, and ISC |
+| Browser/runtime | React, React DOM, Three.js, R3F, Drei, Dexie, Immer, Lucide, Zustand, occt-wasm | MIT, Apache-2.0, ISC, and embedded OCCT LGPL-2.1 |
 | Fonts | IBM Plex Sans and IBM Plex Mono through `@fontsource` | SIL Open Font License 1.1 |
 | Schema/runtime | Ajv, ajv-formats | MIT |
 | Development/test | Vite, TypeScript, ESLint, Vitest, Testing Library, Playwright, pytest, mypy, Ruff, jsonschema | MIT, Apache-2.0, BSD-family, and MPL-2.0 transitive components |
@@ -186,6 +187,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | cliui | 8.0.1 | ISC |
 | javascript | color-convert | 2.0.1 | MIT |
 | javascript | color-name | 1.1.4 | MIT |
+| javascript | comlink | 4.4.2 | Apache-2.0 |
 | javascript | concat-map | 0.0.1 | MIT |
 | javascript | concurrently | 9.2.3 | MIT |
 | javascript | convert-source-map | 2.0.0 | MIT |
@@ -298,6 +300,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | natural-compare | 1.4.0 | MIT |
 | javascript | node-releases | 2.0.51 | MIT |
 | javascript | nwsapi | 2.2.24 | MIT |
+| javascript | occt-wasm | 3.6.1 | MIT OR Apache-2.0 |
 | javascript | optionator | 0.9.4 | MIT |
 | javascript | p-limit | 3.1.0 | MIT |
 | javascript | p-locate | 5.0.0 | MIT |
