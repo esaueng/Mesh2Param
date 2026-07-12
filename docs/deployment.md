@@ -17,6 +17,63 @@ Mesh2Param itself has no login or tenant authorization. The gateway shown above 
 remote access. For local-only use, Compose publishes the web service on loopback and no gateway is
 required.
 
+## Cloudflare Worker frontend
+
+The repository includes a Cloudflare Worker entrypoint and `wrangler.jsonc`. It deploys the Vite
+build through Workers Static Assets, uses SPA fallback routing, and invokes the Worker first only
+for `/api`, `/health`, `/ready`, `/docs`, and `/openapi.json`. API request and response bodies are
+streamed so uploads, artifact downloads, and job event streams are not buffered in Worker memory.
+
+The Python service is deliberately not bundled into the Worker. Mesh2Param's geometry runtime uses
+native CadQuery/OCCT dependencies, child-process isolation, SQLite, and a persistent filesystem CAS.
+Host the existing API and external geometry worker using the production topology in this document,
+then point the edge Worker at that HTTPS API origin.
+
+Install and validate the deployment without publishing it:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm cf:check
+```
+
+Run the Worker locally. With the default empty API origin, the UI works and API routes return a
+structured `503`, which is useful for checking the static deployment boundary:
+
+```sh
+pnpm cf:dev
+```
+
+Deploy a UI-only Worker:
+
+```sh
+pnpm cf:deploy
+```
+
+Deploy with the same-origin API proxy enabled:
+
+```sh
+pnpm cf:deploy --var MESH2PARAM_API_ORIGIN:https://api.example.com
+```
+
+`MESH2PARAM_API_ORIGIN` must be a bare `http://` or `https://` origin with no credentials, path,
+query, or fragment. Use HTTPS outside local development. Wrangler's `--var` value is deployment
+configuration, not a secret; the API origin is visible to operators and need not contain
+credentials.
+
+For a browser-visible Worker origin such as `https://cad.example.com` and an API origin such as
+`https://api.example.com`, the backend must use exact production values that include:
+
+```dotenv
+MESH2PARAM_PUBLIC_URL=https://api.example.com
+MESH2PARAM_ALLOWED_HOSTS=api.example.com
+MESH2PARAM_CORS_ORIGINS=https://cad.example.com
+```
+
+Protect the Worker with a trusted authentication gateway such as Cloudflare Access, and prevent the
+API origin from being used as an unauthenticated bypass. The Worker does not add application login
+or tenant authorization. The API must remain paired with exactly one external geometry worker and
+their shared persistent volume; only the static frontend and HTTP proxy run at the edge.
+
 ## Compose quickstart
 
 Prerequisites are Docker Engine or Docker Desktop with Compose v2 and sufficient resources for the

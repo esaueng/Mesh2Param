@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mesh2param",
+  "main": "./cloudflare/worker.ts",
+  "compatibility_date": "2026-07-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./apps/web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api",
+      "/api/*",
+      "/health",
+      "/ready",
+      "/docs",
+      "/openapi.json"
+    ]
+  },
+  "vars": {
+    // Leave empty for a UI-only deployment. Set this to the public HTTPS origin
+    // of the separately hosted FastAPI/OCCT service to enable API proxying.
+    "MESH2PARAM_API_ORIGIN": ""
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05
+    }
+  }
+}
