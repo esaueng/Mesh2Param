@@ -27,7 +27,10 @@ def test_cloudflare_worker_delivery_contract() -> None:
     assert "return env.ASSETS.fetch(request)" in worker
     assert "api_origin_not_configured" in worker
     assert "Content-Security-Policy: default-src 'self'" in headers
-    assert "'unsafe-eval'" not in headers
+    document_policy = headers.split("/assets/*", 1)[0]
+    assert "'unsafe-eval'" not in document_policy
+    assert "/assets/geometry.worker-*" in headers
+    assert "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'" in headers
     assert "Cache-Control: public, max-age=31536000, immutable" in headers
     assert "ajv.compile" not in validator
     assert 'from "ajv/dist/2020.js"' not in validator

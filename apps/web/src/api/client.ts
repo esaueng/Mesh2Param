@@ -16,6 +16,7 @@ import type {
   SurfacePatch,
   VersionPage,
 } from "../state/types";
+import { BrowserApiClient } from "../local/client";
 import { apiErrorFromResponse, normalizeApiError } from "./errors";
 
 export interface ApiResult<T> {
@@ -416,4 +417,9 @@ export class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
+/**
+ * The production Cloudflare build is browser-first: this compatibility client
+ * keeps the existing UI contract while persisting and executing locally.
+ * `ApiClient` remains exported for explicit remote/backend integrations and tests.
+ */
+export const apiClient = new BrowserApiClient();

@@ -58,6 +58,10 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
     return { kind: "open", label: "Open a mesh", hint: "Load an STL, OBJ, or PLY file", disabled: false };
   }
 
+  if (isValidated(state) && stepArtifact(vm.artifacts) !== undefined) {
+    return { kind: "download", label: "Download STEP", hint: "Save the validated STEP file", disabled: false };
+  }
+
   if (state.cadgraph === null) {
     // `analyze` (not the upload/ingest step) is what produces surface patches and the
     // renderable source.glb, so patches — not mesh-health diagnostics — mark it done.

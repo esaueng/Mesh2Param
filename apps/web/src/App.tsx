@@ -32,8 +32,10 @@ export default function App() {
     const activeProjectId = sessionStorage.getItem("mesh2param-active-project");
     if (activeProjectId === null) return;
     let cancelled = false;
-    void workspaceRepository.getWorkspace(activeProjectId).then((stored) => {
+    void workspaceRepository.getWorkspace(activeProjectId).then(async (stored) => {
       if (cancelled || stored === null) return;
+      await apiClient.listArtifacts(activeProjectId).catch(() => undefined);
+      if (cancelled) return;
       hydrateStoredWorkspace(stored);
       setScreen("workspace");
     });
@@ -162,6 +164,7 @@ export default function App() {
         } catch (cause) {
           const stored = await workspaceRepository.getWorkspace(projectId);
           if (stored === null) throw cause;
+          await apiClient.listArtifacts(projectId).catch(() => undefined);
           hydrateStoredWorkspace(stored);
           sessionStorage.setItem("mesh2param-active-project", projectId);
           setInitialJob(null);

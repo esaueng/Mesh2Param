@@ -3,6 +3,12 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    exclude: ["occt-wasm"],
+  },
+  worker: {
+    format: "es",
+  },
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8000",
@@ -11,7 +17,8 @@ export default defineConfig({
     },
   },
   build: {
-    target: "es2022",
+    target: "esnext",
+    assetsInlineLimit: 0,
     sourcemap: false,
   },
 });
