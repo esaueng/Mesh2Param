@@ -20,7 +20,7 @@ import { debugLog } from "../canvas/debugLog";
 import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state/types";
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
-import { OrientationGizmo, type GizmoViewRequest } from "./OrientationGizmo";
+import { OrientationGizmoCanvas, type GizmoViewRequest } from "./OrientationGizmo";
 import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
@@ -98,6 +98,7 @@ export function CadViewport({
     if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
   }, []);
   const controls = useRef<OrbitControlsImpl | null>(null);
+  const viewerCamera = useRef<THREE.Camera | null>(null);
   const palette = viewerPalette(theme);
   const artifactMap = useMemo(() => new Map(artifacts.map((artifact) => [artifact.name, artifact])), [artifacts]);
   const selectionArtifact = artifactMap.get("selection-map.json");
@@ -298,6 +299,7 @@ export function CadViewport({
           <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
           <axesHelper args={[35]} />
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
+          <ViewerCameraReference target={viewerCamera} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
@@ -335,10 +337,11 @@ export function CadViewport({
             ) : null}
           </Suspense>
           <CameraRig bounds={bounds} artifactKey={artifactKey} command={command} controlsRef={controls} />
-          <OrientationGizmo onSelectView={gizmoView} />
           <ScaleProbe controlsRef={controls} onScale={onScaleChange} />
         </Canvas>
       </ViewerErrorBoundary>
+
+      <OrientationGizmoCanvas cameraRef={viewerCamera} onSelectView={gizmoView} />
 
       {contextLost ? (
         <div className="viewer-recovering" role="status" aria-live="polite">
@@ -358,6 +361,17 @@ export function CadViewport({
       )}
     </section>
   );
+}
+
+function ViewerCameraReference({ target }: { target: MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useEffect(() => {
+    target.current = camera;
+    return () => {
+      if (target.current === camera) target.current = null;
+    };
+  }, [camera, target]);
+  return null;
 }
 
 function WebGLContextMonitor({ onLost, onRestored }: { onLost(): void; onRestored(): void }) {
