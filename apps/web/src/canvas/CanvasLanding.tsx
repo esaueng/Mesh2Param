@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Clock, FolderOpen, LoaderCircle, Sparkles } from "lucide-react";
+import { ChevronRight, Clock, FileBox, FolderOpen, LoaderCircle, Sparkles } from "lucide-react";
 import { Mesh2ParamLogoMark, MeshTransitionHero } from "../start/Mesh2ParamLogoMark";
 import type { ProjectDetail, Readiness, SampleDescriptor } from "../state/types";
 import "./canvas.css";
@@ -69,16 +69,29 @@ export function CanvasLanding({
         </button>
 
         {recentProjects.length > 0 ? (
-          <div className="landing-recents">
-            <span className="landing-recents-label"><Clock size={13} /> Recent</span>
-            <div className="landing-recents-chips">
+          <section className="landing-recents" aria-labelledby="recent-projects-heading">
+            <h2 id="recent-projects-heading" className="landing-recents-label"><Clock size={13} /> Recent projects</h2>
+            <ul className="landing-recents-list" aria-labelledby="recent-projects-heading">
               {recentProjects.slice(0, 6).map((project) => (
-                <button key={project.id} disabled={busy} onClick={() => onOpenRecent(project.id)} title={project.name}>
-                  {project.name}
-                </button>
+                <li key={project.id}>
+                  <button disabled={busy} onClick={() => onOpenRecent(project.id)} title={`Open ${project.name}`}>
+                    <span className="landing-recent-icon" aria-hidden><FileBox size={17} /></span>
+                    <span className="landing-recent-copy">
+                      <strong>{project.name}</strong>
+                      <span>
+                        <time dateTime={project.updatedAt}>Updated {formatRecentDate(project.updatedAt)}</time>
+                        {" · "}
+                        {project.units.toUpperCase()}
+                        {" · "}
+                        Revision {project.revision}
+                      </span>
+                    </span>
+                    <ChevronRight className="landing-recent-chevron" size={17} aria-hidden />
+                  </button>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </section>
         ) : null}
       </div>
 
@@ -117,4 +130,14 @@ export function CanvasLanding({
       />
     </main>
   );
+}
+
+function formatRecentDate(timestamp: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
 }
