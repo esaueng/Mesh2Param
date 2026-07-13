@@ -25,7 +25,7 @@ import { CadViewport } from "../viewer/CadViewport";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
-import { DisplayModeMenu } from "./DisplayModeMenu";
+import { ViewSettings } from "./ViewSettings";
 import {
   analysisRerunAction,
   availableModes,
@@ -226,17 +226,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </section>
         ) : null}
 
-        <section className="panel-group">
+        <section className="panel-group panel-view-group">
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
-            <DisplayModeMenu
-              shading={viewer.shading}
-              edges={viewer.edges}
-              theme={theme}
-              disabled={!hasGeometry}
-              onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-            />
             <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               {theme === "dark" ? "Light" : "Dark"}
@@ -252,6 +245,12 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               {issueCount > 0 ? <span className="panel-count">{issueCount > 99 ? "99+" : issueCount}</span> : null}
             </button>
           </div>
+          <ViewSettings
+            shading={viewer.shading}
+            edges={viewer.edges}
+            disabled={!hasGeometry}
+            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+          />
         </section>
 
         <section className="panel-group panel-convert">
