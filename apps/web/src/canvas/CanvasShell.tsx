@@ -25,6 +25,7 @@ import { CadViewport } from "../viewer/CadViewport";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
+import { stepDownloadName } from "./downloadFilename";
 import { EditableProjectName } from "./EditableProjectName";
 import { ViewSettings } from "./ViewSettings";
 import {
@@ -109,7 +110,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     } catch (cause) {
       debugLog.error("export", `Download failed: ${filename}`, cause);
     }
-  }, [vm.artifacts, vm.project.id, vm.project.state.source]);
+  }, [vm.artifacts, vm.project.id, vm.project.name]);
 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
@@ -342,16 +343,6 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
   return <Download size={size} />;
-}
-
-/** Name the downloaded STEP after the editable project name. */
-function stepDownloadName(projectName: string, artifactName: string): string {
-  const extension = /\.(step|stp)$/i.exec(artifactName)?.[0].toLowerCase() ?? ".step";
-  const base = projectName
-    .replace(/\.[^./\\]+$/, "")
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .trim();
-  return `${base || "model"}${extension}`;
 }
 
 function fileMeta(vm: WorkspaceViewModel): string {
