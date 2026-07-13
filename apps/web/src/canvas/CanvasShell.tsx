@@ -26,6 +26,7 @@ import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
 import { DisplayModeMenu } from "./DisplayModeMenu";
+import { EditableProjectName } from "./EditableProjectName";
 import {
   analysisRerunAction,
   availableModes,
@@ -89,8 +90,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const downloadStep = useCallback(async () => {
     const step = stepArtifact(vm.artifacts);
     if (step === undefined) return;
-    const filename = stepDownloadName(vm.project.state.source?.originalFileName ?? null, step.name);
-    // Fetch as a blob so our source-derived filename wins over the server's
+    const filename = stepDownloadName(vm.project.name, step.name);
+    // Fetch as a blob so our project-derived filename wins over the server's
     // Content-Disposition (which names every export "model.step").
     try {
       const response = await fetch(apiClient.artifactUrl(vm.project.id, step.name, step.sha256));
@@ -184,7 +185,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         </button>
         {state.source !== null ? (
           <div className="canvas-file">
-            <span className="canvas-file-name" title={state.source.originalFileName}>{state.source.originalFileName}</span>
+            <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
             <span className="canvas-file-meta">{fileMeta(vm)}</span>
             {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
           </div>
@@ -327,10 +328,10 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   return <Download size={size} />;
 }
 
-/** Name the downloaded STEP after the source mesh (e.g. "ADP078 cast.stl" -> "ADP078 cast.step"). */
-function stepDownloadName(sourceFileName: string | null, artifactName: string): string {
+/** Name the downloaded STEP after the editable project name. */
+function stepDownloadName(projectName: string, artifactName: string): string {
   const extension = /\.(step|stp)$/i.exec(artifactName)?.[0].toLowerCase() ?? ".step";
-  const base = (sourceFileName ?? "")
+  const base = projectName
     .replace(/\.[^./\\]+$/, "")
     .replace(/[/\\?%*:|"<>]/g, "-")
     .trim();
