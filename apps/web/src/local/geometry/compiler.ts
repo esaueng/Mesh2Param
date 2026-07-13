@@ -264,9 +264,14 @@ function shapeResult(
   meshProxy?: BrowserCadResult,
 ): BrowserCadResult {
   const valid = kernel.isValid(current);
-  const solid = kernel.isSolid(current) || kernel.getSubShapes(current, "solid").length === 1;
+  const sourceSolidCount = countSolids(kernel, current);
+  const solid = sourceSolidCount > 0;
   const step = validateStep ? kernel.exportStep(current) : "";
-  const stepReimportValid = validateStep ? kernel.isValid(kernel.importStep(step)) : false;
+  const reimported = validateStep ? kernel.importStep(step) : null;
+  const stepReimportValid = reimported !== null
+    && kernel.isValid(reimported)
+    && countSolids(kernel, reimported) === sourceSolidCount
+    && sourceSolidCount > 0;
   const mesh = meshProxy?.mesh ?? kernel.tessellate(current, {
     linearDeflection,
     angularDeflection,
@@ -288,6 +293,30 @@ function shapeResult(
   };
 }
 
+function countSolids(kernel: OcctKernel, shape: ShapeHandle): number {
+  return kernel.isSolid(shape) ? 1 : kernel.getSubShapes(shape, "solid").length;
+}
+
+function solidifyStl(kernel: OcctKernel, shape: ShapeHandle, tolerance: number): ShapeHandle {
+  const faces = kernel.getSubShapes(shape, "face");
+  if (faces.length === 0) throw new Error("The STL did not contain any importable faces");
+
+  const sewn = kernel.sewAndSolidify(faces, tolerance);
+  if (countSolids(kernel, sewn) > 0) return sewn;
+
+  // OCCT sews a disconnected watertight STL into a compound of closed shells, but its
+  // bulk solidifier does not promote those shells individually. Solidify each component
+  // so multi-body meshes export as a compound containing real solids instead of shells.
+  const shells = kernel.getSubShapes(sewn, "shell");
+  if (shells.length < 2) return sewn;
+  const solids = shells.map((shell) => kernel.sewAndSolidify(
+    kernel.getSubShapes(shell, "face"),
+    tolerance,
+  ));
+  if (!solids.every((solid) => kernel.isSolid(solid) && kernel.isValid(solid))) return sewn;
+  return kernel.makeCompound(solids);
+}
+
 export function compileStl(
   kernel: OcctKernel,
   bytes: ArrayBuffer,
@@ -298,9 +327,7 @@ export function compileStl(
   const source = analyzeStl(bytes);
   let shape = kernel.importStl(stlText(bytes));
   if (solidify && !kernel.isSolid(shape)) {
-    const faces = kernel.getSubShapes(shape, "face");
-    if (faces.length === 0) throw new Error("The STL did not contain any importable faces");
-    shape = kernel.sewAndSolidify(faces, tolerance);
+    shape = solidifyStl(kernel, shape, tolerance);
   }
   return shapeResult(kernel, shape, 1, tolerance, 0.35, validateStep, source);
 }
