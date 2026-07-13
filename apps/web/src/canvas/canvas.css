@@ -56,9 +56,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-count{min-width:16px;margin-left:auto;padding:1px 4px;border-radius:var(--radius-pill);background:var(--color-warning);color:#111821;font:700 9px/1.4 var(--font-mono);text-align:center}
 .panel-view-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-view-grid .panel-btn{padding:0 9px}
-.panel-view-grid .display-menu{display:flex}
-.panel-view-grid .display-menu .dock-btn{display:grid;place-items:center;width:100%;height:34px;padding:0;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-muted)}
-.panel-view-grid .display-menu .dock-btn:hover:not(:disabled),.panel-view-grid .display-menu .dock-btn.active{color:var(--color-accent);background:var(--color-accent-dim);border-color:var(--color-accent-border)}
+.panel-view-grid .panel-btn:last-child{grid-column:1/-1}
 .panel-modes{display:grid;gap:4px}
 .panel-modes button{display:flex;align-items:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
 .panel-modes button:hover{color:var(--color-text);background:var(--color-hover)}
@@ -76,28 +74,27 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-hint.info>svg{color:var(--color-accent)}
 .panel-hint>span{color:var(--color-muted)}
 
-/* ---------- viewport display menu ---------- */
-.display-menu{position:relative}
-.display-popover{position:fixed;z-index:20;width:248px;overflow:hidden;border:1px solid var(--color-border-strong);border-radius:12px;background:rgba(17,24,33,.98);box-shadow:0 20px 56px -18px rgba(0,0,0,.78);backdrop-filter:blur(12px)}
-.display-group{display:grid;padding:8px}
-.display-group+.display-group{border-top:1px solid var(--color-border)}
-.display-heading{padding:3px 9px 6px;color:var(--color-subtle);font:600 var(--fs-mini) var(--font-ui);letter-spacing:.02em}
-.display-option,.display-toggle{width:100%;min-height:43px;display:flex;align-items:center;border:0;border-radius:7px;background:transparent;color:var(--color-text);text-align:left}
-.display-option{gap:8px;padding:5px 9px 5px 4px}
-.display-option:hover,.display-toggle:hover{background:var(--color-hover)}
-.display-check{width:20px;display:grid;place-items:center;color:var(--color-accent)}
-.display-option-copy{min-width:0;display:grid;gap:1px}
-.display-option-copy strong{font:500 var(--fs-sm) var(--font-ui)}
-.display-option-copy small{color:var(--color-subtle);font:var(--fs-mini) var(--font-ui)}
-.display-option-icon{margin-left:auto;color:var(--color-subtle)}
-.display-options{padding-bottom:9px}
-.display-toggle{gap:9px;padding:5px 9px;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
-.display-toggle>svg{color:var(--color-subtle)}
-.display-switch{width:34px;height:19px;display:flex;align-items:center;margin-left:auto;padding:2px;border-radius:var(--radius-pill);background:var(--color-border-strong);transition:background var(--dur-fast) var(--ease-out)}
-.display-switch>span{width:15px;height:15px;border-radius:50%;background:var(--color-muted);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out)}
-.display-toggle[aria-checked=true] .display-switch{background:#1673de}
-.display-toggle[aria-checked=true] .display-switch>span{background:#fff;transform:translateX(15px)}
-.display-popover.theme-light{background:rgba(248,250,252,.98)}
+/* ---------- permanent view settings ---------- */
+.view-settings{overflow:hidden;border:1px solid var(--color-border);border-radius:10px;background:var(--color-surface-2)}
+.view-settings-group{display:grid;padding:8px}
+.view-settings-group+.view-settings-group{border-top:1px solid var(--color-border)}
+.view-settings-heading{padding:3px 9px 6px;color:var(--color-subtle);font:600 var(--fs-mini) var(--font-ui);letter-spacing:.02em}
+.view-settings-option,.view-settings-toggle{width:100%;min-height:43px;display:flex;align-items:center;border:0;border-radius:7px;background:transparent;color:var(--color-text);text-align:left}
+.view-settings-option{gap:8px;padding:5px 9px 5px 4px}
+.view-settings-option:hover:not(:disabled),.view-settings-toggle:hover:not(:disabled){background:var(--color-hover)}
+.view-settings-option:disabled,.view-settings-toggle:disabled{cursor:not-allowed;opacity:.5}
+.view-settings-check{width:20px;display:grid;place-items:center;color:var(--color-accent)}
+.view-settings-option-copy{min-width:0;display:grid;gap:1px}
+.view-settings-option-copy strong{font:500 var(--fs-sm) var(--font-ui)}
+.view-settings-option-copy small{color:var(--color-subtle);font:var(--fs-mini) var(--font-ui)}
+.view-settings-option-icon{margin-left:auto;color:var(--color-subtle)}
+.view-settings-options{padding-bottom:9px}
+.view-settings-toggle{gap:9px;padding:5px 9px;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
+.view-settings-toggle>svg{color:var(--color-subtle)}
+.view-settings-switch{width:34px;height:19px;display:flex;align-items:center;margin-left:auto;padding:2px;border-radius:var(--radius-pill);background:var(--color-border-strong);transition:background var(--dur-fast) var(--ease-out)}
+.view-settings-switch>span{width:15px;height:15px;border-radius:50%;background:var(--color-muted);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out)}
+.view-settings-toggle[aria-checked=true] .view-settings-switch{background:#1673de}
+.view-settings-toggle[aria-checked=true] .view-settings-switch>span{background:#fff;transform:translateX(15px)}
 
 @media(prefers-reduced-motion:reduce){.canvas-progress .spin{animation:none}}
 
@@ -165,6 +162,9 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .panel-label{display:none}
   .panel-modes{display:flex;gap:4px}
   .panel-view-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .panel-view-group{flex:1 1 100%;display:grid;align-items:start}
+  .panel-view-group .panel-view-grid{display:grid;grid-template-columns:1fr 1fr}
+  .panel-view-group .view-settings{width:100%}
   .panel-btn,.panel-modes button{height:44px}
   .panel-convert{flex:1 1 100%;display:grid;gap:6px;margin:0;padding:0;border-top:0}
   .canvas-panel .dock-primary{height:44px}
@@ -179,5 +179,4 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .landing-recents-chips button{height:44px}
   .dc-actions button{height:44px;padding:0 12px}
   .dc-actions .dc-close{width:44px}
-  .display-popover{width:min(280px,calc(100vw - 24px))}
 }
