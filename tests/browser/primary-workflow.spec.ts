@@ -50,10 +50,9 @@ test("display preferences survive a page reload", async ({ page }) => {
   await expect(primaryAction(page)).toContainText("Download STEP", { timeout: 60_000 });
 
   await page.getByRole("button", { name: "Compare", exact: true }).click();
-  await page.getByRole("button", { name: "Display settings" }).click();
-  await page.getByRole("menuitemradio", { name: /X-Ray/i }).click();
-  await page.getByRole("button", { name: "Display settings" }).click();
-  await page.getByRole("menuitemcheckbox", { name: "Show edges" }).click();
+  await expect(page.getByLabel("View settings")).toBeVisible();
+  await page.getByRole("radio", { name: /X-Ray/i }).click();
+  await page.getByRole("switch", { name: "Show edges" }).click();
   await page.getByRole("button", { name: "Toggle light or dark theme" }).click();
 
   await page.reload();
@@ -61,8 +60,7 @@ test("display preferences survive a page reload", async ({ page }) => {
   await expect(page.getByTestId("cad-viewport")).toHaveAttribute("data-display-mode", "xray");
   await expect(page.getByRole("button", { name: "Compare", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".canvas-shell")).toHaveAttribute("data-theme", "light");
-  await page.getByRole("button", { name: "Display settings" }).click();
-  await expect(page.getByRole("menuitemcheckbox", { name: "Show edges" })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("switch", { name: "Show edges" })).toHaveAttribute("aria-checked", "false");
 });
 
 test("uploaded mesh advances through analyze, reconstruct, and download", async ({ page }) => {
