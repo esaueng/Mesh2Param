@@ -20,6 +20,7 @@ import { normalizeProjectDetail } from "./normalize";
 import { automaticReconstructionCapability } from "./automaticReconstruction";
 import { failedStepStatus, formatJobFailure, formatJobSnapshotFailure } from "./jobFailure";
 import { CanvasShell } from "../canvas/CanvasShell";
+import { ErrorToast } from "../components/ErrorToast";
 import { debugLog } from "../canvas/debugLog";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
 
@@ -52,6 +53,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   const canRedo = useWorkspaceSelector((state) => state.history.future.length > 0);
   const [versions, setVersions] = useState<ProjectVersionSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const dismissError = useCallback(() => setError(null), []);
   const streams = useRef(new Map<string, () => void>());
 
   // Every surfaced error is mirrored to the in-app debug console.
@@ -497,7 +499,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   return (
     <>
       <CanvasShell vm={vm} actions={actions} />
-      {error === null ? null : <div className="global-error" role="alert">{error}</div>}
+      {error === null ? null : <ErrorToast message={error} onDismiss={dismissError} />}
     </>
   );
 }

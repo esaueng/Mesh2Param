@@ -11,7 +11,6 @@ export interface CanvasLandingProps {
   recentProjects: ProjectDetail[];
   readiness: Readiness | null;
   busy: boolean;
-  error: string | null;
   onOpenMesh(file: File): void;
   onOpenSample(sampleId: string): void;
   onOpenProjectFile(file: File): void;
@@ -23,7 +22,6 @@ export function CanvasLanding({
   recentProjects,
   readiness,
   busy,
-  error,
   onOpenMesh,
   onOpenSample,
   onOpenProjectFile,
@@ -88,8 +86,6 @@ export function CanvasLanding({
         </span>
         <span className="landing-backend">OCCT backend</span>
       </footer>
-
-      {error !== null ? <div className="global-error" role="alert">{error}</div> : null}
 
       <input
         ref={meshRef}
