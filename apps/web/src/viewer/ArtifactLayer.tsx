@@ -2,6 +2,10 @@ import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { WireframeGeometry2 } from "three/examples/jsm/lines/WireframeGeometry2.js";
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { GLTF } from "three-stdlib";
 import type { ViewerShading } from "../state/types";
@@ -55,13 +59,11 @@ export function edgeOverlayKind(
   triangleCount = 0,
   facetedProxy = false,
 ): EdgeOverlayKind {
-  if (
-    !edges
-    || wireframe
-    || comparisonGhost
-    || facetedProxy
-    || (mode === "source" && triangleCount > MAX_TRIANGLE_EDGE_OVERLAY)
-  ) return "none";
+  if (!edges || wireframe || comparisonGhost) return "none";
+  // Dense meshes stay on the lightweight path; a faceted proxy is only gated on that count,
+  // not suppressed outright, and draws creases like any other result: its facet boundaries
+  // are exactly the edges above the threshold, and its coplanar tessellation is not.
+  if (triangleCount > MAX_TRIANGLE_EDGE_OVERLAY && (mode === "source" || facetedProxy)) return "none";
   return mode === "reconstructed" ? "creases" : "triangles";
 }
 
@@ -170,10 +172,7 @@ export function ArtifactLayer({
     return () => {
       object.traverse((child) => {
         if (!(child instanceof THREE.Mesh || child instanceof THREE.LineSegments)) return;
-        if (
-          child.geometry.userData.mesh2paramOwned === true
-          && child.userData.mesh2paramSharedGeometry !== true
-        ) child.geometry.dispose();
+        if (child.geometry.userData.mesh2paramOwned === true) child.geometry.dispose();
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         for (const material of materials) material.dispose();
       });
@@ -272,7 +271,14 @@ function objectTriangleCount(object: THREE.Object3D): number {
   return total;
 }
 
-/** Add a dark triangle network over the solid surface, matching shaded-with-edges CAD views. */
+/**
+ * Add a dark triangle network over the solid surface, matching shaded-with-edges CAD views.
+ *
+ * Both paths draw fat lines rather than GL lines: WebGL ignores LineBasicMaterial.linewidth and
+ * MeshBasicMaterial wireframes alike, capping them at one device pixel, so palette.edgeWidth can
+ * only be honoured by extruding each segment into screen-space quads. LineSegments2 keeps its own
+ * resolution uniform in sync from the renderer viewport, so thickness stays in CSS pixels.
+ */
 function addShadedEdgeOverlays(
   object: THREE.Object3D,
   palette: ReturnType<typeof viewerPalette>,
@@ -285,37 +291,29 @@ function addShadedEdgeOverlays(
     if (child instanceof THREE.Mesh && child.geometry instanceof THREE.BufferGeometry) meshes.push(child);
   });
   for (const mesh of meshes) {
-    if (kind === "creases") {
-      const geometry = new THREE.EdgesGeometry(mesh.geometry, 30);
-      geometry.userData.mesh2paramOwned = true;
-      const material = new THREE.LineBasicMaterial({
-        color: palette.edge,
-        transparent: true,
-        opacity: palette.edgeOpacity * opacity,
-        depthWrite: false,
-        clippingPlanes: sectionPlane === null ? null : [sectionPlane],
-      });
-      const overlay = new THREE.LineSegments(geometry, material);
-      overlay.name = "mesh2param-feature-edges";
-      overlay.renderOrder = 10;
-      overlay.userData.mesh2paramEdgeOverlay = true;
-      mesh.add(overlay);
+    const geometry = kind === "creases"
+      ? new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(mesh.geometry, 30))
+      : new WireframeGeometry2(mesh.geometry);
+    // A result whose tessellation is smooth everywhere yields no creases above the threshold.
+    if ((geometry.attributes.instanceStart?.count ?? 0) === 0) {
+      geometry.dispose();
       continue;
     }
-    const material = new THREE.MeshBasicMaterial({
-      color: palette.edge,
+    geometry.userData.mesh2paramOwned = true;
+    const material = new LineMaterial({
+      color: new THREE.Color(palette.edge).getHex(),
+      linewidth: palette.edgeWidth,
       transparent: true,
       opacity: palette.edgeOpacity * opacity,
       depthWrite: false,
-      wireframe: true,
-      side: THREE.DoubleSide,
       clippingPlanes: sectionPlane === null ? null : [sectionPlane],
     });
-    const overlay = new THREE.Mesh(mesh.geometry, material);
-    overlay.name = "mesh2param-shaded-edges";
+    const overlay = new LineSegments2(geometry, material);
+    overlay.name = kind === "creases" ? "mesh2param-feature-edges" : "mesh2param-shaded-edges";
     overlay.renderOrder = 10;
     overlay.userData.mesh2paramEdgeOverlay = true;
-    overlay.userData.mesh2paramSharedGeometry = true;
+    // Patch picking reads faceIndex off the surface; a hit on the overlay has none.
+    overlay.raycast = () => {};
     mesh.add(overlay);
   }
 }
@@ -333,6 +331,9 @@ function makePatchHighlight(
   let triangleOffset = 0;
   object.updateMatrixWorld(true);
   object.traverse((child) => {
+    // Edge overlays are LineSegments2, which extends Mesh and carries a decoy `position`
+    // attribute, so they pass the guards below and would shift triangleOffset off the surface.
+    if (child.userData.mesh2paramEdgeOverlay === true) return;
     if (!(child instanceof THREE.Mesh) || !(child.geometry instanceof THREE.BufferGeometry)) return;
     const position = child.geometry.getAttribute("position");
     if (!(position instanceof THREE.BufferAttribute)) return;

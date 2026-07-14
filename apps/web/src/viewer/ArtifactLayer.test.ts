@@ -49,10 +49,16 @@ describe("shaded edge overlay", () => {
     expect(edgeOverlayKind("reconstructed", false, false, false)).toBe("none");
   });
 
-  it("keeps dense meshes and preserved-source result proxies on the lightweight path", () => {
+  it("keeps dense meshes on the lightweight path", () => {
     expect(edgeOverlayKind("source", false, true, false, 45_615)).toBe("none");
     expect(edgeOverlayKind("source", false, true, false, 20_000)).toBe("triangles");
     expect(edgeOverlayKind("reconstructed", false, true, false, 45_615, true)).toBe("none");
+  });
+
+  it("draws facet boundaries on sparse faceted result proxies rather than suppressing them", () => {
+    expect(edgeOverlayKind("reconstructed", false, true, false, 6_260, true)).toBe("creases");
+    expect(edgeOverlayKind("reconstructed", false, true, false, 20_000, true)).toBe("creases");
+    expect(edgeOverlayKind("reconstructed", false, true, false, 20_001, true)).toBe("none");
   });
 });
 
