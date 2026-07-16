@@ -235,6 +235,7 @@ B-Rep, and a valid B-Rep does not claim tolerance success without comparison evi
 - [CADGraph](docs/cadgraph.md)
 - [Project-file format](docs/project-file.md)
 - [Validation](docs/validation.md)
+- [Freeform curved STEP reconstruction research](docs/freeform-step-reconstruction.md)
 - [Security](docs/security.md)
 - [Deployment](docs/deployment.md)
 - [Fallbacks and limitations](docs/fallbacks.md)
