@@ -217,6 +217,7 @@ B-Rep, and a valid B-Rep does not claim tolerance success without comparison evi
 - [Security](docs/security.md)
 - [Deployment](docs/deployment.md)
 - [Fallbacks and limitations](docs/fallbacks.md)
+- [Curved STEP reconstruction (design)](docs/curved-step-reconstruction.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Licensing
