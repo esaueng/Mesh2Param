@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "Standard tessellation with deterministic +/-0.03 mm normal-direction vertex noise, so fitting must approximate instead of interpolate.",
+  "directory": "wavy-slab-noisy",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 22697.36181817824,
+    "boundingBox": [
+      -1.8756065763511136,
+      -1.8756065763511136,
+      -34.25619892156559,
+      81.87560657635112,
+      81.87560657635373,
+      7.706308506320342
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 191999.99999999243
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.03,
+    "seed": 1295142979
+  },
+  "slug": "wavy-slab-noisy",
+  "stl": {
+    "byteSize": 13184,
+    "path": "source.stl",
+    "sha256": "b88968613c0fff2dcb064f7368ef2f0e41bd0099eec45eb697d2ba54c0039da6",
+    "triangleCount": 262,
+    "vertexCount": 133
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Wavy slab with vertex noise",
+  "units": "mm"
+}

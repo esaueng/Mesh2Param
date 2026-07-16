@@ -1,0 +1,142 @@
+"""Record the current faceted-fallback baseline over the curved benchmark corpus.
+
+For every fixture this runs today's only conversion path for freeform input --
+the explicit faceted STEP fallback -- and records face count, STEP byte size,
+runtime, and symmetric source/result distance metrics. Negative fixtures
+record the structured error the pipeline raises instead. The resulting JSON is
+the Milestone 0 baseline that curved reconstruction must beat.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import platform
+import tempfile
+import time
+from collections.abc import Sequence
+from importlib import metadata
+from pathlib import Path
+from typing import Any
+
+import trimesh
+from mesh2param.comparison import ComparisonSettings, compare_mesh_to_step
+from mesh2param.curved_fixtures import (
+    CORPUS_MANIFEST_NAME,
+    FIXTURE_MANIFEST_NAME,
+    FIXTURE_STL_NAME,
+)
+from mesh2param.faceted import FacetedFallbackError, create_faceted_fallback
+
+
+def _fixture_baseline(directory: Path, sample_count: int) -> dict[str, Any]:
+    manifest = json.loads((directory / FIXTURE_MANIFEST_NAME).read_text(encoding="utf-8"))
+    stl_path = directory / FIXTURE_STL_NAME
+    units = manifest["units"]
+    record: dict[str, Any] = {
+        "slug": manifest["slug"],
+        "category": manifest["category"],
+        "expectation": manifest["expectation"],
+        "units": units,
+        "sourceTriangleCount": manifest["stl"]["triangleCount"],
+        "sourceStlByteSize": manifest["stl"]["byteSize"],
+    }
+    started = time.perf_counter()
+    try:
+        with tempfile.TemporaryDirectory() as scratch:
+            result = create_faceted_fallback(stl_path, scratch, units=units)
+            elapsed = time.perf_counter() - started
+            step_path = Path(result.step.path)
+            source_mesh = trimesh.load_mesh(stl_path, file_type="stl", process=True)
+            comparison = compare_mesh_to_step(
+                source_mesh,
+                step_path,
+                units=units,
+                settings=ComparisonSettings(sample_count_each_direction=sample_count),
+            )
+            record.update(
+                {
+                    "status": "converted",
+                    "runtimeSeconds": elapsed,
+                    "facetedFaceCount": result.step.source.face_count,
+                    "facetedEdgeCount": result.step.source.edge_count,
+                    "stepByteSize": step_path.stat().st_size,
+                    "stepSha256": result.step.sha256,
+                    "facesPerSourceTriangle": (
+                        result.step.source.face_count / max(manifest["stl"]["triangleCount"], 1)
+                    ),
+                    "comparison": comparison.to_dict(),
+                }
+            )
+    except (FacetedFallbackError, ValueError) as exc:
+        record.update(
+            {
+                "status": "error",
+                "runtimeSeconds": time.perf_counter() - started,
+                "error": {
+                    "type": type(exc).__name__,
+                    "phase": getattr(exc, "phase", None),
+                    "code": getattr(exc, "code", None),
+                    "message": str(exc),
+                },
+            }
+        )
+    return record
+
+
+def run_baseline(fixture_root: Path, output_path: Path, sample_count: int) -> dict[str, Any]:
+    corpus = json.loads((fixture_root / CORPUS_MANIFEST_NAME).read_text(encoding="utf-8"))
+    fixtures = [
+        _fixture_baseline(fixture_root / entry["slug"], sample_count)
+        for entry in corpus["fixtures"]
+    ]
+    baseline = {
+        "scope": "faceted-fallback baseline for curved reconstruction (Milestone 0)",
+        "host": {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "machine": platform.machine(),
+        },
+        "packages": {
+            name: metadata.version(name) for name in ("cadquery", "cadquery-ocp", "trimesh")
+        },
+        "comparisonSampleCountEachDirection": sample_count,
+        "fixtures": fixtures,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return baseline
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--fixtures",
+        type=Path,
+        default=Path("samples/curved-benchmark"),
+        help="fixture corpus root (default: samples/curved-benchmark)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("artifacts/curved-baseline/baseline.json"),
+        help="baseline report path (default: artifacts/curved-baseline/baseline.json)",
+    )
+    parser.add_argument(
+        "--sample-count",
+        type=int,
+        default=1000,
+        help="comparison samples in each direction (default: 1000)",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    baseline = run_baseline(args.fixtures, args.output, args.sample_count)
+    print(json.dumps(baseline, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

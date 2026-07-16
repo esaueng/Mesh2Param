@@ -350,13 +350,47 @@ that a universally exact inverse STL conversion exists.
 
 ## Implementation sequence
 
-### Milestone 0: benchmark and baseline
+### Milestone 0: benchmark and baseline (implemented)
 
 - Add procedural ground-truth B-Rep fixtures with non-round B-spline surfaces,
   varying tessellation density, noise, units, pose, holes, and sharp creases.
 - Record current faceted face count, file size, runtime, and distance metrics.
 - Add negative fixtures for open, non-manifold, self-intersecting, coarse, and
   multi-body STL.
+
+The fixture corpus lives in [`samples/curved-benchmark/`](../samples/curved-benchmark/)
+and is generated deterministically by
+[`scripts/generate_curved_fixtures.py`](../scripts/generate_curved_fixtures.py)
+from [`engine/mesh2param/curved_fixtures.py`](../engine/mesh2param/curved_fixtures.py).
+Every positive fixture derives from an exact ground-truth solid whose top face
+is a real `Geom_BSplineSurface` (6-7 B-Rep faces total), so curved
+reconstruction can be scored against exact geometry.
+[`scripts/run_curved_baseline.py`](../scripts/run_curved_baseline.py) records
+the current faceted-fallback behavior; the baseline measured on the reference
+machine (macOS arm64, CadQuery 2.8.0, OCP 7.9.3.1.1, 1000 comparison samples
+each direction):
+
+| Fixture | Source triangles | Faceted faces | STEP size | Runtime | Max distance (mm) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `wavy-slab` | 262 | 262 | 582 KiB | 0.31 s | 4.7e-07 |
+| `wavy-slab-dense` | 2784 | 2784 | 6637 KiB | 2.36 s | 5.7e-07 |
+| `wavy-slab-noisy` | 262 | 262 | 617 KiB | 0.32 s | 5.5e-07 |
+| `wavy-slab-inch` | 728 | 728 | 1721 KiB | 0.73 s | 6.7e-08 |
+| `wavy-slab-posed` | 270 | 270 | 633 KiB | 0.33 s | 6.4e-07 |
+| `wavy-slab-hole` | 510 | 510 | 1176 KiB | 0.48 s | 5.9e-07 |
+| `wavy-slab-coarse` | 168 | 168 | 374 KiB | 0.33 s | 5.1e-07 |
+| `open-wavy-sheet` | 1058 | rejected: `faceted_sewing_incomplete` | — | — | — |
+| `non-manifold-fin` | 14 | rejected: `faceted_sewing_incomplete` | — | — | — |
+| `self-intersecting-boxes` | 24 | rejected: `faceted_brep_failed` | — | — | — |
+| `multi-body-boxes` | 24 | rejected: `faceted_brep_failed` | — | — | — |
+
+The pattern to beat is explicit: the faceted fallback always produces exactly
+one planar face per source triangle (the ground truth needs 6-7 curved faces)
+and STEP size grows linearly with tessellation density. Distance metrics are
+already excellent because planar facets reproduce the mesh exactly; the curved
+path must stay within tolerance while collapsing the face count and file size
+by orders of magnitude. All four invalid meshes are correctly rejected today
+with structured error codes, which curved qualification must preserve.
 
 ### Milestone 1: one freeform disk patch
 

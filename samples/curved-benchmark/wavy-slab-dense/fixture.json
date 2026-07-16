@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "The same ground truth tessellated an order of magnitude finer.",
+  "directory": "wavy-slab-dense",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 22697.36181817824,
+    "boundingBox": [
+      -0.3177098604408445,
+      -0.3177098604408445,
+      -33.21834320265949,
+      80.31770986044084,
+      80.28811304826519,
+      6.9627026668402605
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 191999.99999999243
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab-dense",
+  "stl": {
+    "byteSize": 139284,
+    "path": "source.stl",
+    "sha256": "59eab844d39815a2576f771cf40fd54f37d6bbc02a935829ad045cdfe6e286e1",
+    "triangleCount": 2784,
+    "vertexCount": 1394
+  },
+  "tessellation": {
+    "angularTolerance": 0.06,
+    "linearTolerance": 0.02
+  },
+  "title": "Wavy slab, dense tessellation",
+  "units": "mm"
+}
