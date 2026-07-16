@@ -1,0 +1,30 @@
+{
+  "category": "negative",
+  "description": "A closed box plus a fin whose shared edge carries three faces.",
+  "directory": "non-manifold-fin",
+  "expectation": "non-manifold",
+  "groundTruth": null,
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": false,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "non-manifold-fin",
+  "stl": {
+    "byteSize": 784,
+    "path": "source.stl",
+    "sha256": "6f38b446bed7d8ef9bb51bc2e54f0b7fcab4e599340ca366a1e703eb69ac18f6",
+    "triangleCount": 14,
+    "vertexCount": 10
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Box with a non-manifold fin",
+  "units": "mm"
+}
