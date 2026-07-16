@@ -8,6 +8,8 @@ export interface ViewerPalette {
   gridMinor: string;
   edge: string;
   edgeOpacity: number;
+  /** Screen-space edge thickness in CSS pixels; needs a fat-line material to exceed 1. */
+  edgeWidth: number;
   patch: string;
   highlight: string;
   highlightEmissive: string;
@@ -25,6 +27,7 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     gridMinor: "#132e49",
     edge: "#05080b",
     edgeOpacity: 0.72,
+    edgeWidth: 1.6,
     patch: "#4da3ff",
     highlight: "#9dd7ff",
     highlightEmissive: "#0a78d4",
@@ -45,6 +48,7 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     gridMinor: "#cbd6e0",
     edge: "#111820",
     edgeOpacity: 0.62,
+    edgeWidth: 1.6,
     patch: "#0b63b6",
     highlight: "#07599f",
     highlightEmissive: "#063b69",
