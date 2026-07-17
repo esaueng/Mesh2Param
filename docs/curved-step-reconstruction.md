@@ -503,9 +503,29 @@ it through the same assembly path the driver and fit cache use. The compiler
 resolves the artifact by id, verifies its SHA-256, rebuilds the base body
 (byte-identical STEP to the driver's solid), and lets ordinary downstream
 features operate on it; hash mismatches and corrupt artifacts fail closed
-with stable codes. Services/web surfacing (creating the feature from a job
-and labeling it "approximate curved B-Rep" in the UI) remains the next
-integration step.
+with stable codes.
+
+#### Services and web integration (implemented)
+
+[`engine/mesh2param/curved_conversion.py`](../engine/mesh2param/curved_conversion.py)
+is the source-bound orchestrator mirroring the faceted fallback: it verifies
+the preserved upload descriptor, runs the plate reconstruction with staged
+progress, writes the content-addressed `curved-plate.json` plus STEP, GLBs
+(the browser tessellation is the real kernel result, unlike the faceted
+proxy), validation (kernel round trip plus the independent structural STEP
+audit), and evidence artifacts, and proves the emitted CADGraph by compiling
+it through the same trusted compiler. The reconstruct job accepts
+`{"mode": "curved", "fitTolerance", "surfaceDeviationTolerance",
+"forceSplit"}` with tolerances bounded at the physical equivalent of 10 mm;
+unsupported topology fails closed recommending the faceted fallback. The web
+command panel now offers "Generate curved STEP" as the primary conversion for
+freeform meshes with "Generate faceted STEP" as the labeled alternate, shows
+an evidence line (face inventory and measured maximum deviation), and the
+status chip distinguishes "Approximate curved B-Rep" from
+"Faceted (non-parametric)" through validation. Per-patch diagnostics beyond
+the summary line and the split/merge, crease-classification, and
+patch-locking controls remain open (the evidence they need is already
+recorded in the artifacts).
 
 ### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 
