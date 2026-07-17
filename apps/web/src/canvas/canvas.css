@@ -65,6 +65,23 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-panel .dock-primary:hover:not(:disabled){background:#1264c6}
 .canvas-panel .dock-primary:disabled{opacity:.6}
 .canvas-panel .dock-primary svg{flex:none}
+.panel-patches{display:grid;gap:2px;max-height:220px;margin:0;padding:0;overflow-y:auto;list-style:none}
+.panel-patches li{display:flex;align-items:center;gap:5px;border-radius:var(--radius-md)}
+.panel-patches li.selected{background:var(--color-accent-dim)}
+.panel-patches input[type="checkbox"]{flex:none;margin:0 0 0 4px;accent-color:var(--color-accent)}
+.panel-patch-row{display:flex;flex:1;min-width:0;align-items:center;gap:7px;padding:5px 4px;border:0;border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-mini) var(--font-ui);text-align:left}
+.panel-patch-row:hover{color:var(--color-text);background:var(--color-hover)}
+.patch-kind{flex:none;padding:1px 6px;border-radius:var(--radius-pill);background:var(--color-hover);color:var(--color-text);font:600 9px/1.6 var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.patch-kind-freeform{background:var(--color-accent-dim);color:var(--color-accent)}
+.patch-kind-unknown{color:var(--color-warning)}
+.patch-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-icon-btn{display:flex;flex:none;align-items:center;justify-content:center;width:24px;height:24px;border:0;border-radius:var(--radius-md);background:transparent;color:var(--color-subtle)}
+.panel-icon-btn:hover:not(:disabled){color:var(--color-text);background:var(--color-hover)}
+.panel-icon-btn[aria-pressed="true"]{color:var(--color-accent)}
+.panel-patch-detail{display:grid;gap:6px}
+.panel-field{display:grid;gap:4px;font:500 var(--fs-mini) var(--font-ui);color:var(--color-subtle)}
+.panel-field select{height:30px;padding:0 8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-text);font:500 var(--fs-sm) var(--font-ui)}
+.panel-patch-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-hint{display:flex;gap:7px;margin:0;font:var(--fs-mini)/1.5 var(--font-ui)}
 .panel-hint>svg{flex:none;margin-top:2px}
 .panel-hint.warn>svg{color:var(--color-warning)}
