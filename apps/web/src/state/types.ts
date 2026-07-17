@@ -401,6 +401,7 @@ export interface SelectionState {
 
 export type ViewerLayer = "source" | "repaired" | "analysis" | "patches" | "reconstructed" | "residual";
 export type ViewerMode = ViewerLayer | "overlay";
+export type ViewerShading = "shaded" | "wireframe" | "xray" | "normals" | "zebra";
 
 export interface ViewerPreferences {
   mode: ViewerMode;
@@ -408,7 +409,7 @@ export interface ViewerPreferences {
   sourceOpacity: number;
   resultOpacity: number;
   projection: "perspective" | "orthographic";
-  shading: "shaded" | "wireframe";
+  shading: ViewerShading;
   edges: boolean;
 }
 

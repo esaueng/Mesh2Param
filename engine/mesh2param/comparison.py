@@ -18,6 +18,10 @@ import trimesh
 from .tessellation import Tessellation, tessellate_shape
 from .validation import import_step_shape, validate_shape
 
+_closest_point_naive: Callable[
+    [trimesh.Trimesh, np.ndarray], tuple[np.ndarray, np.ndarray, np.ndarray]
+] = trimesh.proximity.closest_point_naive
+
 
 @dataclass(frozen=True, slots=True)
 class ComparisonSettings:
