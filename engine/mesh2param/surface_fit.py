@@ -422,12 +422,15 @@ def fit_bspline_patch(
     *,
     settings: SurfaceFitSettings | None = None,
     rectangle_corners: np.ndarray | None = None,
+    gate_count: int | None = None,
 ) -> FittedPatch:
     """Fit one clamped tensor-product patch, refining spans until tolerance.
 
     ``rectangle_corners`` (4x3), when given, pins every boundary pole to the
     exact corner-to-corner segments so the fitted patch's natural boundary is
-    straight and shareable with planar neighbor faces.
+    straight and shareable with planar neighbor faces. ``gate_count`` limits
+    the convergence gate to the first N samples so weak regularization
+    samples (for example hole fills) never count as fit error.
     """
 
     settings = settings or SurfaceFitSettings()
@@ -508,17 +511,18 @@ def fit_bspline_patch(
             steps=settings.reprojection_steps,
         )
         residuals = _distances(current_uv, points, poles, knots_u, knots_v, settings.degree)
+        gated = residuals if gate_count is None else residuals[:gate_count]
         iterations.append(
             FitIteration(
                 spans_u=spans,
                 spans_v=spans,
-                rms_distance=float(np.sqrt(np.mean(residuals**2))),
-                p95_distance=float(np.percentile(residuals, 95)),
-                maximum_distance=float(residuals.max()),
+                rms_distance=float(np.sqrt(np.mean(gated**2))),
+                p95_distance=float(np.percentile(gated, 95)),
+                maximum_distance=float(gated.max()),
             )
         )
-        best = (poles, knots_u, knots_v, current_uv, residuals)
-        if residuals.max() <= tolerance:
+        best = (poles, knots_u, knots_v, current_uv, gated)
+        if gated.max() <= tolerance:
             break
         if spans >= maximum_spans:
             break
