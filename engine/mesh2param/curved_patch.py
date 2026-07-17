@@ -1493,6 +1493,7 @@ class _CreaseContext:
     """Two adjacent freeform regions sharing one real crease boundary."""
 
     region_ids: tuple[str, str]
+    holes: tuple[PlateHole, ...]
     halves: tuple[ChartHalf, ChartHalf]
     charts: tuple[ChartParameterization, ChartParameterization]
     corners: np.ndarray
@@ -1545,6 +1546,59 @@ def _region_chain_line(
     return centroid, direction
 
 
+def _parameterize_half(half: ChartHalf) -> ChartParameterization:
+    """Harmonically map one region half, filling hole rims with virtual fans.
+
+    A free hole rim inside a nearly flat region collapses to a point in the
+    harmonic map (skinny rim fans wreck the system's conditioning), so the
+    solve runs on the FILLED region: one synthetic centroid vertex per hole,
+    fanned to the rim with the region's winding. The synthetic rows are
+    dropped from the returned chart; only real vertices keep their UVs.
+    """
+
+    if not half.hole_loops:
+        return harmonic_square_parameterization(
+            half.vertices,
+            half.faces,
+            half.boundary_loop,
+            corner_loop_positions=np.asarray(half.corner_positions, dtype=np.int64),
+        )
+    vertices = [np.asarray(half.vertices, dtype=np.float64)]
+    fans: list[np.ndarray] = []
+    next_index = len(half.vertices)
+    for loop in half.hole_loops:
+        centroid = np.asarray(half.vertices, dtype=np.float64)[loop].mean(axis=0)
+        vertices.append(centroid[None, :])
+        count = len(loop)
+        # Directed rim edges follow the region's face winding, so the fan
+        # triangle across (a -> b) traverses it as (b -> a).
+        fans.append(
+            np.column_stack(
+                [
+                    np.roll(loop, -1),
+                    loop,
+                    np.full(count, next_index, dtype=np.int64),
+                ]
+            )
+        )
+        next_index += 1
+    augmented = harmonic_square_parameterization(
+        np.concatenate(vertices),
+        np.vstack([half.faces, *fans]),
+        half.boundary_loop,
+        corner_loop_positions=np.asarray(half.corner_positions, dtype=np.int64),
+    )
+    return ChartParameterization(
+        uv=augmented.uv[: len(half.vertices)],
+        boundary_loop=augmented.boundary_loop,
+        corner_loop_positions=augmented.corner_loop_positions,
+        flipped_triangle_count=augmented.flipped_triangle_count,
+        minimum_uv_area_ratio=augmented.minimum_uv_area_ratio,
+        maximum_stretch=augmented.maximum_stretch,
+        mean_area_distortion=augmented.mean_area_distortion,
+    )
+
+
 def _crease_context(
     mesh: trimesh.Trimesh,
     segmentation: SegmentationResult,
@@ -1571,17 +1625,42 @@ def _crease_context(
             "the two freeform regions do not share a boundary",
         )
     for region in regions:
-        if len(region.boundary_loops) != 1 or not region.boundary_loops[0].closed:
+        if not region.boundary_loops or not all(loop.closed for loop in region.boundary_loops):
             raise CurvedPatchError(
                 "segmenting mesh",
-                "curved_patch_multiregion_holes",
-                "multi-region reconstruction does not support interior holes yet",
+                "curved_patch_not_disk",
+                "every freeform boundary loop must be closed (one outer, optional holes)",
             )
 
     mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
     mesh_faces = np.asarray(mesh.faces, dtype=np.int64)
-    loop_a = np.asarray(region_a.boundary_loops[0].vertex_ids, dtype=np.int64)
-    loop_b = np.asarray(region_b.boundary_loops[0].vertex_ids, dtype=np.int64)
+
+    def perimeter(loop: np.ndarray) -> float:
+        points = mesh_vertices[loop]
+        return float(np.linalg.norm(np.diff(np.vstack([points, points[:1]]), axis=0), axis=1).sum())
+
+    outer_loops: list[np.ndarray] = []
+    interior_loops: list[np.ndarray] = []
+    interior_regions: list[SurfacePatch] = []
+    for region in regions:
+        loops = [np.asarray(loop.vertex_ids, dtype=np.int64) for loop in region.boundary_loops]
+        outer_index = int(np.argmax([perimeter(loop) for loop in loops]))
+        outer_loops.append(loops[outer_index])
+        for index, loop in enumerate(loops):
+            if index != outer_index:
+                interior_loops.append(loop)
+                interior_regions.append(region)
+    loop_a, loop_b = outer_loops
+    openings: list[PlateHole | PlateCap] = []
+    for region, loop in zip(interior_regions, interior_loops, strict=True):
+        openings.extend(_plate_openings(segmentation.patches, region, [loop]))
+    if any(isinstance(opening, PlateCap) for opening in openings):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_multiregion_caps",
+            "analytic caps on multi-region plates are not supported yet",
+        )
+    holes = tuple(opening for opening in openings if isinstance(opening, PlateHole))
     positions_a, ids_a = _region_corner_cycle(mesh_vertices, loop_a, settings)
     positions_b, ids_b = _region_corner_cycle(mesh_vertices, loop_b, settings)
 
@@ -1664,6 +1743,16 @@ def _crease_context(
                 ),
             )
 
+    for index, hole in enumerate(holes):
+        if abs(float(hole.axis @ rectangle_normal)) < np.cos(
+            np.radians(settings.plane_parallel_tolerance_deg)
+        ):
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_hole_not_normal",
+                f"hole {index} axis is not perpendicular to the plate",
+            )
+
     bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, region_a, region_b)
     alignment = abs(float(rectangle_normal @ bottom_normal))
     if alignment < np.cos(np.radians(settings.plane_parallel_tolerance_deg)):
@@ -1687,20 +1776,13 @@ def _crease_context(
             reindexed_chart_region(mesh_vertices, faces_a, (a0_id, ms_id, me_id, a3_id)),
             reindexed_chart_region(mesh_vertices, faces_b, (ms_id, b1_id, b2_id, me_id)),
         )
-        charts = tuple(
-            harmonic_square_parameterization(
-                half.vertices,
-                half.faces,
-                half.boundary_loop,
-                corner_loop_positions=np.asarray(half.corner_positions, dtype=np.int64),
-            )
-            for half in halves
-        )
+        charts = tuple(_parameterize_half(half) for half in halves)
     except ChartParameterizationError as exc:
         raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
 
     return _CreaseContext(
         region_ids=(region_a.id, region_b.id),
+        holes=holes,
         halves=halves,
         charts=(charts[0], charts[1]),
         corners=corners,
@@ -1776,12 +1858,18 @@ def _reconstruct_crease_network(
         if cached is not None:
             guard.stage("assembling solid", 70.0)
             network = SurfaceNetwork.from_artifact(cached["network"])
+            cutters = _hole_cutters(context.holes, mesh)
             solid = _plate_solid_from_network(
-                network, corners, context.prism_vector, (), settings.sewing_tolerance_mm
+                network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
             )
             guard.stage("validating solid", 90.0)
             face_surfaces, comparison, evidence = _network_gates(
-                mesh, solid, network, settings, network_settings
+                mesh,
+                solid,
+                network,
+                settings,
+                network_settings,
+                expected_cylinders=len(context.holes),
             )
             iterations = tuple(
                 FitIteration(
@@ -1811,6 +1899,8 @@ def _reconstruct_crease_network(
                     float(context.prism_vector[1]),
                     float(context.prism_vector[2]),
                 ),
+                holes=context.holes,
+                hole_cutters=cutters,
                 candidates=tuple(dict(candidate) for candidate in cached["candidates"]),
                 cache_status="hit",
                 sewing_tolerance_mm=settings.sewing_tolerance_mm,
@@ -1818,12 +1908,28 @@ def _reconstruct_crease_network(
 
     guard.stage("fitting surface", 35.0)
     samples = []
+    real_counts: list[int] = []
     for half, chart in zip(context.halves, context.charts, strict=True):
         sample_uv, sample_points, sample_weights = chart_lattice_samples(
             half.vertices, half.faces, chart.uv
         )
         keep = sample_weights > 0.0
-        samples.append((sample_uv[keep], sample_points[keep], sample_weights[keep]))
+        sample_uv = sample_uv[keep]
+        sample_points = sample_points[keep]
+        sample_weights = sample_weights[keep]
+        real_counts.append(len(sample_uv))
+        if half.hole_loops:
+            # Weak synthetic fill across recognized-hole rims, exactly as in
+            # the single-region path; excluded from the convergence gate and
+            # trimmed away by the hole subtraction anyway.
+            fill_weight = 0.05 * float(np.median(sample_weights))
+            fill_uv, fill_points, fill_weights = _hole_fill_samples(
+                chart, half.vertices, half.hole_loops, fill_weight
+            )
+            sample_uv = np.concatenate([sample_uv, fill_uv])
+            sample_points = np.concatenate([sample_points, fill_points])
+            sample_weights = np.concatenate([sample_weights, fill_weights])
+        samples.append((sample_uv, sample_points, sample_weights))
 
     half_corners = (
         np.asarray([corners[0], context.crease_start, context.crease_end, corners[3]]),
@@ -1908,7 +2014,19 @@ def _reconstruct_crease_network(
                 for side in range(2)
             ]
         residuals = _network_distances(
-            uv_state, samples, poles, knots, degree, settings.fit.reprojection_steps
+            [uv_state[side][: real_counts[side]] for side in range(2)],
+            [
+                (
+                    samples[side][0][: real_counts[side]],
+                    samples[side][1][: real_counts[side]],
+                    samples[side][2][: real_counts[side]],
+                )
+                for side in range(2)
+            ],
+            poles,
+            knots,
+            degree,
+            settings.fit.reprojection_steps,
         )
         iterations_list.append(
             FitIteration(
@@ -1988,12 +2106,18 @@ def _reconstruct_crease_network(
     )
 
     guard.stage("assembling solid", 70.0)
+    cutters = _hole_cutters(context.holes, mesh)
     solid = _plate_solid_from_network(
-        network, corners, context.prism_vector, (), settings.sewing_tolerance_mm
+        network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
     )
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
-        mesh, solid, network, settings, network_settings
+        mesh,
+        solid,
+        network,
+        settings,
+        network_settings,
+        expected_cylinders=len(context.holes),
     )
     if fit_cache is not None and cache_key is not None:
         fit_cache.store(
@@ -2025,6 +2149,8 @@ def _reconstruct_crease_network(
             float(context.prism_vector[1]),
             float(context.prism_vector[2]),
         ),
+        holes=context.holes,
+        hole_cutters=cutters,
         candidates=tuple(candidates),
         cache_status="stored" if fit_cache is not None else "uncached",
         sewing_tolerance_mm=settings.sewing_tolerance_mm,
