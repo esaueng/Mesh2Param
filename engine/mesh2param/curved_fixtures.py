@@ -256,6 +256,59 @@ def _gable_plate_solid(
     return rebuild_plate_solid(payload)
 
 
+def _dome_plate_solid(scale: float = 1.0) -> cq.Shape:
+    """A gentle freeform plate fused with an exact spherical cap at its apex.
+
+    A ball whose center sits below the freeform top pokes through it, so the
+    kernel computes the exact intersection curve and the result carries a true
+    sphere face joined to the trimmed B-spline top at a sharp crease rim
+    (surface angle at the rim far above the segmentation threshold). The exact
+    ground truth is 7 faces: 5 planes, 1 trimmed B-spline, 1 sphere. The dome
+    sits at the top's apex where the surface is locally near-planar: that
+    keeps the reconstruction's patch/ball intersection a single clean
+    transversal curve instead of a wide tangency band.
+    """
+
+    degree = 3
+    control = 7
+    size = 80.0 * scale
+    height = 25.0 * scale
+    knots = open_uniform_knots(control, degree)
+    greville = greville_abscissae(knots, degree)
+    poles = np.zeros((control, control, 3))
+    for i, gu in enumerate(greville):
+        for j, gv in enumerate(greville):
+            poles[i, j, 0] = gu * size
+            poles[i, j, 1] = gv * size
+            interior = 0 < i < control - 1 and 0 < j < control - 1
+            if interior:
+                # Gentler and symmetric compared to the bump plate: the dome
+                # sits at the apex where the top is locally near-planar, so
+                # the fitted patch crosses the recognized ball transversally
+                # without a wide tangency band.
+                poles[i, j, 2] = 2.5 * scale * sin(pi * gu) * sin(pi * gv)
+    surface = build_occt_bspline_surface(poles, knots, knots, degree)
+    corners = np.asarray(
+        [[0.0, 0.0, 0.0], [size, 0.0, 0.0], [size, size, 0.0], [0.0, size, 0.0]]
+    )
+    plate = assemble_single_patch_plate(
+        surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
+    )
+    # Apex top sits near z ~ 2.1; a 10 mm ball centered 3.6 mm below the
+    # rectangle pokes ~4.3 mm proud with a steep rim. The vertical parametric
+    # axis keeps the boolean robust (a horizontal seam meridian across the
+    # trim curve breaks the fuse against fitted splines); the pole's
+    # zero-area triangles are dropped by the canonical tessellation.
+    # angleDegrees1=-90 makes the full ball (cadquery's default is a half
+    # sphere).
+    ball = cq.Solid.makeSphere(
+        10.0 * scale,
+        cq.Vector(40.0 * scale, 40.0 * scale, -3.6 * scale),
+        angleDegrees1=-90,
+    )
+    return plate.fuse(ball).clean()
+
+
 def _bump_plate_with_hole(scale: float = 1.0) -> cq.Shape:
     """The bump plate pierced by a vertical cylindrical through hole.
 
@@ -469,6 +522,23 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.15,
     ),
     CurvedFixtureSpec(
+        slug="bspline-dome-plate",
+        title="B-spline bump plate with a spherical dome cap",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "The bump plate fused with an exact spherical cap poking through "
+            "the freeform top at a sharp crease rim: the analytic-cap target "
+            "mixing a trimmed B-spline top, a true sphere face, and five "
+            "planes in one shell."
+        ),
+        # The gentle top tessellates coarsely on curvature alone; the finer
+        # relative deflection keeps rim-adjacent triangles small enough for a
+        # well-conditioned harmonic chart.
+        linear_tolerance=0.0008,
+        angular_tolerance=0.1,
+    ),
+    CurvedFixtureSpec(
         slug="bspline-gable-plate",
         title="B-spline gable plate with a sharp ridge crease",
         category="positive",
@@ -607,6 +677,7 @@ CURVED_FIXTURES_BY_SLUG: dict[str, CurvedFixtureSpec] = {
 _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Shape | None]]] = {
     "bspline-bump-plate": _positive_builder(_bump_plate_solid),
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
+    "bspline-dome-plate": _positive_builder(_dome_plate_solid),
     "bspline-gable-plate": _positive_builder(_gable_plate_solid),
     # Small bumps: the bump's u-derivative subtracts from the ridge slope, so
     # large interior bumps would flatten the dihedral below the segmentation
