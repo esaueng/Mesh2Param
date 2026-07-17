@@ -23,7 +23,8 @@ an extraordinary smoothness construction.
 
 This is not a relaxation of the current two-region path. The existing
 single-region and two-region layouts, their tolerances, and their v1 artifact
-bytes remain unchanged. Unsupported fan topology fails closed before fitting.
+bytes remain unchanged. Analytic-face-only v2 artifact bytes remain unchanged
+as well. Unsupported fan topology fails closed before fitting.
 
 ## Existing constraints that must remain true
 
@@ -46,9 +47,11 @@ The current implementation has several useful invariants:
   edge per shared curve. This remains the assembly rule; sewing is not a
   substitute for common topology.
 - `mesh2param/surface-network/1` and `mesh2param/curved-plate/1` must continue
-  to rebuild byte-identically. The latter assumes four base corners and at
-  most one shared curve, so extraordinary plates require a versioned assembly
-  representation rather than a reinterpretation of v1 fields.
+  to rebuild byte-identically. The merged analytic-faces design owns
+  `mesh2param/surface-network/2` and `mesh2param/curved-plate/2`, including
+  analytic surfaces, trim loops, curve records, wall-chain closure, and the
+  unsuffixed `sewingTolerance` field. Extraordinary plates extend those
+  contracts as version 3; they do not reinterpret either earlier version.
 - The multi-region-hole path fills each interior rim for the harmonic solve,
   drops the synthetic vertices afterward, and records exact boolean cutters.
   The extraordinary corner detector must never mistake an interior rim for an
@@ -213,19 +216,20 @@ orientation.
 
 ## Surface-network and plate artifacts
 
-### `mesh2param/surface-network/2`
+### `mesh2param/surface-network/3`
 
-Read and rebuild v1 indefinitely. Emit v2 only for layouts that need explicit
-extraordinary-junction incidence. V2 retains the existing vertices, curves,
-and patches and adds a canonical `junctions` array:
+Schema 3 is exactly the merged `mesh2param/surface-network/2` contract -- its
+analytic and tensor `faces`, explicit trim loops, and canonical 3-D curve and
+pcurve records -- plus one id-addressed top-level `junctions` array. It does
+not restore the schema-1 `patches` array or define alternate face, trim, or
+curve records.
+
+This excerpt shows the only new record shape; the surrounding `vertices`,
+`curves`, and `faces` are the complete schema-2 records with the top-level
+schema string changed to `mesh2param/surface-network/3`:
 
 ```json
 {
-  "schema": "mesh2param/surface-network/2",
-  "units": "mm",
-  "vertices": [],
-  "curves": [],
-  "patches": [],
   "junctions": [
     {
       "id": "junction-0",
@@ -239,78 +243,89 @@ and patches and adds a canonical `junctions` array:
 }
 ```
 
-Every patch refers to `vertex-junction-0` in its own `cornerVertexIds`. Do not
-write three equal-coordinate junction vertices. Every crease remains one
-ordinary `NetworkCurve` referenced by exactly two patch iso sides, and all
-three curves name the shared junction vertex as their start vertex.
+Every incident tensor face refers to `vertex-junction-0` in its
+`outerBoundary.cornerVertexIds`. Do not write three equal-coordinate junction
+vertices. Every crease remains one canonical curve with role `patchJoin`, is
+referenced by exactly two tensor-domain shared boundaries, and names the
+shared junction vertex as its start vertex. Analytic faces may coexist in a
+schema-3 network but cannot participate in the first extraordinary fan.
 
-V2 validation derives incidence from patches and curves and requires it to
-match the recorded sorted junction arrays and valence. It also checks with an
-explicit absolute epsilon that:
+Schema-3 validation derives incidence from faces, shared-boundary curve uses,
+and curve endpoints and requires it to match the recorded junction arrays and
+valence. `incidentPatchIds` names tensor faces whose `surface.kind` is
+`tensorPatch`; both incidence arrays are unique and sorted by id. Validation
+also checks with an explicit absolute epsilon that:
 
 - every curve endpoint pole agrees with its referenced vertex;
-- every patch corner pole agrees with its referenced vertex;
-- every shared row agrees with its curve poles with zero relative tolerance;
-- every shared curve has exactly two incident patches;
+- every tensor-face corner pole agrees with its referenced vertex;
+- every shared row agrees with its canonical curve poles with zero relative
+  tolerance;
+- every shared curve has exactly two incident tensor faces;
 - every extraordinary vertex link is one manifold region/curve cycle; and
-- every patch has two incident junction curves meeting at the one recorded
-  corner, not at two merely coincident corners.
+- every incident tensor face has two junction curves meeting at the one
+  recorded corner, not at two merely coincident corners.
 
-Geometry arrays remain canonical JSON with the existing float serialization.
-V1 serialization is not routed through a v2 normalizer, so historical hashes
-and rebuild bytes do not change.
+Version 3 adopts the version-2 canonical byte and hashing contract in
+[`network-analytic-faces.md`](network-analytic-faces.md#canonical-bytes-and-hashing)
+verbatim; it does not define another serializer. That inherited contract is
+the authority for negative-zero normalization, rejection of an artifact whose
+raw bytes differ from its canonical reserialization, and id sorting for every
+id-addressed array. `junctions` is such an array. Its two incidence arrays are
+sets encoded in id order; topology and geometry arrays retain their declared
+order exactly as in version 2. A noncanonical schema-3 network fails with the
+same `network_noncanonical_artifact` code.
 
-### `mesh2param/curved-plate/2`
+Readers permanently dispatch and rebuild `surface-network/1`,
+`surface-network/2`, and `surface-network/3` on their own code paths. They do
+not upgrade v1 or v2 objects in memory. New reconstruction continues to emit
+v1 or v2 unless explicit extraordinary-junction incidence requires v3, so
+historical and analytic-face-only hashes and rebuild bytes do not change.
 
-The current plate artifact's four `assembly.corners` cannot describe a
-triangular Y-ridge footprint or more than one ridge endpoint per wall. V2
-records the closure topology explicitly:
+### `mesh2param/curved-plate/3`
 
-```json
-{
-  "schema": "mesh2param/curved-plate/2",
-  "network": {},
-  "assembly": {
-    "baseCornerVertexIds": ["outer-0", "outer-1", "outer-2"],
-    "wallChains": [
-      {
-        "baseStartVertexId": "outer-0",
-        "baseEndVertexId": "outer-1",
-        "topSides": [
-          {"patchId": "patch-0", "iso": "u1", "forward": true},
-          {"patchId": "patch-1", "iso": "v1", "forward": true}
-        ]
-      }
-    ],
-    "prismVector": [0.0, 0.0, -25.0],
-    "sewingToleranceMm": 0.001,
-    "holes": []
-  }
-}
-```
+Schema 3 is exactly the merged `mesh2param/curved-plate/2` contract --
+including `assembly.wallChains`, `assembly.baseCornerVertexIds`, and the
+unit-aware `assembly.sewingTolerance` field -- with a complete
+`surface-network/3` object. It never writes `sewingToleranceMm`, and it does
+not introduce a second wall-closure representation.
 
-There is one ordered wall-chain entry per base polygon edge. The referenced
-unshared patch sides form the complete top outer boundary exactly once. The
-first and last side endpoints equal the named base vertices; intermediate
-vertices, such as elevated ridge endpoints, must lie in that wall's plane
-within the existing boundary tolerance. The lower wire is the ordered base
-corner polygon translated by the unchanged prism vector.
+The Y-ridge uses the version-2 fields with three ordered
+`baseCornerVertexIds` and three ordered `wallChains`, one per triangular base
+edge. A wall chain may contain the two consecutive unshared tensor-face sides
+which meet at the elevated ridge endpoint on that wall. Across all wall
+chains, the referenced sides form the complete top outer boundary exactly
+once. The first and last side endpoints equal the chain's named base vertices;
+every intermediate vertex lies in that wall's plane within the existing
+boundary tolerance. The lower wire is the ordered triangular base polygon
+translated by the unchanged `prismVector`.
 
-`build_network_faces` should return an edge by `(patchId, iso)` for unshared
-boundaries as well as the curve-ID map for shared boundaries. The v2 assembly
-builder uses those exact top boundary edges, creates the recorded planar wall
-wires, and then applies the same bounded sewing and solid validation. It does
-not infer walls by vertex names or nearest-segment tests.
+No additional plate field is needed for the Y-ridge. Version 3 changes only
+the schema signal and permits the nested surface-network/3 junction incidence,
+but does not change the assembly record. Version 2 already permits a base
+polygon of at least three unique vertices and more than one top side in a wall
+chain, so its existing validation accepts the Y-ridge's three non-collinear
+base corners and split wall tops. The version-2 constraints on ordered closure,
+bounded sewing, holes, units, and solid validation apply unchanged.
+
+`build_network_faces` continues the version-2 contract of returning an edge by
+`(patchId, iso)` for unshared tensor boundaries as well as the curve-ID map for
+shared boundaries. The version-3 assembly builder uses those exact top edges,
+creates the recorded planar wall wires, and applies the same bounded sewing
+and solid validation. It does not infer walls by vertex names or
+nearest-segment tests.
 
 The CADGraph `reconstructedSurfaceNetwork` feature needs no public contract
 change: it already resolves a content-addressed curved-plate artifact. The
-compiler dispatches on curved-plate v1 or v2, verifies the SHA-256 first, and
-rebuilds through the same assembly function as the driver and fit cache.
+compiler verifies the SHA-256 first, dispatches curved-plate v1, v2, or v3,
+and rebuilds through the same assembly function as the driver and fit cache.
+Version-3 plate bytes use the version-2 canonicalizer verbatim, including its
+negative-zero, noncanonical-input, and id-sorting rules.
 
 The fit-cache key adds the surface-network schema, sorted junction evidence,
 region-to-chart corner cycles, curve orientations, and algorithm version. A
 cache hit still reruns assembly, shared-edge and junction evidence, kernel and
-STEP validation, and source comparison.
+STEP validation, and source comparison. Curved-plate v1 and v2 remain readable
+and rebuildable indefinitely without reserialization through the v3 writer.
 
 ## B-Rep and validation evidence
 
@@ -413,21 +428,30 @@ sewing tolerance, downgrade a crease to smooth, let one patch explain another
 region's samples, use `clean()` after analytic fusion, or accept a cache hit
 without rerunning downstream gates.
 
-## Implementation sequence after review
+## Implementation sequence after the version-2 foundation
 
-Each item is one implementation PR and stops at its stated boundary:
+No extraordinary-vertex implementation starts until the prerequisite parts
+of the analytic-faces plan have landed: the frozen v1 compatibility tests, the
+v2 codec and canonicalizer, tensor faces in the v2 `faces` representation,
+canonical curve/shared-boundary records, and curved-plate/2 wall-chain,
+compiler, and cache dispatch. Schema 3 extends those implementations; it does
+not develop a parallel artifact stack while version 2 is still in flight.
+
+After those dependencies and this design are merged, each item below is one
+implementation PR and stops at its stated boundary:
 
 1. **Topology and charts.** Add crease-graph/junction extraction, the
    topology-plus-geometry corner layout, valence-agnostic fan records, negative
    stable-code tests, and the generator-owned Y-ridge ground truth. Keep
    reconstruction fail-closed after chart validation.
-2. **Joint fit and surface-network v2.** Add canonical pole alias groups,
-   N-patch residual/reprojection logic, v2 junction serialization and
+2. **Joint fit and surface-network v3.** Add canonical pole alias groups,
+   N-patch residual/reprojection logic, v3 junction serialization and
    validation, and deterministic fit/rebuild unit tests. Do not yet expose a
    successful plate conversion through services.
-3. **Plate v2 and end-to-end reconstruction.** Add explicit base/wall-chain
-   assembly, compiler/cache dispatch, OCCT/STEP incidence evidence, service
-   integration, and all repeat/rebuild/cache determinism tests for the
+3. **Plate v3 and end-to-end reconstruction.** Reuse the v2 wall-chain
+   assembly for the triangular Y-ridge footprint, add v3 nested-network
+   validation and compiler/cache dispatch, OCCT/STEP incidence evidence,
+   service integration, and all repeat/rebuild/cache determinism tests for the
    Y-ridge fixture.
 4. **Optional follow-ups, separately reviewed.** Extraordinary networks with
    recognized holes, multiple junctions, mixed analytic boundaries, or
