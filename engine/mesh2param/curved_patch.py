@@ -355,9 +355,10 @@ def _plate_openings(
 
     A loop bordered by a recognized cylinder is a through hole (boolean
     subtraction); a loop bordered by a recognized sphere is a proud analytic
-    cap, while loops bordered by a recognized cone or torus are proud analytic
-    features (boolean fusion). Anything else fails closed. Entries come back
-    in loop order so callers can pair them with the loops themselves.
+    cap (boolean fusion); a loop bordered by a recognized cone is a proud
+    conical boss (boolean fusion), and a loop bordered by a recognized torus
+    is a proud analytic bead (boolean fusion). Anything else fails closed. Entries
+    come back in loop order so callers can pair them with the loops themselves.
     """
 
     openings: list[PlateHole | PlateCap | PlateCone | PlateTorus] = []
@@ -539,7 +540,7 @@ def reconstruct_single_patch_plate(
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_holes_unsupported",
-            "single-patch reconstruction does not support holes or analytic features; "
+            "single-patch reconstruction does not support holes or analytic bosses; "
             "use reconstruct_plate_network",
         )
     chart = context.chart
@@ -871,12 +872,7 @@ class ConeFuser:
 
 @dataclass(frozen=True, slots=True)
 class TorusFuser:
-    """Exact vertical torus fuser recorded verbatim for deterministic replay.
-
-    A torus has both major- and minor-parameter seams and no poles. The
-    empirically stable placement is CadQuery's canonical positive vertical
-    axis; reversing it can fragment an otherwise identical boolean result.
-    """
+    """Exact vertical torus fuser recorded verbatim for deterministic replay."""
 
     major_radius: float
     minor_radius: float
@@ -1769,8 +1765,8 @@ def _network_gates(
     expected_cylinders: int = 0,
     expected_spheres: int = 0,
     expected_cones: int = 0,
-    expected_tori: int = 0,
     expected_face_count: int | None = None,
+    expected_tori: int = 0,
 ) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
     shape_validation = validate_shape(solid)
     if not shape_validation.valid:
@@ -2888,17 +2884,16 @@ def reconstruct_plate_network(
             expected_cylinders=len(context.holes),
             expected_spheres=len(context.caps),
             expected_cones=len(context.cones),
-            expected_tori=len(context.tori),
             expected_face_count=(
                 5
                 + len(network.patches)
                 + len(context.holes)
                 + len(context.caps)
                 + len(context.cones)
-                + len(context.tori)
                 if context.cones
                 else None
             ),
+            expected_tori=len(context.tori),
         )
         if fit_cache is not None and cache_key is not None:
             fit_cache.store(
@@ -2947,7 +2942,7 @@ def reconstruct_plate_network(
         raise CurvedPatchError(
             "cutting chart",
             "curved_patch_holes_unsupported_split",
-            "chart cutting across regions with holes or analytic features is not supported yet; "
+            "chart cutting across regions with holes or analytic bosses is not supported yet; "
             "the single-patch layout did not meet tolerance",
         )
 
@@ -3347,17 +3342,12 @@ def _assemble_cached_network(
         expected_cylinders=len(context.holes),
         expected_spheres=len(context.caps),
         expected_cones=len(context.cones),
-        expected_tori=len(context.tori),
         expected_face_count=(
-            5
-            + len(network.patches)
-            + len(context.holes)
-            + len(context.caps)
-            + len(context.cones)
-            + len(context.tori)
+            5 + len(network.patches) + len(context.holes) + len(context.caps) + len(context.cones)
             if context.cones
             else None
         ),
+        expected_tori=len(context.tori),
     )
     iterations = tuple(
         FitIteration(

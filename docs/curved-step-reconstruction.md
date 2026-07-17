@@ -690,7 +690,7 @@ The user controls for split/merge, crease classification, and patch locking
 are implemented (see the per-patch controls and crease-classification
 sections above). Spherical caps, conical bosses, and torus beads are now
 assembled into the shell (see the analytic sections below); shared network
-edges for analytic faces and extraordinary vertices remain open.
+edges for analytic faces remain open.
 
 #### Analytic caps (implemented)
 

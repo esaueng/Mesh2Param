@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   edgeOverlayKind,
+  displayMaterialProperties,
   patchForFace,
   selectedTriangleRanges,
   usesAnalyticResultShading,
@@ -58,5 +59,26 @@ describe("shaded edge overlay", () => {
     expect(edgeOverlayKind("reconstructed", false, true, false, 6_260, true)).toBe("creases");
     expect(edgeOverlayKind("reconstructed", false, true, false, 20_000, true)).toBe("creases");
     expect(edgeOverlayKind("reconstructed", false, true, false, 20_001, true)).toBe("none");
+  });
+});
+
+describe("display material modes", () => {
+  it("uses transparent non-depth-writing material for x-ray mode", () => {
+    expect(displayMaterialProperties("xray", 0.9)).toEqual({
+      displayedOpacity: 0.28,
+      transparent: true,
+      depthWrite: false,
+      wireframe: false,
+    });
+  });
+
+  it("preserves solid opacity for shaded analysis modes", () => {
+    expect(displayMaterialProperties("normals", 1)).toEqual({
+      displayedOpacity: 1,
+      transparent: false,
+      depthWrite: true,
+      wireframe: false,
+    });
+    expect(displayMaterialProperties("wireframe", 1).wireframe).toBe(true);
   });
 });

@@ -12,10 +12,17 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    exclude: ["occt-wasm"],
+  },
+  worker: {
+    format: "es",
+  },
   server: { proxy },
   preview: { proxy },
   build: {
-    target: "es2022",
+    target: "esnext",
+    assetsInlineLimit: 0,
     sourcemap: false,
   },
 });

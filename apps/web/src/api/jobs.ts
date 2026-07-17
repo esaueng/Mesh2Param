@@ -1,5 +1,5 @@
 import type { Job, JobConnectionState, JobEvent, JobEventType, JobStatus } from "../state/types";
-import { ApiClient, apiClient } from "./client";
+import { apiClient } from "./client";
 import { ApiError, normalizeApiError } from "./errors";
 
 const EVENT_TYPES: readonly JobEventType[] = [
@@ -29,9 +29,14 @@ export interface JobEventHandlers {
 }
 
 export interface WatchJobOptions {
-  client?: ApiClient;
+  client?: JobClient;
   eventSourceFactory?: (url: string) => EventSourceLike;
   reconnectDelayMs?: number;
+}
+
+interface JobClient {
+  getJob(jobId: string): Promise<{ data: Job }>;
+  subscribeJob?(jobId: string, listener: (event: JobEvent) => void): () => void;
 }
 
 interface StreamRegistration {
@@ -39,6 +44,7 @@ interface StreamRegistration {
   source: EventSourceLike | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   lastProgress: number;
+  localUnsubscribe: (() => void) | null;
 }
 
 const streams = new Map<string, StreamRegistration>();
@@ -115,6 +121,7 @@ export function closeJobStream(jobId: string): void {
   const registration = streams.get(jobId);
   if (registration === undefined) return;
   registration.source?.close();
+  registration.localUnsubscribe?.();
   if (registration.reconnectTimer !== null) clearTimeout(registration.reconnectTimer);
   streams.delete(jobId);
 }
@@ -132,6 +139,7 @@ export function watchJob(job: Job, handlers: JobEventHandlers, options: WatchJob
     source: null,
     reconnectTimer: null,
     lastProgress: job.progress,
+    localUnsubscribe: null,
   };
   streams.set(job.id, registration);
   const client = options.client ?? apiClient;
@@ -139,6 +147,25 @@ export function watchJob(job: Job, handlers: JobEventHandlers, options: WatchJob
   const reconnectDelay = options.reconnectDelayMs ?? 2_000;
 
   const current = (): boolean => streams.get(job.id)?.generation === generation;
+
+  const acceptEvent = (event: JobEvent): void => {
+    if (!current()) return;
+    try {
+      const parsed = parseJobEvent(event, job.id);
+      if (parsed.progress !== null && parsed.progress < registration.lastProgress) {
+        throw new TypeError("job event progress regressed");
+      }
+      if (parsed.progress !== null) registration.lastProgress = parsed.progress;
+      handlers.onEvent(parsed);
+      if (TERMINAL_STATUSES.has(parsed.type)) {
+        registration.localUnsubscribe?.();
+        streams.delete(job.id);
+        handlers.onConnection?.("closed");
+      }
+    } catch (error) {
+      handlers.onInvalidEvent?.(error instanceof Error ? error : new Error(String(error)));
+    }
+  };
 
   const connect = (): void => {
     if (!current()) return;
@@ -195,6 +222,9 @@ export function watchJob(job: Job, handlers: JobEventHandlers, options: WatchJob
   if (isTerminal(job)) {
     streams.delete(job.id);
     handlers.onConnection?.("closed");
+  } else if (client.subscribeJob !== undefined) {
+    handlers.onConnection?.("open");
+    registration.localUnsubscribe = client.subscribeJob(job.id, acceptEvent);
   } else {
     connect();
   }
