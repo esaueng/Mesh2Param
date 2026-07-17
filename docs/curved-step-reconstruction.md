@@ -363,7 +363,7 @@ and is generated deterministically by
 [`scripts/generate_curved_fixtures.py`](../scripts/generate_curved_fixtures.py)
 from [`engine/mesh2param/curved_fixtures.py`](../engine/mesh2param/curved_fixtures.py).
 Every positive fixture derives from an exact ground-truth solid whose top face
-is a real `Geom_BSplineSurface` (6-7 B-Rep faces total), so curved
+is a real `Geom_BSplineSurface` (fewer than 10 B-Rep faces total), so curved
 reconstruction can be scored against exact geometry.
 [`scripts/run_curved_baseline.py`](../scripts/run_curved_baseline.py) records
 the current faceted-fallback behavior; the baseline measured on the reference
@@ -688,9 +688,9 @@ hybrid shells and far below any engineering tolerance.
 
 The user controls for split/merge, crease classification, and patch locking
 are implemented (see the per-patch controls and crease-classification
-sections above). Spherical caps are now assembled into the shell (see
-"Analytic caps" below); cones and tori as reconstructed faces, and shared
-network edges for analytic faces, remain open.
+sections above). Spherical caps and torus beads are now assembled into the
+shell (see "Analytic caps" and "Analytic torus beads" below); cones as
+reconstructed faces and shared network edges for analytic faces remain open.
 
 #### Analytic caps (implemented)
 
@@ -731,6 +731,47 @@ reconstructed in ~9 s, maximum fit residual 0.149 mm, source deviation
 0.076 mm, volume within 0.02 % of exact, recognized radius exact to 1e-3,
 byte-identical artifacts and STEP across repeat runs, the artifact rebuild,
 and cache hits. Covered by `tests/test_curved_caps.py`.
+
+#### Analytic torus beads (implemented)
+
+A recognized circular torus standing proud of a near-planar freeform top now
+joins the shell as one true torus face. Unlike a sphere cap, the bead meets the
+top on two closed curves and separates the observed B-spline support into an
+outer annulus plus an inner disk. The driver treats those as one underlying
+rectangular plate chart: the outer annulus is harmonically parameterized only
+after its free torus rim is closed by the same virtual-fan construction used
+for multi-region holes, while the inner disk is projected into the plate's
+bounded in-plane UV frame and contributes real, area-weighted fit samples.
+The hidden annulus under the torus receives only weak synthetic fill and is
+excluded from the convergence gate. Detached regions, a non-vertical axis,
+folded projected UVs, multiple bridging tori, and any other topology fail
+closed.
+
+The partial exposed tube also required a recognition correction. PCA provides
+only an initializer because an uneven trim biases its torus axis; deterministic
+nonlinear least squares now polishes center, axis, and both radii against the
+Euclidean torus residual. The ordinary 300-degree revolution gate remains, and
+the visible tube profile must span at least 90 degrees so its circle fit is
+well-conditioned. No distance tolerance was widened.
+
+Both torus parameters are periodic, so there are two seams and no pole where a
+degenerate fan can be discarded. Empirical OCCT probes found that the canonical
+positive vertical axis consistently produced one valid torus face; reversing
+the axis sometimes split the same geometric torus or changed the boolean
+result, while rotating the major seam changed kernel numerics. The recorded
+`TorusFuser` therefore contains major radius, minor radius, center, and exactly
+the positive vertical axis and is replayed verbatim by cache hits and compiler
+artifact rebuilds. The raw fuse is used without `clean()`, and validation
+requires exactly one torus face so seam fragmentation cannot pass silently.
+The artifact's `tori` list is present only when non-empty, preserving all prior
+fixture and artifact bytes.
+
+Measured on the new `bspline-torus-bead-plate` fixture (13,516 source
+triangles; exact 14 mm major and 4 mm minor radii): an 8-face solid (5 planes,
+2 trims of one B-spline support, 1 torus) reconstructed in ~20 s, maximum fit
+residual 0.054 mm, source deviation 0.073 mm, and volume within 0.01 % of exact.
+The artifact and normalized STEP are byte-identical across repeat runs,
+artifact rebuild, and cache hits. Covered by `tests/test_curved_torus.py`.
 
 ### Milestone 4: production hardening (core implemented)
 
