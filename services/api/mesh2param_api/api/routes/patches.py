@@ -37,6 +37,61 @@ def _patches(
     return revision, document, raw
 
 
+def _apply_smooth_boundaries(
+    patch: dict[str, Any],
+    requested: list[str],
+    patches: list[dict[str, Any]],
+    project_id: str,
+) -> None:
+    """Replace a patch's smooth-boundary declarations, mirrored symmetrically.
+
+    A smooth join is a property of the shared boundary, so the neighbor's own
+    list is kept in sync: reading either patch shows the same declaration and
+    the reconstruction sees one consistent pair.
+    """
+
+    by_id = {item.get("id"): item for item in patches}
+    neighbor_ids = set(patch.get("neighborIds", []))
+    current = set(patch.get("smoothBoundaryIds", []))
+    changed = set(requested) ^ current
+    for neighbor_id in sorted(set(requested)):
+        if neighbor_id not in by_id or neighbor_id not in neighbor_ids:
+            raise APIError(
+                422,
+                "invalid_boundary_override",
+                "Boundary override references a non-neighbor",
+                f"Patch {neighbor_id!r} does not share a boundary with this patch.",
+                project_id=project_id,
+                recoverable=True,
+            )
+    locked = [
+        item
+        for item in [patch, *(by_id[n] for n in sorted(changed) if n in by_id)]
+        if item.get("locked")
+    ]
+    if locked:
+        raise APIError(
+            409,
+            "patch_locked",
+            "Patch is locked",
+            "Unlock both sides of the boundary before changing its continuity.",
+            project_id=project_id,
+            recoverable=True,
+        )
+    patch["smoothBoundaryIds"] = sorted(requested)
+    patch_id = patch.get("id")
+    for neighbor_id in sorted(changed):
+        neighbor = by_id.get(neighbor_id)
+        if neighbor is None:
+            continue
+        mirrored = set(neighbor.get("smoothBoundaryIds", []))
+        if neighbor_id in requested:
+            mirrored.add(patch_id)
+        else:
+            mirrored.discard(patch_id)
+        neighbor["smoothBoundaryIds"] = sorted(mirrored)
+
+
 @router.get("", response_model=PatchListEnvelope)
 def get_patches(
     request: Request,
@@ -83,6 +138,8 @@ def update_patch(
     if body.parameters is not None:
         patch["fit"] = body.parameters
         patch["userOverriddenClassification"] = True
+    if body.smooth_boundary_ids is not None:
+        _apply_smooth_boundaries(patch, sorted(set(body.smooth_boundary_ids)), patches, project_id)
     revision, _ = repo.replace_state(project_id, expected, document)
     repo.record_audit(
         request_id(request), "patch.update", "success", project_id=project_id

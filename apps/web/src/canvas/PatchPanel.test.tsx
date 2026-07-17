@@ -87,6 +87,63 @@ describe("PatchPanel", () => {
     expect(onMerge).toHaveBeenCalledWith(["patch.a", "patch.b"]);
   });
 
+  it("offers boundary continuity between adjacent freeform regions", async () => {
+    const user = userEvent.setup();
+    const onUpdate = vi.fn();
+    const regions: SurfacePatch[] = [
+      patch({ id: "patch.r1", type: "freeform", neighborIds: ["patch.r2", "patch.a"] }),
+      patch({ id: "patch.r2", type: "freeform", neighborIds: ["patch.r1"] }),
+      patch({ id: "patch.a", type: "plane", neighborIds: ["patch.r1"] }),
+    ];
+    render(
+      <PatchPanel
+        patches={regions}
+        selectedPatchId="patch.r1"
+        disabled={false}
+        onSelect={() => {}}
+        onUpdate={onUpdate}
+        onMerge={() => {}}
+      />,
+    );
+
+    // Only the freeform neighbor gets a boundary control; the plane does not.
+    const control = screen.getByRole("combobox", { name: "Boundary continuity to patch.r2" });
+    expect(screen.queryByRole("combobox", { name: "Boundary continuity to patch.a" })).toBeNull();
+    expect(control).toHaveValue("crease");
+    await user.selectOptions(control, "smooth");
+    expect(onUpdate).toHaveBeenCalledWith("patch.r1", { smoothBoundaryIds: ["patch.r2"] });
+  });
+
+  it("reflects and clears an existing smooth declaration, locked blocks edits", async () => {
+    const user = userEvent.setup();
+    const onUpdate = vi.fn();
+    const regions: SurfacePatch[] = [
+      patch({
+        id: "patch.r1",
+        type: "freeform",
+        neighborIds: ["patch.r2"],
+        smoothBoundaryIds: ["patch.r2"],
+      }),
+      patch({ id: "patch.r2", type: "freeform", neighborIds: ["patch.r1"], locked: true }),
+    ];
+    render(
+      <PatchPanel
+        patches={regions}
+        selectedPatchId="patch.r1"
+        disabled={false}
+        onSelect={() => {}}
+        onUpdate={onUpdate}
+        onMerge={() => {}}
+      />,
+    );
+    const control = screen.getByRole("combobox", { name: "Boundary continuity to patch.r2" });
+    expect(control).toHaveValue("smooth");
+    // The neighbor is locked, so the boundary cannot be edited from this side.
+    expect(control).toBeDisabled();
+    await user.selectOptions(control, "crease").catch(() => {});
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it("keeps split explicitly unavailable and locked patches read-only", () => {
     render(
       <PatchPanel

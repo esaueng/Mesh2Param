@@ -304,6 +304,7 @@ export class ApiClient {
       locked?: boolean;
       classification?: PatchClassification;
       parameters?: JsonObject;
+      smoothBoundaryIds?: string[];
     },
     signal?: AbortSignal,
   ): Promise<ApiResult<SurfacePatch>> {
