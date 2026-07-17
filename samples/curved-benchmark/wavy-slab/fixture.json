@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "Closed solid whose top face is a non-round B-spline sheet meeting extruded walls at sharp creases, tessellated at standard density.",
+  "directory": "wavy-slab",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 22697.36181817824,
+    "boundingBox": [
+      -1.8756065763511136,
+      -1.8756065763511136,
+      -34.25619892156559,
+      81.87560657635112,
+      81.87560657635373,
+      7.706308506320342
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 191999.99999999243
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab",
+  "stl": {
+    "byteSize": 13184,
+    "path": "source.stl",
+    "sha256": "54ea86fa30de26f0609b3a3b0a811e01beaa26be6ec94c02593375b2e6522f59",
+    "triangleCount": 262,
+    "vertexCount": 133
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Wavy B-spline slab",
+  "units": "mm"
+}

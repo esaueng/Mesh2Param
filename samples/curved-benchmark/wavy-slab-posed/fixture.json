@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "The slab rotated 30 degrees about (1,1,0) and moved off origin.",
+  "directory": "wavy-slab-posed",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 22697.36181817823,
+    "boundingBox": [
+      12.614109574100262,
+      -42.49570670031265,
+      8.715877428168708,
+      108.59766967075126,
+      50.84483003450374,
+      90.159877823813
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 191999.99999999246
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab-posed",
+  "stl": {
+    "byteSize": 13584,
+    "path": "source.stl",
+    "sha256": "8bbe39da6a86478ee958babda07cdd70c3812fcc0d7d2fa4c3cc7aafe8cd7b58",
+    "triangleCount": 270,
+    "vertexCount": 137
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Wavy slab, rotated and translated",
+  "units": "mm"
+}

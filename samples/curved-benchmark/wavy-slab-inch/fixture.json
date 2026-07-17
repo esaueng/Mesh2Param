@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "Physically identical slab expressed in inches (scale 1/25.4).",
+  "directory": "wavy-slab-inch",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 35.18089273664847,
+    "boundingBox": [
+      -0.01415245078973631,
+      -0.01415245078973631,
+      -1.3160918676200983,
+      3.1637587500023403,
+      3.1637587500024544,
+      0.28251357010525
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 11.71655886618839
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab-inch",
+  "stl": {
+    "byteSize": 36484,
+    "path": "source.stl",
+    "sha256": "c99065608f409fbcaa02e5504da3f490f9b8db13dc7d3ec18f7d9f2264e88440",
+    "triangleCount": 728,
+    "vertexCount": 366
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.008
+  },
+  "title": "Wavy slab in inch units",
+  "units": "in"
+}

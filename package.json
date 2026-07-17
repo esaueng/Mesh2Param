@@ -24,6 +24,8 @@
     "test:e2e": "pnpm --filter @mesh2param/web test:e2e",
     "samples:generate": "uv run --frozen mesh2param samples generate",
     "samples:check": "uv run --frozen --extra dev python scripts/check_samples.py",
+    "curved:fixtures": "uv run --frozen python scripts/generate_curved_fixtures.py",
+    "curved:baseline": "uv run --frozen python scripts/run_curved_baseline.py",
     "licenses:check": "uv run --frozen --extra dev python scripts/check_licenses.py --check",
     "mesh2param": "uv run --frozen mesh2param",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:geometry && pnpm samples:check && pnpm build && pnpm test:e2e && pnpm licenses:check",
