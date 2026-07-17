@@ -252,14 +252,51 @@ def _freeform_patch(patches: tuple[SurfacePatch, ...]) -> SurfacePatch:
             ),
         )
     patch = freeform[0]
-    loops = [loop for loop in patch.boundary_loops if loop.closed]
-    if len(patch.boundary_loops) != 1 or len(loops) != 1:
+    closed = [loop for loop in patch.boundary_loops if loop.closed]
+    if len(closed) != len(patch.boundary_loops) or not closed:
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_not_disk",
-            "the freeform region must have exactly one closed boundary loop",
+            "every freeform boundary loop must be closed (one outer, optional holes)",
         )
     return patch
+
+
+def _plate_holes(
+    patches: tuple[SurfacePatch, ...],
+    freeform: SurfacePatch,
+    hole_loops: list[np.ndarray],
+) -> tuple[PlateHole, ...]:
+    """Match each interior boundary loop to one recognized cylinder patch."""
+
+    holes: list[PlateHole] = []
+    for index, loop in enumerate(hole_loops):
+        loop_vertices = set(int(vertex) for vertex in loop)
+        matches = [
+            patch
+            for patch in patches
+            if patch.kind == "cylinder" and loop_vertices & set(patch.vertex_ids)
+        ]
+        cylinder = matches[0] if len(matches) == 1 else None
+        if cylinder is None or cylinder.cylinder_radius_mm is None:
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_hole_unrecognized",
+                (
+                    f"hole loop {index} does not border exactly one recognized "
+                    f"cylinder (found {len(matches)})"
+                ),
+            )
+        holes.append(
+            PlateHole(
+                radius=float(cylinder.cylinder_radius_mm),
+                axis_point=np.asarray(cylinder.cylinder_axis_point, dtype=np.float64),
+                axis=np.asarray(cylinder.cylinder_axis, dtype=np.float64),
+                residual_p95=cylinder.residuals_mm.p95,
+                patch_id=cylinder.id,
+            )
+        )
+    return tuple(holes)
 
 
 def _bottom_plane(
@@ -339,6 +376,12 @@ def reconstruct_single_patch_plate(
     settings.validate()
 
     context = _plate_context(mesh, settings)
+    if context.holes:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_holes_unsupported",
+            "single-patch reconstruction does not support holes; use reconstruct_plate_network",
+        )
     chart = context.chart
     corners = context.corners
     prism_vector = context.prism_vector
@@ -454,6 +497,8 @@ class CurvedNetworkResult:
     comparison: ComparisonReport
     corners: np.ndarray = field(repr=False)
     prism_vector: tuple[float, float, float]
+    holes: tuple[PlateHole, ...] = ()
+    candidates: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -469,11 +514,34 @@ class CurvedNetworkResult:
             "comparison": self.comparison.to_dict(),
             "corners": [list(map(float, corner)) for corner in self.corners],
             "prismVector": list(self.prism_vector),
+            "holes": [hole.to_dict() for hole in self.holes],
+            "candidates": [dict(candidate) for candidate in self.candidates],
             "limitations": [
                 "The fitted network is a tolerance-controlled approximation of the "
                 "mesh, not the recovered original CAD surfaces.",
                 "Plate topology only: straight outer creases over a planar bottom.",
             ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PlateHole:
+    """A recognized analytic through-hole cylinder piercing the plate."""
+
+    radius: float
+    axis_point: np.ndarray = field(repr=False)
+    axis: np.ndarray = field(repr=False)
+    residual_p95: float
+    patch_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "cylinder",
+            "radiusMm": self.radius,
+            "axisPoint": [float(value) for value in self.axis_point],
+            "axis": [float(value) for value in self.axis],
+            "residualP95Mm": self.residual_p95,
+            "patchId": self.patch_id,
         }
 
 
@@ -488,6 +556,8 @@ class _PlateContext:
     rectangle_normal: np.ndarray
     prism_vector: np.ndarray
     segmentation_counts: dict[str, int]
+    holes: tuple[PlateHole, ...] = ()
+    hole_loops: tuple[np.ndarray, ...] = ()
 
 
 def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _PlateContext:
@@ -504,13 +574,28 @@ def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _Pla
     local_index[used_vertices] = np.arange(len(used_vertices))
     chart_vertices = np.asarray(mesh.vertices, dtype=np.float64)[used_vertices]
     chart_faces = local_index[chart_faces_global]
-    loop_global = np.asarray(freeform.boundary_loops[0].vertex_ids, dtype=np.int64)
+
+    # The outer boundary is the loop with the largest 3-D perimeter; every
+    # other closed loop is an interior hole matched to an analytic patch.
+    mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
+
+    def perimeter(loop: np.ndarray) -> float:
+        points = mesh_vertices[loop]
+        return float(np.linalg.norm(np.diff(np.vstack([points, points[:1]]), axis=0), axis=1).sum())
+
+    loops_global = [np.asarray(loop.vertex_ids, dtype=np.int64) for loop in freeform.boundary_loops]
+    outer_index = int(np.argmax([perimeter(loop) for loop in loops_global]))
+    loop_global = loops_global[outer_index]
+    hole_loops = [loop for index, loop in enumerate(loops_global) if index != outer_index]
+    holes = _plate_holes(segmentation.patches, freeform, hole_loops)
+
     chart_loop = local_index[loop_global]
-    if np.any(chart_loop < 0):
+    hole_loops_local = tuple(local_index[loop] for loop in hole_loops)
+    if np.any(chart_loop < 0) or any(np.any(loop < 0) for loop in hole_loops_local):
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_boundary_mismatch",
-            "the freeform boundary loop references vertices outside the region",
+            "a freeform boundary loop references vertices outside the region",
         )
 
     try:
@@ -578,10 +663,17 @@ def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _Pla
             "the bottom plane coincides with the boundary rectangle",
         )
 
-    counts = {
-        kind: sum(1 for patch in segmentation.patches if patch.kind == kind)
-        for kind in ("plane", "cylinder", "freeform", "unknown")
-    }
+    for index, hole in enumerate(holes):
+        if abs(float(hole.axis @ rectangle_normal)) < np.cos(
+            np.radians(settings.plane_parallel_tolerance_deg)
+        ):
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_hole_not_normal",
+                f"hole {index} axis is not perpendicular to the plate",
+            )
+
+    counts = dict(segmentation.counts_by_type)
     return _PlateContext(
         chart_vertices=chart_vertices,
         chart_faces=chart_faces,
@@ -592,7 +684,94 @@ def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _Pla
         rectangle_normal=rectangle_normal,
         prism_vector=rectangle_normal * height,
         segmentation_counts=counts,
+        holes=holes,
+        hole_loops=hole_loops_local,
     )
+
+
+def _hole_fill_samples(
+    chart: ChartParameterization,
+    vertices: np.ndarray,
+    hole_loops: tuple[np.ndarray, ...],
+    base_weight: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Weak synthetic samples across hole interiors.
+
+    Holes carry no mesh data, and fairness alone lets the free poles inside
+    them run away (the surface balloons and the trimming boolean then severs
+    it into a second solid). A concentric blend of each rim toward its
+    centroid pins the extrapolation without competing with real samples: the
+    fill weight is a small fraction of the real sample weight and the region
+    is trimmed away by the recognized hole anyway.
+    """
+
+    fill_uv: list[np.ndarray] = []
+    fill_points: list[np.ndarray] = []
+    for loop in hole_loops:
+        rim_uv = chart.uv[loop]
+        rim_points = vertices[loop]
+        centroid_uv = rim_uv.mean(axis=0)
+        centroid_point = rim_points.mean(axis=0)
+        fill_uv.append(centroid_uv[None, :])
+        fill_points.append(centroid_point[None, :])
+        step = max(1, len(loop) // 12)
+        selected = np.arange(0, len(loop), step)
+        for fraction in (0.35, 0.7):
+            fill_uv.append(centroid_uv + fraction * (rim_uv[selected] - centroid_uv))
+            fill_points.append(centroid_point + fraction * (rim_points[selected] - centroid_point))
+    if not fill_uv:
+        empty = np.zeros((0, 3))
+        return np.zeros((0, 2)), empty, np.zeros(0)
+    uv = np.concatenate(fill_uv)
+    points = np.concatenate(fill_points)
+    weights = np.full(len(uv), base_weight)
+    return uv, points, weights
+
+
+def _subtract_holes(
+    solid: cq.Shape,
+    holes: tuple[PlateHole, ...],
+    mesh: trimesh.Trimesh,
+) -> cq.Shape:
+    """Boolean-subtract each recognized hole cylinder from the plate solid.
+
+    The kernel computes the exact intersection curves and pcurves, so the
+    trimmed B-spline top, the analytic cylinder, and the planes share one
+    valid shell without approximation on our side.
+    """
+
+    result = solid
+    vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    for index, hole in enumerate(holes):
+        axis = hole.axis / float(np.linalg.norm(hole.axis))
+        projections = vertices @ axis
+        extent = float(projections.max() - projections.min())
+        pad = max(1.0, 0.1 * extent)
+        base = (
+            hole.axis_point
+            + (float(projections.min()) - float(hole.axis_point @ axis) - pad) * axis
+        )
+        cutter = cq.Solid.makeCylinder(
+            hole.radius,
+            extent + 2.0 * pad,
+            cq.Vector(float(base[0]), float(base[1]), float(base[2])),
+            cq.Vector(float(axis[0]), float(axis[1]), float(axis[2])),
+        )
+        try:
+            result = result.cut(cutter)
+        except Exception as exc:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_hole_boolean_failed",
+                f"subtracting hole {index} failed: {exc}",
+            ) from exc
+        if len(result.Solids()) != 1:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_hole_boolean_failed",
+                f"subtracting hole {index} split the plate into multiple solids",
+            )
+    return result
 
 
 def _project_to_line(point: np.ndarray, line: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
@@ -685,6 +864,8 @@ def _network_gates(
     network: SurfaceNetwork,
     settings: CurvedPatchSettings,
     network_settings: CurvedNetworkSettings,
+    *,
+    expected_cylinders: int = 0,
 ) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
     shape_validation = validate_shape(solid)
     if not shape_validation.valid:
@@ -699,6 +880,15 @@ def _network_gates(
             "validating solid",
             "curved_patch_no_bspline_face",
             (f"expected {len(network.patches)} B-spline faces, found {face_surfaces['bspline']}"),
+        )
+    if face_surfaces["cylinder"] != expected_cylinders:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_hole_faces_mismatch",
+            (
+                f"expected {expected_cylinders} cylinder faces from recognized holes, "
+                f"found {face_surfaces['cylinder']}"
+            ),
         )
     evidence = shared_edge_evidence(network, sample_count=network_settings.evidence_sample_count)
     for entry in evidence:
@@ -769,60 +959,101 @@ def reconstruct_plate_network(
     degree = settings.fit.degree
     corner_vertices = tuple(NetworkVertex(f"corner-{index}", corners[index]) for index in range(4))
 
-    if not network_settings.force_split:
-        sample_uv, sample_points, sample_weights = chart_lattice_samples(
-            context.chart_vertices, context.chart_faces, context.chart.uv
+    # Always evaluate the single-patch layout so the choice between layouts is
+    # an explicit, retained score rather than an implicit code path.
+    candidates: list[dict[str, Any]] = []
+    sample_uv, sample_points, sample_weights = chart_lattice_samples(
+        context.chart_vertices, context.chart_faces, context.chart.uv
+    )
+    valid = sample_weights > 0.0
+    sample_uv = sample_uv[valid]
+    sample_points = sample_points[valid]
+    sample_weights = sample_weights[valid]
+    real_sample_count = len(sample_uv)
+    if context.hole_loops:
+        fill_weight = 0.05 * float(np.median(sample_weights))
+        fill_uv, fill_points, fill_weights = _hole_fill_samples(
+            context.chart, context.chart_vertices, context.hole_loops, fill_weight
         )
-        valid = sample_weights > 0.0
-        fitted = fit_bspline_patch(
-            sample_uv[valid],
-            sample_points[valid],
-            sample_weights[valid],
-            settings.fit_tolerance_mm,
-            settings=settings.fit,
-            rectangle_corners=corners,
+        sample_uv = np.concatenate([sample_uv, fill_uv])
+        sample_points = np.concatenate([sample_points, fill_points])
+        sample_weights = np.concatenate([sample_weights, fill_weights])
+    fitted = fit_bspline_patch(
+        sample_uv,
+        sample_points,
+        sample_weights,
+        settings.fit_tolerance_mm,
+        settings=settings.fit,
+        rectangle_corners=corners,
+        gate_count=real_sample_count,
+    )
+    candidates.append(
+        {
+            "layout": "single-patch",
+            "converged": fitted.converged,
+            "residualMaximum": fitted.maximum_distance,
+            "residualRms": fitted.rms_distance,
+            "controlPoints": fitted.control_u * fitted.control_v,
+            "chosen": False,
+        }
+    )
+
+    if fitted.converged and not network_settings.force_split:
+        candidates[0]["chosen"] = True
+        patch = NetworkPatch(
+            id="patch-0",
+            degree=degree,
+            knots_u=fitted.knots_u,
+            knots_v=fitted.knots_v,
+            poles=fitted.poles,
+            corner_vertex_ids=("corner-0", "corner-1", "corner-2", "corner-3"),
         )
-        if fitted.converged:
-            patch = NetworkPatch(
-                id="patch-0",
-                degree=degree,
-                knots_u=fitted.knots_u,
-                knots_v=fitted.knots_v,
-                poles=fitted.poles,
-                corner_vertex_ids=("corner-0", "corner-1", "corner-2", "corner-3"),
-            )
-            network = SurfaceNetwork(
-                units="mm", vertices=corner_vertices, curves=(), patches=(patch,)
-            )
-            wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
-            solid = _network_plate_solid(
-                network,
-                wall_chains,
-                corners,
-                context.prism_vector,
-                settings.sewing_tolerance_mm,
-            )
-            face_surfaces, comparison, evidence = _network_gates(
-                mesh, solid, network, settings, network_settings
-            )
-            return CurvedNetworkResult(
-                solid=solid,
-                network=network,
-                artifact_sha256=network.artifact_sha256(),
-                charts=(context.chart,),
-                iterations=fitted.iterations,
-                residual_maximum=fitted.maximum_distance,
-                residual_rms=fitted.rms_distance,
-                shared_evidence=evidence,
-                face_surfaces=face_surfaces,
-                comparison=comparison,
-                corners=corners,
-                prism_vector=(
-                    float(context.prism_vector[0]),
-                    float(context.prism_vector[1]),
-                    float(context.prism_vector[2]),
-                ),
-            )
+        network = SurfaceNetwork(units="mm", vertices=corner_vertices, curves=(), patches=(patch,))
+        wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
+        solid = _network_plate_solid(
+            network,
+            wall_chains,
+            corners,
+            context.prism_vector,
+            settings.sewing_tolerance_mm,
+        )
+        solid = _subtract_holes(solid, context.holes, mesh)
+        face_surfaces, comparison, evidence = _network_gates(
+            mesh,
+            solid,
+            network,
+            settings,
+            network_settings,
+            expected_cylinders=len(context.holes),
+        )
+        return CurvedNetworkResult(
+            solid=solid,
+            network=network,
+            artifact_sha256=network.artifact_sha256(),
+            charts=(context.chart,),
+            iterations=fitted.iterations,
+            residual_maximum=fitted.maximum_distance,
+            residual_rms=fitted.rms_distance,
+            shared_evidence=evidence,
+            face_surfaces=face_surfaces,
+            comparison=comparison,
+            corners=corners,
+            prism_vector=(
+                float(context.prism_vector[0]),
+                float(context.prism_vector[1]),
+                float(context.prism_vector[2]),
+            ),
+            holes=context.holes,
+            candidates=tuple(candidates),
+        )
+
+    if context.holes:
+        raise CurvedPatchError(
+            "cutting chart",
+            "curved_patch_holes_unsupported_split",
+            "chart cutting across regions with holes is not supported yet; the "
+            "single-patch layout did not meet tolerance",
+        )
 
     # Split path: cut the chart, fit the shared curve once, fit both patches
     # jointly with C1 coupling across the artificial smooth boundary.
@@ -955,6 +1186,17 @@ def reconstruct_plate_network(
     # Both patches carry identical shared-boundary poles by aliasing; that
     # pole row IS the shared curve.
     curve_poles = np.asarray(poles[0][-1], dtype=np.float64)
+    control = len(knots) - degree - 1
+    candidates.append(
+        {
+            "layout": "split-network",
+            "converged": bool(residuals.max() <= settings.fit_tolerance_mm),
+            "residualMaximum": float(residuals.max()),
+            "residualRms": float(np.sqrt(np.mean(residuals**2))),
+            "controlPoints": 2 * control * control - control,
+            "chosen": False,
+        }
+    )
     if residuals.max() > settings.fit_tolerance_mm:
         raise CurvedPatchError(
             "fitting surface",
@@ -964,6 +1206,7 @@ def reconstruct_plate_network(
                 f"{settings.fit_tolerance_mm:g} mm within the span budget"
             ),
         )
+    candidates[-1]["chosen"] = True
 
     vertices = (
         *corner_vertices,
@@ -1030,6 +1273,8 @@ def reconstruct_plate_network(
             float(context.prism_vector[1]),
             float(context.prism_vector[2]),
         ),
+        holes=(),
+        candidates=tuple(candidates),
     )
 
 
@@ -1039,6 +1284,7 @@ __all__ = [
     "CurvedPatchError",
     "CurvedPatchResult",
     "CurvedPatchSettings",
+    "PlateHole",
     "assemble_single_patch_plate",
     "chart_lattice_samples",
     "reconstruct_plate_network",

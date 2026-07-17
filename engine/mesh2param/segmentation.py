@@ -12,13 +12,14 @@ import json
 import math
 from dataclasses import dataclass, replace
 from itertools import combinations
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import numpy as np
 import trimesh
 from scipy.optimize import least_squares
 
-PatchKind = Literal["plane", "cylinder", "freeform", "unknown"]
+PatchKind = Literal["plane", "cylinder", "sphere", "cone", "torus", "freeform", "unknown"]
+ANALYTIC_PATCH_KINDS: tuple[str, ...] = ("plane", "cylinder", "sphere", "cone", "torus")
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,15 @@ class SurfacePatch:
     cylinder_axis: tuple[float, float, float] | None = None
     cylinder_radius_mm: float | None = None
     angular_coverage_deg: float | None = None
+    sphere_center: tuple[float, float, float] | None = None
+    sphere_radius_mm: float | None = None
+    cone_apex: tuple[float, float, float] | None = None
+    cone_axis: tuple[float, float, float] | None = None
+    cone_half_angle_deg: float | None = None
+    torus_center: tuple[float, float, float] | None = None
+    torus_axis: tuple[float, float, float] | None = None
+    torus_major_radius_mm: float | None = None
+    torus_minor_radius_mm: float | None = None
     recovered_from_facets: bool = False
     facet_sagitta_mm: float | None = None
     user_overridden: bool = False
@@ -102,6 +112,26 @@ class SurfacePatch:
                 "recoveredFromFacets": self.recovered_from_facets,
                 "facetSagittaMm": self.facet_sagitta_mm,
             }
+        elif self.kind == "sphere":
+            result["fit"] = {
+                "center": list(self.sphere_center or ()),
+                "radiusMm": self.sphere_radius_mm,
+            }
+        elif self.kind == "cone":
+            result["fit"] = {
+                "apex": list(self.cone_apex or ()),
+                "axis": list(self.cone_axis or ()),
+                "halfAngleDeg": self.cone_half_angle_deg,
+                "angularCoverageDeg": self.angular_coverage_deg,
+            }
+        elif self.kind == "torus":
+            result["fit"] = {
+                "center": list(self.torus_center or ()),
+                "axis": list(self.torus_axis or ()),
+                "majorRadiusMm": self.torus_major_radius_mm,
+                "minorRadiusMm": self.torus_minor_radius_mm,
+                "angularCoverageDeg": self.angular_coverage_deg,
+            }
         return result
 
 
@@ -110,7 +140,13 @@ class SegmentationSettings:
     smooth_angle_deg: float = 12.0
     planar_fit_tolerance_mm: float = 0.005
     cylinder_fit_tolerance_mm: float = 0.01
+    sphere_fit_tolerance_mm: float = 0.01
+    cone_fit_tolerance_mm: float = 0.01
+    torus_fit_tolerance_mm: float = 0.01
     minimum_cylinder_coverage_deg: float = 300.0
+    minimum_revolution_coverage_deg: float = 300.0
+    minimum_cone_half_angle_deg: float = 5.0
+    maximum_cone_half_angle_deg: float = 85.0
     maximum_cylinder_axis_normal_component: float = 0.05
     minimum_faceted_cylinder_side_count: int = 8
     maximum_faceted_cylinder_sagitta_mm: float = 0.1
@@ -120,10 +156,20 @@ class SegmentationSettings:
     def validate(self) -> None:
         if not 0 < self.smooth_angle_deg < 90:
             raise ValueError("smooth angle must be between 0 and 90 degrees")
-        if self.planar_fit_tolerance_mm <= 0 or self.cylinder_fit_tolerance_mm <= 0:
+        if (
+            self.planar_fit_tolerance_mm <= 0
+            or self.cylinder_fit_tolerance_mm <= 0
+            or self.sphere_fit_tolerance_mm <= 0
+            or self.cone_fit_tolerance_mm <= 0
+            or self.torus_fit_tolerance_mm <= 0
+        ):
             raise ValueError("fit tolerances must be positive")
         if not 0 < self.minimum_cylinder_coverage_deg <= 360:
             raise ValueError("minimum cylinder coverage must be in (0, 360]")
+        if not 0 < self.minimum_revolution_coverage_deg <= 360:
+            raise ValueError("minimum revolution coverage must be in (0, 360]")
+        if not 0 < self.minimum_cone_half_angle_deg < self.maximum_cone_half_angle_deg < 90:
+            raise ValueError("cone half-angle bounds must satisfy 0 < min < max < 90")
         if self.minimum_faceted_cylinder_side_count < 6:
             raise ValueError("minimum faceted-cylinder side count must be at least 6")
         if self.maximum_faceted_cylinder_sagitta_mm <= 0:
@@ -139,8 +185,7 @@ class SegmentationResult:
     @property
     def counts_by_type(self) -> dict[str, int]:
         return {
-            kind: sum(patch.kind == kind for patch in self.patches)
-            for kind in ("plane", "cylinder", "freeform", "unknown")
+            kind: sum(patch.kind == kind for patch in self.patches) for kind in get_args(PatchKind)
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -149,6 +194,12 @@ class SegmentationResult:
                 "smoothAngleDeg": self.settings.smooth_angle_deg,
                 "planarFitToleranceMm": self.settings.planar_fit_tolerance_mm,
                 "cylinderFitToleranceMm": self.settings.cylinder_fit_tolerance_mm,
+                "sphereFitToleranceMm": self.settings.sphere_fit_tolerance_mm,
+                "coneFitToleranceMm": self.settings.cone_fit_tolerance_mm,
+                "torusFitToleranceMm": self.settings.torus_fit_tolerance_mm,
+                "minimumRevolutionCoverageDeg": self.settings.minimum_revolution_coverage_deg,
+                "minimumConeHalfAngleDeg": self.settings.minimum_cone_half_angle_deg,
+                "maximumConeHalfAngleDeg": self.settings.maximum_cone_half_angle_deg,
                 "minimumCylinderCoverageDeg": self.settings.minimum_cylinder_coverage_deg,
                 "maximumCylinderAxisNormalComponent": (
                     self.settings.maximum_cylinder_axis_normal_component
@@ -256,6 +307,129 @@ def _fit_circle_2d(points: np.ndarray) -> tuple[np.ndarray, float, ResidualStats
         gaps = np.diff(np.concatenate((sorted_angles, sorted_angles[:1] + 2 * np.pi)))
         coverage = math.degrees(2 * np.pi - float(np.max(gaps)))
     return np.asarray((x_center, y_center)), radius, stats, coverage
+
+
+def _fit_sphere(points: np.ndarray) -> tuple[np.ndarray, float, ResidualStats]:
+    """Algebraic least-squares sphere: center, radius, and radial residuals."""
+
+    design = np.column_stack((2.0 * points, np.ones(len(points))))
+    target = np.einsum("ij,ij->i", points, points)
+    solution = np.linalg.lstsq(design, target, rcond=None)[0]
+    center = solution[:3]
+    radius = math.sqrt(max(float(solution[3] + center @ center), 0.0))
+    residuals = np.linalg.norm(points - center, axis=1) - radius
+    return center, radius, _residual_stats(residuals)
+
+
+def _fit_cone(
+    points: np.ndarray,
+    face_normals: np.ndarray,
+    face_centers: np.ndarray,
+    face_areas: np.ndarray,
+    axis: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, float, ResidualStats, float]:
+    """Apex/axis/half-angle cone fit: apex, axis, angle (deg), residuals, coverage.
+
+    Every tangent plane of a cone contains the apex, so the apex is the least
+    squares solution of ``n . q = n . c`` over all sampled tangent planes
+    (anchored at face centers); the half angle then comes from the
+    radial-versus-axial slope of the points.
+    """
+
+    weights = np.sqrt(np.maximum(face_areas, 0.0))
+    design = face_normals * weights[:, None]
+    target = np.einsum("ij,ij->i", face_normals, face_centers) * weights
+    apex = np.linalg.lstsq(design, target, rcond=None)[0]
+    offsets = points - apex
+    heights = offsets @ axis
+    if float(np.mean(heights)) < 0.0:
+        axis = -axis
+        heights = -heights
+    radial = np.linalg.norm(offsets - heights[:, None] * axis, axis=1)
+    denominator = float(heights @ heights)
+    if denominator <= 0.0:
+        return apex, axis, 0.0, ResidualStats(math.inf, math.inf, math.inf, math.inf), 0.0
+    slope = float((heights @ radial) / denominator)
+    half_angle = math.atan(max(slope, 0.0))
+
+    # Faceted normals are chord normals, which bias the linear apex estimate
+    # by tens of microns; polish geometrically like the 2-D circle fit does.
+    theta = math.acos(float(np.clip(axis[2], -1.0, 1.0)))
+    phi = math.atan2(float(axis[1]), float(axis[0]))
+
+    def cone_residual(parameters: np.ndarray) -> np.ndarray:
+        candidate_apex = parameters[:3]
+        candidate_theta, candidate_phi, candidate_alpha = parameters[3:]
+        candidate_axis = np.asarray(
+            (
+                math.sin(candidate_theta) * math.cos(candidate_phi),
+                math.sin(candidate_theta) * math.sin(candidate_phi),
+                math.cos(candidate_theta),
+            )
+        )
+        local = points - candidate_apex
+        local_heights = local @ candidate_axis
+        local_radial = np.linalg.norm(local - local_heights[:, None] * candidate_axis, axis=1)
+        return np.asarray(
+            local_radial * math.cos(candidate_alpha) - local_heights * math.sin(candidate_alpha)
+        )
+
+    optimized = least_squares(
+        cone_residual,
+        np.concatenate([apex, (theta, phi, half_angle)]),
+        method="trf",
+        ftol=1e-13,
+        xtol=1e-13,
+        gtol=1e-13,
+    )
+    apex = np.asarray(optimized.x[:3])
+    theta, phi, half_angle = (float(value) for value in optimized.x[3:])
+    axis = np.asarray(
+        (math.sin(theta) * math.cos(phi), math.sin(theta) * math.sin(phi), math.cos(theta))
+    )
+    offsets = points - apex
+    heights = offsets @ axis
+    if float(np.mean(heights)) < 0.0:
+        axis = -axis
+        heights = -heights
+        half_angle = -half_angle
+    half_angle = abs(half_angle)
+    radial = np.linalg.norm(offsets - heights[:, None] * axis, axis=1)
+    residuals = radial * math.cos(half_angle) - heights * math.sin(half_angle)
+    basis_u, basis_v = _orthogonal_basis(axis)
+    angles = np.mod(np.arctan2(offsets @ basis_v, offsets @ basis_u), 2 * np.pi)
+    sorted_angles = np.sort(angles)
+    gaps = np.diff(np.concatenate((sorted_angles, sorted_angles[:1] + 2 * np.pi)))
+    coverage = math.degrees(2 * np.pi - float(np.max(gaps))) if len(angles) >= 2 else 0.0
+    return apex, axis, math.degrees(half_angle), _residual_stats(residuals), coverage
+
+
+def _fit_torus(
+    points: np.ndarray,
+    axis: np.ndarray,
+    centroid: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, float, float, ResidualStats, float]:
+    """Axis-symmetric torus fit: center, axis, major/minor radii, residuals, coverage.
+
+    In cylindrical coordinates around the symmetry axis the torus is the
+    circle ``(rho - R)^2 + h^2 = r^2``, so the tube reduces to the existing
+    deterministic 2-D circle fit.
+    """
+
+    offsets = points - centroid
+    heights = offsets @ axis
+    radial = np.linalg.norm(offsets - heights[:, None] * axis, axis=1)
+    (rho_center, height_center), minor_radius, stats, tube_coverage = _fit_circle_2d(
+        np.column_stack((radial, heights))
+    )
+    center = centroid + height_center * axis
+    basis_u, basis_v = _orthogonal_basis(axis)
+    angles = np.mod(np.arctan2(offsets @ basis_v, offsets @ basis_u), 2 * np.pi)
+    sorted_angles = np.sort(angles)
+    gaps = np.diff(np.concatenate((sorted_angles, sorted_angles[:1] + 2 * np.pi)))
+    coverage = math.degrees(2 * np.pi - float(np.max(gaps))) if len(angles) >= 2 else 0.0
+    coverage = min(coverage, tube_coverage)
+    return center, axis, float(rho_center), float(minor_radius), stats, coverage
 
 
 def _patch_id(patch: SurfacePatch, resolution: float) -> str:
@@ -366,11 +540,97 @@ def fit_surface_patch(
         )
         return replace(patch, id=_patch_id(patch, settings.stable_id_resolution_mm))
 
+    cone_apex, cone_axis, cone_half_angle, cone_stats, cone_coverage = _fit_cone(
+        points, face_normals, face_centers, face_areas, cylinder_axis
+    )
+    if (
+        not below_minimum_area
+        and cone_stats.p95 <= settings.cone_fit_tolerance_mm
+        and cone_coverage >= settings.minimum_revolution_coverage_deg
+        and settings.minimum_cone_half_angle_deg
+        <= cone_half_angle
+        <= settings.maximum_cone_half_angle_deg
+    ):
+        confidence = max(0.0, 1.0 - cone_stats.p95 / settings.cone_fit_tolerance_mm)
+        patch = SurfacePatch(
+            id="",
+            kind="cone",
+            triangle_ids=triangle_id_tuple,
+            vertex_ids=vertex_id_tuple,
+            area_mm2=area,
+            centroid=centroid_tuple,
+            residuals_mm=cone_stats,
+            confidence=confidence,
+            cone_apex=_tuple3(cone_apex),
+            cone_axis=_tuple3(_canonical_direction(cone_axis)),
+            cone_half_angle_deg=cone_half_angle,
+            angular_coverage_deg=cone_coverage,
+        )
+        return replace(patch, id=_patch_id(patch, settings.stable_id_resolution_mm))
+
+    sphere_center, sphere_radius, sphere_stats = _fit_sphere(points)
+    if (
+        not below_minimum_area
+        and math.isfinite(sphere_radius)
+        and sphere_radius > 0.0
+        and sphere_stats.p95 <= settings.sphere_fit_tolerance_mm
+    ):
+        confidence = max(0.0, 1.0 - sphere_stats.p95 / settings.sphere_fit_tolerance_mm)
+        patch = SurfacePatch(
+            id="",
+            kind="sphere",
+            triangle_ids=triangle_id_tuple,
+            vertex_ids=vertex_id_tuple,
+            area_mm2=area,
+            centroid=centroid_tuple,
+            residuals_mm=sphere_stats,
+            confidence=confidence,
+            sphere_center=_tuple3(sphere_center),
+            sphere_radius_mm=sphere_radius,
+        )
+        return replace(patch, id=_patch_id(patch, settings.stable_id_resolution_mm))
+
+    (
+        torus_center,
+        torus_axis,
+        torus_major,
+        torus_minor,
+        torus_stats,
+        torus_coverage,
+    ) = _fit_torus(points, plane_normal, centroid)
+    if (
+        not below_minimum_area
+        and torus_stats.p95 <= settings.torus_fit_tolerance_mm
+        and torus_coverage >= settings.minimum_revolution_coverage_deg
+        and torus_major > torus_minor > 0.0
+    ):
+        confidence = max(0.0, 1.0 - torus_stats.p95 / settings.torus_fit_tolerance_mm)
+        patch = SurfacePatch(
+            id="",
+            kind="torus",
+            triangle_ids=triangle_id_tuple,
+            vertex_ids=vertex_id_tuple,
+            area_mm2=area,
+            centroid=centroid_tuple,
+            residuals_mm=torus_stats,
+            confidence=confidence,
+            torus_center=_tuple3(torus_center),
+            torus_axis=_tuple3(_canonical_direction(torus_axis)),
+            torus_major_radius_mm=torus_major,
+            torus_minor_radius_mm=torus_minor,
+            angular_coverage_deg=torus_coverage,
+        )
+        return replace(patch, id=_patch_id(patch, settings.stable_id_resolution_mm))
+
     freeform_stats = ResidualStats(
-        rms=min(plane_stats.rms, cylinder_stats.rms),
-        median=min(plane_stats.median, cylinder_stats.median),
-        p95=min(plane_stats.p95, cylinder_stats.p95),
-        maximum=min(plane_stats.maximum, cylinder_stats.maximum),
+        rms=min(plane_stats.rms, cylinder_stats.rms, sphere_stats.rms, cone_stats.rms),
+        median=min(
+            plane_stats.median, cylinder_stats.median, sphere_stats.median, cone_stats.median
+        ),
+        p95=min(plane_stats.p95, cylinder_stats.p95, sphere_stats.p95, cone_stats.p95),
+        maximum=min(
+            plane_stats.maximum, cylinder_stats.maximum, sphere_stats.maximum, cone_stats.maximum
+        ),
     )
     patch = SurfacePatch(
         id="",
@@ -775,7 +1035,7 @@ class PatchEditSession:
             )
             self.history.append(record)
             return record
-        if kind in {"plane", "cylinder"}:
+        if kind in set(ANALYTIC_PATCH_KINDS):
             fitted = fit_surface_patch(self.mesh, np.asarray(previous.triangle_ids), self.settings)
             if fitted.kind != kind:
                 record = PatchEditRecord(
@@ -904,6 +1164,7 @@ class PatchEditSession:
 
 
 __all__ = [
+    "ANALYTIC_PATCH_KINDS",
     "BoundaryLoop",
     "PatchEditRecord",
     "PatchEditSession",

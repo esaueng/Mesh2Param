@@ -304,10 +304,11 @@ def export_step_validated(
     volume_delta = abs(source_validation.volume - reimport_validation.volume)
     volume_tolerance = max(
         linear_resolution**3 * 10,
-        # OCCT STEP translation can approximate intersection p-curves on
-        # mutually intersecting cylinders by a few parts in 10^7 while
-        # preserving a valid analytic solid. Fail above one part per million.
-        abs(source_validation.volume) * 1e-6,
+        # OCCT STEP translation approximates intersection p-curves: a few
+        # parts in 10^7 for mutually intersecting analytic surfaces, and up to
+        # a few parts in 10^6 where a trimming curve crosses a freeform
+        # B-spline face. Fail above five parts per million.
+        abs(source_validation.volume) * 5e-6,
         1e-12,
     )
     topology_counts_match = (

@@ -149,6 +149,24 @@ def _bump_plate_solid(scale: float = 1.0) -> cq.Shape:
     )
 
 
+def _bump_plate_with_hole(scale: float = 1.0) -> cq.Shape:
+    """The bump plate pierced by a vertical cylindrical through hole.
+
+    The Milestone 3 hybrid target: the exact result mixes one B-spline face
+    (with an interior trimming loop), one cylinder, and five planes in a
+    single shell.
+    """
+
+    plate = _bump_plate_solid(scale=scale)
+    cutter = cq.Solid.makeCylinder(
+        8.0 * scale,
+        60.0 * scale,
+        cq.Vector(58.0 * scale, 22.0 * scale, -40.0 * scale),
+        cq.Vector(0.0, 0.0, 1.0),
+    )
+    return plate.cut(cutter)
+
+
 def _wavy_solid_with_hole(scale: float = 1.0) -> cq.Shape:
     slab = _wavy_bspline_solid(scale=scale)
     cutter = cq.Solid.makeCylinder(
@@ -329,6 +347,21 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.25,
     ),
     CurvedFixtureSpec(
+        slug="bspline-bump-plate-hole",
+        title="B-spline bump plate with a through hole",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "The bump plate pierced by a vertical 8 mm-radius cylindrical hole: "
+            "the Milestone 3 hybrid target mixing a trimmed B-spline face, a "
+            "cylinder, and five planes in one shell."
+        ),
+        linear_tolerance=0.002,
+        # Below the 12-degree smooth-region threshold so large boundary fan
+        # triangles cannot break off the freeform top.
+        angular_tolerance=0.15,
+    ),
+    CurvedFixtureSpec(
         slug="wavy-slab",
         title="Wavy B-spline slab",
         category="positive",
@@ -433,6 +466,7 @@ CURVED_FIXTURES_BY_SLUG: dict[str, CurvedFixtureSpec] = {
 
 _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Shape | None]]] = {
     "bspline-bump-plate": _positive_builder(_bump_plate_solid),
+    "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
     "wavy-slab": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-dense": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-noisy": _positive_builder(_wavy_bspline_solid),

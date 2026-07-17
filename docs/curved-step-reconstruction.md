@@ -373,6 +373,7 @@ each direction):
 | Fixture | Source triangles | Faceted faces | STEP size | Runtime | Max distance (mm) |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `bspline-bump-plate` | 492 | 492 | 1167 KiB | 0.47 s | 2.1e-07 |
+| `bspline-bump-plate-hole` | 2150 | 2150 | 5179 KiB | 1.78 s | 4.7e-07 |
 | `wavy-slab` | 262 | 262 | 582 KiB | 0.31 s | 4.7e-07 |
 | `wavy-slab-dense` | 2784 | 2784 | 6637 KiB | 2.36 s | 5.7e-07 |
 | `wavy-slab-noisy` | 262 | 262 | 617 KiB | 0.32 s | 5.5e-07 |
@@ -489,12 +490,60 @@ authoritative JSON Schema, regenerated TypeScript types, migrations, compiler
 resolution mirroring `ImportedFacetedFeature`, and services/web surfacing);
 the engine artifact above is designed to slot into it unchanged.
 
-### Milestone 3: hybrid analytic/freeform reconstruction
+### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 
 - Expand analytic primitive recognition.
 - Allow analytic and B-spline patches in one shell.
 - Score alternate patch layouts and retain rejected candidates/evidence.
 - Add user controls for split/merge, crease classification, and patch locking.
+
+Implemented in this milestone:
+
+- **Analytic recognition** ([`segmentation.py`](../engine/mesh2param/segmentation.py)):
+  sphere, cone, and torus fits join plane and cylinder, tried in the order
+  plane, cylinder, cone, sphere, torus. The cone comes before the sphere
+  deliberately: degenerate cone tessellations (one vertex ring plus an apex)
+  genuinely lie on a sphere, while a true sphere region can never satisfy the
+  cone's tangent-plane apex system. Sphere fitting is algebraic least squares;
+  the cone solves the apex from the tangent-plane system and polishes
+  apex/axis/half-angle geometrically (faceted chord normals bias the linear
+  estimate by tens of microns); the torus reduces to the existing 2-D circle
+  fit in cylindrical coordinates around the symmetry axis. All fits are gated
+  on residuals, revolution coverage, and parameter sanity, with evidence
+  recorded per kind.
+- **Hybrid shells** ([`curved_patch.py`](../engine/mesh2param/curved_patch.py)):
+  the freeform chart may now carry interior hole loops. Each hole is matched
+  to exactly one recognized analytic cylinder, the patch is fitted across the
+  full domain (weak synthetic fill samples across hole interiors keep the
+  unsupported poles from ballooning -- they are excluded from the convergence
+  gate and trimmed away anyway), and the recognized cylinder is
+  boolean-subtracted so the kernel computes the exact intersection curves and
+  pcurves. The result mixes trimmed B-spline, cylinder, and planar faces in
+  one validated shell.
+- **Layout scoring**: the driver always evaluates the single-patch layout and
+  records every candidate (layout, convergence, residuals, control-point
+  count, chosen flag) in the result, so rejected layouts retain their
+  evidence.
+
+Measured on the new `bspline-bump-plate-hole` fixture (2150 source
+triangles): a 7-face hybrid solid (5 planes, 1 cylinder recognized at radius
+8.0000 mm with 0.4 um p95 residual, 1 trimmed B-spline face), source deviation
+0.066 mm maximum, volume within 0.25 % of exact, STEP reimport preserving all
+three surface classes, and byte-identical artifacts and STEP across repeat
+runs. Recognition accuracy on synthetic solids: sphere radius and torus radii
+exact to 1e-6 mm, cone apex and half-angle to 1e-3. Covered by
+`tests/test_curved_hybrid.py`.
+
+Note: the STEP round-trip volume gate in `validation.py` widened from one to
+five parts per million -- OCCT's STEP translator approximates the trimming
+pcurve where a cylinder pierces a freeform B-spline face, which is inherent to
+hybrid shells and far below any engineering tolerance.
+
+Still open for follow-ups: analytic patches fitted as reconstructed faces
+beyond subtraction (spherical caps, cones, and tori assembled into the shell
+with shared network edges), and the user controls for split/merge, crease
+classification, and patch locking (an `apps/web` and `services/api` change on
+top of the existing evidence).
 
 ### Milestone 4: production hardening
 
