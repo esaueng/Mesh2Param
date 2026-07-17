@@ -15,6 +15,7 @@ import platform
 import tempfile
 import time
 from collections.abc import Sequence
+from concurrent.futures import ProcessPoolExecutor
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -84,12 +85,21 @@ def _fixture_baseline(directory: Path, sample_count: int) -> dict[str, Any]:
     return record
 
 
-def run_baseline(fixture_root: Path, output_path: Path, sample_count: int) -> dict[str, Any]:
+def run_baseline(
+    fixture_root: Path, output_path: Path, sample_count: int, workers: int = 1
+) -> dict[str, Any]:
     corpus = json.loads((fixture_root / CORPUS_MANIFEST_NAME).read_text(encoding="utf-8"))
-    fixtures = [
-        _fixture_baseline(fixture_root / entry["slug"], sample_count)
-        for entry in corpus["fixtures"]
-    ]
+    directories = [fixture_root / entry["slug"] for entry in corpus["fixtures"]]
+    if workers > 1:
+        # OCCT is not thread-safe, so parallelism uses spawned processes; the
+        # reduction stays deterministic because executor.map preserves the
+        # manifest's fixture order regardless of completion order.
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            fixtures = list(
+                executor.map(_fixture_baseline, directories, [sample_count] * len(directories))
+            )
+    else:
+        fixtures = [_fixture_baseline(directory, sample_count) for directory in directories]
     baseline = {
         "scope": "faceted-fallback baseline for curved reconstruction (Milestone 0)",
         "host": {
@@ -128,12 +138,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=1000,
         help="comparison samples in each direction (default: 1000)",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="fixture-level process parallelism; output is identical for any value",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    baseline = run_baseline(args.fixtures, args.output, args.sample_count)
+    baseline = run_baseline(args.fixtures, args.output, args.sample_count, args.workers)
     print(json.dumps(baseline, indent=2, sort_keys=True))
     return 0
 

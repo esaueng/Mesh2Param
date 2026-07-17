@@ -20,4 +20,6 @@ self-intersecting, too coarse, or multi-body. Each fixture ships its binary STL,
 manifest with SHA-256 and expected qualification, and (for positives) exact ground-truth metrics.
 
 Run `pnpm curved:fixtures` to regenerate (byte-stable) and `pnpm curved:baseline` to record the
-current faceted-fallback baseline to `artifacts/curved-baseline/baseline.json`.
+current faceted-fallback baseline to `artifacts/curved-baseline/baseline.json`. The baseline
+harness accepts `--workers N` for process-level parallelism; results are reduced in manifest
+order, so the deterministic fields are identical for any worker count.

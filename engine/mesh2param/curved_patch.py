@@ -11,7 +11,10 @@ single-patch topology; the general surface network is Milestone 2.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import math
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import cadquery as cq
@@ -28,6 +31,7 @@ from OCP.ShapeFix import ShapeFix_Shell, ShapeFix_Solid
 from OCP.TopoDS import TopoDS
 
 from .comparison import ComparisonReport, ComparisonSettings, compare_mesh_to_shape
+from .fit_cache import CurvedFitCache, mesh_content_sha256
 from .parameterization import (
     ChartParameterization,
     ChartParameterizationError,
@@ -70,6 +74,71 @@ class CurvedPatchError(ValueError):
         self.code = code
 
 
+ProgressCallback = Callable[[str, float], None]
+
+
+@dataclass(frozen=True, slots=True)
+class ReconstructionBudget:
+    """Hard resource ceilings; hitting one fails closed, never degrades output.
+
+    Budgets only decide whether a run completes -- successful runs stay
+    byte-deterministic. Direct RSS capping is intentionally absent: the
+    services worker already spawn-isolates jobs, and ``maximum_solve_unknowns``
+    bounds the dominant sparse-factorization memory in-process.
+    """
+
+    wall_clock_seconds: float = 120.0
+    maximum_patches: int = 8
+    maximum_total_control_points: int = 20_000
+    maximum_solve_unknowns: int = 60_000
+
+    def validate(self) -> None:
+        if self.wall_clock_seconds <= 0.0:
+            raise ValueError("wall clock budget must be positive")
+        if self.maximum_patches < 1:
+            raise ValueError("patch budget must allow at least one patch")
+        if self.maximum_total_control_points < 16 or self.maximum_solve_unknowns < 16:
+            raise ValueError("control point and unknown budgets are too small to fit anything")
+
+
+class _StageGuard:
+    """Cooperative cancellation, wall-clock budget, and stage progress."""
+
+    def __init__(
+        self,
+        budget: ReconstructionBudget,
+        progress: ProgressCallback | None,
+        should_cancel: Callable[[], bool] | None,
+    ) -> None:
+        self._budget = budget
+        self._progress = progress
+        self._should_cancel = should_cancel
+        self._started = time.monotonic()
+        self._phase = "starting"
+
+    def stage(self, phase: str, fraction: float) -> None:
+        self._phase = phase
+        self.checkpoint()
+        if self._progress is not None:
+            self._progress(phase, float(fraction))
+
+    def checkpoint(self) -> None:
+        if self._should_cancel is not None and self._should_cancel():
+            raise CurvedPatchError(
+                self._phase, "curved_patch_cancelled", "reconstruction was cancelled"
+            )
+        elapsed = time.monotonic() - self._started
+        if elapsed > self._budget.wall_clock_seconds:
+            raise CurvedPatchError(
+                self._phase,
+                "curved_patch_time_budget",
+                (
+                    f"wall clock budget of {self._budget.wall_clock_seconds:g} s exceeded "
+                    f"after {elapsed:.1f} s"
+                ),
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class CurvedPatchSettings:
     """Bounded, explicit budgets; nothing auto-raises a tolerance."""
@@ -87,6 +156,7 @@ class CurvedPatchSettings:
     # curved face needs a much smaller value than the faceted default to keep
     # the comparison mesh's own chordal error out of the measured deviation.
     comparison_tessellation: float = 0.002
+    budget: ReconstructionBudget = field(default_factory=ReconstructionBudget)
 
     def validate(self) -> None:
         if self.fit_tolerance_mm <= 0.0 or self.surface_deviation_tolerance_mm <= 0.0:
@@ -97,6 +167,7 @@ class CurvedPatchSettings:
             raise ValueError("plane parallel tolerance must be in (0, 90) degrees")
         self.segmentation.validate()
         self.fit.validate()
+        self.budget.validate()
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,6 +570,7 @@ class CurvedNetworkResult:
     prism_vector: tuple[float, float, float]
     holes: tuple[PlateHole, ...] = ()
     candidates: tuple[dict[str, Any], ...] = ()
+    cache_status: str = "uncached"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -516,6 +588,7 @@ class CurvedNetworkResult:
             "prismVector": list(self.prism_vector),
             "holes": [hole.to_dict() for hole in self.holes],
             "candidates": [dict(candidate) for candidate in self.candidates],
+            "cacheStatus": self.cache_status,
             "limitations": [
                 "The fitted network is a tolerance-controlled approximation of the "
                 "mesh, not the recovered original CAD surfaces.",
@@ -939,6 +1012,10 @@ def reconstruct_plate_network(
     *,
     settings: CurvedPatchSettings | None = None,
     network_settings: CurvedNetworkSettings | None = None,
+    progress: ProgressCallback | None = None,
+    should_cancel: Callable[[], bool] | None = None,
+    fit_cache: CurvedFitCache | None = None,
+    source_sha256: str | None = None,
 ) -> CurvedNetworkResult:
     """Reconstruct a plate as a shared-topology patch network.
 
@@ -953,14 +1030,47 @@ def reconstruct_plate_network(
     settings.validate()
     network_settings = network_settings or CurvedNetworkSettings()
     network_settings.validate()
+    guard = _StageGuard(settings.budget, progress, should_cancel)
 
+    guard.stage("segmenting mesh", 5.0)
     context = _plate_context(mesh, settings)
+    guard.stage("parameterizing chart", 20.0)
     corners = context.corners
     degree = settings.fit.degree
     corner_vertices = tuple(NetworkVertex(f"corner-{index}", corners[index]) for index in range(4))
 
+    # Budgets translate into a hard span clamp: total control points and solve
+    # unknowns both scale with (spans + degree)^2 per patch.
+    pole_cap = min(
+        settings.budget.maximum_total_control_points,
+        settings.budget.maximum_solve_unknowns,
+    )
+    budget_fit = replace(
+        settings.fit,
+        maximum_spans=max(
+            settings.fit.initial_spans,
+            min(settings.fit.maximum_spans, math.isqrt(pole_cap) - degree),
+        ),
+    )
+
+    cache_key: str | None = None
+    if fit_cache is not None:
+        cache_key = fit_cache.key(
+            source_sha256 or mesh_content_sha256(mesh),
+            settings,
+            network_settings,
+            (context.chart_vertices, context.chart_faces),
+        )
+        cached = fit_cache.load(cache_key)
+        if cached is not None:
+            guard.stage("assembling solid", 70.0)
+            return _assemble_cached_network(
+                mesh, context, cached, settings, network_settings, guard, cache_key
+            )
+
     # Always evaluate the single-patch layout so the choice between layouts is
     # an explicit, retained score rather than an implicit code path.
+    guard.stage("fitting surface", 35.0)
     candidates: list[dict[str, Any]] = []
     sample_uv, sample_points, sample_weights = chart_lattice_samples(
         context.chart_vertices, context.chart_faces, context.chart.uv
@@ -983,9 +1093,10 @@ def reconstruct_plate_network(
         sample_points,
         sample_weights,
         settings.fit_tolerance_mm,
-        settings=settings.fit,
+        settings=budget_fit,
         rectangle_corners=corners,
         gate_count=real_sample_count,
+        checkpoint=guard.checkpoint,
     )
     candidates.append(
         {
@@ -1009,6 +1120,7 @@ def reconstruct_plate_network(
             corner_vertex_ids=("corner-0", "corner-1", "corner-2", "corner-3"),
         )
         network = SurfaceNetwork(units="mm", vertices=corner_vertices, curves=(), patches=(patch,))
+        guard.stage("assembling solid", 70.0)
         wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
         solid = _network_plate_solid(
             network,
@@ -1018,6 +1130,7 @@ def reconstruct_plate_network(
             settings.sewing_tolerance_mm,
         )
         solid = _subtract_holes(solid, context.holes, mesh)
+        guard.stage("validating solid", 90.0)
         face_surfaces, comparison, evidence = _network_gates(
             mesh,
             solid,
@@ -1026,6 +1139,19 @@ def reconstruct_plate_network(
             network_settings,
             expected_cylinders=len(context.holes),
         )
+        if fit_cache is not None and cache_key is not None:
+            fit_cache.store(
+                cache_key,
+                _fit_cache_payload(
+                    "single-patch",
+                    network,
+                    fitted.iterations,
+                    candidates,
+                    fitted.maximum_distance,
+                    fitted.rms_distance,
+                ),
+            )
+        guard.stage("finished", 100.0)
         return CurvedNetworkResult(
             solid=solid,
             network=network,
@@ -1045,6 +1171,7 @@ def reconstruct_plate_network(
             ),
             holes=context.holes,
             candidates=tuple(candidates),
+            cache_status="stored" if fit_cache is not None else "uncached",
         )
 
     if context.holes:
@@ -1055,8 +1182,16 @@ def reconstruct_plate_network(
             "single-patch layout did not meet tolerance",
         )
 
+    if settings.budget.maximum_patches < 2:
+        raise CurvedPatchError(
+            "cutting chart",
+            "curved_patch_patch_budget",
+            "the patch budget does not allow splitting into a two-patch network",
+        )
+
     # Split path: cut the chart, fit the shared curve once, fit both patches
     # jointly with C1 coupling across the artificial smooth boundary.
+    guard.stage("cutting chart", 45.0)
     try:
         cut = cut_chart_midline(context.chart_vertices, context.chart_faces, context.chart)
         halves = (cut.half_a, cut.half_b)
@@ -1095,13 +1230,16 @@ def reconstruct_plate_network(
 
     smallest = min(len(points) for _, points, _ in samples)
     sample_span_cap = max(1, int(np.sqrt(smallest / 2.0)) - degree)
+    budget_span_cap = max(1, math.isqrt(pole_cap // 2) - degree)
     maximum_spans = max(
-        settings.fit.initial_spans, min(settings.fit.maximum_spans, sample_span_cap)
+        settings.fit.initial_spans,
+        min(settings.fit.maximum_spans, sample_span_cap, budget_span_cap),
     )
     spans = settings.fit.initial_spans
     iterations: list[FitIteration] = []
     best: tuple[list[np.ndarray], np.ndarray, np.ndarray] | None = None
     for _ in range(settings.fit.maximum_refinements + 1):
+        guard.checkpoint()
         control = spans + degree
         knots = open_uniform_knots(control, degree)
         greville = greville_abscissae(knots, degree)
@@ -1244,6 +1382,7 @@ def reconstruct_plate_network(
         units="mm", vertices=vertices, curves=(curve,), patches=(patch_a, patch_b)
     )
 
+    guard.stage("assembling solid", 70.0)
     wall_chains = [
         [corners[0], mid_start, corners[1]],
         [corners[1], corners[2]],
@@ -1253,9 +1392,23 @@ def reconstruct_plate_network(
     solid = _network_plate_solid(
         network, wall_chains, corners, context.prism_vector, settings.sewing_tolerance_mm
     )
+    guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
         mesh, solid, network, settings, network_settings
     )
+    if fit_cache is not None and cache_key is not None:
+        fit_cache.store(
+            cache_key,
+            _fit_cache_payload(
+                "split-network",
+                network,
+                tuple(iterations),
+                candidates,
+                float(residuals.max()),
+                float(np.sqrt(np.mean(residuals**2))),
+            ),
+        )
+    guard.stage("finished", 100.0)
     return CurvedNetworkResult(
         solid=solid,
         network=network,
@@ -1275,6 +1428,101 @@ def reconstruct_plate_network(
         ),
         holes=(),
         candidates=tuple(candidates),
+        cache_status="stored" if fit_cache is not None else "uncached",
+    )
+
+
+def _fit_cache_payload(
+    layout: str,
+    network: SurfaceNetwork,
+    iterations: tuple[FitIteration, ...],
+    candidates: list[dict[str, Any]],
+    residual_maximum: float,
+    residual_rms: float,
+) -> dict[str, Any]:
+    return {
+        "layout": layout,
+        "network": network.to_artifact(),
+        "iterations": [iteration.to_dict() for iteration in iterations],
+        "candidates": [dict(candidate) for candidate in candidates],
+        "residualMaximum": residual_maximum,
+        "residualRms": residual_rms,
+    }
+
+
+def _assemble_cached_network(
+    mesh: trimesh.Trimesh,
+    context: _PlateContext,
+    payload: dict[str, Any],
+    settings: CurvedPatchSettings,
+    network_settings: CurvedNetworkSettings,
+    guard: _StageGuard,
+    cache_key: str,
+) -> CurvedNetworkResult:
+    """Rebuild a cached fit and re-run every downstream gate.
+
+    Only the fitting stage is skipped; assembly, kernel validation, G0/G1
+    evidence, and the source-deviation comparison all run fresh on the
+    rebuilt network, so a hit can never bypass a gate.
+    """
+
+    network = SurfaceNetwork.from_artifact(payload["network"])
+    corners = context.corners
+    if payload["layout"] == "split-network":
+        mid_start = network.vertex("cut-0-start").point
+        mid_end = network.vertex("cut-0-end").point
+        wall_chains = [
+            [corners[0], np.asarray(mid_start), corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], np.asarray(mid_end), corners[3]],
+            [corners[3], corners[0]],
+        ]
+    else:
+        wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
+    solid = _network_plate_solid(
+        network, wall_chains, corners, context.prism_vector, settings.sewing_tolerance_mm
+    )
+    solid = _subtract_holes(solid, context.holes, mesh)
+    guard.stage("validating solid", 90.0)
+    face_surfaces, comparison, evidence = _network_gates(
+        mesh,
+        solid,
+        network,
+        settings,
+        network_settings,
+        expected_cylinders=len(context.holes),
+    )
+    iterations = tuple(
+        FitIteration(
+            spans_u=int(entry["spansU"]),
+            spans_v=int(entry["spansV"]),
+            rms_distance=float(entry["rmsDistance"]),
+            p95_distance=float(entry["p95Distance"]),
+            maximum_distance=float(entry["maximumDistance"]),
+        )
+        for entry in payload["iterations"]
+    )
+    guard.stage("finished", 100.0)
+    return CurvedNetworkResult(
+        solid=solid,
+        network=network,
+        artifact_sha256=network.artifact_sha256(),
+        charts=(context.chart,),
+        iterations=iterations,
+        residual_maximum=float(payload["residualMaximum"]),
+        residual_rms=float(payload["residualRms"]),
+        shared_evidence=evidence,
+        face_surfaces=face_surfaces,
+        comparison=comparison,
+        corners=corners,
+        prism_vector=(
+            float(context.prism_vector[0]),
+            float(context.prism_vector[1]),
+            float(context.prism_vector[2]),
+        ),
+        holes=context.holes,
+        candidates=tuple(dict(candidate) for candidate in payload["candidates"]),
+        cache_status="hit",
     )
 
 
@@ -1285,6 +1533,8 @@ __all__ = [
     "CurvedPatchResult",
     "CurvedPatchSettings",
     "PlateHole",
+    "ProgressCallback",
+    "ReconstructionBudget",
     "assemble_single_patch_plate",
     "chart_lattice_samples",
     "reconstruct_plate_network",
