@@ -316,15 +316,21 @@ def test_flange_sample_exposes_exact_graph_and_rejects_unsupported_inference(
     assert "automaticReconstruction" not in replaced["state"]["settings"]
     assert replaced["state"]["cadgraph"] is None
 
-    accepted = client.post(
+    analysis_required = client.post(
         f"/api/projects/{project_id}/reconstruct",
         headers={"If-Match": replaced_etag},
         json={},
     )
-    assert accepted.status_code == 202, accepted.text
-    attempted = wait_job(client, accepted.json()["data"]["id"])
-    assert attempted["status"] == "failed", attempted
-    assert attempted["error"]["code"] != "automatic_reconstruction_unsupported"
+    assert analysis_required.status_code == 409, analysis_required.text
+    error = analysis_required.json()["error"]
+    assert error["code"] == "analysis_required"
+    assert error["recommendedAction"] == (
+        "Re-run surface analysis before automatic reconstruction."
+    )
+
+    after_rejection, after_rejection_etag = current_project(client, project_id)
+    assert after_rejection["revision"] == replaced["revision"]
+    assert after_rejection_etag == replaced_etag
 
 
 @pytest.mark.geometry
