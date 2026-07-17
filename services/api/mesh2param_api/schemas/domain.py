@@ -42,12 +42,22 @@ class PatchUpdate(StrictAPIModel):
         Literal["plane", "cylinder", "cone", "sphere", "torus", "freeform", "unknown"] | None
     ) = None
     parameters: dict[str, JsonValue] | None = None
+    # Full replacement list of neighbor ids whose shared boundary the user
+    # declares a smooth join instead of the detected sharp crease.
+    smooth_boundary_ids: list[str] | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def require_change(self) -> PatchUpdate:
         if all(
             value is None
-            for value in (self.name, self.hidden, self.locked, self.classification, self.parameters)
+            for value in (
+                self.name,
+                self.hidden,
+                self.locked,
+                self.classification,
+                self.parameters,
+                self.smooth_boundary_ids,
+            )
         ):
             raise ValueError("at least one patch field is required")
         return self

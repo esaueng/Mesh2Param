@@ -49,6 +49,7 @@ class CurvedFitCache:
         settings: Any,
         network_settings: Any,
         chart_arrays: tuple[np.ndarray, np.ndarray],
+        extras: dict[str, Any] | None = None,
     ) -> str:
         chart_vertices, chart_faces = chart_arrays
         chart_digest = hashlib.sha256()
@@ -61,6 +62,9 @@ class CurvedFitCache:
             "networkSettings": asdict(network_settings),
             "chartSha256": chart_digest.hexdigest(),
         }
+        # Only present when set, so keys without extras stay stable.
+        if extras:
+            payload["extras"] = extras
         return hashlib.sha256(_canonical_bytes(payload)).hexdigest()
 
     def _path(self, key: str) -> Path:

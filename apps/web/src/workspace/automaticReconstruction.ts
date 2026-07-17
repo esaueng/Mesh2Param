@@ -33,54 +33,6 @@ function hasReplayableAnalysisSettings(value: unknown): boolean {
     && finiteNumber(value.stableIdResolutionMm, 0, 1_000_000, true);
 }
 
-function unitVector3(value: unknown): [number, number, number] | null {
-  if (!Array.isArray(value) || value.length !== 3 || value.some((item) => typeof item !== "number" || !Number.isFinite(item))) return null;
-  const [x, y, z] = value as [number, number, number];
-  const magnitude = Math.hypot(x, y, z);
-  return magnitude > 1e-12 ? [x / magnitude, y / magnitude, z / magnitude] : null;
-}
-
-function patchArea(patch: Record<string, JsonValue>): number {
-  return typeof patch.areaMm2 === "number" && Number.isFinite(patch.areaMm2) && patch.areaMm2 > 0
-    ? patch.areaMm2
-    : 0;
-}
-
-function hasOpposingPrismaticCaps(patches: Record<string, JsonValue>[]): boolean {
-  const planes = patches.flatMap((patch) => {
-    if (patch.type !== "plane" || !isRecord(patch.fit)) return [];
-    const normal = unitVector3(patch.fit.normal);
-    const area = patchArea(patch);
-    return normal === null || area === 0 ? [] : [{ normal, area }];
-  });
-  const maximumDot = -Math.cos(2 * Math.PI / 180);
-  for (let leftIndex = 0; leftIndex < planes.length; leftIndex += 1) {
-    const left = planes[leftIndex];
-    if (left === undefined) continue;
-    for (let rightIndex = leftIndex + 1; rightIndex < planes.length; rightIndex += 1) {
-      const right = planes[rightIndex];
-      if (right === undefined) continue;
-      const areaDelta = Math.abs(left.area - right.area) / Math.max(left.area, right.area);
-      const dot = left.normal[0] * right.normal[0]
-        + left.normal[1] * right.normal[1]
-        + left.normal[2] * right.normal[2];
-      if (areaDelta <= 0.03 && dot <= maximumDot) return true;
-    }
-  }
-  return false;
-}
-
-function analysisSupportsPrismaticReconstruction(
-  analysis: Record<string, JsonValue>,
-  patches: Record<string, JsonValue>[],
-): boolean {
-  const candidate = analysis.prismaticCandidate;
-  if (isRecord(candidate) && typeof candidate.accepted === "boolean") {
-    return candidate.accepted && Array.isArray(candidate.profiles) && candidate.profiles.length > 0;
-  }
-  return hasOpposingPrismaticCaps(patches);
-}
-
 export function automaticReconstructionCapability(
   document: Pick<ProjectWorkingDocument, "analysis" | "cadgraph" | "settings" | "source">,
 ): AutomaticReconstructionCapability {
@@ -109,8 +61,14 @@ export function automaticReconstructionCapability(
         reason: "Run surface analysis again because its persisted patch evidence is incomplete.",
       };
     }
+    // An accepted analysis-time prismatic candidate is deliberately NOT trusted here:
+    // its acceptance gates (cap congruence, side-normal RMS) are far looser than the
+    // reconstruct-time mesh-agreement gates, so with freeform patches present the exact
+    // backend path can still fail (e.g. a softly curved gable roof between congruent
+    // caps). Refusing keeps the pipeline on the curved/faceted branches instead of
+    // offering a primary action that is doomed to a hard backend error.
     const unsupported = patches.filter((patch) => patch.type !== "plane" && patch.type !== "cylinder");
-    if (unsupported.length > 0 && !analysisSupportsPrismaticReconstruction(analysis, patches)) {
+    if (unsupported.length > 0) {
       let unsupportedArea = 0;
       let totalArea = 0;
       for (const patch of patches) {

@@ -343,6 +343,11 @@ class SharedEdgeEvidence:
     p95_normal_angle_deg: float
     maximum_normal_angle_deg: float
     minimum_normal_angle_deg: float = 0.0
+    # Maximum over the curve's interior, excluding the clamped end spans:
+    # a plate's straight boundary chains meet at an angle at the shared
+    # curve's endpoints, so C0 corners there are forced by the walls even
+    # when the join itself is smooth.
+    interior_maximum_normal_angle_deg: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -353,6 +358,7 @@ class SharedEdgeEvidence:
             "p95NormalAngleDeg": self.p95_normal_angle_deg,
             "maximumNormalAngleDeg": self.maximum_normal_angle_deg,
             "minimumNormalAngleDeg": self.minimum_normal_angle_deg,
+            "interiorMaximumNormalAngleDeg": self.interior_maximum_normal_angle_deg,
         }
 
 
@@ -416,6 +422,14 @@ def shared_edge_evidence(
         gaps = np.linalg.norm(points_a - points_b, axis=1)
         cosine = np.clip(np.einsum("ij,ij->i", normals_a, normals_b), -1.0, 1.0)
         angles = np.degrees(np.arccos(np.abs(cosine)))
+        # Interior of the clamped end spans; with no interior knots the whole
+        # curve is one span and the interior equals the full range.
+        knots = np.asarray(curve.knots, dtype=np.float64)
+        low = float(knots[curve.degree + 1])
+        high = float(knots[-curve.degree - 2])
+        interior = (parameters >= low) & (parameters <= high) if high > low else np.ones_like(
+            parameters, dtype=bool
+        )
         evidence.append(
             SharedEdgeEvidence(
                 curve_id=curve.id,
@@ -425,6 +439,9 @@ def shared_edge_evidence(
                 p95_normal_angle_deg=float(np.percentile(angles, 95)),
                 maximum_normal_angle_deg=float(angles.max()),
                 minimum_normal_angle_deg=float(angles.min()),
+                interior_maximum_normal_angle_deg=float(angles[interior].max())
+                if interior.any()
+                else float(angles.max()),
             )
         )
     return tuple(evidence)

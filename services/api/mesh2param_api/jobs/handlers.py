@@ -733,6 +733,9 @@ def _user_patch_overrides(payload: dict[str, Any]) -> dict[str, dict[str, Any]] 
             entry["kind"] = patch["type"]
         if patch.get("locked") is True:
             entry["locked"] = True
+        smooth = patch.get("smoothBoundaryIds")
+        if isinstance(smooth, list) and all(isinstance(item, str) for item in smooth) and smooth:
+            entry["smooth_boundaries"] = sorted(set(smooth))
         if entry:
             overrides[patch["id"]] = entry
     return overrides or None
@@ -851,6 +854,13 @@ def _curved_reconstruct(
         "faceSurfaces": dict(conversion.reconstruction.face_surfaces),
         "residualMaximumMm": conversion.reconstruction.residual_maximum,
         "appliedPatchOverrides": sorted(patch_overrides) if patch_overrides else [],
+        "appliedSmoothBoundaries": sorted(
+            {
+                "|".join(sorted((patch_id, neighbor_id)))
+                for patch_id, entry in (patch_overrides or {}).items()
+                for neighbor_id in entry.get("smooth_boundaries", [])
+            }
+        ),
     }
     return HandlerOutput(
         result=conversion.to_dict(),
