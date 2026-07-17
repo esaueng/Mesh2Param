@@ -370,6 +370,51 @@ def _cone_plate_solid(scale: float = 1.0) -> cq.Shape:
     return plate.fuse(cone).clean()
 
 
+def _torus_bead_plate_solid(scale: float = 1.0) -> cq.Shape:
+    """A near-planar freeform plate fused with one exact circular torus bead.
+
+    The torus intersects the top in two closed curves, leaving an outer
+    annulus and an inner freeform disk as separate observed regions.  A small
+    saddle term keeps the inner disk genuinely freeform while the bead site
+    remains close to planar.  The exact ground truth is eight faces: five
+    planes, two trims of one B-spline support, and one torus.
+    """
+
+    degree = 3
+    control = 7
+    size = 80.0 * scale
+    height = 25.0 * scale
+    knots = open_uniform_knots(control, degree)
+    greville = greville_abscissae(knots, degree)
+    poles = np.zeros((control, control, 3))
+    for i, gu in enumerate(greville):
+        for j, gv in enumerate(greville):
+            poles[i, j, 0] = gu * size
+            poles[i, j, 1] = gv * size
+            interior = 0 < i < control - 1 and 0 < j < control - 1
+            if interior:
+                poles[i, j, 2] = (
+                    0.5
+                    * scale
+                    * (sin(pi * gu) * sin(pi * gv) + sin(2.0 * pi * gu) * sin(2.0 * pi * gv))
+                )
+    surface = build_occt_bspline_surface(poles, knots, knots, degree)
+    corners = np.asarray([[0.0, 0.0, 0.0], [size, 0.0, 0.0], [size, size, 0.0], [0.0, size, 0.0]])
+    plate = assemble_single_patch_plate(
+        surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
+    )
+    # The positive vertical axis fixes both torus seam orientations to the
+    # empirically stable CadQuery/OCCT placement. Reversing the axis can split
+    # the same exposed torus into multiple faces.
+    torus = cq.Solid.makeTorus(
+        14.0 * scale,
+        4.0 * scale,
+        cq.Vector(40.0 * scale, 40.0 * scale, -1.35 * scale),
+        cq.Vector(0.0, 0.0, 1.0),
+    )
+    return plate.fuse(torus)
+
+
 def _bump_plate_with_hole(scale: float = 1.0) -> cq.Shape:
     """The bump plate pierced by a vertical cylindrical through hole.
 
@@ -615,6 +660,19 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.1,
     ),
     CurvedFixtureSpec(
+        slug="bspline-torus-bead-plate",
+        title="B-spline plate with a raised torus bead",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "A near-planar freeform plate fused with an exact circular torus "
+            "bead, leaving outer and inner freeform regions separated by the "
+            "recognized analytic ring."
+        ),
+        linear_tolerance=0.0015,
+        angular_tolerance=0.12,
+    ),
+    CurvedFixtureSpec(
         slug="bspline-gable-plate",
         title="B-spline gable plate with a sharp ridge crease",
         category="positive",
@@ -772,6 +830,7 @@ _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Sha
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
     "bspline-dome-plate": _positive_builder(_dome_plate_solid),
     "bspline-cone-plate": _positive_builder(_cone_plate_solid),
+    "bspline-torus-bead-plate": _positive_builder(_torus_bead_plate_solid),
     "bspline-gable-plate": _positive_builder(_gable_plate_solid),
     "bspline-gable-plate-hole": _positive_builder(_gable_plate_with_hole),
     # Small bumps: the bump's u-derivative subtracts from the ridge slope, so

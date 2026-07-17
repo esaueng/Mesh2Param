@@ -408,28 +408,126 @@ def _fit_torus(
     points: np.ndarray,
     axis: np.ndarray,
     centroid: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, float, float, ResidualStats, float]:
+) -> tuple[np.ndarray, np.ndarray, float, float, ResidualStats, float, float]:
     """Axis-symmetric torus fit: center, axis, major/minor radii, residuals, coverage.
 
     In cylindrical coordinates around the symmetry axis the torus is the
     circle ``(rho - R)^2 + h^2 = r^2``, so the tube reduces to the existing
-    deterministic 2-D circle fit.
+    deterministic 2-D circle fit.  The algebraic reduction is only an
+    initializer: an exposed bead is a partial tube whose non-uniform trim
+    biases PCA's axis, so center, axis, and both radii are polished together
+    against the Euclidean torus residual.
     """
 
     offsets = points - centroid
     heights = offsets @ axis
     radial = np.linalg.norm(offsets - heights[:, None] * axis, axis=1)
-    (rho_center, height_center), minor_radius, stats, tube_coverage = _fit_circle_2d(
+    (rho_center, height_center), minor_radius, _, _ = _fit_circle_2d(
         np.column_stack((radial, heights))
     )
     center = centroid + height_center * axis
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-300)
+    theta = math.acos(float(np.clip(axis[2], -1.0, 1.0)))
+    phi = math.atan2(float(axis[1]), float(axis[0]))
+    point_scale = max(float(np.linalg.norm(np.ptp(points, axis=0))), 1e-12)
+    minimum_radius = max(point_scale * 1e-9, 1e-12)
+    maximum_radius = max(point_scale * 1e6, minimum_radius * 10.0)
+    initial_major = float(np.clip(rho_center, minimum_radius, maximum_radius))
+    initial_minor = float(np.clip(minor_radius, minimum_radius, maximum_radius))
+
+    def torus_residual(parameters: np.ndarray) -> np.ndarray:
+        candidate_center = parameters[:3]
+        candidate_theta, candidate_phi, log_major, log_minor = parameters[3:]
+        candidate_axis = np.asarray(
+            (
+                math.sin(candidate_theta) * math.cos(candidate_phi),
+                math.sin(candidate_theta) * math.sin(candidate_phi),
+                math.cos(candidate_theta),
+            )
+        )
+        candidate_offsets = points - candidate_center
+        candidate_heights = candidate_offsets @ candidate_axis
+        candidate_radial = np.linalg.norm(
+            candidate_offsets - candidate_heights[:, None] * candidate_axis,
+            axis=1,
+        )
+        return np.asarray(
+            np.hypot(candidate_radial - math.exp(log_major), candidate_heights)
+            - math.exp(log_minor)
+        )
+
+    optimized = least_squares(
+        torus_residual,
+        np.asarray(
+            (
+                *center,
+                theta,
+                phi,
+                math.log(initial_major),
+                math.log(initial_minor),
+            )
+        ),
+        method="trf",
+        bounds=(
+            np.asarray(
+                (
+                    -np.inf,
+                    -np.inf,
+                    -np.inf,
+                    -2.0 * np.pi,
+                    -4.0 * np.pi,
+                    math.log(minimum_radius),
+                    math.log(minimum_radius),
+                )
+            ),
+            np.asarray(
+                (
+                    np.inf,
+                    np.inf,
+                    np.inf,
+                    2.0 * np.pi,
+                    4.0 * np.pi,
+                    math.log(maximum_radius),
+                    math.log(maximum_radius),
+                )
+            ),
+        ),
+        ftol=1e-13,
+        xtol=1e-13,
+        gtol=1e-13,
+        max_nfev=200,
+    )
+    center = np.asarray(optimized.x[:3])
+    theta, phi = (float(value) for value in optimized.x[3:5])
+    axis = np.asarray(
+        (
+            math.sin(theta) * math.cos(phi),
+            math.sin(theta) * math.sin(phi),
+            math.cos(theta),
+        )
+    )
+    major_radius = math.exp(float(optimized.x[5]))
+    minor_radius = math.exp(float(optimized.x[6]))
+    stats = _residual_stats(torus_residual(optimized.x))
+
+    offsets = points - center
+    heights = offsets @ axis
+    radial = np.linalg.norm(offsets - heights[:, None] * axis, axis=1)
+    _, _, _, profile_coverage = _fit_circle_2d(np.column_stack((radial, heights)))
     basis_u, basis_v = _orthogonal_basis(axis)
     angles = np.mod(np.arctan2(offsets @ basis_v, offsets @ basis_u), 2 * np.pi)
     sorted_angles = np.sort(angles)
     gaps = np.diff(np.concatenate((sorted_angles, sorted_angles[:1] + 2 * np.pi)))
-    coverage = math.degrees(2 * np.pi - float(np.max(gaps))) if len(angles) >= 2 else 0.0
-    coverage = min(coverage, tube_coverage)
-    return center, axis, float(rho_center), float(minor_radius), stats, coverage
+    revolution_coverage = math.degrees(2 * np.pi - float(np.max(gaps))) if len(angles) >= 2 else 0.0
+    return (
+        center,
+        axis,
+        major_radius,
+        minor_radius,
+        stats,
+        revolution_coverage,
+        profile_coverage,
+    )
 
 
 def _patch_id(patch: SurfacePatch, resolution: float) -> str:
@@ -597,11 +695,16 @@ def fit_surface_patch(
         torus_minor,
         torus_stats,
         torus_coverage,
+        torus_profile_coverage,
     ) = _fit_torus(points, plane_normal, centroid)
     if (
         not below_minimum_area
         and torus_stats.p95 <= settings.torus_fit_tolerance_mm
         and torus_coverage >= settings.minimum_revolution_coverage_deg
+        # A proud bead exposes only part of the tube profile.  Ninety degrees
+        # is still a strongly conditioned circle arc; the independent full
+        # revolution and Euclidean residual gates remain unchanged.
+        and torus_profile_coverage >= 90.0
         and torus_major > torus_minor > 0.0
     ):
         confidence = max(0.0, 1.0 - torus_stats.p95 / settings.torus_fit_tolerance_mm)
