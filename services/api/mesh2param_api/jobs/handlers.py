@@ -802,6 +802,7 @@ def _curved_reconstruct(
                     "curved_patch_regions_detached",
                     "curved_patch_crease_corners",
                     "curved_patch_multiregion_holes",
+                    "curved_patch_cone_multiregion_unsupported",
                 }
                 else "Review the reconstruction evidence or adjust the tolerances."
             ),
