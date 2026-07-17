@@ -545,7 +545,7 @@ with shared network edges), and the user controls for split/merge, crease
 classification, and patch locking (an `apps/web` and `services/api` change on
 top of the existing evidence).
 
-### Milestone 4: production hardening
+### Milestone 4: production hardening (core implemented)
 
 - Add time, memory, patch, span, and control-point budgets.
 - Parallelize independent patch fits while keeping deterministic reduction.
@@ -553,6 +553,49 @@ top of the existing evidence).
 - Add cancellation/progress at segmentation, parameterization, fitting,
   assembly, and validation stages.
 - Verify STEP import in at least OCCT plus one independent CAD application.
+
+Implemented in this milestone:
+
+- **Budgets** (`ReconstructionBudget` in
+  [`curved_patch.py`](../engine/mesh2param/curved_patch.py)): wall-clock,
+  patch-count, total-control-point, and solve-unknown ceilings, enforced at
+  stage boundaries and inside every refinement iteration. Budgets only decide
+  whether a run completes -- successful runs stay byte-deterministic. Direct
+  RSS capping is intentionally absent: the services worker already
+  spawn-isolates jobs, and the unknown-count ceiling bounds the dominant
+  sparse-factorization memory in-process.
+- **Cancellation and progress**: `reconstruct_plate_network` accepts the
+  engine's `ProgressCallback` plus a `should_cancel` callable (adapting the
+  worker's cancel event), reporting six ordered stages from segmentation
+  through validation and failing closed with `curved_patch_cancelled`.
+- **Fit cache** ([`fit_cache.py`](../engine/mesh2param/fit_cache.py)):
+  content-addressed by source-mesh hash, the full settings, the chart's exact
+  triangle evidence, and a fit algorithm version. A hit skips only the
+  fitting stage; assembly, kernel validation, G0/G1 evidence, and the source
+  comparison re-run on the rebuilt network, so a cached result is
+  byte-identical and never bypasses a gate. On small fixtures assembly and
+  validation dominate, so hits save little there; the cache pays off as
+  meshes and span counts grow.
+- **Parallel harness**: `scripts/run_curved_baseline.py --workers N` fans
+  fixtures across spawned processes (OCCT is not thread-safe) and reduces in
+  manifest order, so output is identical for any worker count. In-engine
+  patch-fit parallelism is deliberately deferred: the current network fit is
+  one joint sparse solve, and independent per-patch fits only appear with
+  multi-region networks.
+- **Independent STEP audit**
+  ([`step_audit.py`](../engine/mesh2param/step_audit.py)): a pure-Python
+  Part 21 structural audit with no geometry kernel -- header/terminator
+  structure, entity parse, reference resolution, duplicate ids, manifold
+  solid and closed-shell counts, and surface-entity inventory matched against
+  the reconstruction's claims. It is the second, non-OCCT pair of eyes on
+  every exported file; geometric verification inside an independent CAD
+  application (for example FreeCAD or a commercial checker) remains a manual
+  release step.
+
+Covered by `tests/test_curved_hardening.py` (stage order, cancellation, all
+three budget codes, cache hit/reproducibility, cache-key sensitivity, audit
+inventory plus structural-defect rejection, and serial-versus-parallel
+baseline equality).
 
 ## Acceptance gates
 
