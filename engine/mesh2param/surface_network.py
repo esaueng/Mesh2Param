@@ -342,6 +342,7 @@ class SharedEdgeEvidence:
     mean_normal_angle_deg: float
     p95_normal_angle_deg: float
     maximum_normal_angle_deg: float
+    minimum_normal_angle_deg: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -351,6 +352,7 @@ class SharedEdgeEvidence:
             "meanNormalAngleDeg": self.mean_normal_angle_deg,
             "p95NormalAngleDeg": self.p95_normal_angle_deg,
             "maximumNormalAngleDeg": self.maximum_normal_angle_deg,
+            "minimumNormalAngleDeg": self.minimum_normal_angle_deg,
         }
 
 
@@ -422,6 +424,7 @@ def shared_edge_evidence(
                 mean_normal_angle_deg=float(angles.mean()),
                 p95_normal_angle_deg=float(np.percentile(angles, 95)),
                 maximum_normal_angle_deg=float(angles.max()),
+                minimum_normal_angle_deg=float(angles.min()),
             )
         )
     return tuple(evidence)

@@ -35,10 +35,13 @@ from OCP.TopoDS import TopoDS
 from .comparison import ComparisonReport, ComparisonSettings, compare_mesh_to_shape
 from .fit_cache import CurvedFitCache, mesh_content_sha256
 from .parameterization import (
+    ChartHalf,
     ChartParameterization,
     ChartParameterizationError,
     cut_chart_midline,
+    detect_rectangle_corners,
     harmonic_square_parameterization,
+    reindexed_chart_region,
 )
 from .segmentation import (
     PatchEditSession,
@@ -380,10 +383,11 @@ def _plate_holes(
 
 
 def _bottom_plane(
-    patches: tuple[SurfacePatch, ...], freeform: SurfacePatch
+    patches: tuple[SurfacePatch, ...], *freeforms: SurfacePatch
 ) -> tuple[np.ndarray, np.ndarray]:
     planes = [patch for patch in patches if patch.kind == "plane"]
-    detached = [patch for patch in planes if freeform.id not in patch.neighbor_ids]
+    freeform_ids = {freeform.id for freeform in freeforms}
+    detached = [patch for patch in planes if not freeform_ids & set(patch.neighbor_ids)]
     if len(detached) != 1:
         raise CurvedPatchError(
             "segmenting mesh",
@@ -549,6 +553,9 @@ class CurvedNetworkSettings:
 
     force_split: bool = False
     g1_maximum_angle_deg: float = 1.0
+    # A fitted crease must stay sharp along its whole length; losing the
+    # dihedral means the join degenerated into a smooth blend.
+    crease_minimum_angle_deg: float = 5.0
     coupling_weight: float = 10.0
     curve_fairness: float = 1e-3
     evidence_sample_count: int = 64
@@ -557,6 +564,8 @@ class CurvedNetworkSettings:
     def validate(self) -> None:
         if not 0.0 < self.g1_maximum_angle_deg < 90.0:
             raise ValueError("G1 gate must be in (0, 90) degrees")
+        if not 0.0 < self.crease_minimum_angle_deg < 90.0:
+            raise ValueError("crease sharpness gate must be in (0, 90) degrees")
         if self.coupling_weight < 0.0 or self.curve_fairness < 0.0:
             raise ValueError("coupling weight and curve fairness must be non-negative")
         if self.evidence_sample_count < 2 or self.solve_rounds < 1:
@@ -691,16 +700,27 @@ def _apply_patch_overrides(
     return SegmentationResult(patches, segmentation.settings, segmentation.warnings)
 
 
+def _segment_with_overrides(
+    mesh: trimesh.Trimesh,
+    settings: CurvedPatchSettings,
+    patch_overrides: dict[str, dict[str, Any]] | None,
+) -> SegmentationResult:
+    segmentation = segment_mesh(mesh, settings.segmentation)
+    if patch_overrides:
+        segmentation = _apply_patch_overrides(mesh, segmentation, patch_overrides)
+    return segmentation
+
+
 def _plate_context(
     mesh: trimesh.Trimesh,
     settings: CurvedPatchSettings,
     patch_overrides: dict[str, dict[str, Any]] | None = None,
+    segmentation: SegmentationResult | None = None,
 ) -> _PlateContext:
     """Segment, extract, parameterize, and bound the plate's freeform chart."""
 
-    segmentation = segment_mesh(mesh, settings.segmentation)
-    if patch_overrides:
-        segmentation = _apply_patch_overrides(mesh, segmentation, patch_overrides)
+    if segmentation is None:
+        segmentation = _segment_with_overrides(mesh, settings, patch_overrides)
     freeform = _freeform_patch(segmentation.patches)
     bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
 
@@ -973,17 +993,40 @@ def _plate_solid_from_network(
 ) -> cq.Shape:
     """The single assembly path shared by the driver, cache, and compiler.
 
-    Wall chains derive from the network itself: a split network carries its
-    cut endpoints as the ``cut-0-start``/``cut-0-end`` vertices.
+    Wall chains derive from the network itself: a two-patch network's shared
+    curve (an artificial cut or a real crease) contributes its endpoints to
+    the two walls it terminates on, chosen by proximity so replays stay
+    byte-identical regardless of vertex naming.
     """
 
+    if len(network.curves) > 1:
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_unsupported_network",
+            "plate assembly supports at most one shared boundary curve",
+        )
     if network.curves:
-        mid_start = np.asarray(network.vertex("cut-0-start").point, dtype=np.float64)
-        mid_end = np.asarray(network.vertex("cut-0-end").point, dtype=np.float64)
+        curve = network.curves[0]
+        endpoints = [
+            np.asarray(network.vertex(curve.start_vertex_id).point, dtype=np.float64),
+            np.asarray(network.vertex(curve.end_vertex_id).point, dtype=np.float64),
+        ]
+
+        def _distance_to_segment(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> float:
+            direction = end - start
+            length_sq = float(direction @ direction)
+            fraction = (point - start) @ direction / max(length_sq, 1e-300)
+            fraction = float(np.clip(fraction, 0.0, 1.0))
+            return float(np.linalg.norm(point - (start + fraction * direction)))
+
+        if _distance_to_segment(endpoints[0], corners[0], corners[1]) > _distance_to_segment(
+            endpoints[1], corners[0], corners[1]
+        ):
+            endpoints.reverse()
         wall_chains = [
-            [corners[0], mid_start, corners[1]],
+            [corners[0], endpoints[0], corners[1]],
             [corners[1], corners[2]],
-            [corners[2], mid_end, corners[3]],
+            [corners[2], endpoints[1], corners[3]],
             [corners[3], corners[0]],
         ]
     else:
@@ -1132,6 +1175,19 @@ def _network_gates(
                     f"{network_settings.g1_maximum_angle_deg:g} deg"
                 ),
             )
+        if (
+            entry.continuity == "crease"
+            and entry.minimum_normal_angle_deg < network_settings.crease_minimum_angle_deg
+        ):
+            raise CurvedPatchError(
+                "validating solid",
+                "curved_patch_crease_lost",
+                (
+                    f"crease curve {entry.curve_id!r} dihedral drops to "
+                    f"{entry.minimum_normal_angle_deg:g} deg, below the "
+                    f"{network_settings.crease_minimum_angle_deg:g} deg sharpness gate"
+                ),
+            )
     comparison = compare_mesh_to_shape(
         mesh,
         solid,
@@ -1152,6 +1208,520 @@ def _network_gates(
     return face_surfaces, comparison, evidence
 
 
+@dataclass(frozen=True, slots=True)
+class _CreaseContext:
+    """Two adjacent freeform regions sharing one real crease boundary."""
+
+    halves: tuple[ChartHalf, ChartHalf]
+    charts: tuple[ChartParameterization, ChartParameterization]
+    corners: np.ndarray
+    crease_start: np.ndarray
+    crease_end: np.ndarray
+    rectangle_normal: np.ndarray
+    prism_vector: np.ndarray
+    segmentation_counts: dict[str, int]
+    cache_faces: np.ndarray
+
+
+def _region_corner_cycle(
+    mesh_vertices: np.ndarray,
+    loop: np.ndarray,
+    settings: CurvedPatchSettings,
+) -> tuple[np.ndarray, list[int]]:
+    """A region's boundary corner positions (loop order) and vertex ids."""
+
+    try:
+        positions = detect_rectangle_corners(
+            mesh_vertices, loop, minimum_turn_deg=settings.corner_turn_threshold_deg
+        )
+    except ChartParameterizationError as exc:
+        raise CurvedPatchError("segmenting mesh", exc.code, str(exc)) from exc
+    return positions, [int(loop[position]) for position in positions]
+
+
+def _region_chain_line(
+    mesh_vertices: np.ndarray,
+    loop: np.ndarray,
+    positions: np.ndarray,
+    chain: int,
+    settings: CurvedPatchSettings,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fit one straight boundary chain of a region, gating its deviation."""
+
+    selected = _chain_positions(
+        len(loop), int(positions[chain]), int(positions[(chain + 1) % 4])
+    )
+    centroid, direction, deviation = _fit_line(mesh_vertices[loop[selected]])
+    if deviation > settings.boundary_line_tolerance_mm:
+        raise CurvedPatchError(
+            "fitting boundary",
+            "curved_patch_boundary_not_straight",
+            (
+                f"outer boundary chain deviates {deviation:g} mm from a line "
+                f"(limit {settings.boundary_line_tolerance_mm:g} mm)"
+            ),
+        )
+    return centroid, direction
+
+
+def _crease_context(
+    mesh: trimesh.Trimesh,
+    segmentation: SegmentationResult,
+    settings: CurvedPatchSettings,
+) -> _CreaseContext:
+    """Extract, order, and bound the two-region crease-network topology.
+
+    The two freeform regions must each be one disk (a single closed boundary
+    loop, no holes yet), be adjacent, and share exactly two boundary corners:
+    the crease endpoints. Every non-crease boundary chain must be straight so
+    the six outer corners define the plate rectangle plus the two (possibly
+    elevated) crease endpoints on their walls.
+    """
+
+    regions = sorted(
+        (patch for patch in segmentation.patches if patch.kind in ("freeform", "unknown")),
+        key=lambda patch: patch.id,
+    )
+    region_a, region_b = regions
+    if region_b.id not in region_a.neighbor_ids:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_regions_detached",
+            "the two freeform regions do not share a boundary",
+        )
+    for region in regions:
+        if len(region.boundary_loops) != 1 or not region.boundary_loops[0].closed:
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_multiregion_holes",
+                "multi-region reconstruction does not support interior holes yet",
+            )
+
+    mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    mesh_faces = np.asarray(mesh.faces, dtype=np.int64)
+    loop_a = np.asarray(region_a.boundary_loops[0].vertex_ids, dtype=np.int64)
+    loop_b = np.asarray(region_b.boundary_loops[0].vertex_ids, dtype=np.int64)
+    positions_a, ids_a = _region_corner_cycle(mesh_vertices, loop_a, settings)
+    positions_b, ids_b = _region_corner_cycle(mesh_vertices, loop_b, settings)
+
+    shared = set(ids_a) & set(ids_b)
+    if len(shared) != 2:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_crease_corners",
+            (
+                "the two freeform regions must share exactly two boundary "
+                f"corners (the crease endpoints), found {len(shared)}"
+            ),
+        )
+    crease_a = [k for k in range(4) if ids_a[k] in shared and ids_a[(k + 1) % 4] in shared]
+    crease_b = [k for k in range(4) if ids_b[k] in shared and ids_b[(k + 1) % 4] in shared]
+    if len(crease_a) != 1 or len(crease_b) != 1:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_crease_corners",
+            "the shared crease must span exactly one boundary chain of each region",
+        )
+    ka = crease_a[0]
+    ms_id, me_id = ids_a[ka], ids_a[(ka + 1) % 4]
+    a0_id, a3_id = ids_a[(ka - 1) % 4], ids_a[(ka + 2) % 4]
+    kb = crease_b[0]
+    if ids_b[kb] == ms_id:
+        b1_id, b2_id = ids_b[(kb - 1) % 4], ids_b[(kb + 2) % 4]
+        chain_ms, chain_me = (kb - 1) % 4, (kb + 1) % 4
+    else:
+        b1_id, b2_id = ids_b[(kb + 2) % 4], ids_b[(kb - 1) % 4]
+        chain_ms, chain_me = (kb + 1) % 4, (kb - 1) % 4
+
+    line_a_in = _region_chain_line(mesh_vertices, loop_a, positions_a, (ka - 1) % 4, settings)
+    line_a_out = _region_chain_line(mesh_vertices, loop_a, positions_a, (ka + 1) % 4, settings)
+    line_a_far = _region_chain_line(mesh_vertices, loop_a, positions_a, (ka + 2) % 4, settings)
+    line_b_ms = _region_chain_line(mesh_vertices, loop_b, positions_b, chain_ms, settings)
+    line_b_me = _region_chain_line(mesh_vertices, loop_b, positions_b, chain_me, settings)
+    line_b_far = _region_chain_line(mesh_vertices, loop_b, positions_b, (kb + 2) % 4, settings)
+
+    corner_0 = _line_intersection(*line_a_far, *line_a_in)
+    crease_start = _line_intersection(*line_a_in, *line_b_ms)
+    corner_1 = _line_intersection(*line_b_ms, *line_b_far)
+    corner_2 = _line_intersection(*line_b_far, *line_b_me)
+    crease_end = _line_intersection(*line_b_me, *line_a_out)
+    corner_3 = _line_intersection(*line_a_out, *line_a_far)
+    corners = np.asarray([corner_0, corner_1, corner_2, corner_3])
+
+    rectangle_normal = np.cross(corners[1] - corners[0], corners[3] - corners[0])
+    normal_length = float(np.linalg.norm(rectangle_normal))
+    if normal_length <= 0.0:
+        raise CurvedPatchError(
+            "fitting boundary",
+            "curved_patch_degenerate_rectangle",
+            "corner rectangle is degenerate",
+        )
+    rectangle_normal = rectangle_normal / normal_length
+    coplanarity = abs(float((corners[2] - corners[0]) @ rectangle_normal))
+    if coplanarity > settings.boundary_line_tolerance_mm:
+        raise CurvedPatchError(
+            "fitting boundary",
+            "curved_patch_boundary_not_planar",
+            f"outer boundary corners deviate {coplanarity:g} mm from a common plane",
+        )
+    # The crease endpoints may sit above the rectangle, but each must lie in
+    # its wall plane or the pentagon wall face cannot be planar.
+    for label, point, wall_origin, wall_along in (
+        ("start", crease_start, corners[0], corners[1] - corners[0]),
+        ("end", crease_end, corners[2], corners[3] - corners[2]),
+    ):
+        wall_normal = np.cross(wall_along, rectangle_normal)
+        wall_normal = wall_normal / max(float(np.linalg.norm(wall_normal)), 1e-300)
+        offset = abs(float((point - wall_origin) @ wall_normal))
+        if offset > settings.boundary_line_tolerance_mm:
+            raise CurvedPatchError(
+                "fitting boundary",
+                "curved_patch_crease_off_wall",
+                (
+                    f"crease {label} point deviates {offset:g} mm from its wall "
+                    f"plane (limit {settings.boundary_line_tolerance_mm:g} mm)"
+                ),
+            )
+
+    bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, region_a, region_b)
+    alignment = abs(float(rectangle_normal @ bottom_normal))
+    if alignment < np.cos(np.radians(settings.plane_parallel_tolerance_deg)):
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_bottom_not_parallel",
+            "the bottom plane is not parallel to the boundary rectangle",
+        )
+    height = float((bottom_origin - corners[0]) @ rectangle_normal)
+    if abs(height) <= settings.sewing_tolerance_mm:
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_zero_height",
+            "the bottom plane coincides with the boundary rectangle",
+        )
+
+    faces_a = mesh_faces[np.asarray(region_a.triangle_ids, dtype=np.int64)]
+    faces_b = mesh_faces[np.asarray(region_b.triangle_ids, dtype=np.int64)]
+    try:
+        halves = (
+            reindexed_chart_region(mesh_vertices, faces_a, (a0_id, ms_id, me_id, a3_id)),
+            reindexed_chart_region(mesh_vertices, faces_b, (ms_id, b1_id, b2_id, me_id)),
+        )
+        charts = tuple(
+            harmonic_square_parameterization(
+                half.vertices,
+                half.faces,
+                half.boundary_loop,
+                corner_loop_positions=np.asarray(half.corner_positions, dtype=np.int64),
+            )
+            for half in halves
+        )
+    except ChartParameterizationError as exc:
+        raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
+
+    return _CreaseContext(
+        halves=halves,
+        charts=(charts[0], charts[1]),
+        corners=corners,
+        crease_start=crease_start,
+        crease_end=crease_end,
+        rectangle_normal=rectangle_normal,
+        prism_vector=rectangle_normal * height,
+        segmentation_counts=dict(segmentation.counts_by_type),
+        cache_faces=np.vstack([faces_a, faces_b]),
+    )
+
+
+def _reconstruct_crease_network(
+    mesh: trimesh.Trimesh,
+    segmentation: SegmentationResult,
+    settings: CurvedPatchSettings,
+    network_settings: CurvedNetworkSettings,
+    guard: _StageGuard,
+    *,
+    fit_cache: CurvedFitCache | None,
+    source_sha256: str | None,
+) -> CurvedNetworkResult:
+    """Jointly fit two adjacent freeform regions sharing one real crease.
+
+    The crease pole row is aliased into single unknowns across both patches
+    (G0 exactly zero by construction) with no C1 coupling: the join is a
+    declared ``crease`` and must stay sharp, which the evidence gates enforce.
+    """
+
+    if network_settings.force_split:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_force_split_unsupported",
+            (
+                "forceSplit applies to single-region plates; two freeform "
+                "regions already form a crease network"
+            ),
+        )
+    if settings.budget.maximum_patches < 2:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_patch_budget",
+            "the patch budget does not allow a two-patch crease network",
+        )
+    context = _crease_context(mesh, segmentation, settings)
+    guard.stage("parameterizing chart", 20.0)
+    degree = settings.fit.degree
+    corners = context.corners
+
+    pole_cap = min(
+        settings.budget.maximum_total_control_points,
+        settings.budget.maximum_solve_unknowns,
+    )
+    cache_key: str | None = None
+    if fit_cache is not None:
+        cache_key = fit_cache.key(
+            source_sha256 or mesh_content_sha256(mesh),
+            settings,
+            network_settings,
+            (np.asarray(mesh.vertices, dtype=np.float64), context.cache_faces),
+        )
+        cached = fit_cache.load(cache_key)
+        if cached is not None:
+            guard.stage("assembling solid", 70.0)
+            network = SurfaceNetwork.from_artifact(cached["network"])
+            solid = _plate_solid_from_network(
+                network, corners, context.prism_vector, (), settings.sewing_tolerance_mm
+            )
+            guard.stage("validating solid", 90.0)
+            face_surfaces, comparison, evidence = _network_gates(
+                mesh, solid, network, settings, network_settings
+            )
+            iterations = tuple(
+                FitIteration(
+                    spans_u=int(entry["spansU"]),
+                    spans_v=int(entry["spansV"]),
+                    rms_distance=float(entry["rmsDistance"]),
+                    p95_distance=float(entry["p95Distance"]),
+                    maximum_distance=float(entry["maximumDistance"]),
+                )
+                for entry in cached["iterations"]
+            )
+            guard.stage("finished", 100.0)
+            return CurvedNetworkResult(
+                solid=solid,
+                network=network,
+                artifact_sha256=network.artifact_sha256(),
+                charts=context.charts,
+                iterations=iterations,
+                residual_maximum=float(cached["residualMaximum"]),
+                residual_rms=float(cached["residualRms"]),
+                shared_evidence=evidence,
+                face_surfaces=face_surfaces,
+                comparison=comparison,
+                corners=corners,
+                prism_vector=(
+                    float(context.prism_vector[0]),
+                    float(context.prism_vector[1]),
+                    float(context.prism_vector[2]),
+                ),
+                candidates=tuple(dict(candidate) for candidate in cached["candidates"]),
+                cache_status="hit",
+                sewing_tolerance_mm=settings.sewing_tolerance_mm,
+            )
+
+    guard.stage("fitting surface", 35.0)
+    samples = []
+    for half, chart in zip(context.halves, context.charts, strict=True):
+        sample_uv, sample_points, sample_weights = chart_lattice_samples(
+            half.vertices, half.faces, chart.uv
+        )
+        keep = sample_weights > 0.0
+        samples.append((sample_uv[keep], sample_points[keep], sample_weights[keep]))
+
+    half_corners = (
+        np.asarray([corners[0], context.crease_start, context.crease_end, corners[3]]),
+        np.asarray([context.crease_start, corners[1], corners[2], context.crease_end]),
+    )
+    smallest = min(len(points) for _, points, _ in samples)
+    sample_span_cap = max(1, int(np.sqrt(smallest / 2.0)) - degree)
+    budget_span_cap = max(1, math.isqrt(pole_cap // 2) - degree)
+    maximum_spans = max(
+        settings.fit.initial_spans,
+        min(settings.fit.maximum_spans, sample_span_cap, budget_span_cap),
+    )
+    spans = settings.fit.initial_spans
+    iterations_list: list[FitIteration] = []
+    best: tuple[list[np.ndarray], np.ndarray, np.ndarray] | None = None
+    for _ in range(settings.fit.maximum_refinements + 1):
+        guard.checkpoint()
+        control = spans + degree
+        knots = open_uniform_knots(control, degree)
+        greville = greville_abscissae(knots, degree)
+        # Pin the three straight outer chains of each region; the shared
+        # crease row stays a FREE pole row aliased across both patches with
+        # NO tangent coupling, so the joint fit keeps the dihedral the data
+        # demands instead of smoothing it away.
+        fixed_sets: list[dict[tuple[int, int], np.ndarray]] = []
+        for side, side_corners in enumerate(half_corners):
+            fixed = rectangle_boundary_poles(side_corners, greville, greville)
+            for j in range(1, control - 1):
+                del fixed[(control - 1, j) if side == 0 else (0, j)]
+            fixed_sets.append(fixed)
+        shared_poles = [((0, (control - 1, j)), (1, (0, j))) for j in range(control)]
+
+        uv_state = [sample[0].copy() for sample in samples]
+        poles: list[np.ndarray] = []
+        for _ in range(network_settings.solve_rounds):
+            systems = [
+                PatchSystem(
+                    uv=uv_state[side],
+                    points=samples[side][1],
+                    weights=samples[side][2],
+                    fixed_poles=fixed_sets[side],
+                )
+                for side in range(2)
+            ]
+            poles = solve_patch_network(
+                systems,
+                knots,
+                knots,
+                degree,
+                fairness=settings.fit.fairness,
+                shared_poles=shared_poles,
+                constraints=[],
+                constraint_weight=network_settings.coupling_weight,
+            )
+            uv_state = [
+                reproject_patch_uv(
+                    uv_state[side],
+                    samples[side][1],
+                    poles[side],
+                    knots,
+                    knots,
+                    degree,
+                    steps=settings.fit.reprojection_steps,
+                )
+                for side in range(2)
+            ]
+        residuals = _network_distances(
+            uv_state, samples, poles, knots, degree, settings.fit.reprojection_steps
+        )
+        iterations_list.append(
+            FitIteration(
+                spans_u=spans,
+                spans_v=spans,
+                rms_distance=float(np.sqrt(np.mean(residuals**2))),
+                p95_distance=float(np.percentile(residuals, 95)),
+                maximum_distance=float(residuals.max()),
+            )
+        )
+        best = (poles, knots, residuals)
+        if residuals.max() <= settings.fit_tolerance_mm:
+            break
+        if spans >= maximum_spans:
+            break
+        spans = min(spans * 2, maximum_spans)
+
+    assert best is not None
+    poles, knots, residuals = best
+    control = len(knots) - degree - 1
+    candidates = [
+        {
+            "layout": "crease-network",
+            "converged": bool(residuals.max() <= settings.fit_tolerance_mm),
+            "residualMaximum": float(residuals.max()),
+            "residualRms": float(np.sqrt(np.mean(residuals**2))),
+            "controlPoints": 2 * control * control - control,
+            "chosen": False,
+        }
+    ]
+    if residuals.max() > settings.fit_tolerance_mm:
+        raise CurvedPatchError(
+            "fitting surface",
+            "curved_patch_tolerance_not_met",
+            (
+                f"maximum network fit residual {residuals.max():g} mm exceeds "
+                f"{settings.fit_tolerance_mm:g} mm within the span budget"
+            ),
+        )
+    candidates[0]["chosen"] = True
+
+    curve_poles = np.asarray(poles[0][-1], dtype=np.float64)
+    vertices = (
+        *(NetworkVertex(f"corner-{index}", corners[index]) for index in range(4)),
+        NetworkVertex("crease-0-start", context.crease_start),
+        NetworkVertex("crease-0-end", context.crease_end),
+    )
+    curve = NetworkCurve(
+        id="crease-0",
+        degree=degree,
+        knots=knots,
+        poles=curve_poles,
+        start_vertex_id="crease-0-start",
+        end_vertex_id="crease-0-end",
+        continuity="crease",
+    )
+    patch_a = NetworkPatch(
+        id="patch-0",
+        degree=degree,
+        knots_u=knots,
+        knots_v=knots,
+        poles=poles[0],
+        corner_vertex_ids=("corner-0", "crease-0-start", "crease-0-end", "corner-3"),
+        shared_boundaries={"u1": "crease-0"},
+    )
+    patch_b = NetworkPatch(
+        id="patch-1",
+        degree=degree,
+        knots_u=knots,
+        knots_v=knots,
+        poles=poles[1],
+        corner_vertex_ids=("crease-0-start", "corner-1", "corner-2", "crease-0-end"),
+        shared_boundaries={"u0": "crease-0"},
+    )
+    network = SurfaceNetwork(
+        units="mm", vertices=vertices, curves=(curve,), patches=(patch_a, patch_b)
+    )
+
+    guard.stage("assembling solid", 70.0)
+    solid = _plate_solid_from_network(
+        network, corners, context.prism_vector, (), settings.sewing_tolerance_mm
+    )
+    guard.stage("validating solid", 90.0)
+    face_surfaces, comparison, evidence = _network_gates(
+        mesh, solid, network, settings, network_settings
+    )
+    if fit_cache is not None and cache_key is not None:
+        fit_cache.store(
+            cache_key,
+            _fit_cache_payload(
+                "crease-network",
+                network,
+                tuple(iterations_list),
+                candidates,
+                float(residuals.max()),
+                float(np.sqrt(np.mean(residuals**2))),
+            ),
+        )
+    guard.stage("finished", 100.0)
+    return CurvedNetworkResult(
+        solid=solid,
+        network=network,
+        artifact_sha256=network.artifact_sha256(),
+        charts=context.charts,
+        iterations=tuple(iterations_list),
+        residual_maximum=float(residuals.max()),
+        residual_rms=float(np.sqrt(np.mean(residuals**2))),
+        shared_evidence=evidence,
+        face_surfaces=face_surfaces,
+        comparison=comparison,
+        corners=corners,
+        prism_vector=(
+            float(context.prism_vector[0]),
+            float(context.prism_vector[1]),
+            float(context.prism_vector[2]),
+        ),
+        candidates=tuple(candidates),
+        cache_status="stored" if fit_cache is not None else "uncached",
+        sewing_tolerance_mm=settings.sewing_tolerance_mm,
+    )
+
+
 def reconstruct_plate_network(
     mesh: trimesh.Trimesh,
     *,
@@ -1165,11 +1735,13 @@ def reconstruct_plate_network(
 ) -> CurvedNetworkResult:
     """Reconstruct a plate as a shared-topology patch network.
 
-    Fits one patch when the budget allows it; otherwise (or when forced) cuts
-    the chart along a deterministic interior path, fits the shared boundary
-    curve once, fits both patches jointly with a C1 coupling across the
-    artificial smooth boundary, and assembles everything on a common OCCT
-    edge with exact iso pcurves.
+    One freeform region: fits one patch when the budget allows it; otherwise
+    (or when forced) cuts the chart along a deterministic interior path and
+    fits both halves jointly with a C1 coupling across the artificial smooth
+    boundary. Two adjacent freeform regions: fits both jointly with the real
+    crease boundary aliased and declared ``crease`` (sharp, no coupling).
+    Either way everything assembles on common OCCT edges with exact iso
+    pcurves.
     """
 
     settings = settings or CurvedPatchSettings()
@@ -1179,7 +1751,21 @@ def reconstruct_plate_network(
     guard = _StageGuard(settings.budget, progress, should_cancel)
 
     guard.stage("segmenting mesh", 5.0)
-    context = _plate_context(mesh, settings, patch_overrides)
+    segmentation = _segment_with_overrides(mesh, settings, patch_overrides)
+    freeform_count = sum(
+        1 for patch in segmentation.patches if patch.kind in ("freeform", "unknown")
+    )
+    if freeform_count == 2:
+        return _reconstruct_crease_network(
+            mesh,
+            segmentation,
+            settings,
+            network_settings,
+            guard,
+            fit_cache=fit_cache,
+            source_sha256=source_sha256,
+        )
+    context = _plate_context(mesh, settings, segmentation=segmentation)
     guard.stage("parameterizing chart", 20.0)
     corners = context.corners
     degree = settings.fit.degree
