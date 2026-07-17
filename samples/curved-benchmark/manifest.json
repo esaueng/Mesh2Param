@@ -1,0 +1,488 @@
+{
+  "fixtures": [
+    {
+      "category": "positive",
+      "description": "Closed solid whose top face is a non-round B-spline sheet meeting extruded walls at sharp creases, tessellated at standard density.",
+      "directory": "wavy-slab",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 22697.36181817824,
+        "boundingBox": [
+          -1.8756065763511136,
+          -1.8756065763511136,
+          -34.25619892156559,
+          81.87560657635112,
+          81.87560657635373,
+          7.706308506320342
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 191999.99999999243
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab",
+      "stl": {
+        "byteSize": 13184,
+        "path": "source.stl",
+        "sha256": "54ea86fa30de26f0609b3a3b0a811e01beaa26be6ec94c02593375b2e6522f59",
+        "triangleCount": 262,
+        "vertexCount": 133
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Wavy B-spline slab",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "The same ground truth tessellated an order of magnitude finer.",
+      "directory": "wavy-slab-dense",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 22697.36181817824,
+        "boundingBox": [
+          -0.3177098604408445,
+          -0.3177098604408445,
+          -33.21834320265949,
+          80.31770986044084,
+          80.28811304826519,
+          6.9627026668402605
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 191999.99999999243
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab-dense",
+      "stl": {
+        "byteSize": 139284,
+        "path": "source.stl",
+        "sha256": "59eab844d39815a2576f771cf40fd54f37d6bbc02a935829ad045cdfe6e286e1",
+        "triangleCount": 2784,
+        "vertexCount": 1394
+      },
+      "tessellation": {
+        "angularTolerance": 0.06,
+        "linearTolerance": 0.02
+      },
+      "title": "Wavy slab, dense tessellation",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "Standard tessellation with deterministic +/-0.03 mm normal-direction vertex noise, so fitting must approximate instead of interpolate.",
+      "directory": "wavy-slab-noisy",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 22697.36181817824,
+        "boundingBox": [
+          -1.8756065763511136,
+          -1.8756065763511136,
+          -34.25619892156559,
+          81.87560657635112,
+          81.87560657635373,
+          7.706308506320342
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 191999.99999999243
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.03,
+        "seed": 1295142979
+      },
+      "slug": "wavy-slab-noisy",
+      "stl": {
+        "byteSize": 13184,
+        "path": "source.stl",
+        "sha256": "b88968613c0fff2dcb064f7368ef2f0e41bd0099eec45eb697d2ba54c0039da6",
+        "triangleCount": 262,
+        "vertexCount": 133
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Wavy slab with vertex noise",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "Physically identical slab expressed in inches (scale 1/25.4).",
+      "directory": "wavy-slab-inch",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 35.18089273664847,
+        "boundingBox": [
+          -0.01415245078973631,
+          -0.01415245078973631,
+          -1.3160918676200983,
+          3.1637587500023403,
+          3.1637587500024544,
+          0.28251357010525
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 11.71655886618839
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab-inch",
+      "stl": {
+        "byteSize": 36484,
+        "path": "source.stl",
+        "sha256": "c99065608f409fbcaa02e5504da3f490f9b8db13dc7d3ec18f7d9f2264e88440",
+        "triangleCount": 728,
+        "vertexCount": 366
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.008
+      },
+      "title": "Wavy slab in inch units",
+      "units": "in"
+    },
+    {
+      "category": "positive",
+      "description": "The slab rotated 30 degrees about (1,1,0) and moved off origin.",
+      "directory": "wavy-slab-posed",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 22697.36181817823,
+        "boundingBox": [
+          12.614109574100262,
+          -42.49570670031265,
+          8.715877428168708,
+          108.59766967075126,
+          50.84483003450374,
+          90.159877823813
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 191999.99999999246
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab-posed",
+      "stl": {
+        "byteSize": 13584,
+        "path": "source.stl",
+        "sha256": "8bbe39da6a86478ee958babda07cdd70c3812fcc0d7d2fa4c3cc7aafe8cd7b58",
+        "triangleCount": 270,
+        "vertexCount": 137
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Wavy slab, rotated and translated",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "The slab with a vertical 8 mm-radius through hole, adding a cylindrical face and an interior trimming loop on the B-spline face.",
+      "directory": "wavy-slab-hole",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 23782.812637492614,
+        "boundingBox": [
+          -1.6977881691293943,
+          -1.6977881691293943,
+          -34.07838051434388,
+          81.6977881691294,
+          81.69778816913201,
+          7.528490099098615
+        ],
+        "edgeCount": 17,
+        "faceCount": 7,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 1,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 185968.1435818771
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab-hole",
+      "stl": {
+        "byteSize": 25584,
+        "path": "source.stl",
+        "sha256": "556c407aa954b92422e5fefaf65c47233fa171f807f51a04a8030f0895bd0909",
+        "triangleCount": 510,
+        "vertexCount": 255
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Wavy slab with a through hole",
+      "units": "mm"
+    },
+    {
+      "category": "negative",
+      "description": "A valid closed manifold tessellated so coarsely that no unique smooth surface is justified; reconstruction must report uncertainty.",
+      "directory": "wavy-slab-coarse",
+      "expectation": "closed-manifold-coarse",
+      "groundTruth": {
+        "area": 22697.36181817824,
+        "boundingBox": [
+          -2.383614349767518,
+          -2.383614349767518,
+          -34.25619892156559,
+          82.38361434976751,
+          82.23652658368141,
+          7.880219272052399
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 4,
+          "plane": 0,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 191999.99999999243
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "wavy-slab-coarse",
+      "stl": {
+        "byteSize": 8484,
+        "path": "source.stl",
+        "sha256": "f99d120a74a23fcddcfc93d5a3517d2c6b5e98232e7581397dde9d2863007df0",
+        "triangleCount": 168,
+        "vertexCount": 86
+      },
+      "tessellation": {
+        "angularTolerance": 0.8,
+        "linearTolerance": 2.5
+      },
+      "title": "Wavy slab, too coarse to fit",
+      "units": "mm"
+    },
+    {
+      "category": "negative",
+      "description": "A wavy height field with boundary edges and no enclosed volume.",
+      "directory": "open-wavy-sheet",
+      "expectation": "open-surface",
+      "groundTruth": null,
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": false,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "open-wavy-sheet",
+      "stl": {
+        "byteSize": 52984,
+        "path": "source.stl",
+        "sha256": "a72efe56c326f505e3b484ef12badd86c9a8350e41b235181640b1782ed3ba42",
+        "triangleCount": 1058,
+        "vertexCount": 576
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Open wavy sheet",
+      "units": "mm"
+    },
+    {
+      "category": "negative",
+      "description": "A closed box plus a fin whose shared edge carries three faces.",
+      "directory": "non-manifold-fin",
+      "expectation": "non-manifold",
+      "groundTruth": null,
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": false,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "non-manifold-fin",
+      "stl": {
+        "byteSize": 784,
+        "path": "source.stl",
+        "sha256": "6f38b446bed7d8ef9bb51bc2e54f0b7fcab4e599340ca366a1e703eb69ac18f6",
+        "triangleCount": 14,
+        "vertexCount": 10
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Box with a non-manifold fin",
+      "units": "mm"
+    },
+    {
+      "category": "negative",
+      "description": "Two closed shells whose triangles pass through each other.",
+      "directory": "self-intersecting-boxes",
+      "expectation": "self-intersecting",
+      "groundTruth": null,
+      "mesh": {
+        "bodyCount": 2,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "self-intersecting-boxes",
+      "stl": {
+        "byteSize": 1284,
+        "path": "source.stl",
+        "sha256": "4f70e8d999386d8df1ac20984524699818206796aaf4173ccf93fbc94b413fdc",
+        "triangleCount": 24,
+        "vertexCount": 16
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Two interpenetrating boxes",
+      "units": "mm"
+    },
+    {
+      "category": "negative",
+      "description": "Two disconnected closed bodies in one STL file.",
+      "directory": "multi-body-boxes",
+      "expectation": "multi-body",
+      "groundTruth": null,
+      "mesh": {
+        "bodyCount": 2,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "multi-body-boxes",
+      "stl": {
+        "byteSize": 1284,
+        "path": "source.stl",
+        "sha256": "16b4ba6aaf988c66d03d701d090db38dae4f7728a83c602c4e89fa3b9a850af5",
+        "triangleCount": 24,
+        "vertexCount": 16
+      },
+      "tessellation": {
+        "angularTolerance": 0.3,
+        "linearTolerance": 0.2
+      },
+      "title": "Two disjoint boxes",
+      "units": "mm"
+    }
+  ]
+}

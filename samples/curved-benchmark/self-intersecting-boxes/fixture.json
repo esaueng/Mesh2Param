@@ -1,0 +1,30 @@
+{
+  "category": "negative",
+  "description": "Two closed shells whose triangles pass through each other.",
+  "directory": "self-intersecting-boxes",
+  "expectation": "self-intersecting",
+  "groundTruth": null,
+  "mesh": {
+    "bodyCount": 2,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "self-intersecting-boxes",
+  "stl": {
+    "byteSize": 1284,
+    "path": "source.stl",
+    "sha256": "4f70e8d999386d8df1ac20984524699818206796aaf4173ccf93fbc94b413fdc",
+    "triangleCount": 24,
+    "vertexCount": 16
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Two interpenetrating boxes",
+  "units": "mm"
+}

@@ -20,3 +20,4 @@ htmlcov/
 playwright-report/
 test-results/
 artifacts/acceptance/
+artifacts/curved-baseline/
