@@ -31,10 +31,33 @@ from .comparison import ComparisonReport, ComparisonSettings, compare_mesh_to_sh
 from .parameterization import (
     ChartParameterization,
     ChartParameterizationError,
+    cut_chart_midline,
     harmonic_square_parameterization,
 )
 from .segmentation import SegmentationSettings, SurfacePatch, segment_mesh
-from .surface_fit import FittedPatch, SurfaceFitSettings, fit_bspline_patch
+from .surface_fit import (
+    FitIteration,
+    FittedPatch,
+    PatchSystem,
+    PoleConstraint,
+    SurfaceFitSettings,
+    fit_bspline_patch,
+    greville_abscissae,
+    open_uniform_knots,
+    patch_distances,
+    rectangle_boundary_poles,
+    reproject_patch_uv,
+    solve_patch_network,
+)
+from .surface_network import (
+    NetworkCurve,
+    NetworkPatch,
+    NetworkVertex,
+    SharedEdgeEvidence,
+    SurfaceNetwork,
+    build_network_faces,
+    shared_edge_evidence,
+)
 from .validation import classify_face_surfaces, validate_shape
 
 
@@ -264,104 +287,24 @@ def _bottom_plane(
     )
 
 
-def reconstruct_single_patch_plate(
-    mesh: trimesh.Trimesh,
-    *,
-    settings: CurvedPatchSettings | None = None,
-) -> CurvedPatchResult:
-    """Reconstruct one freeform-topped plate as an approximate curved B-Rep."""
+def chart_lattice_samples(
+    vertices: np.ndarray, faces: np.ndarray, uv: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Vertices plus an area-scaled barycentric lattice of interior samples.
 
-    settings = settings or CurvedPatchSettings()
-    settings.validate()
+    Large boundary fan triangles (straight crease edges never subdivide)
+    would otherwise leave whole knot spans without data.
+    """
 
-    segmentation = segment_mesh(mesh, settings.segmentation)
-    freeform = _freeform_patch(segmentation.patches)
-    bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
-
-    # Reindex the freeform region as a standalone chart.
-    triangle_ids = np.asarray(freeform.triangle_ids, dtype=np.int64)
-    chart_faces_global = np.asarray(mesh.faces, dtype=np.int64)[triangle_ids]
-    used_vertices = np.unique(chart_faces_global)
-    local_index = np.full(len(mesh.vertices), -1, dtype=np.int64)
-    local_index[used_vertices] = np.arange(len(used_vertices))
-    chart_vertices = np.asarray(mesh.vertices, dtype=np.float64)[used_vertices]
-    chart_faces = local_index[chart_faces_global]
-    loop_global = np.asarray(freeform.boundary_loops[0].vertex_ids, dtype=np.int64)
-    chart_loop = local_index[loop_global]
-    if np.any(chart_loop < 0):
-        raise CurvedPatchError(
-            "segmenting mesh",
-            "curved_patch_boundary_mismatch",
-            "the freeform boundary loop references vertices outside the region",
-        )
-
-    try:
-        chart = harmonic_square_parameterization(
-            chart_vertices,
-            chart_faces,
-            chart_loop,
-            minimum_turn_deg=settings.corner_turn_threshold_deg,
-        )
-    except ChartParameterizationError as exc:
-        raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
-
-    # Fit each boundary chain as a straight crease line and refine the corners.
-    corner_positions = np.asarray(chart.corner_loop_positions, dtype=np.int64)
-    lines: list[tuple[np.ndarray, np.ndarray]] = []
-    for chain in range(4):
-        positions = _chain_positions(
-            len(chart_loop),
-            int(corner_positions[chain]),
-            int(corner_positions[(chain + 1) % 4]),
-        )
-        centroid, direction, deviation = _fit_line(chart_vertices[chart_loop[positions]])
-        if deviation > settings.boundary_line_tolerance_mm:
-            raise CurvedPatchError(
-                "fitting boundary",
-                "curved_patch_boundary_not_straight",
-                (
-                    f"boundary chain {chain} deviates {deviation:g} mm from a line "
-                    f"(limit {settings.boundary_line_tolerance_mm:g} mm); curved "
-                    "boundary networks arrive with Milestone 2"
-                ),
-            )
-        lines.append((centroid, direction))
-    corners = np.asarray(
-        [_line_intersection(*lines[(chain - 1) % 4], *lines[chain]) for chain in range(4)]
-    )
-
-    rectangle_normal = np.cross(corners[1] - corners[0], corners[3] - corners[0])
-    normal_length = float(np.linalg.norm(rectangle_normal))
-    if normal_length <= 0.0:
-        raise CurvedPatchError(
-            "fitting boundary",
-            "curved_patch_degenerate_rectangle",
-            "corner rectangle is degenerate",
-        )
-    rectangle_normal = rectangle_normal / normal_length
-    coplanarity = abs(float((corners[2] - corners[0]) @ rectangle_normal))
-    if coplanarity > settings.boundary_line_tolerance_mm:
-        raise CurvedPatchError(
-            "fitting boundary",
-            "curved_patch_boundary_not_planar",
-            f"boundary corners deviate {coplanarity:g} mm from a common plane",
-        )
-
-    # Samples: vertices weighted by mixed area plus barycenters weighted by area.
-    chart_mesh = trimesh.Trimesh(
-        vertices=chart_vertices, faces=chart_faces, process=False, validate=False
-    )
+    chart_mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False, validate=False)
     face_areas = np.asarray(chart_mesh.area_faces, dtype=np.float64)
-    vertex_weights = np.zeros(len(chart_vertices))
+    vertex_weights = np.zeros(len(vertices))
     for column in range(3):
-        np.add.at(vertex_weights, chart_faces[:, column], face_areas / 3.0)
+        np.add.at(vertex_weights, faces[:, column], face_areas / 3.0)
 
-    # Interior samples come from a barycentric lattice whose density scales
-    # with triangle area: large boundary fan triangles (straight crease edges
-    # never subdivide) would otherwise leave whole knot spans without data.
     median_area = float(np.median(face_areas[face_areas > 0.0]))
-    lattice_uv: list[np.ndarray] = [chart.uv]
-    lattice_points: list[np.ndarray] = [chart_vertices]
+    lattice_uv: list[np.ndarray] = [uv]
+    lattice_points: list[np.ndarray] = [vertices]
     lattice_weights: list[np.ndarray] = [vertex_weights]
     levels = np.clip(np.ceil(np.sqrt(face_areas / max(median_area, 1e-300))).astype(np.int64), 1, 8)
     for level in np.unique(levels):
@@ -374,14 +317,35 @@ def reconstruct_single_patch_plate(
         if not interior:
             continue
         barycentric = np.asarray(interior, dtype=np.float64)
-        triangle_uv = chart.uv[chart_faces[selected]]
-        triangle_points = chart_vertices[chart_faces[selected]]
+        triangle_uv = uv[faces[selected]]
+        triangle_points = vertices[faces[selected]]
         lattice_uv.append(np.einsum("kb,tbc->tkc", barycentric, triangle_uv).reshape(-1, 2))
         lattice_points.append(np.einsum("kb,tbc->tkc", barycentric, triangle_points).reshape(-1, 3))
         lattice_weights.append(np.repeat(face_areas[selected] / len(barycentric), len(barycentric)))
     sample_uv = np.concatenate(lattice_uv)
     sample_points = np.concatenate(lattice_points)
     sample_weights = np.concatenate(lattice_weights)
+    return sample_uv, sample_points, sample_weights
+
+
+def reconstruct_single_patch_plate(
+    mesh: trimesh.Trimesh,
+    *,
+    settings: CurvedPatchSettings | None = None,
+) -> CurvedPatchResult:
+    """Reconstruct one freeform-topped plate as an approximate curved B-Rep."""
+
+    settings = settings or CurvedPatchSettings()
+    settings.validate()
+
+    context = _plate_context(mesh, settings)
+    chart = context.chart
+    corners = context.corners
+    prism_vector = context.prism_vector
+
+    sample_uv, sample_points, sample_weights = chart_lattice_samples(
+        context.chart_vertices, context.chart_faces, chart.uv
+    )
     valid = sample_weights > 0.0
     fitted = fit_bspline_patch(
         sample_uv[valid],
@@ -400,23 +364,6 @@ def reconstruct_single_patch_plate(
                 f"{settings.fit_tolerance_mm:g} mm within the span budget"
             ),
         )
-
-    # Prism from the crease rectangle to the fitted bottom plane.
-    alignment = abs(float(rectangle_normal @ bottom_normal))
-    if alignment < np.cos(np.radians(settings.plane_parallel_tolerance_deg)):
-        raise CurvedPatchError(
-            "assembling solid",
-            "curved_patch_bottom_not_parallel",
-            "the bottom plane is not parallel to the boundary rectangle",
-        )
-    height = float((bottom_origin - corners[0]) @ rectangle_normal)
-    if abs(height) <= settings.sewing_tolerance_mm:
-        raise CurvedPatchError(
-            "assembling solid",
-            "curved_patch_zero_height",
-            "the bottom plane coincides with the boundary rectangle",
-        )
-    prism_vector = rectangle_normal * height
 
     solid = assemble_single_patch_plate(
         fitted.to_occt_surface(),
@@ -457,10 +404,6 @@ def reconstruct_single_patch_plate(
             ),
         )
 
-    counts = {
-        kind: sum(1 for patch in segmentation.patches if patch.kind == kind)
-        for kind in ("plane", "cylinder", "freeform", "unknown")
-    }
     return CurvedPatchResult(
         solid=solid,
         chart=chart,
@@ -473,14 +416,631 @@ def reconstruct_single_patch_plate(
         ),
         face_surfaces=face_surfaces,
         comparison=comparison,
+        segmentation_counts=context.segmentation_counts,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class CurvedNetworkSettings:
+    """Milestone 2 additions: split control and continuity gates."""
+
+    force_split: bool = False
+    g1_maximum_angle_deg: float = 1.0
+    coupling_weight: float = 10.0
+    curve_fairness: float = 1e-3
+    evidence_sample_count: int = 64
+    solve_rounds: int = 2
+
+    def validate(self) -> None:
+        if not 0.0 < self.g1_maximum_angle_deg < 90.0:
+            raise ValueError("G1 gate must be in (0, 90) degrees")
+        if self.coupling_weight < 0.0 or self.curve_fairness < 0.0:
+            raise ValueError("coupling weight and curve fairness must be non-negative")
+        if self.evidence_sample_count < 2 or self.solve_rounds < 1:
+            raise ValueError("evidence samples and solve rounds must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class CurvedNetworkResult:
+    solid: cq.Shape
+    network: SurfaceNetwork
+    artifact_sha256: str
+    charts: tuple[ChartParameterization, ...]
+    iterations: tuple[FitIteration, ...]
+    residual_maximum: float
+    residual_rms: float
+    shared_evidence: tuple[SharedEdgeEvidence, ...]
+    face_surfaces: dict[str, int]
+    comparison: ComparisonReport
+    corners: np.ndarray = field(repr=False)
+    prism_vector: tuple[float, float, float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scope": "approximate curved B-Rep, shared-topology patch network",
+            "artifactSha256": self.artifact_sha256,
+            "network": self.network.to_artifact(),
+            "charts": [chart.to_dict() for chart in self.charts],
+            "iterations": [iteration.to_dict() for iteration in self.iterations],
+            "residualMaximum": self.residual_maximum,
+            "residualRms": self.residual_rms,
+            "sharedEdges": [evidence.to_dict() for evidence in self.shared_evidence],
+            "faceSurfaces": dict(self.face_surfaces),
+            "comparison": self.comparison.to_dict(),
+            "corners": [list(map(float, corner)) for corner in self.corners],
+            "prismVector": list(self.prism_vector),
+            "limitations": [
+                "The fitted network is a tolerance-controlled approximation of the "
+                "mesh, not the recovered original CAD surfaces.",
+                "Plate topology only: straight outer creases over a planar bottom.",
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class _PlateContext:
+    chart_vertices: np.ndarray
+    chart_faces: np.ndarray
+    chart_loop: np.ndarray
+    chart: ChartParameterization
+    lines: tuple[tuple[np.ndarray, np.ndarray], ...]
+    corners: np.ndarray
+    rectangle_normal: np.ndarray
+    prism_vector: np.ndarray
+    segmentation_counts: dict[str, int]
+
+
+def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _PlateContext:
+    """Segment, extract, parameterize, and bound the plate's freeform chart."""
+
+    segmentation = segment_mesh(mesh, settings.segmentation)
+    freeform = _freeform_patch(segmentation.patches)
+    bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
+
+    triangle_ids = np.asarray(freeform.triangle_ids, dtype=np.int64)
+    chart_faces_global = np.asarray(mesh.faces, dtype=np.int64)[triangle_ids]
+    used_vertices = np.unique(chart_faces_global)
+    local_index = np.full(len(mesh.vertices), -1, dtype=np.int64)
+    local_index[used_vertices] = np.arange(len(used_vertices))
+    chart_vertices = np.asarray(mesh.vertices, dtype=np.float64)[used_vertices]
+    chart_faces = local_index[chart_faces_global]
+    loop_global = np.asarray(freeform.boundary_loops[0].vertex_ids, dtype=np.int64)
+    chart_loop = local_index[loop_global]
+    if np.any(chart_loop < 0):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_boundary_mismatch",
+            "the freeform boundary loop references vertices outside the region",
+        )
+
+    try:
+        chart = harmonic_square_parameterization(
+            chart_vertices,
+            chart_faces,
+            chart_loop,
+            minimum_turn_deg=settings.corner_turn_threshold_deg,
+        )
+    except ChartParameterizationError as exc:
+        raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
+
+    corner_positions = np.asarray(chart.corner_loop_positions, dtype=np.int64)
+    lines: list[tuple[np.ndarray, np.ndarray]] = []
+    for chain in range(4):
+        positions = _chain_positions(
+            len(chart_loop),
+            int(corner_positions[chain]),
+            int(corner_positions[(chain + 1) % 4]),
+        )
+        centroid, direction, deviation = _fit_line(chart_vertices[chart_loop[positions]])
+        if deviation > settings.boundary_line_tolerance_mm:
+            raise CurvedPatchError(
+                "fitting boundary",
+                "curved_patch_boundary_not_straight",
+                (
+                    f"boundary chain {chain} deviates {deviation:g} mm from a line "
+                    f"(limit {settings.boundary_line_tolerance_mm:g} mm)"
+                ),
+            )
+        lines.append((centroid, direction))
+    corners = np.asarray(
+        [_line_intersection(*lines[(chain - 1) % 4], *lines[chain]) for chain in range(4)]
+    )
+
+    rectangle_normal = np.cross(corners[1] - corners[0], corners[3] - corners[0])
+    normal_length = float(np.linalg.norm(rectangle_normal))
+    if normal_length <= 0.0:
+        raise CurvedPatchError(
+            "fitting boundary",
+            "curved_patch_degenerate_rectangle",
+            "corner rectangle is degenerate",
+        )
+    rectangle_normal = rectangle_normal / normal_length
+    coplanarity = abs(float((corners[2] - corners[0]) @ rectangle_normal))
+    if coplanarity > settings.boundary_line_tolerance_mm:
+        raise CurvedPatchError(
+            "fitting boundary",
+            "curved_patch_boundary_not_planar",
+            f"boundary corners deviate {coplanarity:g} mm from a common plane",
+        )
+
+    alignment = abs(float(rectangle_normal @ bottom_normal))
+    if alignment < np.cos(np.radians(settings.plane_parallel_tolerance_deg)):
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_bottom_not_parallel",
+            "the bottom plane is not parallel to the boundary rectangle",
+        )
+    height = float((bottom_origin - corners[0]) @ rectangle_normal)
+    if abs(height) <= settings.sewing_tolerance_mm:
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_zero_height",
+            "the bottom plane coincides with the boundary rectangle",
+        )
+
+    counts = {
+        kind: sum(1 for patch in segmentation.patches if patch.kind == kind)
+        for kind in ("plane", "cylinder", "freeform", "unknown")
+    }
+    return _PlateContext(
+        chart_vertices=chart_vertices,
+        chart_faces=chart_faces,
+        chart_loop=chart_loop,
+        chart=chart,
+        lines=tuple(lines),
+        corners=corners,
+        rectangle_normal=rectangle_normal,
+        prism_vector=rectangle_normal * height,
         segmentation_counts=counts,
     )
 
 
+def _project_to_line(point: np.ndarray, line: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
+    centroid, direction = line
+    return np.asarray(centroid + float((point - centroid) @ direction) * direction)
+
+
+def _network_distances(
+    uv_state: list[np.ndarray],
+    samples: list[tuple[np.ndarray, np.ndarray, np.ndarray]],
+    poles: list[np.ndarray],
+    knots: np.ndarray,
+    degree: int,
+    steps: int,
+) -> np.ndarray:
+    """Distance of every sample to the closest patch of the network.
+
+    The discrete cut path zig-zags around the smooth emergent boundary curve,
+    so samples adjacent to the cut can land on the neighbor patch's side of
+    the shared curve; measuring against one patch alone would misreport a
+    perfectly covered point as an error.
+    """
+
+    per_patch: list[np.ndarray] = []
+    boundary_u = (1.0, 0.0)
+    for side in range(2):
+        own = patch_distances(uv_state[side], samples[side][1], poles[side], knots, knots, degree)
+        other = 1 - side
+        seed = np.column_stack([np.full(len(own), boundary_u[other]), uv_state[side][:, 1]])
+        seed = reproject_patch_uv(
+            seed, samples[side][1], poles[other], knots, knots, degree, steps=steps + 2
+        )
+        across = patch_distances(seed, samples[side][1], poles[other], knots, knots, degree)
+        per_patch.append(np.minimum(own, across))
+    return np.concatenate(per_patch)
+
+
+def _solidify_faces(faces: list[Any], sewing_tolerance: float) -> cq.Shape:
+    """Sew prepared faces and demand exactly one closed solid."""
+
+    sewing = BRepBuilderAPI_Sewing(float(sewing_tolerance), True, True, True, False)
+    for face in faces:
+        sewing.Add(face)
+    sewing.Perform()
+    if sewing.NbFreeEdges() != 0 or sewing.NbMultipleEdges() != 0:
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_sewing_incomplete",
+            (
+                f"sewing left {sewing.NbFreeEdges()} free edges and "
+                f"{sewing.NbMultipleEdges()} multiply-connected edges"
+            ),
+        )
+    shell_fix = ShapeFix_Shell()
+    shell_fix.Init(TopoDS.Shell_s(sewing.SewedShape()))
+    shell_fix.Perform()
+    solid = cq.Shape.cast(ShapeFix_Solid().SolidFromShell(shell_fix.Shell()))
+    if len(solid.Solids()) != 1 or not all(shell.Closed() for shell in solid.Shells()):
+        raise CurvedPatchError(
+            "assembling solid",
+            "curved_patch_not_closed",
+            "sewn faces did not produce one closed solid",
+        )
+    return solid
+
+
+def _network_plate_solid(
+    network: SurfaceNetwork,
+    wall_chains: list[list[np.ndarray]],
+    corners: np.ndarray,
+    prism_vector: np.ndarray,
+    sewing_tolerance: float,
+) -> cq.Shape:
+    faces, _ = build_network_faces(network)
+    all_faces: list[Any] = list(faces)
+    for chain_points in wall_chains:
+        polygon = [
+            *chain_points,
+            chain_points[-1] + prism_vector,
+            chain_points[0] + prism_vector,
+        ]
+        all_faces.append(_polygon_face(np.asarray(polygon)).wrapped)
+    all_faces.append(_polygon_face((corners + prism_vector)[::-1]).wrapped)
+    return _solidify_faces(all_faces, sewing_tolerance)
+
+
+def _network_gates(
+    mesh: trimesh.Trimesh,
+    solid: cq.Shape,
+    network: SurfaceNetwork,
+    settings: CurvedPatchSettings,
+    network_settings: CurvedNetworkSettings,
+) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
+    shape_validation = validate_shape(solid)
+    if not shape_validation.valid:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_invalid_brep",
+            "; ".join(shape_validation.errors),
+        )
+    face_surfaces = classify_face_surfaces(solid)
+    if face_surfaces["bspline"] < len(network.patches):
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_no_bspline_face",
+            (f"expected {len(network.patches)} B-spline faces, found {face_surfaces['bspline']}"),
+        )
+    evidence = shared_edge_evidence(network, sample_count=network_settings.evidence_sample_count)
+    for entry in evidence:
+        if entry.maximum_position_gap > settings.sewing_tolerance_mm:
+            raise CurvedPatchError(
+                "validating solid",
+                "curved_patch_g0_gap",
+                (
+                    f"shared curve {entry.curve_id!r} G0 gap {entry.maximum_position_gap:g} "
+                    f"exceeds the sewing tolerance"
+                ),
+            )
+        if (
+            entry.continuity == "smooth"
+            and entry.maximum_normal_angle_deg > network_settings.g1_maximum_angle_deg
+        ):
+            raise CurvedPatchError(
+                "validating solid",
+                "curved_patch_g1_angle",
+                (
+                    f"shared curve {entry.curve_id!r} tangent mismatch "
+                    f"{entry.maximum_normal_angle_deg:g} deg exceeds "
+                    f"{network_settings.g1_maximum_angle_deg:g} deg"
+                ),
+            )
+    comparison = compare_mesh_to_shape(
+        mesh,
+        solid,
+        settings=ComparisonSettings(
+            sample_count_each_direction=settings.comparison_sample_count,
+            linear_tessellation_mm=settings.comparison_tessellation,
+        ),
+    )
+    if comparison.maximum_distance_mm > settings.surface_deviation_tolerance_mm:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_deviation_exceeded",
+            (
+                f"maximum source deviation {comparison.maximum_distance_mm:g} mm "
+                f"exceeds {settings.surface_deviation_tolerance_mm:g} mm"
+            ),
+        )
+    return face_surfaces, comparison, evidence
+
+
+def reconstruct_plate_network(
+    mesh: trimesh.Trimesh,
+    *,
+    settings: CurvedPatchSettings | None = None,
+    network_settings: CurvedNetworkSettings | None = None,
+) -> CurvedNetworkResult:
+    """Reconstruct a plate as a shared-topology patch network.
+
+    Fits one patch when the budget allows it; otherwise (or when forced) cuts
+    the chart along a deterministic interior path, fits the shared boundary
+    curve once, fits both patches jointly with a C1 coupling across the
+    artificial smooth boundary, and assembles everything on a common OCCT
+    edge with exact iso pcurves.
+    """
+
+    settings = settings or CurvedPatchSettings()
+    settings.validate()
+    network_settings = network_settings or CurvedNetworkSettings()
+    network_settings.validate()
+
+    context = _plate_context(mesh, settings)
+    corners = context.corners
+    degree = settings.fit.degree
+    corner_vertices = tuple(NetworkVertex(f"corner-{index}", corners[index]) for index in range(4))
+
+    if not network_settings.force_split:
+        sample_uv, sample_points, sample_weights = chart_lattice_samples(
+            context.chart_vertices, context.chart_faces, context.chart.uv
+        )
+        valid = sample_weights > 0.0
+        fitted = fit_bspline_patch(
+            sample_uv[valid],
+            sample_points[valid],
+            sample_weights[valid],
+            settings.fit_tolerance_mm,
+            settings=settings.fit,
+            rectangle_corners=corners,
+        )
+        if fitted.converged:
+            patch = NetworkPatch(
+                id="patch-0",
+                degree=degree,
+                knots_u=fitted.knots_u,
+                knots_v=fitted.knots_v,
+                poles=fitted.poles,
+                corner_vertex_ids=("corner-0", "corner-1", "corner-2", "corner-3"),
+            )
+            network = SurfaceNetwork(
+                units="mm", vertices=corner_vertices, curves=(), patches=(patch,)
+            )
+            wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
+            solid = _network_plate_solid(
+                network,
+                wall_chains,
+                corners,
+                context.prism_vector,
+                settings.sewing_tolerance_mm,
+            )
+            face_surfaces, comparison, evidence = _network_gates(
+                mesh, solid, network, settings, network_settings
+            )
+            return CurvedNetworkResult(
+                solid=solid,
+                network=network,
+                artifact_sha256=network.artifact_sha256(),
+                charts=(context.chart,),
+                iterations=fitted.iterations,
+                residual_maximum=fitted.maximum_distance,
+                residual_rms=fitted.rms_distance,
+                shared_evidence=evidence,
+                face_surfaces=face_surfaces,
+                comparison=comparison,
+                corners=corners,
+                prism_vector=(
+                    float(context.prism_vector[0]),
+                    float(context.prism_vector[1]),
+                    float(context.prism_vector[2]),
+                ),
+            )
+
+    # Split path: cut the chart, fit the shared curve once, fit both patches
+    # jointly with C1 coupling across the artificial smooth boundary.
+    try:
+        cut = cut_chart_midline(context.chart_vertices, context.chart_faces, context.chart)
+        halves = (cut.half_a, cut.half_b)
+        charts = tuple(
+            harmonic_square_parameterization(
+                half.vertices,
+                half.faces,
+                half.boundary_loop,
+                corner_loop_positions=np.asarray(half.corner_positions, dtype=np.int64),
+            )
+            for half in halves
+        )
+    except ChartParameterizationError as exc:
+        raise CurvedPatchError("cutting chart", exc.code, str(exc)) from exc
+
+    path_points = cut.path_points.copy()
+    path_points[0] = _project_to_line(path_points[0], context.lines[0])
+    path_points[-1] = _project_to_line(path_points[-1], context.lines[2])
+    mid_start, mid_end = path_points[0], path_points[-1]
+    chord = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(path_points, axis=0), axis=1))])
+    if chord[-1] <= 0.0:
+        raise CurvedPatchError(
+            "cutting chart", "curved_patch_degenerate_cut", "the cut path has zero length"
+        )
+    half_corners = (
+        np.asarray([corners[0], mid_start, mid_end, corners[3]]),
+        np.asarray([mid_start, corners[1], corners[2], mid_end]),
+    )
+    samples = []
+    for half, chart in zip(halves, charts, strict=True):
+        sample_uv, sample_points, sample_weights = chart_lattice_samples(
+            half.vertices, half.faces, chart.uv
+        )
+        keep = sample_weights > 0.0
+        samples.append((sample_uv[keep], sample_points[keep], sample_weights[keep]))
+
+    smallest = min(len(points) for _, points, _ in samples)
+    sample_span_cap = max(1, int(np.sqrt(smallest / 2.0)) - degree)
+    maximum_spans = max(
+        settings.fit.initial_spans, min(settings.fit.maximum_spans, sample_span_cap)
+    )
+    spans = settings.fit.initial_spans
+    iterations: list[FitIteration] = []
+    best: tuple[list[np.ndarray], np.ndarray, np.ndarray] | None = None
+    for _ in range(settings.fit.maximum_refinements + 1):
+        control = spans + degree
+        knots = open_uniform_knots(control, degree)
+        greville = greville_abscissae(knots, degree)
+        # Pin the three straight outer edges of each half; the shared cut
+        # boundary stays a FREE pole row aliased across both patches, so the
+        # shared curve emerges from the joint fit lying on the surface instead
+        # of chasing the zig-zag of the discrete cut path.
+        fixed_sets: list[dict[tuple[int, int], np.ndarray]] = []
+        for side, side_corners in enumerate(half_corners):
+            fixed = rectangle_boundary_poles(side_corners, greville, greville)
+            for j in range(1, control - 1):
+                del fixed[(control - 1, j) if side == 0 else (0, j)]
+            fixed_sets.append(fixed)
+        shared_poles = [((0, (control - 1, j)), (1, (0, j))) for j in range(control)]
+        constraints = [
+            PoleConstraint(
+                entries=(
+                    (0, (control - 2, j), 1.0),
+                    (1, (1, j), 1.0),
+                    (0, (control - 1, j), -2.0),
+                ),
+                target=np.zeros(3),
+            )
+            for j in range(control)
+        ]
+
+        uv_state = [sample[0].copy() for sample in samples]
+        poles: list[np.ndarray] = []
+        for _ in range(network_settings.solve_rounds):
+            systems = [
+                PatchSystem(
+                    uv=uv_state[side],
+                    points=samples[side][1],
+                    weights=samples[side][2],
+                    fixed_poles=fixed_sets[side],
+                )
+                for side in range(2)
+            ]
+            poles = solve_patch_network(
+                systems,
+                knots,
+                knots,
+                degree,
+                fairness=settings.fit.fairness,
+                shared_poles=shared_poles,
+                constraints=constraints,
+                constraint_weight=network_settings.coupling_weight,
+            )
+            uv_state = [
+                reproject_patch_uv(
+                    uv_state[side],
+                    samples[side][1],
+                    poles[side],
+                    knots,
+                    knots,
+                    degree,
+                    steps=settings.fit.reprojection_steps,
+                )
+                for side in range(2)
+            ]
+        residuals = _network_distances(
+            uv_state, samples, poles, knots, degree, settings.fit.reprojection_steps
+        )
+        iterations.append(
+            FitIteration(
+                spans_u=spans,
+                spans_v=spans,
+                rms_distance=float(np.sqrt(np.mean(residuals**2))),
+                p95_distance=float(np.percentile(residuals, 95)),
+                maximum_distance=float(residuals.max()),
+            )
+        )
+        best = (poles, knots, residuals)
+        if residuals.max() <= settings.fit_tolerance_mm:
+            break
+        if spans >= maximum_spans:
+            break
+        spans = min(spans * 2, maximum_spans)
+
+    assert best is not None
+    poles, knots, residuals = best
+    # Both patches carry identical shared-boundary poles by aliasing; that
+    # pole row IS the shared curve.
+    curve_poles = np.asarray(poles[0][-1], dtype=np.float64)
+    if residuals.max() > settings.fit_tolerance_mm:
+        raise CurvedPatchError(
+            "fitting surface",
+            "curved_patch_tolerance_not_met",
+            (
+                f"maximum network fit residual {residuals.max():g} mm exceeds "
+                f"{settings.fit_tolerance_mm:g} mm within the span budget"
+            ),
+        )
+
+    vertices = (
+        *corner_vertices,
+        NetworkVertex("cut-0-start", mid_start),
+        NetworkVertex("cut-0-end", mid_end),
+    )
+    curve = NetworkCurve(
+        id="cut-0",
+        degree=degree,
+        knots=knots,
+        poles=curve_poles,
+        start_vertex_id="cut-0-start",
+        end_vertex_id="cut-0-end",
+        continuity="smooth",
+    )
+    patch_a = NetworkPatch(
+        id="patch-0",
+        degree=degree,
+        knots_u=knots,
+        knots_v=knots,
+        poles=poles[0],
+        corner_vertex_ids=("corner-0", "cut-0-start", "cut-0-end", "corner-3"),
+        shared_boundaries={"u1": "cut-0"},
+    )
+    patch_b = NetworkPatch(
+        id="patch-1",
+        degree=degree,
+        knots_u=knots,
+        knots_v=knots,
+        poles=poles[1],
+        corner_vertex_ids=("cut-0-start", "corner-1", "corner-2", "cut-0-end"),
+        shared_boundaries={"u0": "cut-0"},
+    )
+    network = SurfaceNetwork(
+        units="mm", vertices=vertices, curves=(curve,), patches=(patch_a, patch_b)
+    )
+
+    wall_chains = [
+        [corners[0], mid_start, corners[1]],
+        [corners[1], corners[2]],
+        [corners[2], mid_end, corners[3]],
+        [corners[3], corners[0]],
+    ]
+    solid = _network_plate_solid(
+        network, wall_chains, corners, context.prism_vector, settings.sewing_tolerance_mm
+    )
+    face_surfaces, comparison, evidence = _network_gates(
+        mesh, solid, network, settings, network_settings
+    )
+    return CurvedNetworkResult(
+        solid=solid,
+        network=network,
+        artifact_sha256=network.artifact_sha256(),
+        charts=charts,
+        iterations=tuple(iterations),
+        residual_maximum=float(residuals.max()),
+        residual_rms=float(np.sqrt(np.mean(residuals**2))),
+        shared_evidence=evidence,
+        face_surfaces=face_surfaces,
+        comparison=comparison,
+        corners=corners,
+        prism_vector=(
+            float(context.prism_vector[0]),
+            float(context.prism_vector[1]),
+            float(context.prism_vector[2]),
+        ),
+    )
+
+
 __all__ = [
+    "CurvedNetworkResult",
+    "CurvedNetworkSettings",
     "CurvedPatchError",
     "CurvedPatchResult",
     "CurvedPatchSettings",
     "assemble_single_patch_plate",
+    "chart_lattice_samples",
+    "reconstruct_plate_network",
     "reconstruct_single_patch_plate",
 ]
