@@ -56,6 +56,7 @@ inner entity loops; features refer to profile IDs rather than embedding anonymou
 | Mirror | source dependencies and semantic plane |
 | Chamfer/fillet | semantic edge references and positive width/radius |
 | Imported faceted | source artifact/hash and explicit fallback/reference intent |
+| Reconstructed surface network | content-addressed curved-plate artifact id/hash; rebuilds an approximate curved B-Rep base body deterministically |
 
 Automatic inference is narrower than compilation. A schema-supported operation may be manually
 authored even when no inference rule currently proposes it.

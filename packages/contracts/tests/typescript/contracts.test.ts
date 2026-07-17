@@ -58,6 +58,7 @@ const supportedFeatures: Record<string, unknown>[] = [
   { ...common, operation: "chamfer", targetEdges: ["feature.base.edge.1"], width: 1 },
   { ...common, operation: "fillet", targetEdges: ["feature.base.edge.1"], radius: 1 },
   { ...common, operation: "importedFaceted", booleanMode: "additive", sourceArtifactId: "artifact.mesh", meshSha256: "0".repeat(64), intent: "fallback" },
+  { ...common, operation: "reconstructedSurfaceNetwork", sourceArtifactId: "artifact.network", artifactSha256: "0".repeat(64) },
 ];
 
 describe("CADGraph contracts", () => {

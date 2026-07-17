@@ -483,12 +483,29 @@ normal mismatch 0.43 degrees maximum against a 1 degree gate, source deviation
 normalized STEP across repeat runs. Covered by `tests/test_curved_network.py`.
 
 Still open for a follow-up before Milestone 3: multi-region crease networks
-(shared crease curves between separately segmented freeform regions), holes
-and extraordinary chart vertices, and the CADGraph `reconstructedSurfaceNetwork`
-base feature. The CADGraph feature requires a contracts schema change (the
-authoritative JSON Schema, regenerated TypeScript types, migrations, compiler
-resolution mirroring `ImportedFacetedFeature`, and services/web surfacing);
-the engine artifact above is designed to slot into it unchanged.
+(shared crease curves between separately segmented freeform regions) and
+extraordinary chart vertices. The CADGraph `reconstructedSurfaceNetwork` base
+feature is now implemented (see "CADGraph integration" below); holes arrived
+with Milestone 3.
+
+#### CADGraph integration (implemented)
+
+The `reconstructedSurfaceNetwork` feature is an additive variant of the
+CADGraph 1.0.0 feature union (authoritative JSON Schema, Pydantic models,
+regenerated TypeScript types). It references a **curved-plate artifact**
+(`mesh2param/curved-plate/1`): the surface network plus its plate closure
+(corners, prism vector, sewing tolerance) and the exact recorded hole
+cutters -- the cutter's base point and height enter the resulting cylinder
+face's surface placement, so replays must reuse them verbatim to stay
+byte-deterministic. `plate_artifact_payload`/`rebuild_plate_solid` in
+[`curved_patch.py`](../engine/mesh2param/curved_patch.py) produce and consume
+it through the same assembly path the driver and fit cache use. The compiler
+resolves the artifact by id, verifies its SHA-256, rebuilds the base body
+(byte-identical STEP to the driver's solid), and lets ordinary downstream
+features operate on it; hash mismatches and corrupt artifacts fail closed
+with stable codes. Services/web surfacing (creating the feature from a job
+and labeling it "approximate curved B-Rep" in the UI) remains the next
+integration step.
 
 ### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 
