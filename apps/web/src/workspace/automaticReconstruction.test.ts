@@ -118,7 +118,9 @@ describe("automaticReconstructionCapability", () => {
     expect(capability.reason).toMatch(/faceted STEP fallback/i);
   });
 
-  it("allows filleted line-arc extrusions with opposing cap evidence", () => {
+  it("refuses freeform geometry even with opposing cap evidence", () => {
+    // Cap congruence alone does not guarantee the exact prismatic backend path
+    // succeeds; its mesh-agreement gates run only at reconstruct time.
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;
     document.analysis = {
@@ -129,27 +131,39 @@ describe("automaticReconstructionCapability", () => {
         { id: "patch.bottom", type: "plane", areaMm2: 604.476, fit: { normal: [0, 0, -1] }, triangleCount: 198, confidence: 1, locked: false },
       ],
     };
-    expect(automaticReconstructionCapability(document)).toEqual({ supported: true });
+    const capability = automaticReconstructionCapability(document);
+    expect(capability.supported).toBe(false);
+    expect(capability.reason).toMatch(/faceted STEP fallback/i);
   });
 
-  it("uses the analyzed line-arc candidate as authoritative evidence", () => {
+  it("refuses a gable-shaped analysis despite an accepted prismatic candidate", () => {
+    // samples/curved-benchmark/bspline-soft-gable-plate: 2 freeform roof patches +
+    // 5 planes with congruent pentagon end walls produce an accepted candidate at
+    // ~0.88 confidence, yet exact reconstruction fails its geometric gates and dies
+    // with the L-bracket freeform-remainder error. The capability must refuse so the
+    // pipeline offers the curved STEP branch instead.
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;
     document.analysis = {
       ...(document.analysis ?? {}),
       patches: [
-        { id: "patch.curved-sides", type: "freeform", areaMm2: 99, triangleCount: 20, confidence: 0, locked: false },
-        { id: "patch.top", type: "plane", areaMm2: 1, fit: { normal: [0, 0, 1] }, triangleCount: 2, confidence: 1, locked: false },
-        { id: "patch.bottom", type: "plane", areaMm2: 1, fit: { normal: [0, 0, -1] }, triangleCount: 2, confidence: 1, locked: false },
+        { id: "patch.roof-left", type: "freeform", areaMm2: 1_050, triangleCount: 900, confidence: 0, locked: false },
+        { id: "patch.roof-right", type: "freeform", areaMm2: 1_050, triangleCount: 900, confidence: 0, locked: false },
+        { id: "patch.cap-front", type: "plane", areaMm2: 350, fit: { normal: [0, 1, 0] }, triangleCount: 120, confidence: 1, locked: false },
+        { id: "patch.cap-back", type: "plane", areaMm2: 350, fit: { normal: [0, -1, 0] }, triangleCount: 120, confidence: 1, locked: false },
+        { id: "patch.side-left", type: "plane", areaMm2: 400, fit: { normal: [-1, 0, 0] }, triangleCount: 100, confidence: 1, locked: false },
+        { id: "patch.side-right", type: "plane", areaMm2: 400, fit: { normal: [1, 0, 0] }, triangleCount: 100, confidence: 1, locked: false },
+        { id: "patch.bottom", type: "plane", areaMm2: 1_800, fit: { normal: [0, 0, -1] }, triangleCount: 200, confidence: 1, locked: false },
       ],
-      prismaticCandidate: { accepted: false, profiles: [] },
+      prismaticCandidate: {
+        accepted: true,
+        confidence: 0.878,
+        profiles: [[{ kind: "line" }, { kind: "line" }, { kind: "line" }, { kind: "line" }, { kind: "line" }]],
+      },
     };
-    expect(automaticReconstructionCapability(document).supported).toBe(false);
-    document.analysis.prismaticCandidate = {
-      accepted: true,
-      profiles: [[{ kind: "arc" }, { kind: "line" }]],
-    };
-    expect(automaticReconstructionCapability(document)).toEqual({ supported: true });
+    const capability = automaticReconstructionCapability(document);
+    expect(capability.supported).toBe(false);
+    expect(capability.reason).toContain("2 non-plane/cylinder patches");
   });
 
   it("requires complete persisted analysis settings before enabling inference", () => {

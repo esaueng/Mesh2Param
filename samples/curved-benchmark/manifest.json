@@ -158,6 +158,58 @@
     },
     {
       "category": "positive",
+      "description": "The gable plate with a gentle ridge: the dihedral stays just above the segmentation crease threshold, so the top still segments into two freeform regions while a user may plausibly override the detected crease to a smooth join.",
+      "directory": "bspline-soft-gable-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 21419.75474801909,
+        "boundingBox": [
+          -0.02599354847814522,
+          -0.02599354847814522,
+          -25.000000100000005,
+          80.0240966654932,
+          80.02599354847814,
+          7.228924582380236
+        ],
+        "edgeCount": 15,
+        "faceCount": 7,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 183428.43485399708
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-soft-gable-plate",
+      "stl": {
+        "byteSize": 19384,
+        "path": "source.stl",
+        "sha256": "087e83ce1b980da732eae266b8dbd066ac2cf4f062dac9c4542c77c80ed4a500",
+        "triangleCount": 386,
+        "vertexCount": 195
+      },
+      "tessellation": {
+        "angularTolerance": 0.1,
+        "linearTolerance": 0.0006
+      },
+      "title": "B-spline gable plate with a soft ridge crease",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "Closed solid whose top face is a non-round B-spline sheet meeting extruded walls at sharp creases, tessellated at standard density.",
       "directory": "wavy-slab",
       "expectation": "closed-manifold",
