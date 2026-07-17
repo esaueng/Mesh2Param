@@ -717,6 +717,27 @@ def _curved_settings(payload: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _user_patch_overrides(payload: dict[str, Any]) -> dict[str, dict[str, Any]] | None:
+    """Collect persisted user patch edits (reclassifications and locks)."""
+
+    project_state = payload.get("projectState")
+    patches = project_state.get("patches") if isinstance(project_state, dict) else None
+    if not isinstance(patches, list):
+        return None
+    overrides: dict[str, dict[str, Any]] = {}
+    for patch in patches:
+        if not isinstance(patch, dict) or not isinstance(patch.get("id"), str):
+            continue
+        entry: dict[str, Any] = {}
+        if patch.get("userOverriddenClassification") and isinstance(patch.get("type"), str):
+            entry["kind"] = patch["type"]
+        if patch.get("locked") is True:
+            entry["locked"] = True
+        if entry:
+            overrides[patch["id"]] = entry
+    return overrides or None
+
+
 def _curved_reconstruct(
     payload: dict[str, Any],
     workdir: Path,
@@ -746,6 +767,7 @@ def _curved_reconstruct(
     def engine_progress(phase: str, fraction: float) -> None:
         progress(phase, 5.0 + fraction * 0.85, None)
 
+    patch_overrides = _user_patch_overrides(payload)
     try:
         conversion = create_curved_conversion(
             _source_path(payload),
@@ -756,6 +778,7 @@ def _curved_reconstruct(
             source_descriptor=source_descriptor,
             mesh_limits=_mesh_limits(payload),
             progress=engine_progress,
+            patch_overrides=patch_overrides,
         )
     except CurvedConversionError as exc:
         raise JobFailure(
@@ -824,6 +847,7 @@ def _curved_reconstruct(
         "artifactSha256": graph_document["features"][0]["artifactSha256"],
         "faceSurfaces": dict(conversion.reconstruction.face_surfaces),
         "residualMaximumMm": conversion.reconstruction.residual_maximum,
+        "appliedPatchOverrides": sorted(patch_overrides) if patch_overrides else [],
     }
     return HandlerOutput(
         result=conversion.to_dict(),

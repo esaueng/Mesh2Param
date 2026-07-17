@@ -390,6 +390,7 @@ def create_curved_conversion(
     progress: ProgressCallback | None = None,
     should_cancel: Any = None,
     fit_cache: CurvedFitCache | None = None,
+    patch_overrides: dict[str, dict[str, Any]] | None = None,
 ) -> CurvedConversionResult:
     """Convert a preserved STL upload into a compiled approximate curved B-Rep."""
 
@@ -429,6 +430,7 @@ def create_curved_conversion(
             should_cancel=should_cancel,
             fit_cache=fit_cache,
             source_sha256=source.metadata.sha256,
+            patch_overrides=patch_overrides,
         )
     except CurvedPatchError as exc:
         raise CurvedConversionError(exc.phase, exc.code, str(exc)) from exc

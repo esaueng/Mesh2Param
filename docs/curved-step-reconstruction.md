@@ -522,10 +522,24 @@ command panel now offers "Generate curved STEP" as the primary conversion for
 freeform meshes with "Generate faceted STEP" as the labeled alternate, shows
 an evidence line (face inventory and measured maximum deviation), and the
 status chip distinguishes "Approximate curved B-Rep" from
-"Faceted (non-parametric)" through validation. Per-patch diagnostics beyond
-the summary line and the split/merge, crease-classification, and
-patch-locking controls remain open (the evidence they need is already
-recorded in the artifacts).
+"Faceted (non-parametric)" through validation.
+
+#### Per-patch user controls (implemented)
+
+The command panel gains a patch section after analysis: per-patch lock and
+hide toggles, a reclassification dropdown over every recognized kind, and a
+two-patch merge mirroring the server's compatibility rule (same
+classification, identical fitted parameters, neither locked). Splitting by
+triangle selection stays an explicit server-side 501 and the button says so.
+The curved reconstruction honors the persisted edits: reclassifications are
+refitted through the segmentation edit session and fail closed when the
+triangles do not satisfy the requested kind (user intent never fabricates
+geometry), unknown patch ids fail closed recommending re-analysis, and a
+locked freeform patch refuses chart splitting
+(`curved_patch_locked_split`). Boundary crease-versus-smooth classification
+remains geometry-driven (creases from segmentation, smooth only across
+artificial cuts); a user override for it needs multi-region crease networks
+first.
 
 ### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 

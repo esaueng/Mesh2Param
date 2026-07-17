@@ -17,7 +17,7 @@ import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, get_args
 
 import cadquery as cq
 import numpy as np
@@ -40,7 +40,14 @@ from .parameterization import (
     cut_chart_midline,
     harmonic_square_parameterization,
 )
-from .segmentation import SegmentationSettings, SurfacePatch, segment_mesh
+from .segmentation import (
+    PatchEditSession,
+    PatchKind,
+    SegmentationResult,
+    SegmentationSettings,
+    SurfacePatch,
+    segment_mesh,
+)
 from .surface_fit import (
     FitIteration,
     FittedPatch,
@@ -635,12 +642,65 @@ class _PlateContext:
     segmentation_counts: dict[str, int]
     holes: tuple[PlateHole, ...] = ()
     hole_loops: tuple[np.ndarray, ...] = ()
+    freeform_locked: bool = False
 
 
-def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _PlateContext:
+def _apply_patch_overrides(
+    mesh: trimesh.Trimesh,
+    segmentation: SegmentationResult,
+    patch_overrides: dict[str, dict[str, Any]],
+) -> SegmentationResult:
+    """Apply persisted user reclassifications and locks, failing closed.
+
+    Reclassification reuses the segmentation edit session, so an analytic
+    override is refitted and rejected when the triangles do not satisfy the
+    requested kind's tolerance -- user intent never fabricates geometry.
+    """
+
+    session = PatchEditSession(mesh, segmentation)
+    for patch_id in sorted(patch_overrides):
+        override = patch_overrides[patch_id]
+        if patch_id not in session.patches:
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_override_unknown",
+                (
+                    f"patch override {patch_id!r} does not match the current "
+                    "segmentation; re-run analysis before converting"
+                ),
+            )
+        kind = override.get("kind")
+        if kind is not None:
+            if kind not in get_args(PatchKind):
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_override_rejected",
+                    f"unsupported patch kind {kind!r} for {patch_id!r}",
+                )
+            record = session.reclassify(patch_id, kind)
+            if not record.success:
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_override_rejected",
+                    f"reclassifying {patch_id!r} to {kind!r} failed: {record.warning}",
+                )
+            patch_id = record.after[0].id
+        if override.get("locked"):
+            session.lock(patch_id, True)
+    patches = tuple(sorted(session.patches.values(), key=lambda patch: patch.id))
+    return SegmentationResult(patches, segmentation.settings, segmentation.warnings)
+
+
+def _plate_context(
+    mesh: trimesh.Trimesh,
+    settings: CurvedPatchSettings,
+    patch_overrides: dict[str, dict[str, Any]] | None = None,
+) -> _PlateContext:
     """Segment, extract, parameterize, and bound the plate's freeform chart."""
 
     segmentation = segment_mesh(mesh, settings.segmentation)
+    if patch_overrides:
+        segmentation = _apply_patch_overrides(mesh, segmentation, patch_overrides)
     freeform = _freeform_patch(segmentation.patches)
     bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
 
@@ -763,6 +823,7 @@ def _plate_context(mesh: trimesh.Trimesh, settings: CurvedPatchSettings) -> _Pla
         segmentation_counts=counts,
         holes=holes,
         hole_loops=hole_loops_local,
+        freeform_locked=freeform.locked,
     )
 
 
@@ -1100,6 +1161,7 @@ def reconstruct_plate_network(
     should_cancel: Callable[[], bool] | None = None,
     fit_cache: CurvedFitCache | None = None,
     source_sha256: str | None = None,
+    patch_overrides: dict[str, dict[str, Any]] | None = None,
 ) -> CurvedNetworkResult:
     """Reconstruct a plate as a shared-topology patch network.
 
@@ -1117,7 +1179,7 @@ def reconstruct_plate_network(
     guard = _StageGuard(settings.budget, progress, should_cancel)
 
     guard.stage("segmenting mesh", 5.0)
-    context = _plate_context(mesh, settings)
+    context = _plate_context(mesh, settings, patch_overrides)
     guard.stage("parameterizing chart", 20.0)
     corners = context.corners
     degree = settings.fit.degree
@@ -1263,6 +1325,12 @@ def reconstruct_plate_network(
             "single-patch layout did not meet tolerance",
         )
 
+    if context.freeform_locked:
+        raise CurvedPatchError(
+            "cutting chart",
+            "curved_patch_locked_split",
+            "the freeform patch is locked; unlock it to allow splitting into a two-patch network",
+        )
     if settings.budget.maximum_patches < 2:
         raise CurvedPatchError(
             "cutting chart",

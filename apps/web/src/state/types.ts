@@ -141,6 +141,7 @@ export type PatchClassification =
   | "cylinder"
   | "cone"
   | "sphere"
+  | "torus"
   | "freeform"
   | "unknown";
 
