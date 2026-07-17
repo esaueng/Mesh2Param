@@ -13,6 +13,7 @@ import {
   ScanSearch,
   ShieldCheck,
   Sparkles,
+  Spline,
   Sun,
   TerminalSquare,
 } from "lucide-react";
@@ -256,10 +257,31 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 <PrimaryIcon kind={action.kind} />
                 {action.label}
               </button>
-              {action.reason !== undefined || action.kind === "faceted" ? (
+              {action.alternate !== undefined ? (
+                <button
+                  className="panel-btn"
+                  onClick={() => {
+                    const alternate = action.alternate;
+                    if (alternate?.operation !== undefined) void actions.run(alternate.operation, alternate.settings);
+                  }}
+                  disabled={action.alternate.disabled}
+                  title={action.alternate.reason ?? action.alternate.hint}
+                  data-action={action.alternate.kind}
+                >
+                  <PrimaryIcon kind={action.alternate.kind} />
+                  {action.alternate.label}
+                </button>
+              ) : null}
+              {action.reason !== undefined || action.kind === "faceted" || action.kind === "curved" ? (
                 <p className={`panel-hint ${action.disabled ? "warn" : "info"}`} role="status">
                   <AlertTriangle size={13} />
                   <span>{action.reason ?? action.hint}</span>
+                </p>
+              ) : null}
+              {curvedEvidence(state) !== null ? (
+                <p className="panel-hint info" role="note" data-testid="curved-evidence">
+                  <Spline size={13} />
+                  <span>{curvedEvidence(state)}</span>
                 </p>
               ) : null}
             </>
@@ -288,6 +310,7 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "open") return <FolderOpen size={size} />;
   if (kind === "analyze") return <ScanSearch size={size} />;
   if (kind === "reconstruct") return <Sparkles size={size} />;
+  if (kind === "curved") return <Spline size={size} />;
   if (kind === "faceted") return <Layers size={size} />;
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
@@ -315,8 +338,37 @@ function fileMeta(vm: WorkspaceViewModel): string {
 
 function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
-  if (isValidated(state)) return { label: "Validated", tone: "ok" };
-  if (state.cadgraph !== null) return { label: "Reconstructed", tone: "info" };
+  const operation = state.cadgraph?.features[0]?.operation;
+  const flavor = operation === "reconstructedSurfaceNetwork"
+    ? " · approximate curved"
+    : operation === "importedFaceted"
+      ? " · faceted"
+      : "";
+  if (isValidated(state)) return { label: `Validated${flavor}`, tone: "ok" };
+  if (state.cadgraph !== null) {
+    if (operation === "reconstructedSurfaceNetwork") {
+      return { label: "Approximate curved B-Rep", tone: "info" };
+    }
+    if (operation === "importedFaceted") {
+      return { label: "Faceted (non-parametric)", tone: "info" };
+    }
+    return { label: "Reconstructed", tone: "info" };
+  }
   if (state.patches.length > 0) return { label: "Analyzed", tone: "info" };
   return { label: "Loaded", tone: "info" };
+}
+
+/** A one-line evidence summary for a completed approximate curved reconstruction. */
+function curvedEvidence(state: WorkspaceViewModel["project"]["state"]): string | null {
+  const raw = state.settings["curvedReconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as { faceSurfaces?: unknown; residualMaximumMm?: unknown };
+  const faces = record.faceSurfaces;
+  const residual = record.residualMaximumMm;
+  if (faces === null || typeof faces !== "object" || typeof residual !== "number") return null;
+  const counts = Object.entries(faces as Record<string, unknown>)
+    .filter(([, count]) => typeof count === "number" && count > 0)
+    .map(([kind, count]) => `${String(count)} ${kind}`)
+    .join(", ");
+  return `Approximate curved B-Rep: ${counts} faces · max deviation ${residual.toFixed(3)} mm. Design history is not recovered.`;
 }
