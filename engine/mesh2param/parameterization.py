@@ -9,7 +9,9 @@ Folds and excessive distortion are rejected, never repaired silently.
 
 from __future__ import annotations
 
+import heapq
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -277,9 +279,272 @@ def harmonic_square_parameterization(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ChartHalf:
+    """One side of a cut chart, reindexed with its own vertex array."""
+
+    vertices: np.ndarray = field(repr=False)
+    faces: np.ndarray = field(repr=False)
+    boundary_loop: np.ndarray = field(repr=False)
+    corner_positions: tuple[int, int, int, int]
+    parent_vertex_ids: np.ndarray = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ChartCut:
+    """A deterministic interior cut splitting a chart into two disk halves."""
+
+    vertices: np.ndarray = field(repr=False)
+    path_vertex_ids: np.ndarray = field(repr=False)
+    half_a: ChartHalf
+    half_b: ChartHalf
+
+    @property
+    def path_points(self) -> np.ndarray:
+        return np.asarray(self.vertices[self.path_vertex_ids], dtype=np.float64)
+
+
+def _ordered_boundary_loop(faces: np.ndarray) -> np.ndarray:
+    """The single closed boundary loop of a disk-like triangle subset."""
+
+    counts: dict[tuple[int, int], int] = {}
+    directed: dict[int, list[int]] = {}
+    for a, b, c in faces:
+        for left, right in ((int(a), int(b)), (int(b), int(c)), (int(c), int(a))):
+            key = (min(left, right), max(left, right))
+            counts[key] = counts.get(key, 0) + 1
+    for a, b, c in faces:
+        for left, right in ((int(a), int(b)), (int(b), int(c)), (int(c), int(a))):
+            if counts[(min(left, right), max(left, right))] == 1:
+                directed.setdefault(left, []).append(right)
+    if not directed or any(len(nexts) != 1 for nexts in directed.values()):
+        raise ChartParameterizationError(
+            "chart_cut_boundary", "a cut side does not have one simple boundary loop"
+        )
+    start = min(directed)
+    loop = [start]
+    current = directed[start][0]
+    while current != start:
+        loop.append(current)
+        current = directed[current][0]
+        if len(loop) > len(directed) + 1:
+            raise ChartParameterizationError(
+                "chart_cut_boundary", "a cut side's boundary walk did not close"
+            )
+    return np.asarray(loop, dtype=np.int64)
+
+
+def _reindexed_half(
+    vertices: np.ndarray, faces: np.ndarray, corner_vertex_ids: tuple[int, int, int, int]
+) -> ChartHalf:
+    used = np.unique(faces)
+    local = np.full(len(vertices), -1, dtype=np.int64)
+    local[used] = np.arange(len(used))
+    loop = _ordered_boundary_loop(local[faces])
+    corner_local = [int(local[vertex]) for vertex in corner_vertex_ids]
+    positions = []
+    for corner in corner_local:
+        found = np.flatnonzero(loop == corner)
+        if len(found) != 1:
+            raise ChartParameterizationError(
+                "chart_cut_corner", "a cut corner is missing from the side boundary"
+            )
+        positions.append(int(found[0]))
+    # The walk direction is arbitrary; normalize so corners appear in the
+    # requested cyclic order, flipping the loop when they run backwards.
+    ranks = np.argsort(positions)
+    steps = {(int(ranks[(k + 1) % 4]) - int(ranks[k])) % 4 for k in range(4)}
+    if steps == {3}:
+        loop = loop[::-1].copy()
+        positions = [len(loop) - 1 - position for position in positions]
+    elif steps != {1}:
+        raise ChartParameterizationError(
+            "chart_cut_corner", "cut corners are not in cyclic order on the side boundary"
+        )
+    rolled = np.roll(loop, -positions[0])
+    positions = [(position - positions[0]) % len(loop) for position in positions]
+    if positions[0] != 0 or not positions[1] < positions[2] < positions[3]:
+        raise ChartParameterizationError(
+            "chart_cut_corner", "cut corners are not in cyclic order on the side boundary"
+        )
+    return ChartHalf(
+        vertices=vertices[used],
+        faces=local[faces],
+        boundary_loop=rolled,
+        corner_positions=(positions[0], positions[1], positions[2], positions[3]),
+        parent_vertex_ids=used,
+    )
+
+
+def _split_boundary_edge(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    uv: np.ndarray,
+    loop: np.ndarray,
+    chain_positions: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    """Insert the midpoint of the chain's boundary edge closest to u = 0.5."""
+
+    chain_edges = [
+        (int(loop[chain_positions[k]]), int(loop[chain_positions[k + 1]]))
+        for k in range(len(chain_positions) - 1)
+    ]
+    mid_u = np.asarray([(uv[a][0] + uv[b][0]) / 2.0 for a, b in chain_edges])
+    edge = chain_edges[int(np.argmin(np.abs(mid_u - 0.5)))]
+    midpoint = (vertices[edge[0]] + vertices[edge[1]]) / 2.0
+    mid_uv = (uv[edge[0]] + uv[edge[1]]) / 2.0
+    new_id = len(vertices)
+    vertices = np.vstack([vertices, midpoint[None, :]])
+    uv = np.vstack([uv, mid_uv[None, :]])
+
+    owner = -1
+    replacement: list[np.ndarray] = []
+    for index, (a, b, c) in enumerate(np.asarray(faces)):
+        cycle = ((int(a), int(b), int(c)), (int(b), int(c), int(a)), (int(c), int(a), int(b)))
+        for left, right, apex in cycle:
+            if (left, right) == edge or (right, left) == edge:
+                owner = index
+                replacement = [
+                    np.asarray([left, new_id, apex], dtype=np.int64),
+                    np.asarray([new_id, right, apex], dtype=np.int64),
+                ]
+                break
+        if owner >= 0:
+            break
+    if owner < 0:
+        raise ChartParameterizationError(
+            "chart_cut_edge", "the selected boundary edge has no incident chart triangle"
+        )
+    faces = np.vstack(
+        [np.delete(faces, owner, axis=0), replacement[0][None, :], replacement[1][None, :]]
+    )
+    return vertices, faces, uv, new_id
+
+
+def cut_chart_midline(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    chart: ChartParameterization,
+) -> ChartCut:
+    """Split a four-cornered chart along a deterministic interior path.
+
+    The path runs from the v=0 boundary chain to the v=1 chain, staying near
+    the u = 0.5 isoline of the chart's harmonic map. Both endpoints are
+    inserted boundary-edge midpoints, so straight crease boundaries that never
+    subdivide still admit a cut. Fails closed unless the cut yields exactly
+    two disk-like sides.
+    """
+
+    vertices = np.asarray(vertices, dtype=np.float64)
+    faces = np.asarray(faces, dtype=np.int64)
+    uv = np.asarray(chart.uv, dtype=np.float64)
+    loop = np.asarray(chart.boundary_loop, dtype=np.int64)
+    corners = np.asarray(chart.corner_loop_positions, dtype=np.int64)
+    count = len(loop)
+
+    def chain(start_corner: int) -> np.ndarray:
+        start = int(corners[start_corner])
+        end = int(corners[(start_corner + 1) % 4])
+        if end <= start:
+            end += count
+        return np.arange(start, end + 1) % count
+
+    vertices, faces, uv, start_id = _split_boundary_edge(vertices, faces, uv, loop, chain(0))
+    vertices, faces, uv, end_id = _split_boundary_edge(vertices, faces, uv, loop, chain(2))
+
+    boundary = set(int(vertex) for vertex in loop)
+    adjacency: dict[int, list[tuple[float, int]]] = {}
+    for a, b, c in faces:
+        for left, right in ((int(a), int(b)), (int(b), int(c)), (int(c), int(a))):
+            length = float(np.linalg.norm(vertices[left] - vertices[right]))
+            penalty = 1.0 + 4.0 * (abs(uv[left][0] - 0.5) + abs(uv[right][0] - 0.5))
+            weight = length * penalty
+            adjacency.setdefault(left, []).append((weight, right))
+            adjacency.setdefault(right, []).append((weight, left))
+
+    distances = {start_id: 0.0}
+    previous: dict[int, int] = {}
+    queue: list[tuple[float, int]] = [(0.0, start_id)]
+    visited: set[int] = set()
+    while queue:
+        distance, node = heapq.heappop(queue)
+        if node in visited:
+            continue
+        visited.add(node)
+        if node == end_id:
+            break
+        for weight, neighbor in sorted(adjacency.get(node, [])):
+            if neighbor in boundary and neighbor != end_id:
+                continue
+            candidate = distance + weight
+            if candidate < distances.get(neighbor, np.inf):
+                distances[neighbor] = candidate
+                previous[neighbor] = node
+                heapq.heappush(queue, (candidate, neighbor))
+    if end_id not in visited:
+        raise ChartParameterizationError(
+            "chart_cut_no_path", "no interior path exists between the cut endpoints"
+        )
+    path = [end_id]
+    while path[-1] != start_id:
+        path.append(previous[path[-1]])
+    path_ids = np.asarray(path[::-1], dtype=np.int64)
+
+    path_edges = {(min(int(a), int(b)), max(int(a), int(b))) for a, b in pairwise(path_ids)}
+    edge_to_faces: dict[tuple[int, int], list[int]] = {}
+    for index, (a, b, c) in enumerate(faces):
+        for left, right in ((int(a), int(b)), (int(b), int(c)), (int(c), int(a))):
+            edge_to_faces.setdefault((min(left, right), max(left, right)), []).append(index)
+    parent = np.arange(len(faces))
+
+    def find(node: int) -> int:
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = int(parent[node])
+        return node
+
+    for edge, incident in edge_to_faces.items():
+        if edge in path_edges or len(incident) != 2:
+            continue
+        left_root, right_root = find(incident[0]), find(incident[1])
+        if left_root != right_root:
+            parent[max(left_root, right_root)] = min(left_root, right_root)
+    roots = np.asarray([find(index) for index in range(len(faces))])
+    components = np.unique(roots)
+    if len(components) != 2:
+        raise ChartParameterizationError(
+            "chart_cut_components",
+            f"the cut produced {len(components)} sides instead of exactly two",
+        )
+
+    corner_ids = [int(loop[position]) for position in corners]
+    side_faces = [faces[roots == component] for component in components]
+    contains_c0 = [bool(np.any(side == corner_ids[0])) for side in side_faces]
+    if contains_c0 == [True, False]:
+        faces_a, faces_b = side_faces
+    elif contains_c0 == [False, True]:
+        faces_b, faces_a = side_faces
+    else:
+        raise ChartParameterizationError(
+            "chart_cut_components", "could not attribute the chart corners to one side each"
+        )
+
+    half_a = _reindexed_half(vertices, faces_a, (corner_ids[0], start_id, end_id, corner_ids[3]))
+    half_b = _reindexed_half(vertices, faces_b, (start_id, corner_ids[1], corner_ids[2], end_id))
+    return ChartCut(
+        vertices=vertices,
+        path_vertex_ids=path_ids,
+        half_a=half_a,
+        half_b=half_b,
+    )
+
+
 __all__ = [
+    "ChartCut",
+    "ChartHalf",
     "ChartParameterization",
     "ChartParameterizationError",
+    "cut_chart_midline",
     "detect_rectangle_corners",
     "harmonic_square_parameterization",
 ]
