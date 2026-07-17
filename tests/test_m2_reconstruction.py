@@ -169,6 +169,9 @@ def test_transform_blind_segmentation_frame_and_feature_dimensions(
     assert bracket.segmentation.counts_by_type == {
         "plane": 8,
         "cylinder": 4,
+        "sphere": 0,
+        "cone": 0,
+        "torus": 0,
         "freeform": 0,
         "unknown": 0,
     }

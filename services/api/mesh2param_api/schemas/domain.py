@@ -39,7 +39,7 @@ class PatchUpdate(StrictAPIModel):
     hidden: bool | None = None
     locked: bool | None = None
     classification: (
-        Literal["plane", "cylinder", "cone", "sphere", "freeform", "unknown"] | None
+        Literal["plane", "cylinder", "cone", "sphere", "torus", "freeform", "unknown"] | None
     ) = None
     parameters: dict[str, JsonValue] | None = None
 
