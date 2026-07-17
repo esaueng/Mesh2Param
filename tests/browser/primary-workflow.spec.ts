@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 // `pnpm test:e2e` runs from apps/web; the sample meshes live at the repo root.
 const SAMPLE_STL = resolve(process.cwd(), "../../samples/generated/l-bracket-with-holes/source-random.stl");
 
-async function waitForJob(page: Page, kind: string, timeout = 240_000) {
-  const progress = page.locator(`.canvas-progress[data-job-kind="${kind}"]`);
-  await expect(progress).toBeVisible({ timeout: 30_000 });
-  await expect(progress).toBeHidden({ timeout });
+const primaryAction = (page: Page) => page.locator(".dock-primary");
+
+async function expectPrimaryAction(page: Page, label: string, timeout = 240_000) {
+  await expect(primaryAction(page)).toContainText(label, { timeout });
   await expect(page.getByRole("alert")).toHaveCount(0);
 }
 
@@ -15,27 +15,26 @@ async function openCleanStart(page: Page) {
   await page.addInitScript(() => {
     Reflect.deleteProperty(globalThis, "showSaveFilePicker");
   });
+  await page.goto("/");
+  const origin = new URL(page.url()).origin;
   const devtools = await page.context().newCDPSession(page);
   await devtools.send("Storage.clearDataForOrigin", {
-    origin: "http://127.0.0.1:5173",
+    origin,
     storageTypes: "all",
   });
   await devtools.detach();
-  await page.goto("/");
+  await page.reload();
   await expect(page.getByTestId("start-screen")).toBeVisible();
 }
-
-const primaryAction = (page: Page) => page.locator(".dock-primary");
 
 test("L-bracket sample opens validated and exports a STEP", async ({ page }) => {
   await openCleanStart(page);
   await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
   await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await waitForJob(page, "sample_open");
+  await expectPrimaryAction(page, "Download STEP");
 
   // The supported sample arrives fully validated, so the guided action is a download.
   await expect(page.getByText("Validated")).toBeVisible();
-  await expect(primaryAction(page)).toContainText("Download STEP", { timeout: 60_000 });
 
   // Display modes: the reconstructed result is revealed; comparing overlays the source.
   await page.getByRole("button", { name: "Compare", exact: true }).click();
@@ -54,21 +53,20 @@ test("L-bracket sample opens validated and exports a STEP", async ({ page }) => 
 test("uploaded mesh advances through analyze, reconstruct, and download", async ({ page }) => {
   await openCleanStart(page);
   await page.getByLabel("Choose source mesh").setInputFiles(SAMPLE_STL);
-  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await waitForJob(page, "upload");
+  await expect(page.locator(".canvas-shell")).toBeVisible({ timeout: 30_000 });
 
   // Ingest yields diagnostics only; analysis is the next guided step.
-  await expect(primaryAction(page)).toContainText("Analyze mesh");
+  await expectPrimaryAction(page, "Analyze mesh");
+  await expect(page.getByText("Mesh loaded", { exact: true })).toBeVisible();
   await primaryAction(page).click();
-  await waitForJob(page, "analyze");
 
   // Analysis produces the renderable source mesh and unlocks reconstruction.
-  await expect(page.getByText("Analyzed")).toBeVisible();
-  await expect(primaryAction(page)).toContainText("Reconstruct");
+  await expectPrimaryAction(page, "Reconstruct");
+  await expect(page.getByText("Analyzed", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("cad-viewport")).toBeVisible();
   await primaryAction(page).click();
-  await waitForJob(page, "reconstruct");
 
-  await expect(primaryAction(page)).toContainText("Download STEP", { timeout: 60_000 });
+  await expectPrimaryAction(page, "Download STEP");
   const download = page.waitForEvent("download", { timeout: 30_000 });
   await primaryAction(page).click();
   expect((await download).suggestedFilename()).toMatch(/\.step$/i);
@@ -95,7 +93,7 @@ test("start and canvas stay usable at required responsive sizes", async ({ page 
 
   await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
   await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await waitForJob(page, "sample_open");
+  await expectPrimaryAction(page, "Download STEP");
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     expect(await hasHOverflow(), `canvas ${viewport.width}x${viewport.height} overflows horizontally`).toBe(false);
