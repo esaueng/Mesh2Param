@@ -10,6 +10,7 @@ sparse assembly, and direct sparse factorization.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -423,6 +424,7 @@ def fit_bspline_patch(
     settings: SurfaceFitSettings | None = None,
     rectangle_corners: np.ndarray | None = None,
     gate_count: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> FittedPatch:
     """Fit one clamped tensor-product patch, refining spans until tolerance.
 
@@ -456,6 +458,8 @@ def fit_bspline_patch(
     iterations: list[FitIteration] = []
     best: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None = None
     for _ in range(settings.maximum_refinements + 1):
+        if checkpoint is not None:
+            checkpoint()
         control = spans + settings.degree
         knots_u = open_uniform_knots(control, settings.degree)
         knots_v = open_uniform_knots(control, settings.degree)
