@@ -11,6 +11,8 @@ single-patch topology; the general surface network is Milestone 2.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import time
 from collections.abc import Callable
@@ -569,8 +571,10 @@ class CurvedNetworkResult:
     corners: np.ndarray = field(repr=False)
     prism_vector: tuple[float, float, float]
     holes: tuple[PlateHole, ...] = ()
+    hole_cutters: tuple[HoleCutter, ...] = ()
     candidates: tuple[dict[str, Any], ...] = ()
     cache_status: str = "uncached"
+    sewing_tolerance_mm: float = 1e-3
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -801,21 +805,52 @@ def _hole_fill_samples(
     return uv, points, weights
 
 
-def _subtract_holes(
-    solid: cq.Shape,
-    holes: tuple[PlateHole, ...],
-    mesh: trimesh.Trimesh,
-) -> cq.Shape:
-    """Boolean-subtract each recognized hole cylinder from the plate solid.
+@dataclass(frozen=True, slots=True)
+class HoleCutter:
+    """Exact boolean cutter for a recognized hole, recorded for replay.
 
-    The kernel computes the exact intersection curves and pcurves, so the
-    trimmed B-spline top, the analytic cylinder, and the planes share one
-    valid shell without approximation on our side.
+    The cutter's base point and height enter the resulting cylinder face's
+    underlying surface placement, so replays (fit cache, compiler rebuild)
+    must reuse the recorded cutter verbatim to stay byte-deterministic.
     """
 
-    result = solid
+    radius: float
+    base_point: tuple[float, float, float]
+    direction: tuple[float, float, float]
+    height: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "radiusMm": self.radius,
+            "basePoint": list(self.base_point),
+            "direction": list(self.direction),
+            "height": self.height,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> HoleCutter:
+        return cls(
+            radius=float(payload["radiusMm"]),
+            base_point=(
+                float(payload["basePoint"][0]),
+                float(payload["basePoint"][1]),
+                float(payload["basePoint"][2]),
+            ),
+            direction=(
+                float(payload["direction"][0]),
+                float(payload["direction"][1]),
+                float(payload["direction"][2]),
+            ),
+            height=float(payload["height"]),
+        )
+
+
+def _hole_cutters(holes: tuple[PlateHole, ...], mesh: trimesh.Trimesh) -> tuple[HoleCutter, ...]:
+    """Derive each hole's boolean cutter from the source-mesh extent once."""
+
+    cutters: list[HoleCutter] = []
     vertices = np.asarray(mesh.vertices, dtype=np.float64)
-    for index, hole in enumerate(holes):
+    for hole in holes:
         axis = hole.axis / float(np.linalg.norm(hole.axis))
         projections = vertices @ axis
         extent = float(projections.max() - projections.min())
@@ -824,11 +859,32 @@ def _subtract_holes(
             hole.axis_point
             + (float(projections.min()) - float(hole.axis_point @ axis) - pad) * axis
         )
+        cutters.append(
+            HoleCutter(
+                radius=float(hole.radius),
+                base_point=(float(base[0]), float(base[1]), float(base[2])),
+                direction=(float(axis[0]), float(axis[1]), float(axis[2])),
+                height=extent + 2.0 * pad,
+            )
+        )
+    return tuple(cutters)
+
+
+def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
+    """Boolean-subtract each recorded hole cutter from the plate solid.
+
+    The kernel computes the exact intersection curves and pcurves, so the
+    trimmed B-spline top, the analytic cylinder, and the planes share one
+    valid shell without approximation on our side.
+    """
+
+    result = solid
+    for index, cutter_spec in enumerate(cutters):
         cutter = cq.Solid.makeCylinder(
-            hole.radius,
-            extent + 2.0 * pad,
-            cq.Vector(float(base[0]), float(base[1]), float(base[2])),
-            cq.Vector(float(axis[0]), float(axis[1]), float(axis[2])),
+            cutter_spec.radius,
+            cutter_spec.height,
+            cq.Vector(*cutter_spec.base_point),
+            cq.Vector(*cutter_spec.direction),
         )
         try:
             result = result.cut(cutter)
@@ -845,6 +901,34 @@ def _subtract_holes(
                 f"subtracting hole {index} split the plate into multiple solids",
             )
     return result
+
+
+def _plate_solid_from_network(
+    network: SurfaceNetwork,
+    corners: np.ndarray,
+    prism_vector: np.ndarray,
+    cutters: tuple[HoleCutter, ...],
+    sewing_tolerance: float,
+) -> cq.Shape:
+    """The single assembly path shared by the driver, cache, and compiler.
+
+    Wall chains derive from the network itself: a split network carries its
+    cut endpoints as the ``cut-0-start``/``cut-0-end`` vertices.
+    """
+
+    if network.curves:
+        mid_start = np.asarray(network.vertex("cut-0-start").point, dtype=np.float64)
+        mid_end = np.asarray(network.vertex("cut-0-end").point, dtype=np.float64)
+        wall_chains = [
+            [corners[0], mid_start, corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], mid_end, corners[3]],
+            [corners[3], corners[0]],
+        ]
+    else:
+        wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
+    solid = _network_plate_solid(network, wall_chains, corners, prism_vector, sewing_tolerance)
+    return _subtract_holes(solid, cutters)
 
 
 def _project_to_line(point: np.ndarray, line: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
@@ -1121,15 +1205,10 @@ def reconstruct_plate_network(
         )
         network = SurfaceNetwork(units="mm", vertices=corner_vertices, curves=(), patches=(patch,))
         guard.stage("assembling solid", 70.0)
-        wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
-        solid = _network_plate_solid(
-            network,
-            wall_chains,
-            corners,
-            context.prism_vector,
-            settings.sewing_tolerance_mm,
+        cutters = _hole_cutters(context.holes, mesh)
+        solid = _plate_solid_from_network(
+            network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
         )
-        solid = _subtract_holes(solid, context.holes, mesh)
         guard.stage("validating solid", 90.0)
         face_surfaces, comparison, evidence = _network_gates(
             mesh,
@@ -1170,8 +1249,10 @@ def reconstruct_plate_network(
                 float(context.prism_vector[2]),
             ),
             holes=context.holes,
+            hole_cutters=cutters,
             candidates=tuple(candidates),
             cache_status="stored" if fit_cache is not None else "uncached",
+            sewing_tolerance_mm=settings.sewing_tolerance_mm,
         )
 
     if context.holes:
@@ -1383,14 +1464,8 @@ def reconstruct_plate_network(
     )
 
     guard.stage("assembling solid", 70.0)
-    wall_chains = [
-        [corners[0], mid_start, corners[1]],
-        [corners[1], corners[2]],
-        [corners[2], mid_end, corners[3]],
-        [corners[3], corners[0]],
-    ]
-    solid = _network_plate_solid(
-        network, wall_chains, corners, context.prism_vector, settings.sewing_tolerance_mm
+    solid = _plate_solid_from_network(
+        network, corners, context.prism_vector, (), settings.sewing_tolerance_mm
     )
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
@@ -1429,6 +1504,69 @@ def reconstruct_plate_network(
         holes=(),
         candidates=tuple(candidates),
         cache_status="stored" if fit_cache is not None else "uncached",
+        sewing_tolerance_mm=settings.sewing_tolerance_mm,
+    )
+
+
+PLATE_ARTIFACT_SCHEMA = "mesh2param/curved-plate/1"
+
+
+def plate_artifact_payload(result: CurvedNetworkResult, *, units: str = "mm") -> dict[str, Any]:
+    """The self-sufficient content-addressed artifact behind the CADGraph
+    ``reconstructedSurfaceNetwork`` base feature.
+
+    Everything the compiler needs to rebuild the identical solid is inside:
+    the surface network, the plate closure (corners, prism vector, sewing
+    tolerance), and the exact recorded hole cutters.
+    """
+
+    return {
+        "schema": PLATE_ARTIFACT_SCHEMA,
+        "units": units,
+        "network": result.network.to_artifact(),
+        "assembly": {
+            "corners": [[float(value) for value in corner] for corner in result.corners],
+            "prismVector": [float(value) for value in result.prism_vector],
+            "sewingToleranceMm": float(result.sewing_tolerance_mm),
+            "holes": [cutter.to_dict() for cutter in result.hole_cutters],
+        },
+    }
+
+
+def plate_artifact_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def plate_artifact_sha256(payload: dict[str, Any]) -> str:
+    return hashlib.sha256(plate_artifact_bytes(payload)).hexdigest()
+
+
+def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
+    """Deterministically rebuild the plate solid from its artifact payload."""
+
+    if payload.get("schema") != PLATE_ARTIFACT_SCHEMA:
+        raise CurvedPatchError(
+            "resolving artifact",
+            "curved_patch_unsupported_artifact",
+            f"unsupported curved-plate artifact schema {payload.get('schema')!r}",
+        )
+    assembly = payload["assembly"]
+    network = SurfaceNetwork.from_artifact(payload["network"])
+    corners = np.asarray(assembly["corners"], dtype=np.float64)
+    if corners.shape != (4, 3):
+        raise CurvedPatchError(
+            "resolving artifact",
+            "curved_patch_unsupported_artifact",
+            "curved-plate artifact must carry exactly four 3-D corners",
+        )
+    prism_vector = np.asarray(assembly["prismVector"], dtype=np.float64)
+    cutters = tuple(HoleCutter.from_dict(entry) for entry in assembly["holes"])
+    return _plate_solid_from_network(
+        network,
+        corners,
+        prism_vector,
+        cutters,
+        float(assembly["sewingToleranceMm"]),
     )
 
 
@@ -1468,21 +1606,10 @@ def _assemble_cached_network(
 
     network = SurfaceNetwork.from_artifact(payload["network"])
     corners = context.corners
-    if payload["layout"] == "split-network":
-        mid_start = network.vertex("cut-0-start").point
-        mid_end = network.vertex("cut-0-end").point
-        wall_chains = [
-            [corners[0], np.asarray(mid_start), corners[1]],
-            [corners[1], corners[2]],
-            [corners[2], np.asarray(mid_end), corners[3]],
-            [corners[3], corners[0]],
-        ]
-    else:
-        wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
-    solid = _network_plate_solid(
-        network, wall_chains, corners, context.prism_vector, settings.sewing_tolerance_mm
+    cutters = _hole_cutters(context.holes, mesh)
+    solid = _plate_solid_from_network(
+        network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
     )
-    solid = _subtract_holes(solid, context.holes, mesh)
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
         mesh,
@@ -1521,22 +1648,30 @@ def _assemble_cached_network(
             float(context.prism_vector[2]),
         ),
         holes=context.holes,
+        hole_cutters=cutters,
         candidates=tuple(dict(candidate) for candidate in payload["candidates"]),
         cache_status="hit",
+        sewing_tolerance_mm=settings.sewing_tolerance_mm,
     )
 
 
 __all__ = [
+    "PLATE_ARTIFACT_SCHEMA",
     "CurvedNetworkResult",
     "CurvedNetworkSettings",
     "CurvedPatchError",
     "CurvedPatchResult",
     "CurvedPatchSettings",
+    "HoleCutter",
     "PlateHole",
     "ProgressCallback",
     "ReconstructionBudget",
     "assemble_single_patch_plate",
     "chart_lattice_samples",
+    "plate_artifact_bytes",
+    "plate_artifact_payload",
+    "plate_artifact_sha256",
+    "rebuild_plate_solid",
     "reconstruct_plate_network",
     "reconstruct_single_patch_plate",
 ]

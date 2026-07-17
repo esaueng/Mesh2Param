@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * GENERATED from schema/cadgraph.schema.json.
- * Schema SHA-256: e56825a8ec3c4a3afdda9110560ce449d3e9fbf19dc2d5732b94b58696a65bec
+ * Schema SHA-256: 1e41231b9274c76cc6dfadb00859bbb5b226f5c28db1abf2359d78ba1c37ec54
  * Run `pnpm generate` in this package after changing the schema.
  */
 
@@ -184,7 +184,8 @@ export type Feature =
   | MirrorFeature
   | ChamferFeature
   | FilletFeature
-  | ImportedFacetedFeature;
+  | ImportedFacetedFeature
+  | ReconstructedSurfaceNetworkFeature;
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
  * via the `definition` "extrusionFeature".
@@ -362,6 +363,15 @@ export type ImportedFacetedFeature = FeatureBase & {
    * Explicit OCCT sewing tolerance in project units. The engine additionally enforces a physical maximum equivalent to 10 mm. Omit to require an already-watertight mesh.
    */
   sewingTolerance?: number;
+};
+/**
+ * This interface was referenced by `CADGraph`'s JSON-Schema
+ * via the `definition` "reconstructedSurfaceNetworkFeature".
+ */
+export type ReconstructedSurfaceNetworkFeature = FeatureBase & {
+  operation?: "reconstructedSurfaceNetwork";
+  sourceArtifactId: Identifier;
+  artifactSha256: Sha256;
 };
 
 /**

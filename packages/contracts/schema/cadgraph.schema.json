@@ -463,6 +463,13 @@
       ],
       "unevaluatedProperties": false
     },
+    "reconstructedSurfaceNetworkFeature": {
+      "allOf": [
+        { "$ref": "#/$defs/featureBase" },
+        { "type": "object", "required": ["sourceArtifactId", "artifactSha256"], "properties": { "operation": { "const": "reconstructedSurfaceNetwork" }, "sourceArtifactId": { "$ref": "#/$defs/identifier" }, "artifactSha256": { "$ref": "#/$defs/sha256" } }, "description": "Approximate curved B-Rep base body rebuilt deterministically from a content-addressed surface-network plate artifact (mesh2param/curved-plate/1). The geometry is a tolerance-controlled approximation of the source mesh, not recovered design history." }
+      ],
+      "unevaluatedProperties": false
+    },
     "feature": {
       "oneOf": [
         { "$ref": "#/$defs/extrusionFeature" },
@@ -476,7 +483,8 @@
         { "$ref": "#/$defs/mirrorFeature" },
         { "$ref": "#/$defs/chamferFeature" },
         { "$ref": "#/$defs/filletFeature" },
-        { "$ref": "#/$defs/importedFacetedFeature" }
+        { "$ref": "#/$defs/importedFacetedFeature" },
+        { "$ref": "#/$defs/reconstructedSurfaceNetworkFeature" }
       ]
     },
     "semanticTopologyReference": {

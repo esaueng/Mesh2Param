@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from collections.abc import Callable, Mapping, Sequence
 from copy import copy
@@ -30,6 +31,7 @@ from mesh2param_contracts.models import (
     MirrorFeature,
     PocketFeature,
     PolylineEntity,
+    ReconstructedSurfaceNetworkFeature,
     RectangleEntity,
     RevolutionFeature,
     Sketch,
@@ -39,6 +41,7 @@ from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
 from OCP.ShapeFix import ShapeFix_Shell, ShapeFix_Solid
 from OCP.TopoDS import TopoDS
 
+from .curved_patch import CurvedPatchError, rebuild_plate_solid
 from .errors import CompilationException, CompileError, FeatureBuildFailure
 from .topology import ProvenanceRecord, ResolvedTopology, TopologyRegistry, topology_hash
 from .units import MAXIMUM_FACETED_SEWING_TOLERANCE_MM, validate_physical_tolerance
@@ -650,6 +653,44 @@ def _imported_tool(
     )
 
 
+def _surface_network_tool(
+    feature: ReconstructedSurfaceNetworkFeature,
+    resolver: ArtifactResolver | None,
+) -> cq.Shape:
+    """Resolve, hash-verify, and deterministically rebuild the plate artifact."""
+
+    path = _resolve_artifact(resolver, feature.source_artifact_id)
+    actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual_sha != feature.artifact_sha256:
+        raise FeatureBuildFailure(
+            "artifact_hash_mismatch",
+            f"artifact {feature.source_artifact_id!r} SHA-256 does not match CADGraph",
+            "Restore the exact immutable artifact or create a new feature version.",
+        )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise FeatureBuildFailure(
+            "invalid_network_artifact",
+            f"surface-network artifact is not valid JSON: {exc}",
+            "Regenerate the curved reconstruction artifact.",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise FeatureBuildFailure(
+            "invalid_network_artifact",
+            "surface-network artifact must be a JSON object",
+            "Regenerate the curved reconstruction artifact.",
+        )
+    try:
+        return rebuild_plate_solid(payload)
+    except (CurvedPatchError, ValueError) as exc:
+        raise FeatureBuildFailure(
+            "network_rebuild_failed",
+            f"surface-network artifact could not be rebuilt: {exc}",
+            "Regenerate the curved reconstruction artifact with the current engine.",
+        ) from exc
+
+
 def _apply_boolean(
     body: cq.Shape | None,
     tool: cq.Shape,
@@ -1033,6 +1074,10 @@ def compile_cadgraph(
                         "Create a base first.",
                     )
                 body, tool, mode = _finishing_feature(feature, body, registry)
+            elif isinstance(feature, ReconstructedSurfaceNetworkFeature):
+                tool = _surface_network_tool(feature, artifact_resolver)
+                mode = "base"
+                body = _apply_boolean(body, tool, mode, tolerance)
             elif isinstance(feature, ImportedFacetedFeature):
                 tool = _imported_tool(
                     feature,
