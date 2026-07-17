@@ -7,7 +7,7 @@ import { automaticReconstructionCapability } from "../workspace/automaticReconst
  * The primary command in the dock advances the conversion one stage at a time,
  * derived purely from the current project state.
  */
-export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "faceted" | "validate" | "export" | "download";
+export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "curved" | "faceted" | "validate" | "export" | "download";
 
 export type RunOperation = "analyze" | "reconstruct" | "validate" | "export";
 
@@ -21,6 +21,8 @@ export interface PipelineAction {
   operation?: RunOperation;
   /** Extra settings forwarded to the worker operation (e.g. the faceted fallback mode). */
   settings?: JsonObject;
+  /** A secondary conversion the user may prefer (e.g. faceted instead of curved). */
+  alternate?: PipelineAction;
 }
 
 /**
@@ -83,18 +85,28 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
       };
     }
-    // Exact inference is unavailable; offer the source-bound faceted STEP fallback when it applies.
+    // Exact inference is unavailable; offer the approximate curved B-Rep first and
+    // the source-bound faceted STEP as the explicit alternative. Both are labeled
+    // for what they are: neither recovers the original design history.
     if (facetedApplicable(state)) {
-      return {
+      const faceted: PipelineAction = {
         kind: "faceted",
         operation: "reconstruct",
         settings: { mode: "faceted" },
-        label: "Generate STEP",
-        hint: capability.reason
-          ? `Exact inference unavailable. ${capability.reason}`
-          : "Build a source-bound faceted STEP (not an exact parametric model)",
+        label: "Generate faceted STEP",
+        hint: "Build a source-bound faceted STEP (one planar face per source triangle)",
         disabled: runBlocked !== null,
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
+      };
+      return {
+        kind: "curved",
+        operation: "reconstruct",
+        settings: { mode: "curved" },
+        label: "Generate curved STEP",
+        hint: "Fit an approximate curved B-Rep to the mesh within tolerance (not recovered design history)",
+        disabled: runBlocked !== null,
+        ...(runBlocked !== null ? { reason: runBlocked } : {}),
+        alternate: faceted,
       };
     }
     return {

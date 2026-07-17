@@ -631,6 +631,214 @@ def _faceted_sewing_tolerance(payload: dict[str, Any]) -> float | None:
         ) from exc
 
 
+def _curved_settings(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate the bounded curved-reconstruction settings, or return None."""
+
+    from mesh2param.units import MILLIMETERS_PER_UNIT, millimeters_to_project_units
+
+    raw = payload.get("settings")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise JobFailure(
+            "invalid_reconstruction_settings",
+            "fitting surface",
+            "Reconstruction settings are invalid",
+            "Reconstruction settings must be an object.",
+            recoverable=True,
+            recommended_action="Use the reconstruction controls offered by the current UI.",
+        )
+    if raw.get("mode") != "curved":
+        return None
+    allowed = {"mode", "fitTolerance", "surfaceDeviationTolerance", "forceSplit"}
+    if set(raw) - allowed:
+        raise JobFailure(
+            "invalid_curved_settings",
+            "fitting surface",
+            "Curved reconstruction settings are invalid",
+            "Curved reconstruction settings contain an unsupported field.",
+            recoverable=True,
+            recommended_action="Use only the displayed curved reconstruction controls.",
+        )
+    units = payload.get("units")
+    if not isinstance(units, str) or units not in MILLIMETERS_PER_UNIT:
+        raise JobFailure(
+            "invalid_curved_settings",
+            "fitting surface",
+            "Curved reconstruction settings are invalid",
+            "Curved reconstruction requires explicit mm, cm, m, in, or ft project units.",
+            recoverable=True,
+            recommended_action="Restore a supported project unit before retrying.",
+        )
+    maximum_tolerance = millimeters_to_project_units(10.0, units)
+    default_fit = millimeters_to_project_units(0.25, units)
+    default_deviation = millimeters_to_project_units(0.3, units)
+    try:
+        fit_tolerance = _bounded_number(
+            raw.get("fitTolerance", default_fit),
+            name="fit tolerance",
+            minimum=0.0,
+            maximum=maximum_tolerance,
+            minimum_inclusive=False,
+        )
+        deviation_tolerance = _bounded_number(
+            raw.get("surfaceDeviationTolerance", default_deviation),
+            name="surface deviation tolerance",
+            minimum=0.0,
+            maximum=maximum_tolerance,
+            minimum_inclusive=False,
+        )
+    except ValueError as exc:
+        raise JobFailure(
+            "invalid_curved_settings",
+            "fitting surface",
+            "Curved reconstruction settings are invalid",
+            str(exc),
+            recoverable=True,
+            recommended_action=(
+                f"Use positive tolerances no larger than {maximum_tolerance:g} {units} (10 mm)."
+            ),
+        ) from exc
+    force_split = raw.get("forceSplit", False)
+    if not isinstance(force_split, bool):
+        raise JobFailure(
+            "invalid_curved_settings",
+            "fitting surface",
+            "Curved reconstruction settings are invalid",
+            "forceSplit must be a boolean.",
+            recoverable=True,
+            recommended_action="Use only the displayed curved reconstruction controls.",
+        )
+    return {
+        "units": units,
+        "fitTolerance": fit_tolerance,
+        "surfaceDeviationTolerance": deviation_tolerance,
+        "forceSplit": force_split,
+    }
+
+
+def _curved_reconstruct(
+    payload: dict[str, Any],
+    workdir: Path,
+    progress: Progress,
+    curved: dict[str, Any],
+) -> HandlerOutput:
+    from mesh2param.curved_conversion import CurvedConversionError, create_curved_conversion
+    from mesh2param.curved_patch import CurvedNetworkSettings, CurvedPatchSettings
+
+    units = curved["units"]
+    source_descriptor = payload.get("source")
+    if not isinstance(source_descriptor, dict):
+        raise JobFailure(
+            "curved_source_metadata_required",
+            "validating upload",
+            "Curved source metadata is required",
+            "The preserved source descriptor is unavailable for this conversion.",
+            recoverable=True,
+            recommended_action="Re-upload the original STL before retrying.",
+        )
+    settings = CurvedPatchSettings(
+        fit_tolerance_mm=float(curved["fitTolerance"]),
+        surface_deviation_tolerance_mm=float(curved["surfaceDeviationTolerance"]),
+    )
+    network_settings = CurvedNetworkSettings(force_split=bool(curved["forceSplit"]))
+
+    def engine_progress(phase: str, fraction: float) -> None:
+        progress(phase, 5.0 + fraction * 0.85, None)
+
+    try:
+        conversion = create_curved_conversion(
+            _source_path(payload),
+            workdir,
+            units=units,
+            settings=settings,
+            network_settings=network_settings,
+            source_descriptor=source_descriptor,
+            mesh_limits=_mesh_limits(payload),
+            progress=engine_progress,
+        )
+    except CurvedConversionError as exc:
+        raise JobFailure(
+            exc.code,
+            exc.phase,
+            "Curved reconstruction could not complete",
+            str(exc),
+            recoverable=True,
+            recommended_action=(
+                "Use the explicit faceted STEP fallback for this geometry."
+                if exc.code
+                in {
+                    "curved_patch_unsupported_topology",
+                    "curved_patch_not_disk",
+                    "curved_patch_boundary_not_straight",
+                    "curved_patch_holes_unsupported_split",
+                    "curved_patch_tolerance_not_met",
+                }
+                else "Review the reconstruction evidence or adjust the tolerances."
+            ),
+        ) from exc
+    progress("reimporting STEP", 96.0, "Kernel and structural STEP validation completed")
+
+    graph_document = conversion.graph.model_dump(mode="json", by_alias=True)
+    validation = json.loads((workdir / "validation.json").read_text(encoding="utf-8"))
+    artifact_map: dict[str, tuple[str, str, str]] = {
+        "analysis": ("analysis.json", "application/json", "analysis"),
+        "sourceOriginal": ("source.original.stl", "model/stl", "source"),
+        "sourceGlb": ("source.glb", "model/gltf-binary", "source-mesh"),
+        "repair": ("repair.json", "application/json", "repair"),
+        "curvedPlate": ("curved-plate.json", "application/json", "curved-plate"),
+        "cadgraph": ("model.cadgraph.json", "application/json", "cadgraph"),
+        "cadquerySource": ("model.cq.py", "text/x-python", "cadquery-source"),
+        "step": ("model.step", "model/step", "step"),
+        "modelGlb": ("reconstructed.glb", "model/gltf-binary", "reconstructed-mesh"),
+        "validation": ("validation.json", "application/json", "validation"),
+        "curvedReconstruction": (
+            "curved-reconstruction.json",
+            "application/json",
+            "curved-reconstruction",
+        ),
+    }
+    artifacts = [
+        ArtifactOutput(name, name, media_type, kind)
+        for key, (name, media_type, kind) in artifact_map.items()
+        if key in conversion.artifacts
+    ]
+    if (workdir / "manifest.json").is_file():
+        artifacts.append(
+            ArtifactOutput("manifest.json", "manifest.json", "application/json", "manifest")
+        )
+    project_state = payload.get("projectState")
+    prior_settings = project_state.get("settings") if isinstance(project_state, dict) else None
+    settings_state = copy.deepcopy(prior_settings) if isinstance(prior_settings, dict) else {}
+    settings_state.pop("candidateHistories", None)
+    settings_state.pop("selectedCandidate", None)
+    settings_state["curvedReconstruction"] = {
+        "scope": "approximate curved B-Rep",
+        "approximate": True,
+        "designHistoryRecovered": False,
+        "fitTolerance": curved["fitTolerance"],
+        "surfaceDeviationTolerance": curved["surfaceDeviationTolerance"],
+        "forceSplit": curved["forceSplit"],
+        "units": units,
+        "sourceSha256": conversion.source.metadata.sha256,
+        "artifactSha256": graph_document["features"][0]["artifactSha256"],
+        "faceSurfaces": dict(conversion.reconstruction.face_surfaces),
+        "residualMaximumMm": conversion.reconstruction.residual_maximum,
+    }
+    return HandlerOutput(
+        result=conversion.to_dict(),
+        state_patch={
+            "diagnostics": conversion.source.diagnostics.to_dict(),
+            "repair": conversion.repair.to_dict(),
+            "cadgraph": graph_document,
+            "validation": validation,
+            "metrics": graph_document["fitMetrics"],
+            "settings": settings_state,
+        },
+        artifacts=tuple(artifacts),
+    )
+
+
 def _faceted_reconstruct(
     payload: dict[str, Any],
     workdir: Path,
@@ -750,6 +958,9 @@ def _faceted_reconstruct(
 def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> HandlerOutput:
     from mesh2param import ReconstructionError, ReconstructionSettings, reconstruct_file
 
+    curved = _curved_settings(payload)
+    if curved is not None:
+        return _curved_reconstruct(payload, workdir, progress, curved)
     sewing_tolerance = _faceted_sewing_tolerance(payload)
     if sewing_tolerance is not None:
         return _faceted_reconstruct(payload, workdir, progress, sewing_tolerance)

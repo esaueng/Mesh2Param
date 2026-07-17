@@ -66,6 +66,24 @@ are proven, while geometric deviation from the input mesh remains unmeasured. Un
 normalization is implemented for this path, the source units must match project units and the
 source scale factor must be `1`; other combinations fail before geometry is claimed.
 
+An explicit **approximate curved B-Rep** reconstruction uses:
+
+```json
+{"settings":{"mode":"curved","fitTolerance":0.25,"surfaceDeviationTolerance":0.3,"forceSplit":false}}
+```
+
+This mode fits real curved surfaces (B-spline patches plus recognized analytic faces) to the
+tessellated source within the requested tolerances; it is explicitly an approximation, never
+recovered design history, and every artifact and label says so. Tolerances are expressed in project
+units and capped at the equivalent of 10 mm; both source-unit constraints above apply. The emitted
+CADGraph's base feature is `reconstructedSurfaceNetwork`, referencing the content-addressed
+`curved-plate.json` artifact by SHA-256; the compiler rebuilds the identical solid from it.
+Successful validation is `valid` with `toleranceSatisfied` measured (unlike the faceted fallback,
+deviation is measured symmetrically), and `validation.json` embeds the kernel round trip plus an
+OCCT-independent structural STEP audit. The automatic scope is currently a single freeform-topped
+plate with straight outer creases over a planar bottom, with optional recognized through holes;
+unsupported topology fails closed with a stable error code recommending the faceted fallback.
+
 ## Configuration
 
 Settings use the `MESH2PARAM_` prefix. Supported local settings include `DATABASE_URL` (SQLite),

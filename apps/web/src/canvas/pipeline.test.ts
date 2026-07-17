@@ -4,7 +4,7 @@ import type { WorkspaceViewModel } from "../workspace/types";
 import { nextAction } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
-  it("labels the source-bound faceted fallback as Generate STEP", () => {
+  it("offers curved first with the faceted fallback as the labeled alternate", () => {
     const patches = [{
       id: "patch.freeform",
       type: "freeform",
@@ -46,9 +46,19 @@ describe("canvas pipeline actions", () => {
       serverWritable: true,
     } as unknown as WorkspaceViewModel;
 
-    expect(nextAction(vm)).toMatchObject({
+    const action = nextAction(vm);
+    expect(action).toMatchObject({
+      kind: "curved",
+      label: "Generate curved STEP",
+      operation: "reconstruct",
+      settings: { mode: "curved" },
+      disabled: false,
+    });
+    expect(action.hint).toContain("approximate");
+    expect(action.hint).toContain("not recovered design history");
+    expect(action.alternate).toMatchObject({
       kind: "faceted",
-      label: "Generate STEP",
+      label: "Generate faceted STEP",
       operation: "reconstruct",
       settings: { mode: "faceted" },
       disabled: false,

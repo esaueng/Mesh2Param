@@ -280,27 +280,35 @@ def _operation_payload(
             }
         )
         if operation == "reconstruct":
-            faceted_mode = body.settings.get("mode") == "faceted"
-            if faceted_mode and source.get("format") != "stl":
+            mode = body.settings.get("mode")
+            faceted_mode = mode == "faceted"
+            curved_mode = mode == "curved"
+            explicit_mode = faceted_mode or curved_mode
+            mode_label = "curved reconstruction" if curved_mode else "faceted fallback"
+            if explicit_mode and source.get("format") != "stl":
                 raise APIError(
                     409,
-                    "faceted_source_format_unsupported",
-                    "Faceted source format is unsupported",
-                    "The explicit faceted STEP fallback currently supports STL sources only.",
+                    "curved_source_format_unsupported"
+                    if curved_mode
+                    else "faceted_source_format_unsupported",
+                    "Source format is unsupported",
+                    f"The explicit {mode_label} currently supports STL sources only.",
                     project_id=str(project["id"]),
                     recoverable=True,
-                    recommended_action="Use an STL source for the faceted fallback.",
+                    recommended_action=f"Use an STL source for the {mode_label}.",
                 )
-            if faceted_mode and (
+            if explicit_mode and (
                 source.get("declaredUnits") != project.get("units")
                 or source.get("scaleFactor") != 1.0
             ):
                 raise APIError(
                     409,
-                    "faceted_source_transform_unsupported",
+                    "curved_source_transform_unsupported"
+                    if curved_mode
+                    else "faceted_source_transform_unsupported",
                     "Source normalization is required",
                     (
-                        "Faceted fallback requires source units to match project units "
+                        f"The {mode_label} requires source units to match project units "
                         "and scale factor 1."
                     ),
                     project_id=str(project["id"]),
@@ -311,7 +319,7 @@ def _operation_payload(
                     ),
                 )
             unsupported_reason = (
-                None if faceted_mode else _unsupported_sample_reconstruction_reason(state)
+                None if explicit_mode else _unsupported_sample_reconstruction_reason(state)
             )
             if unsupported_reason is not None:
                 raise APIError(
@@ -325,8 +333,8 @@ def _operation_payload(
                         "Use Rebuild sample CADGraph to exercise the exact editable model."
                     ),
                 )
-            analysis_patches = None if faceted_mode else _replayable_analysis_patches(state)
-            if not faceted_mode and analysis_patches is None:
+            analysis_patches = None if explicit_mode else _replayable_analysis_patches(state)
+            if not explicit_mode and analysis_patches is None:
                 raise APIError(
                     409,
                     "analysis_required",
@@ -349,9 +357,7 @@ def _operation_payload(
                     state, analysis_patches
                 ):
                     total_area = sum(_patch_area(patch) for patch in analysis_patches)
-                    unsupported_area = sum(
-                        _patch_area(patch) for patch in unsupported_patches
-                    )
+                    unsupported_area = sum(_patch_area(patch) for patch in unsupported_patches)
                     coverage = (
                         f" covering {unsupported_area / total_area * 100:.1f}% of the surface"
                         if total_area > 0
