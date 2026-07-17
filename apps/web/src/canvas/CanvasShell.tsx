@@ -394,6 +394,11 @@ export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone:
   if (vm.artifacts.some((artifact) => (
     artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
   ))) return { label: "Faceted STEP", tone: "warn" };
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "reconstructed-curved"
+  ))) return isValidated(state)
+      ? { label: "Validated · approximate curved", tone: "ok" }
+      : { label: "Approximate curved B-Rep", tone: "info" };
   const operation = state.cadgraph?.features[0]?.operation;
   const flavor = operation === "reconstructedSurfaceNetwork"
     ? " · approximate curved"
