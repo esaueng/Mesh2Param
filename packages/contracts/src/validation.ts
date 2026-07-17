@@ -235,6 +235,7 @@ function validateFeatureParameters(feature: Feature, path: string, issues: Contr
     case "chamfer":
     case "fillet":
     case "importedFaceted":
+    case "reconstructedSurfaceNetwork":
       break;
   }
 }

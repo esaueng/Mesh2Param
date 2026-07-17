@@ -572,6 +572,21 @@ class ImportedFacetedFeature(FeatureBase):
     sewing_tolerance: Annotated[float, Field(gt=0.0, le=10.0)] | None = None
 
 
+class ReconstructedSurfaceNetworkFeature(FeatureBase):
+    """Approximate curved B-Rep base body rebuilt from a plate artifact.
+
+    The referenced content-addressed artifact (``mesh2param/curved-plate/1``)
+    carries the fitted surface network and its plate closure; the compiler
+    rebuilds the identical solid deterministically. The geometry is a
+    tolerance-controlled approximation of the source mesh, never recovered
+    design history.
+    """
+
+    operation: Literal["reconstructedSurfaceNetwork"]
+    source_artifact_id: Identifier
+    artifact_sha256: Sha256
+
+
 Feature = Annotated[
     ExtrusionFeature
     | PocketFeature
@@ -584,7 +599,8 @@ Feature = Annotated[
     | MirrorFeature
     | ChamferFeature
     | FilletFeature
-    | ImportedFacetedFeature,
+    | ImportedFacetedFeature
+    | ReconstructedSurfaceNetworkFeature,
     Field(discriminator="operation"),
 ]
 
@@ -811,4 +827,5 @@ __all__ = [
     "ChamferFeature",
     "FilletFeature",
     "ImportedFacetedFeature",
+    "ReconstructedSurfaceNetworkFeature",
 ]

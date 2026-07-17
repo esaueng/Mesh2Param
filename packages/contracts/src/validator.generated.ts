@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * GENERATED from schema/cadgraph.schema.json.
- * Schema SHA-256: e56825a8ec3c4a3afdda9110560ce449d3e9fbf19dc2d5732b94b58696a65bec
+ * Schema SHA-256: 1e41231b9274c76cc6dfadb00859bbb5b226f5c28db1abf2359d78ba1c37ec54
  */
 import Ajv2020, { type ErrorObject } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -10,7 +10,7 @@ import cadGraphSchema from "../schema/cadgraph.schema.json";
 import type { CADGraph } from "./types.generated.js";
 
 export const CADGRAPH_SCHEMA_VERSION = "1.0.0" as const;
-export const CADGRAPH_SCHEMA_SHA256 = "e56825a8ec3c4a3afdda9110560ce449d3e9fbf19dc2d5732b94b58696a65bec" as const;
+export const CADGRAPH_SCHEMA_SHA256 = "1e41231b9274c76cc6dfadb00859bbb5b226f5c28db1abf2359d78ba1c37ec54" as const;
 
 const ajv = new Ajv2020({
   allErrors: true,
