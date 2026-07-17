@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import cadquery as cq
 import numpy as np
@@ -172,7 +174,11 @@ def test_loop_matching_accepts_cyclic_shift_and_reversed_winding() -> None:
 @pytest.mark.geometry
 def test_rotated_line_arc_extrusion_compiles_to_analytic_surfaces(tmp_path: Path) -> None:
     mesh = mesh_from_shape(_d_profile_shape(), linear_tolerance=0.05, angular_tolerance=0.08)
-    transform = trimesh.transformations.rotation_matrix(0.73, (1.0, 2.0, -0.5))
+    rotation_matrix = cast(
+        Callable[[float, tuple[float, float, float]], np.ndarray],
+        trimesh.transformations.rotation_matrix,
+    )
+    transform = rotation_matrix(0.73, (1.0, 2.0, -0.5))
     transform[:3, 3] = np.asarray((17.0, -9.0, 4.0))
     mesh.apply_transform(transform)
     segmentation = segment_mesh(mesh)
@@ -212,9 +218,7 @@ def test_automatic_reconstruction_uses_prismatic_path(tmp_path: Path) -> None:
     assert result.prismatic.accepted
     serialized = result.to_dict()
     assert serialized["selectedCandidate"] == "analytic-prismatic"
-    assert [candidate["label"] for candidate in serialized["candidates"]] == [
-        "analytic-prismatic"
-    ]
+    assert [candidate["label"] for candidate in serialized["candidates"]] == ["analytic-prismatic"]
     assert [feature.operation for feature in result.graph.features] == ["extrusion"]
     assert all(feature.operation != "importedFaceted" for feature in result.graph.features)
     entity_kinds = [entity.kind for entity in result.graph.sketches[0].entities]
