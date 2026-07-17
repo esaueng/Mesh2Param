@@ -345,41 +345,63 @@ def _freeform_patch(patches: tuple[SurfacePatch, ...]) -> SurfacePatch:
     return patch
 
 
-def _plate_holes(
+def _plate_openings(
     patches: tuple[SurfacePatch, ...],
     freeform: SurfacePatch,
     hole_loops: list[np.ndarray],
-) -> tuple[PlateHole, ...]:
-    """Match each interior boundary loop to one recognized cylinder patch."""
+) -> tuple[PlateHole | PlateCap, ...]:
+    """Match each interior boundary loop to one recognized analytic patch.
 
-    holes: list[PlateHole] = []
+    A loop bordered by a recognized cylinder is a through hole (boolean
+    subtraction); a loop bordered by a recognized sphere is a proud analytic
+    cap (boolean fusion). Anything else fails closed. Entries come back in
+    loop order so callers can pair them with the loops themselves.
+    """
+
+    openings: list[PlateHole | PlateCap] = []
     for index, loop in enumerate(hole_loops):
         loop_vertices = set(int(vertex) for vertex in loop)
         matches = [
             patch
             for patch in patches
-            if patch.kind == "cylinder" and loop_vertices & set(patch.vertex_ids)
+            if patch.kind in ("cylinder", "sphere") and loop_vertices & set(patch.vertex_ids)
         ]
-        cylinder = matches[0] if len(matches) == 1 else None
-        if cylinder is None or cylinder.cylinder_radius_mm is None:
+        analytic = matches[0] if len(matches) == 1 else None
+        if analytic is None:
             raise CurvedPatchError(
                 "segmenting mesh",
                 "curved_patch_hole_unrecognized",
                 (
-                    f"hole loop {index} does not border exactly one recognized "
-                    f"cylinder (found {len(matches)})"
+                    f"interior loop {index} does not border exactly one recognized "
+                    f"cylinder or sphere (found {len(matches)})"
                 ),
             )
-        holes.append(
-            PlateHole(
-                radius=float(cylinder.cylinder_radius_mm),
-                axis_point=np.asarray(cylinder.cylinder_axis_point, dtype=np.float64),
-                axis=np.asarray(cylinder.cylinder_axis, dtype=np.float64),
-                residual_p95=cylinder.residuals_mm.p95,
-                patch_id=cylinder.id,
+        if analytic.kind == "cylinder" and analytic.cylinder_radius_mm is not None:
+            openings.append(
+                PlateHole(
+                    radius=float(analytic.cylinder_radius_mm),
+                    axis_point=np.asarray(analytic.cylinder_axis_point, dtype=np.float64),
+                    axis=np.asarray(analytic.cylinder_axis, dtype=np.float64),
+                    residual_p95=analytic.residuals_mm.p95,
+                    patch_id=analytic.id,
+                )
             )
-        )
-    return tuple(holes)
+        elif analytic.kind == "sphere" and analytic.sphere_radius_mm is not None:
+            openings.append(
+                PlateCap(
+                    radius=float(analytic.sphere_radius_mm),
+                    center=np.asarray(analytic.sphere_center, dtype=np.float64),
+                    residual_p95=analytic.residuals_mm.p95,
+                    patch_id=analytic.id,
+                )
+            )
+        else:
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_hole_unrecognized",
+                f"interior loop {index} borders {analytic.id!r} with an incomplete fit",
+            )
+    return tuple(openings)
 
 
 def _bottom_plane(
@@ -460,11 +482,12 @@ def reconstruct_single_patch_plate(
     settings.validate()
 
     context = _plate_context(mesh, settings)
-    if context.holes:
+    if context.holes or context.caps:
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_holes_unsupported",
-            "single-patch reconstruction does not support holes; use reconstruct_plate_network",
+            "single-patch reconstruction does not support holes or caps; "
+            "use reconstruct_plate_network",
         )
     chart = context.chart
     corners = context.corners
@@ -594,6 +617,8 @@ class CurvedNetworkResult:
     prism_vector: tuple[float, float, float]
     holes: tuple[PlateHole, ...] = ()
     hole_cutters: tuple[HoleCutter, ...] = ()
+    caps: tuple[PlateCap, ...] = ()
+    cap_fusers: tuple[CapFuser, ...] = ()
     candidates: tuple[dict[str, Any], ...] = ()
     cache_status: str = "uncached"
     sewing_tolerance_mm: float = 1e-3
@@ -613,6 +638,7 @@ class CurvedNetworkResult:
             "corners": [list(map(float, corner)) for corner in self.corners],
             "prismVector": list(self.prism_vector),
             "holes": [hole.to_dict() for hole in self.holes],
+            "caps": [cap.to_dict() for cap in self.caps],
             "candidates": [dict(candidate) for candidate in self.candidates],
             "cacheStatus": self.cache_status,
             "limitations": [
@@ -645,6 +671,65 @@ class PlateHole:
 
 
 @dataclass(frozen=True, slots=True)
+class PlateCap:
+    """A recognized analytic spherical cap standing proud of the plate top."""
+
+    radius: float
+    center: np.ndarray = field(repr=False)
+    residual_p95: float
+    patch_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "sphere",
+            "radiusMm": self.radius,
+            "center": [float(value) for value in self.center],
+            "residualP95Mm": self.residual_p95,
+            "patchId": self.patch_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CapFuser:
+    """Exact boolean fuser for a recognized cap, recorded for replay.
+
+    The recorded ball enters the resulting sphere face's surface placement,
+    so replays (fit cache, compiler rebuild) must reuse it verbatim to stay
+    byte-deterministic. The parametric axis stays vertical: a horizontal seam
+    meridian across the trim curve breaks OCCT's fuse against fitted
+    splines, and the pole's zero-area triangles are dropped by the canonical
+    tessellation instead.
+    """
+
+    radius: float
+    center: tuple[float, float, float]
+    axis: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "radiusMm": self.radius,
+            "center": list(self.center),
+            "axis": list(self.axis),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> CapFuser:
+        return cls(
+            radius=float(payload["radiusMm"]),
+            center=(
+                float(payload["center"][0]),
+                float(payload["center"][1]),
+                float(payload["center"][2]),
+            ),
+            axis=(
+                float(payload["axis"][0]),
+                float(payload["axis"][1]),
+                float(payload["axis"][2]),
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class _PlateContext:
     chart_vertices: np.ndarray
     chart_faces: np.ndarray
@@ -656,7 +741,13 @@ class _PlateContext:
     prism_vector: np.ndarray
     segmentation_counts: dict[str, int]
     holes: tuple[PlateHole, ...] = ()
+    caps: tuple[PlateCap, ...] = ()
     hole_loops: tuple[np.ndarray, ...] = ()
+    # Per interior loop: the recognized cap standing over it, or None for a
+    # through hole. Cap loops get dense synthetic fill on the ball surface
+    # lowered by a clearance, so the fitted patch tracks a smooth dome
+    # strictly inside the ball and the fuse intersects cleanly at the rim.
+    fill_caps: tuple[PlateCap | None, ...] = ()
     freeform_locked: bool = False
 
 
@@ -813,7 +904,7 @@ def _plate_context(
     outer_index = int(np.argmax([perimeter(loop) for loop in loops_global]))
     loop_global = loops_global[outer_index]
     hole_loops = [loop for index, loop in enumerate(loops_global) if index != outer_index]
-    holes = _plate_holes(segmentation.patches, freeform, hole_loops)
+    openings = _plate_openings(segmentation.patches, freeform, hole_loops)
 
     chart_loop = local_index[loop_global]
     hole_loops_local = tuple(local_index[loop] for loop in hole_loops)
@@ -889,7 +980,7 @@ def _plate_context(
             "the bottom plane coincides with the boundary rectangle",
         )
 
-    for index, hole in enumerate(holes):
+    for index, hole in enumerate(o for o in openings if isinstance(o, PlateHole)):
         if abs(float(hole.axis @ rectangle_normal)) < np.cos(
             np.radians(settings.plane_parallel_tolerance_deg)
         ):
@@ -910,8 +1001,12 @@ def _plate_context(
         rectangle_normal=rectangle_normal,
         prism_vector=rectangle_normal * height,
         segmentation_counts=counts,
-        holes=holes,
+        holes=tuple(o for o in openings if isinstance(o, PlateHole)),
+        caps=tuple(o for o in openings if isinstance(o, PlateCap)),
         hole_loops=hole_loops_local,
+        fill_caps=tuple(
+            opening if isinstance(opening, PlateCap) else None for opening in openings
+        ),
         freeform_locked=freeform.locked,
     )
 
@@ -921,6 +1016,8 @@ def _hole_fill_samples(
     vertices: np.ndarray,
     hole_loops: tuple[np.ndarray, ...],
     base_weight: float,
+    fill_caps: tuple[PlateCap | None, ...] = (),
+    normal: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Weak synthetic samples across hole interiors.
 
@@ -934,24 +1031,71 @@ def _hole_fill_samples(
 
     fill_uv: list[np.ndarray] = []
     fill_points: list[np.ndarray] = []
-    for loop in hole_loops:
+    fill_weight_blocks: list[np.ndarray] = []
+
+    def push(uv_block: np.ndarray, point_block: np.ndarray, weight: float) -> None:
+        fill_uv.append(uv_block)
+        fill_points.append(point_block)
+        fill_weight_blocks.append(np.full(len(uv_block), weight))
+
+    for index, loop in enumerate(hole_loops):
         rim_uv = chart.uv[loop]
         rim_points = vertices[loop]
         centroid_uv = rim_uv.mean(axis=0)
         centroid_point = rim_points.mean(axis=0)
-        fill_uv.append(centroid_uv[None, :])
-        fill_points.append(centroid_point[None, :])
-        step = max(1, len(loop) // 12)
+        cap = fill_caps[index] if index < len(fill_caps) else None
+        if cap is None or normal is None:
+            push(centroid_uv[None, :], centroid_point[None, :], base_weight)
+            step = max(1, len(loop) // 12)
+            selected = np.arange(0, len(loop), step)
+            for fraction in (0.35, 0.7):
+                push(
+                    centroid_uv + fraction * (rim_uv[selected] - centroid_uv),
+                    centroid_point + fraction * (rim_points[selected] - centroid_point),
+                    base_weight,
+                )
+            continue
+        # Cap loop: dense fill ON the recognized ball lowered by a clearance,
+        # so the fitted patch tracks a smooth dome strictly inside the ball
+        # (the clearance absorbs the weak fit's overshoot).
+        cap_center = np.asarray(cap.center, dtype=np.float64)
+        cap_radius = float(cap.radius)
+        cap_clearance = max(1.5, 0.15 * cap_radius)
+        # The chart's rectangle normal may point either way; orient it toward
+        # the proud side of the cap (the rim sits above the ball center).
+        up = -normal if float((centroid_point - cap_center) @ normal) < 0.0 else normal
+
+        def on_lowered_ball(
+            points: np.ndarray,
+            center: np.ndarray = cap_center,
+            radius: float = cap_radius,
+            clearance: float = cap_clearance,
+            up: np.ndarray = up,
+        ) -> np.ndarray:
+            radial = points - center
+            radial = radial - np.outer(radial @ up, up)
+            rho_sq = np.einsum("ij,ij->i", radial, radial)
+            lift = np.sqrt(np.maximum(radius**2 - rho_sq, (0.2 * radius) ** 2))
+            result: np.ndarray = center + radial + np.outer(lift - clearance, up)
+            return result
+
+        # Strong, dense fill: a weak fill lets the patch overshoot above the
+        # ball between rings, and every such island becomes a spurious trim
+        # in the cap join. These samples are trimmed away by the ball anyway.
+        cap_weight = 50.0 * base_weight
+        push(centroid_uv[None, :], on_lowered_ball(centroid_point[None, :]), cap_weight)
+        step = max(1, len(loop) // 24)
         selected = np.arange(0, len(loop), step)
-        for fraction in (0.35, 0.7):
-            fill_uv.append(centroid_uv + fraction * (rim_uv[selected] - centroid_uv))
-            fill_points.append(centroid_point + fraction * (rim_points[selected] - centroid_point))
+        for fraction in np.linspace(0.1, 0.95, 10):
+            blend_uv = centroid_uv + fraction * (rim_uv[selected] - centroid_uv)
+            blend_points = centroid_point + fraction * (rim_points[selected] - centroid_point)
+            push(blend_uv, on_lowered_ball(blend_points), cap_weight)
     if not fill_uv:
         empty = np.zeros((0, 3))
         return np.zeros((0, 2)), empty, np.zeros(0)
     uv = np.concatenate(fill_uv)
     points = np.concatenate(fill_points)
-    weights = np.full(len(uv), base_weight)
+    weights = np.concatenate(fill_weight_blocks)
     return uv, points, weights
 
 
@@ -1020,6 +1164,18 @@ def _hole_cutters(holes: tuple[PlateHole, ...], mesh: trimesh.Trimesh) -> tuple[
     return tuple(cutters)
 
 
+def _cap_fusers(caps: tuple[PlateCap, ...]) -> tuple[CapFuser, ...]:
+    """Derive each cap's recorded boolean fuser from its recognized fit."""
+
+    return tuple(
+        CapFuser(
+            radius=float(cap.radius),
+            center=(float(cap.center[0]), float(cap.center[1]), float(cap.center[2])),
+        )
+        for cap in caps
+    )
+
+
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
     """Boolean-subtract each recorded hole cutter from the plate solid.
 
@@ -1053,12 +1209,54 @@ def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shap
     return result
 
 
+def _fuse_caps(
+    solid: cq.Shape, fusers: tuple[CapFuser, ...], sewing_tolerance: float
+) -> cq.Shape:
+    """Boolean-fuse each recorded cap ball into the plate solid.
+
+    The kernel computes the exact intersection curve where the ball pokes
+    through the fitted top, so the trimmed B-spline and the true sphere face
+    share one valid shell without approximation on our side. The result is
+    used raw: ``clean()`` demonstrably corrupts fused sphere/spline shells.
+    Where the fitted patch locally overshoots above the ball, small trimmed
+    B-spline islands remain on the cap -- honest fitted geometry that the
+    deviation gates referee. Caps fuse before holes subtract, so a future
+    hole may pierce a cap.
+    """
+
+    del sewing_tolerance
+    result = solid
+    for index, fuser in enumerate(fusers):
+        ball = cq.Solid.makeSphere(
+            fuser.radius,
+            cq.Vector(*fuser.center),
+            cq.Vector(*fuser.axis),
+            angleDegrees1=-90,
+        )
+        try:
+            result = result.fuse(ball)
+        except Exception as exc:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_cap_boolean_failed",
+                f"fusing cap {index} failed: {exc}",
+            ) from exc
+        if len(result.Solids()) != 1:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_cap_boolean_failed",
+                f"fusing cap {index} split the plate into multiple solids",
+            )
+    return result
+
+
 def _plate_solid_from_network(
     network: SurfaceNetwork,
     corners: np.ndarray,
     prism_vector: np.ndarray,
     cutters: tuple[HoleCutter, ...],
     sewing_tolerance: float,
+    cap_fusers: tuple[CapFuser, ...] = (),
 ) -> cq.Shape:
     """The single assembly path shared by the driver, cache, and compiler.
 
@@ -1101,7 +1299,7 @@ def _plate_solid_from_network(
     else:
         wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
     solid = _network_plate_solid(network, wall_chains, corners, prism_vector, sewing_tolerance)
-    return _subtract_holes(solid, cutters)
+    return _subtract_holes(_fuse_caps(solid, cap_fusers, sewing_tolerance), cutters)
 
 
 def _project_to_line(point: np.ndarray, line: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
@@ -1196,6 +1394,7 @@ def _network_gates(
     network_settings: CurvedNetworkSettings,
     *,
     expected_cylinders: int = 0,
+    expected_spheres: int = 0,
 ) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
     shape_validation = validate_shape(solid)
     if not shape_validation.valid:
@@ -1218,6 +1417,15 @@ def _network_gates(
             (
                 f"expected {expected_cylinders} cylinder faces from recognized holes, "
                 f"found {face_surfaces['cylinder']}"
+            ),
+        )
+    if face_surfaces["sphere"] != expected_spheres:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_cap_faces_mismatch",
+            (
+                f"expected {expected_spheres} sphere faces from recognized caps, "
+                f"found {face_surfaces['sphere']}"
             ),
         )
     evidence = shared_edge_evidence(network, sample_count=network_settings.evidence_sample_count)
@@ -1917,7 +2125,12 @@ def reconstruct_plate_network(
     if context.hole_loops:
         fill_weight = 0.05 * float(np.median(sample_weights))
         fill_uv, fill_points, fill_weights = _hole_fill_samples(
-            context.chart, context.chart_vertices, context.hole_loops, fill_weight
+            context.chart,
+            context.chart_vertices,
+            context.hole_loops,
+            fill_weight,
+            fill_caps=context.fill_caps,
+            normal=context.rectangle_normal,
         )
         sample_uv = np.concatenate([sample_uv, fill_uv])
         sample_points = np.concatenate([sample_points, fill_points])
@@ -1956,8 +2169,14 @@ def reconstruct_plate_network(
         network = SurfaceNetwork(units="mm", vertices=corner_vertices, curves=(), patches=(patch,))
         guard.stage("assembling solid", 70.0)
         cutters = _hole_cutters(context.holes, mesh)
+        fusers = _cap_fusers(context.caps)
         solid = _plate_solid_from_network(
-            network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
+            network,
+            corners,
+            context.prism_vector,
+            cutters,
+            settings.sewing_tolerance_mm,
+            cap_fusers=fusers,
         )
         guard.stage("validating solid", 90.0)
         face_surfaces, comparison, evidence = _network_gates(
@@ -1967,6 +2186,7 @@ def reconstruct_plate_network(
             settings,
             network_settings,
             expected_cylinders=len(context.holes),
+            expected_spheres=len(context.caps),
         )
         if fit_cache is not None and cache_key is not None:
             fit_cache.store(
@@ -2000,17 +2220,19 @@ def reconstruct_plate_network(
             ),
             holes=context.holes,
             hole_cutters=cutters,
+            caps=context.caps,
+            cap_fusers=fusers,
             candidates=tuple(candidates),
             cache_status="stored" if fit_cache is not None else "uncached",
             sewing_tolerance_mm=settings.sewing_tolerance_mm,
         )
 
-    if context.holes:
+    if context.holes or context.caps:
         raise CurvedPatchError(
             "cutting chart",
             "curved_patch_holes_unsupported_split",
-            "chart cutting across regions with holes is not supported yet; the "
-            "single-patch layout did not meet tolerance",
+            "chart cutting across regions with holes or caps is not supported yet; "
+            "the single-patch layout did not meet tolerance",
         )
 
     if context.freeform_locked:
@@ -2285,6 +2507,13 @@ def plate_artifact_payload(result: CurvedNetworkResult, *, units: str = "mm") ->
             "prismVector": [float(value) for value in result.prism_vector],
             "sewingToleranceMm": float(result.sewing_tolerance_mm),
             "holes": [cutter.to_dict() for cutter in result.hole_cutters],
+            # Present only when non-empty so cap-free artifacts keep their
+            # historical bytes and hashes.
+            **(
+                {"caps": [fuser.to_dict() for fuser in result.cap_fusers]}
+                if result.cap_fusers
+                else {}
+            ),
         },
     }
 
@@ -2317,12 +2546,14 @@ def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
         )
     prism_vector = np.asarray(assembly["prismVector"], dtype=np.float64)
     cutters = tuple(HoleCutter.from_dict(entry) for entry in assembly["holes"])
+    fusers = tuple(CapFuser.from_dict(entry) for entry in assembly.get("caps", []))
     return _plate_solid_from_network(
         network,
         corners,
         prism_vector,
         cutters,
         float(assembly["sewingToleranceMm"]),
+        cap_fusers=fusers,
     )
 
 
@@ -2363,8 +2594,14 @@ def _assemble_cached_network(
     network = SurfaceNetwork.from_artifact(payload["network"])
     corners = context.corners
     cutters = _hole_cutters(context.holes, mesh)
+    fusers = _cap_fusers(context.caps)
     solid = _plate_solid_from_network(
-        network, corners, context.prism_vector, cutters, settings.sewing_tolerance_mm
+        network,
+        corners,
+        context.prism_vector,
+        cutters,
+        settings.sewing_tolerance_mm,
+        cap_fusers=fusers,
     )
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
@@ -2374,6 +2611,7 @@ def _assemble_cached_network(
         settings,
         network_settings,
         expected_cylinders=len(context.holes),
+        expected_spheres=len(context.caps),
     )
     iterations = tuple(
         FitIteration(
@@ -2405,6 +2643,8 @@ def _assemble_cached_network(
         ),
         holes=context.holes,
         hole_cutters=cutters,
+        caps=context.caps,
+        cap_fusers=fusers,
         candidates=tuple(dict(candidate) for candidate in payload["candidates"]),
         cache_status="hit",
         sewing_tolerance_mm=settings.sewing_tolerance_mm,
@@ -2413,12 +2653,14 @@ def _assemble_cached_network(
 
 __all__ = [
     "PLATE_ARTIFACT_SCHEMA",
+    "CapFuser",
     "CurvedNetworkResult",
     "CurvedNetworkSettings",
     "CurvedPatchError",
     "CurvedPatchResult",
     "CurvedPatchSettings",
     "HoleCutter",
+    "PlateCap",
     "PlateHole",
     "ProgressCallback",
     "ReconstructionBudget",
