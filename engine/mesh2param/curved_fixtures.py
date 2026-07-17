@@ -256,6 +256,24 @@ def _gable_plate_solid(
     return rebuild_plate_solid(payload)
 
 
+def _gable_plate_with_hole(scale: float = 1.0) -> cq.Shape:
+    """The sharp gable plate pierced by a vertical cylindrical through hole.
+
+    The hole runs through one roof patch well clear of the ridge and the
+    walls: the multi-region-with-holes target mixing two B-spline roofs on a
+    shared crease, one cylinder, and five planes in one shell (8 faces).
+    """
+
+    plate = _gable_plate_solid(scale=scale)
+    cutter = cq.Solid.makeCylinder(
+        6.0 * scale,
+        80.0 * scale,
+        cq.Vector(20.0 * scale, 30.0 * scale, -40.0 * scale),
+        cq.Vector(0.0, 0.0, 1.0),
+    )
+    return plate.cut(cutter)
+
+
 def _dome_plate_solid(scale: float = 1.0) -> cq.Shape:
     """A gentle freeform plate fused with an exact spherical cap at its apex.
 
@@ -555,6 +573,23 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.15,
     ),
     CurvedFixtureSpec(
+        slug="bspline-gable-plate-hole",
+        title="B-spline gable plate with a through hole",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "The sharp gable plate pierced by a vertical 6 mm-radius "
+            "cylindrical hole through one roof: the multi-region-with-holes "
+            "target mixing two B-spline roofs on a shared crease, one "
+            "cylinder, and five planes in one shell."
+        ),
+        # Finer than the plain gable: the ruled roofs tessellate coarsely on
+        # curvature alone, and the hole rim needs small neighbors for a
+        # well-conditioned harmonic chart.
+        linear_tolerance=0.0008,
+        angular_tolerance=0.1,
+    ),
+    CurvedFixtureSpec(
         slug="bspline-soft-gable-plate",
         title="B-spline gable plate with a soft ridge crease",
         category="positive",
@@ -679,6 +714,7 @@ _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Sha
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
     "bspline-dome-plate": _positive_builder(_dome_plate_solid),
     "bspline-gable-plate": _positive_builder(_gable_plate_solid),
+    "bspline-gable-plate-hole": _positive_builder(_gable_plate_with_hole),
     # Small bumps: the bump's u-derivative subtracts from the ridge slope, so
     # large interior bumps would flatten the dihedral below the segmentation
     # threshold and merge the two roof regions.
