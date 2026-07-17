@@ -31,7 +31,7 @@ The same seven-step engineering workflow adapts to a compact viewport without re
 | Analysis | Mesh health, explicit repair history, deterministic plane/cylinder patches, frame alternatives, residuals, source/result metrics |
 | Validation | CADGraph schema/invariants, feature-by-feature OCCT compilation, B-Rep checks, STEP export, STEP reimport, solid validation, tolerance comparison |
 | Workspace | Seven-step React UI, real Three.js artifacts, patch selection, feature editing, candidate histories, unified undo/redo, IndexedDB recovery, project save/open |
-| Browser-local Worker mode | IndexedDB project/version/artifact authority, local jobs, bundled samples, OCCT WebAssembly CADGraph rebuild, STEP export/reimport validation |
+| Browser-local Worker mode | IndexedDB project/version/artifact authority, local jobs, bundled samples, OCCT WebAssembly CADGraph rebuild, bounded layered STL-to-curved-B-Rep fitting, STEP export/reimport validation |
 | Server mode | FastAPI, SQLite/WAL, immutable filesystem CAS, durable jobs/SSE, process isolation, cancellation, versions, manifests |
 
 Not automatically inferred today: general prismatic parts, arbitrary hole counts, partial cylinders,
@@ -160,9 +160,11 @@ pnpm cf:deploy
 The default Worker deployment is self-contained: Cloudflare serves the SPA, sample corpus, and
 22 MB OCCT WebAssembly asset; projects and artifacts live in the browser's IndexedDB and geometry
 runs in a dedicated browser worker. No Python API is required for bundled samples or exact CADGraph
-rebuild/validation/export. Arbitrary-mesh automatic inference and production-scale faceted STEP
-conversion are native-server capabilities; browser-local mode reports that boundary instead of
-inventing geometry. Configure `MESH2PARAM_API_ORIGIN` for complex uploads. The web client detects a
+rebuild/validation/export. Browser-local conversion can fit axis-aligned layered solids to genuine
+swept or B-spline STEP surfaces, with volume/bounds gates and an explicit approximation warning.
+Arbitrary topology and production-scale general reconstruction remain native-server capabilities;
+browser-local mode reports that boundary instead of inventing geometry. Configure
+`MESH2PARAM_API_ORIGIN` for complex uploads. The web client detects a
 ready same-origin backend automatically and otherwise retains its browser-local workspace. See
 [Cloudflare Worker deployment](docs/deployment.md#cloudflare-worker-frontend).
 

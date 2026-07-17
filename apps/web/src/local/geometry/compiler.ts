@@ -11,6 +11,7 @@ import type {
 import { OcctKernel, type ShapeHandle, type Vec3 } from "occt-wasm";
 
 import type { BrowserCadResult } from "./types";
+import { reconstructLayeredCurvedShape } from "./layered";
 import { analyzeStl } from "./stl";
 
 interface ProducedFeature {
@@ -330,6 +331,60 @@ export function compileStl(
     shape = solidifyStl(kernel, shape, tolerance);
   }
   return shapeResult(kernel, shape, 1, tolerance, 0.35, validateStep, source);
+}
+
+export function compileCurvedStl(
+  kernel: OcctKernel,
+  bytes: ArrayBuffer,
+  tolerance: number,
+  progress?: (stage: string) => void,
+): BrowserCadResult {
+  if (!Number.isFinite(tolerance) || tolerance <= 0) {
+    throw new Error("Curved reconstruction tolerance must be a finite positive number");
+  }
+  const source = analyzeStl(bytes);
+  if (!source.valid || !source.solid || source.diagnostics?.watertight !== true) {
+    throw new Error("Curved reconstruction requires one valid, consistently wound watertight STL");
+  }
+  const reconstructed = reconstructLayeredCurvedShape(kernel, source.mesh.positions, tolerance, progress);
+  const result = shapeResult(kernel, reconstructed.shape, 1, Math.max(tolerance * 0.5, 0.01), 0.15);
+  const relativeVolumeDelta = Math.abs(result.volume - source.volume) / Math.max(source.volume, 1e-12);
+  const maximumBoundsDelta = Math.max(
+    ...result.bounds.flatMap((bound, boundIndex) => bound.map((value, axis) => Math.abs(value - source.bounds[boundIndex]![axis]!))),
+  );
+  const diagonal = Math.hypot(
+    source.bounds[1][0] - source.bounds[0][0],
+    source.bounds[1][1] - source.bounds[0][1],
+    source.bounds[1][2] - source.bounds[0][2],
+  );
+  if (relativeVolumeDelta > 0.08) {
+    throw new Error(
+      `Curved reconstruction changed volume by ${(relativeVolumeDelta * 100).toFixed(2)}% (source ${source.volume.toFixed(4)}, result ${result.volume.toFixed(4)}); the 8% safety limit is enforced`,
+    );
+  }
+  if (maximumBoundsDelta > Math.max(tolerance * 4, diagonal * 0.01)) {
+    throw new Error(`Curved reconstruction moved a model bound by ${maximumBoundsDelta.toFixed(4)} project units`);
+  }
+  const faceSurfaces: Record<string, number> = {};
+  for (const face of kernel.getSubShapes(reconstructed.shape, "face")) {
+    const kind = kernel.surfaceType(face);
+    faceSurfaces[kind] = (faceSurfaces[kind] ?? 0) + 1;
+  }
+  const curvedSurfaceCount = ["bspline", "bezier", "cylinder", "cone", "sphere", "torus", "revolution", "extrusion"]
+    .reduce((count, kind) => count + (faceSurfaces[kind] ?? 0), 0);
+  if (curvedSurfaceCount === 0) {
+    throw new Error("Curved reconstruction did not produce a genuine analytic, swept, or spline surface");
+  }
+  result.curvedReconstruction = {
+    scope: "axis-aligned layered approximate curved B-Rep",
+    ...reconstructed.evidence,
+    sourceVolume: source.volume,
+    resultVolume: result.volume,
+    relativeVolumeDelta,
+    maximumBoundsDelta,
+    faceSurfaces,
+  };
+  return result;
 }
 
 function stlText(bytes: ArrayBuffer): string {
