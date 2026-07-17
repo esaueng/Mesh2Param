@@ -539,14 +539,285 @@ def fit_bspline_patch(
     )
 
 
+def curve_design_matrix(parameters: np.ndarray, knots: np.ndarray, degree: int) -> csr_matrix:
+    """Sparse design matrix mapping curve poles to sample points."""
+
+    control = len(knots) - degree - 1
+    spans, windows = _basis_windows(parameters, knots, degree)
+    window = degree + 1
+    count = len(parameters)
+    rows = np.repeat(np.arange(count), window)
+    columns = ((spans - degree)[:, None] + np.arange(window)[None, :]).reshape(-1)
+    return coo_matrix((windows.reshape(-1), (rows, columns)), shape=(count, control)).tocsr()
+
+
+def fit_bspline_curve(
+    parameters: np.ndarray,
+    points: np.ndarray,
+    knots: np.ndarray,
+    degree: int,
+    *,
+    fairness: float = 1e-3,
+    fixed_endpoints: tuple[np.ndarray, np.ndarray] | None = None,
+) -> np.ndarray:
+    """Least-squares cubic curve fit with fairness and pinned endpoints.
+
+    The knot vector is supplied by the caller so a shared boundary curve can
+    use exactly the knots of the surface direction it will bound; its poles
+    then double as the surfaces' shared boundary pole rows.
+    """
+
+    control = len(knots) - degree - 1
+    design = curve_design_matrix(np.asarray(parameters, dtype=np.float64), knots, degree)
+    smoothing_rows = control - 2
+    if smoothing_rows > 0:
+        base = np.arange(smoothing_rows)
+        smoothing = coo_matrix(
+            (
+                np.tile([1.0, -2.0, 1.0], smoothing_rows),
+                (np.repeat(base, 3), np.stack([base, base + 1, base + 2], axis=1).reshape(-1)),
+            ),
+            shape=(smoothing_rows, control),
+        ).tocsr()
+    else:
+        smoothing = csr_matrix((0, control))
+
+    fixed_mask = np.zeros(control, dtype=bool)
+    fixed_values = np.zeros((control, 3))
+    if fixed_endpoints is not None:
+        fixed_mask[0] = True
+        fixed_mask[-1] = True
+        fixed_values[0] = fixed_endpoints[0]
+        fixed_values[-1] = fixed_endpoints[1]
+    free = np.flatnonzero(~fixed_mask)
+    if len(free) == 0:
+        return fixed_values
+
+    normal = (design[:, free].T @ design[:, free]) + fairness * (
+        smoothing[:, free].T @ smoothing[:, free]
+    )
+    target = np.asarray(points, dtype=np.float64) - design[:, fixed_mask] @ fixed_values[fixed_mask]
+    rhs = design[:, free].T @ target - fairness * (
+        smoothing[:, free].T @ (smoothing[:, fixed_mask] @ fixed_values[fixed_mask])
+    )
+    poles = fixed_values.copy()
+    poles[free] = splu(normal.tocsc()).solve(np.asarray(rhs))
+    return poles
+
+
+@dataclass(frozen=True, slots=True)
+class PatchSystem:
+    """One chart's samples and pinned poles inside a joint network solve."""
+
+    uv: np.ndarray = field(repr=False)
+    points: np.ndarray = field(repr=False)
+    weights: np.ndarray = field(repr=False)
+    fixed_poles: dict[tuple[int, int], np.ndarray] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class PoleConstraint:
+    """Quadratic penalty ``|| sum coeff * P[patch][pole] - target ||^2``.
+
+    The C1 (hence G1) coupling across an artificial smooth boundary is the row
+    ``P_a[n-2, j] + P_b[1, j] - 2 * S_j = 0`` where ``S_j`` is the shared
+    boundary pole -- itself an unknown when the boundary is aliased.
+    """
+
+    entries: tuple[tuple[int, tuple[int, int], float], ...]
+    target: np.ndarray = field(repr=False)
+
+
+PoleSlot = tuple[int, tuple[int, int]]
+
+
+def solve_patch_network(
+    systems: list[PatchSystem],
+    knots_u: np.ndarray,
+    knots_v: np.ndarray,
+    degree: int,
+    *,
+    fairness: float = 1e-3,
+    shared_poles: list[tuple[PoleSlot, PoleSlot]] | None = None,
+    constraints: list[PoleConstraint] | None = None,
+    constraint_weight: float = 10.0,
+) -> list[np.ndarray]:
+    """Solve every patch's poles jointly with shared boundaries as one unknown.
+
+    ``shared_poles`` aliases pole slots across patches into a single unknown
+    (true common topology: both boundary rows ARE the same curve poles), and
+    ``constraints`` adds weighted linear penalty rows such as C1 couplings.
+    """
+
+    control_u = len(knots_u) - degree - 1
+    control_v = len(knots_v) - degree - 1
+    total = control_u * control_v
+    patch_count = len(systems)
+
+    def slot(patch: int, pole: tuple[int, int]) -> int:
+        return patch * total + pole[0] * control_v + pole[1]
+
+    # Union-find over pole slots so aliased boundary poles are one unknown.
+    parents = np.arange(patch_count * total)
+
+    def find(node: int) -> int:
+        while parents[node] != node:
+            parents[node] = parents[parents[node]]
+            node = int(parents[node])
+        return node
+
+    for slot_a, slot_b in shared_poles or []:
+        root_a, root_b = find(slot(*slot_a)), find(slot(*slot_b))
+        if root_a != root_b:
+            parents[max(root_a, root_b)] = min(root_a, root_b)
+
+    fixed_class_values: dict[int, np.ndarray] = {}
+    for index, system in enumerate(systems):
+        for pole, value in system.fixed_poles.items():
+            root = find(slot(index, pole))
+            value = np.asarray(value, dtype=np.float64)
+            existing = fixed_class_values.get(root)
+            if existing is not None and not np.allclose(existing, value, atol=1e-9):
+                raise ValueError(
+                    "aliased poles are pinned to conflicting positions; the shared "
+                    "boundary cannot satisfy both patches"
+                )
+            fixed_class_values[root] = value
+
+    roots = np.asarray([find(node) for node in range(patch_count * total)])
+    free_roots = sorted(set(int(root) for root in roots) - set(fixed_class_values))
+    column_of_root = {root: column for column, root in enumerate(free_roots)}
+    unknowns = len(free_roots)
+
+    fixed_masks: list[np.ndarray] = []
+    fixed_values: list[np.ndarray] = []
+    for index in range(patch_count):
+        patch_roots = roots[index * total : (index + 1) * total]
+        mask = np.asarray([root in fixed_class_values for root in patch_roots])
+        values = np.zeros((total, 3))
+        for flat, root in enumerate(patch_roots):
+            if root in fixed_class_values:
+                values[flat] = fixed_class_values[root]
+        fixed_masks.append(mask)
+        fixed_values.append(values)
+    if unknowns == 0:
+        return [values.reshape(control_u, control_v, 3) for values in fixed_values]
+
+    normal = csr_matrix((unknowns, unknowns))
+    rhs = np.zeros((unknowns, 3))
+    smoothing = _second_difference_operator(control_u, control_v)
+    for index, system in enumerate(systems):
+        mask = fixed_masks[index]
+        values = fixed_values[index]
+        patch_roots = roots[index * total : (index + 1) * total]
+        free_flats = np.flatnonzero(~mask)
+        # Expansion mapping this patch's free pole slots to global class
+        # columns; aliased slots in different patches share a column.
+        expand = coo_matrix(
+            (
+                np.ones(len(free_flats)),
+                (
+                    free_flats,
+                    np.asarray([column_of_root[int(patch_roots[flat])] for flat in free_flats]),
+                ),
+            ),
+            shape=(total, unknowns),
+        ).tocsr()
+        design = tensor_design_matrix(
+            np.asarray(system.uv, dtype=np.float64), knots_u, knots_v, degree
+        )
+        weights = np.asarray(system.weights, dtype=np.float64)
+        design_weighted = design.multiply(weights[:, None]).tocsr()
+        design_global = design @ expand
+        design_weighted_global = design_weighted @ expand
+        smoothing_global = smoothing @ expand
+        target = np.asarray(system.points, dtype=np.float64) - design[:, mask] @ values[mask]
+        normal = (
+            normal
+            + design_weighted_global.T @ design_global
+            + fairness * (smoothing_global.T @ smoothing_global)
+        )
+        rhs += np.asarray(design_weighted_global.T @ target) - fairness * np.asarray(
+            smoothing_global.T @ (smoothing[:, mask] @ values[mask])
+        )
+
+    for constraint in constraints or []:
+        column_coefficients: dict[int, float] = {}
+        constant = np.asarray(constraint.target, dtype=np.float64).copy()
+        for patch, pole, coefficient in constraint.entries:
+            root = find(slot(patch, pole))
+            if root in fixed_class_values:
+                constant -= coefficient * fixed_class_values[root]
+            else:
+                column = column_of_root[root]
+                column_coefficients[column] = column_coefficients.get(column, 0.0) + coefficient
+        if not column_coefficients:
+            continue
+        columns = np.asarray(sorted(column_coefficients), dtype=np.int64)
+        coefficients = np.asarray([column_coefficients[int(c)] for c in columns])
+        row_matrix = coo_matrix(
+            (coefficients, (np.zeros(len(columns), dtype=np.int64), columns)),
+            shape=(1, unknowns),
+        ).tocsr()
+        normal = normal + constraint_weight * (row_matrix.T @ row_matrix)
+        rhs += constraint_weight * np.asarray(row_matrix.T @ constant[None, :])
+
+    solution = splu(normal.tocsc()).solve(rhs)
+    results: list[np.ndarray] = []
+    for index in range(patch_count):
+        patch_roots = roots[index * total : (index + 1) * total]
+        values = fixed_values[index].copy()
+        for flat, root in enumerate(patch_roots):
+            if root not in fixed_class_values:
+                values[flat] = solution[column_of_root[int(root)]]
+        results.append(values.reshape(control_u, control_v, 3))
+    return results
+
+
+def reproject_patch_uv(
+    uv: np.ndarray,
+    points: np.ndarray,
+    poles: np.ndarray,
+    knots_u: np.ndarray,
+    knots_v: np.ndarray,
+    degree: int,
+    *,
+    steps: int = 2,
+) -> np.ndarray:
+    """Public Gauss-Newton closest-point parameter update."""
+
+    return _reproject_uv(uv, points, poles, knots_u, knots_v, degree, steps=steps)
+
+
+def patch_distances(
+    uv: np.ndarray,
+    points: np.ndarray,
+    poles: np.ndarray,
+    knots_u: np.ndarray,
+    knots_v: np.ndarray,
+    degree: int,
+) -> np.ndarray:
+    """Distances from samples to the patch at their current parameters."""
+
+    return _distances(uv, points, poles, knots_u, knots_v, degree)
+
+
 __all__ = [
     "FitIteration",
     "FittedPatch",
+    "PatchSystem",
+    "PoleConstraint",
+    "PoleSlot",
     "SurfaceFitSettings",
     "build_occt_bspline_surface",
+    "curve_design_matrix",
+    "fit_bspline_curve",
     "fit_bspline_patch",
     "greville_abscissae",
     "open_uniform_knots",
+    "patch_distances",
     "rectangle_boundary_poles",
+    "reproject_patch_uv",
+    "solve_patch_network",
     "tensor_design_matrix",
 ]
