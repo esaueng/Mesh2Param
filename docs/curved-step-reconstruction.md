@@ -504,8 +504,36 @@ declared `crease` and a new evidence gate (`curved_patch_crease_lost`,
 default 5 degrees) fails closed if the fitted dihedral collapses into a
 smooth blend anywhere along the curve (`minimumNormalAngleDeg` joins the
 shared-edge evidence). `forceSplit` fails closed on multi-region plates
-(`curved_patch_force_split_unsupported`), as do detached regions, shared
-corners other than exactly two, and regions with holes.
+(`curved_patch_force_split_unsupported`), as do detached regions and shared
+corners other than exactly two.
+
+##### Multi-region holes (implemented)
+
+Recognized cylindrical through holes now work on multi-region plates: each
+region's largest-perimeter loop is its outer boundary and every interior
+loop must border exactly one recognized cylinder (analytic caps on
+multi-region plates still fail closed, `curved_patch_multiregion_caps`).
+The pierced region's chart is harmonically mapped on the FILLED region --
+one synthetic centroid vertex fanned to each hole rim with the region's
+winding, dropped after the solve -- because a free hole rim inside a
+nearly flat region otherwise collapses to a point in the harmonic map
+(observed stretch 6.8e6 against the 1e6 gate; skinny rim fans wreck the
+system's conditioning; densifying the tessellation makes it worse, not
+better). Weak synthetic fill samples cross the rim exactly as in the
+single-region path and are excluded from the convergence gate, and the
+recorded hole cutters subtract after network assembly, replayed verbatim
+by the fit cache and the compiler rebuild. The smooth-join override
+composes with holes.
+
+Measured on the new `bspline-gable-plate-hole` fixture (2274 source
+triangles; the sharp gable pierced by an exact 6 mm cylinder through one
+roof): an 8-face solid (5 planes, 2 B-spline roofs on one common crease
+edge, 1 cylinder), reconstructed in ~1 s, recognized radius exact to
+1e-3, maximum fit residual 0.032 mm, G0 gap exactly 0.0, crease dihedral
+sharp along its whole length, source deviation 0.061 mm, volume within
+0.02 % of exact, and byte-identical artifacts and STEP across repeat
+runs, the artifact rebuild, and cache hits. Covered by
+`tests/test_curved_multiregion_holes.py`.
 
 Measured on the new `bspline-gable-plate` fixture (690 source triangles; two
 exact bicubic roofs meeting at an elevated, bowed ridge): a 7-face solid

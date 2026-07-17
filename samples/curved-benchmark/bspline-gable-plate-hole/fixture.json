@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "The sharp gable plate pierced by a vertical 6 mm-radius cylindrical hole through one roof: the multi-region-with-holes target mixing two B-spline roofs on a shared crease, one cylinder, and five planes in one shell.",
+  "directory": "bspline-gable-plate-hole",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 22989.796620030236,
+    "boundingBox": [
+      -0.03368422892076656,
+      -0.04282978390362974,
+      -25.00163142211957,
+      80.04282978390363,
+      80.04282978390363,
+      13.304989758038658
+    ],
+    "edgeCount": 19,
+    "faceCount": 8,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 1,
+      "other": 0,
+      "plane": 5,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 201476.26938947767
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "bspline-gable-plate-hole",
+  "stl": {
+    "byteSize": 113784,
+    "path": "source.stl",
+    "sha256": "f74c6603be947d33353e8f3d54f7879a1bf78677626640013e2fb12e23db7922",
+    "triangleCount": 2274,
+    "vertexCount": 1137
+  },
+  "tessellation": {
+    "angularTolerance": 0.1,
+    "linearTolerance": 0.0008
+  },
+  "title": "B-spline gable plate with a through hole",
+  "units": "mm"
+}
