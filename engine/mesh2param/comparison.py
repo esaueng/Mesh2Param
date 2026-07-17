@@ -6,9 +6,10 @@ import hashlib
 import json
 import math
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import cadquery as cq
 import numpy as np
@@ -174,12 +175,17 @@ def _closest_surface(
     points: np.ndarray,
     chunk_size: int,
 ) -> tuple[np.ndarray, np.ndarray]:
+    closest_point_naive = cast(
+        Callable[
+            [trimesh.Trimesh, np.ndarray],
+            tuple[np.ndarray, np.ndarray, np.ndarray],
+        ],
+        trimesh.proximity.closest_point_naive,
+    )
     distances: list[np.ndarray] = []
     triangle_ids: list[np.ndarray] = []
     for start in range(0, len(points), chunk_size):
-        _, distance, triangle_id = trimesh.proximity.closest_point_naive(
-            mesh, points[start : start + chunk_size]
-        )
+        _, distance, triangle_id = closest_point_naive(mesh, points[start : start + chunk_size])
         distances.append(np.asarray(distance, dtype=np.float64))
         triangle_ids.append(np.asarray(triangle_id, dtype=np.int64))
     return np.concatenate(distances), np.concatenate(triangle_ids)

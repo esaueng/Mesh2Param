@@ -306,9 +306,7 @@ def _dome_plate_solid(scale: float = 1.0) -> cq.Shape:
                 # without a wide tangency band.
                 poles[i, j, 2] = 2.5 * scale * sin(pi * gu) * sin(pi * gv)
     surface = build_occt_bspline_surface(poles, knots, knots, degree)
-    corners = np.asarray(
-        [[0.0, 0.0, 0.0], [size, 0.0, 0.0], [size, size, 0.0], [0.0, size, 0.0]]
-    )
+    corners = np.asarray([[0.0, 0.0, 0.0], [size, 0.0, 0.0], [size, size, 0.0], [0.0, size, 0.0]])
     plate = assemble_single_patch_plate(
         surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
     )
@@ -325,6 +323,51 @@ def _dome_plate_solid(scale: float = 1.0) -> cq.Shape:
         angleDegrees1=-90,
     )
     return plate.fuse(ball).clean()
+
+
+def _cone_plate_solid(scale: float = 1.0) -> cq.Shape:
+    """A gentle freeform plate fused with an exact conical boss at its apex.
+
+    The cone points away from the plate and extends just below the fitted top,
+    so the kernel trims its analytic side against the B-spline along one clean
+    transversal loop. The ground truth is 7 faces: 5 planes, 1 trimmed
+    B-spline, and 1 cone. As with the spherical cap, the locally near-planar
+    apex site avoids a broad near-tangency band and fragmented boolean result.
+    """
+
+    degree = 3
+    control = 7
+    size = 80.0 * scale
+    height = 25.0 * scale
+    knots = open_uniform_knots(control, degree)
+    greville = greville_abscissae(knots, degree)
+    poles = np.zeros((control, control, 3))
+    for i, gu in enumerate(greville):
+        for j, gv in enumerate(greville):
+            poles[i, j, 0] = gu * size
+            poles[i, j, 1] = gv * size
+            interior = 0 < i < control - 1 and 0 < j < control - 1
+            if interior:
+                poles[i, j, 2] = 2.5 * scale * sin(pi * gu) * sin(pi * gv)
+    surface = build_occt_bspline_surface(poles, knots, knots, degree)
+    corners = np.asarray([[0.0, 0.0, 0.0], [size, 0.0, 0.0], [size, size, 0.0], [0.0, size, 0.0]])
+    plate = assemble_single_patch_plate(
+        surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
+    )
+    # The apex is 12 mm above the boundary rectangle. A 14 mm cone directed
+    # downward crosses the top near its locally flat center and terminates
+    # inside the plate, leaving only the exact analytic side visible.
+    cone_height = 14.0 * scale
+    half_angle_deg = 35.0
+    base_radius = cone_height * np.tan(np.radians(half_angle_deg))
+    cone = cq.Solid.makeCone(
+        0.0,
+        float(base_radius),
+        cone_height,
+        cq.Vector(40.0 * scale, 40.0 * scale, 12.0 * scale),
+        cq.Vector(0.0, 0.0, -1.0),
+    )
+    return plate.fuse(cone).clean()
 
 
 def _bump_plate_with_hole(scale: float = 1.0) -> cq.Shape:
@@ -557,6 +600,21 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.1,
     ),
     CurvedFixtureSpec(
+        slug="bspline-cone-plate",
+        title="B-spline bump plate with a conical boss",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "The gentle bump plate fused with an exact conical boss at its "
+            "locally near-planar apex: the analytic cone-cap target mixing a "
+            "trimmed B-spline top, a true cone face, and five planes."
+        ),
+        # Resolve the apex neighborhood and the sharp cone/freeform trim loop
+        # without creating a prohibitively dense benchmark fixture.
+        linear_tolerance=0.0008,
+        angular_tolerance=0.1,
+    ),
+    CurvedFixtureSpec(
         slug="bspline-gable-plate",
         title="B-spline gable plate with a sharp ridge crease",
         category="positive",
@@ -713,6 +771,7 @@ _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Sha
     "bspline-bump-plate": _positive_builder(_bump_plate_solid),
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
     "bspline-dome-plate": _positive_builder(_dome_plate_solid),
+    "bspline-cone-plate": _positive_builder(_cone_plate_solid),
     "bspline-gable-plate": _positive_builder(_gable_plate_solid),
     "bspline-gable-plate-hole": _positive_builder(_gable_plate_with_hole),
     # Small bumps: the bump's u-derivative subtracts from the ridge slope, so

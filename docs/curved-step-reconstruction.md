@@ -688,9 +688,9 @@ hybrid shells and far below any engineering tolerance.
 
 The user controls for split/merge, crease classification, and patch locking
 are implemented (see the per-patch controls and crease-classification
-sections above). Spherical caps are now assembled into the shell (see
-"Analytic caps" below); cones and tori as reconstructed faces, and shared
-network edges for analytic faces, remain open.
+sections above). Spherical caps and conical bosses are now assembled into the
+shell (see the analytic sections below); tori as reconstructed faces and
+shared network edges for analytic faces remain open.
 
 #### Analytic caps (implemented)
 
@@ -731,6 +731,38 @@ reconstructed in ~9 s, maximum fit residual 0.149 mm, source deviation
 0.076 mm, volume within 0.02 % of exact, recognized radius exact to 1e-3,
 byte-identical artifacts and STEP across repeat runs, the artifact rebuild,
 and cache hits. Covered by `tests/test_curved_caps.py`.
+
+#### Analytic cone bosses (implemented)
+
+A recognized cone region standing proud of a single freeform plate now joins
+the shell as a true cone face by the same boolean-fusion path as a spherical
+cap. The freeform interior loop must match exactly one cone fit; the recorded
+`ConeFuser` carries the fitted apex, the axis oriented from the apex into the
+recognized side, the half-angle, and a height extended just inside the plate.
+The plate artifact gains a `cones` assembly list only when non-empty, preserving
+all historical artifact bytes. Sphere and cone fusions both happen before
+through-hole subtraction, so later holes may pierce either analytic boss.
+
+The cone path preserves the cap lessons instead of rediscovering them. It uses
+the raw OCCT fuse result with no `clean()`, rejects any face fragmentation with
+an exact expected face-count gate, and densely fills the unsupported chart
+interior on the recognized cone shifted down its axis by a clearance. A shallow
+clearance left three small B-spline islands on the cone and correctly failed
+the 7-face gate; 35% of the recognized visible height kept the fitted patch
+strictly inside the fuser without distorting the measured source region. The
+canonical tessellator drops only bitwise-exact, genuinely zero-area analytic
+pole triangles, covering cone apex fans as well as sphere poles. Conical bosses
+on multi-region freeform networks remain explicitly fail-closed as
+`curved_patch_cone_multiregion_unsupported`.
+
+Measured on `bspline-cone-plate` (3422 source triangles; the same gentle,
+locally near-planar apex site as the spherical fixture with a 35 degree exact
+cone): a 7-face solid (5 planes, 1 trimmed B-spline, 1 true cone) reconstructed
+in about 7.6 s, maximum fit residual 0.126 mm, source deviation 0.044 mm, and
+volume within 0.021% of exact. Segmentation recovers the 12 mm apex and
+35 degree half-angle within 0.001 mm/degree. Artifacts and normalized STEP are
+byte-identical across repeat runs, artifact rebuild, and cache hits. Covered by
+`tests/test_curved_cones.py`.
 
 ### Milestone 4: production hardening (core implemented)
 

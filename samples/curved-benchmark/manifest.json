@@ -158,6 +158,58 @@
     },
     {
       "category": "positive",
+      "description": "The gentle bump plate fused with an exact conical boss at its locally near-planar apex: the analytic cone-cap target mixing a trimmed B-spline top, a true cone face, and five planes.",
+      "directory": "bspline-cone-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 20925.91316940031,
+        "boundingBox": [
+          -0.03741503210051261,
+          -0.03741503210051261,
+          -25.000000100000005,
+          80.03741503210051,
+          80.03741503210051,
+          12.023030165246492
+        ],
+        "edgeCount": 14,
+        "faceCount": 7,
+        "faceSurfaces": {
+          "bspline": 1,
+          "cone": 1,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 165893.9947877989
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-cone-plate",
+      "stl": {
+        "byteSize": 171184,
+        "path": "source.stl",
+        "sha256": "c1a233430638fa4996c3823c18a0a859935a3faf7bf35227a998446c83632573",
+        "triangleCount": 3422,
+        "vertexCount": 1713
+      },
+      "tessellation": {
+        "angularTolerance": 0.1,
+        "linearTolerance": 0.0008
+      },
+      "title": "B-spline bump plate with a conical boss",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "A plate whose top is two exact B-spline roof patches meeting at an elevated, bowed sharp ridge crease: the multi-region crease network reconstruction target (two freeform regions sharing one crease curve, pentagon end walls).",
       "directory": "bspline-gable-plate",
       "expectation": "closed-manifold",
