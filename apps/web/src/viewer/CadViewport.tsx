@@ -20,7 +20,7 @@ import { debugLog } from "../canvas/debugLog";
 import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state/types";
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
-import { OrientationGizmo, type GizmoViewRequest } from "./OrientationGizmo";
+import { OrientationGizmoCanvas, type GizmoViewRequest } from "./OrientationGizmo";
 import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
@@ -34,6 +34,15 @@ const MODES: ReadonlyArray<{ id: ViewerMode; label: string }> = [
   { id: "overlay", label: "Overlay" },
   { id: "residual", label: "Heatmap" },
 ];
+
+/**
+ * Keep screen-space viewer chrome crisp on HiDPI displays. Dense geometry still
+ * gets a lower pixel ratio, but no longer forces the whole canvas (including the
+ * orientation gizmo) down to a visibly pixelated 1x backing buffer.
+ */
+export function viewerDpr(denseMesh: boolean): number {
+  return denseMesh ? 1.5 : 2;
+}
 
 interface CadViewportProps {
   projectId: string;
@@ -89,6 +98,7 @@ export function CadViewport({
     if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
   }, []);
   const controls = useRef<OrbitControlsImpl | null>(null);
+  const viewerCamera = useRef<THREE.Camera | null>(null);
   const palette = viewerPalette(theme);
   const artifactMap = useMemo(() => new Map(artifacts.map((artifact) => [artifact.name, artifact])), [artifacts]);
   const selectionArtifact = artifactMap.get("selection-map.json");
@@ -186,6 +196,7 @@ export function CadViewport({
       aria-label="3D CAD viewer"
       data-testid="cad-viewport"
       data-camera-view={command.direction?.join(",") ?? command.preset}
+      data-display-mode={preferences.shading}
     >
       {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
@@ -276,7 +287,7 @@ export function CadViewport({
         <Canvas
           key={`webgl-${rendererRevision}`}
           frameloop="always"
-          dpr={denseMesh ? 1 : [1, 1.25]}
+          dpr={viewerDpr(denseMesh)}
           gl={{ alpha: false, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false }}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}
@@ -288,6 +299,7 @@ export function CadViewport({
           <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
           <axesHelper args={[35]} />
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
+          <ViewerCameraReference target={viewerCamera} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
@@ -296,7 +308,7 @@ export function CadViewport({
                 url={apiClient.artifactUrl(projectId, layer.artifact.name, layer.artifact.sha256)}
                 mode={layer.mode}
                 opacity={layer.opacity}
-                wireframe={preferences.shading === "wireframe" || layer.mode === "patches"}
+                shading={layer.mode === "patches" ? "wireframe" : preferences.shading}
                 edges={preferences.edges}
                 comparisonGhost={preferences.mode === "overlay" && layer.mode === "source"}
                 facetedProxy={sourceProxyActive && layer.mode === "reconstructed"}
@@ -325,10 +337,11 @@ export function CadViewport({
             ) : null}
           </Suspense>
           <CameraRig bounds={bounds} artifactKey={artifactKey} command={command} controlsRef={controls} />
-          <OrientationGizmo onSelectView={gizmoView} />
           <ScaleProbe controlsRef={controls} onScale={onScaleChange} />
         </Canvas>
       </ViewerErrorBoundary>
+
+      <OrientationGizmoCanvas cameraRef={viewerCamera} onSelectView={gizmoView} />
 
       {contextLost ? (
         <div className="viewer-recovering" role="status" aria-live="polite">
@@ -348,6 +361,17 @@ export function CadViewport({
       )}
     </section>
   );
+}
+
+function ViewerCameraReference({ target }: { target: MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useEffect(() => {
+    target.current = camera;
+    return () => {
+      if (target.current === camera) target.current = null;
+    };
+  }, [camera, target]);
+  return null;
 }
 
 function WebGLContextMonitor({ onLost, onRestored }: { onLost(): void; onRestored(): void }) {

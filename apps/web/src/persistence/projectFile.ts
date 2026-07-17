@@ -99,6 +99,37 @@ function detachedRecord(value: unknown): Record<string, unknown> {
   }
 }
 
+function normalizeSignedVolume(record: Record<string, unknown> | null, key: "closedVolume" | "volume"): void {
+  if (record === null) return;
+  const value = record[key];
+  if (typeof value === "number" && Number.isFinite(value) && value < 0) record[key] = Math.abs(value);
+}
+
+/**
+ * Browser OCCT builds before July 12, 2026 could serialize signed mass
+ * properties for consistently reversed STL winding. Keep strict validation
+ * for every other numeric field while migrating that known physical-magnitude
+ * representation.
+ */
+function normalizeBrowserSignedVolumes(workingValue: unknown): void {
+  if (!isRecord(workingValue)) return;
+  const diagnostics = isRecord(workingValue.diagnostics) ? workingValue.diagnostics : null;
+  const metrics = isRecord(workingValue.metrics) ? workingValue.metrics : null;
+  normalizeSignedVolume(diagnostics, "closedVolume");
+  normalizeSignedVolume(metrics, "volume");
+  if (!isRecord(workingValue.repair)) return;
+  const repair = workingValue.repair;
+  normalizeSignedVolume(isRecord(repair.diagnostics) ? repair.diagnostics : null, "closedVolume");
+  normalizeSignedVolume(isRecord(repair.sourceMetrics) ? repair.sourceMetrics : null, "closedVolume");
+  normalizeSignedVolume(isRecord(repair.resultMetrics) ? repair.resultMetrics : null, "closedVolume");
+  if (!Array.isArray(repair.operations)) return;
+  for (const operation of repair.operations) {
+    if (!isRecord(operation)) continue;
+    normalizeSignedVolume(isRecord(operation.before) ? operation.before : null, "closedVolume");
+    normalizeSignedVolume(isRecord(operation.after) ? operation.after : null, "closedVolume");
+  }
+}
+
 function requiredString(record: Record<string, unknown>, key: string): string {
   const value = record[key];
   if (typeof value !== "string" || value.length === 0) {
@@ -223,7 +254,7 @@ function validatePersistedUI(value: unknown): PersistedProjectUI {
   if (!VIEWER_MODES.has(mode) || !new Set(["perspective", "orthographic"]).has(projection)) {
     throw new ProjectFileError("invalid_ui", "ui viewer mode or projection is unsupported.");
   }
-  if (!new Set(["shaded", "wireframe"]).has(shading) || !new Set(["dark", "light"]).has(theme)) {
+  if (!new Set(["shaded", "wireframe", "xray", "normals", "zebra"]).has(shading) || !new Set(["dark", "light"]).has(theme)) {
     throw new ProjectFileError("invalid_ui", "ui shading or theme is unsupported.");
   }
   let cameraPose: PersistedProjectUI["cameraPose"] = null;
@@ -266,7 +297,7 @@ function validatePersistedUI(value: unknown): PersistedProjectUI {
       sourceOpacity: boundedNumber(viewer, "sourceOpacity", 0, 1),
       resultOpacity: boundedNumber(viewer, "resultOpacity", 0, 1),
       projection: projection as "perspective" | "orthographic",
-      shading: shading as "shaded" | "wireframe",
+      shading: shading as PersistedProjectUI["viewer"]["shading"],
       edges: requiredBoolean(viewer, "edges"),
     },
     shell: {
@@ -746,6 +777,14 @@ export function migrateProjectFileDocument(value: unknown): Record<string, unkno
   }
   if (document.fileVersion === PROJECT_FILE_VERSION) {
     document.ui ??= defaultProjectFileUI();
+    normalizeBrowserSignedVolumes(document.working);
+    if (Array.isArray(document.versions)) {
+      for (const version of document.versions) {
+        if (!isRecord(version)) continue;
+        normalizeBrowserSignedVolumes(version.state);
+        normalizeSignedVolume(isRecord(version.metrics) ? version.metrics : null, "volume");
+      }
+    }
     return document;
   }
   if (document.fileVersion === 0 || document.fileVersion === undefined) {
@@ -773,6 +812,7 @@ export function migrateProjectFileDocument(value: unknown): Record<string, unkno
     if (document.savedAt === undefined && isRecord(document.project)) {
       document.savedAt = document.project.updatedAt;
     }
+    normalizeBrowserSignedVolumes(document.working);
     return document;
   }
   throw new ProjectFileError("unsupported_version", `Unsupported project file version: ${String(document.fileVersion)}.`);

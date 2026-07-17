@@ -3,7 +3,12 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { cameraFitForBox, cameraFitForDirection, type ViewPreset } from "./cameraMath";
+import {
+  cameraFitForBox,
+  cameraFitForDirection,
+  orthographicZoomForBox,
+  type ViewPreset,
+} from "./cameraMath";
 
 export interface CameraCommand {
   fitRevision: number;
@@ -25,6 +30,7 @@ export function CameraRig({ bounds, artifactKey, command, controlsRef }: CameraR
   const contentRef = useRef<string | null>(null);
   const fitRef = useRef(-1);
   const viewRef = useRef(-1);
+  const cameraRef = useRef<THREE.Camera | null>(null);
 
   useEffect(() => {
     sizeRef.current = size;
@@ -43,21 +49,37 @@ export function CameraRig({ bounds, artifactKey, command, controlsRef }: CameraR
     const contentChanged = contentRef.current !== artifactKey;
     const explicitFit = fitRef.current !== command.fitRevision;
     const viewChanged = viewRef.current !== command.viewRevision;
-    if (!contentChanged && !explicitFit && !viewChanged) return;
+    const cameraChanged = cameraRef.current !== camera;
+    if (!contentChanged && !explicitFit && !viewChanged && !cameraChanged) return;
+    cameraRef.current = camera;
     contentRef.current = artifactKey;
     fitRef.current = command.fitRevision;
     viewRef.current = command.viewRevision;
     const currentSize = sizeRef.current;
     const fov = camera instanceof THREE.PerspectiveCamera ? camera.fov : 42;
     const aspect = currentSize.width / Math.max(currentSize.height, 1);
+    const currentTarget = controlsRef.current?.target ?? bounds.getCenter(new THREE.Vector3());
+    const currentDirection = camera.position.clone().sub(currentTarget).normalize();
+    const direction: [number, number, number] = [currentDirection.x, currentDirection.y, currentDirection.z];
     const fit = viewChanged && command.direction !== null
       ? cameraFitForDirection(bounds, fov, aspect, command.direction)
-      : cameraFitForBox(bounds, fov, aspect, viewChanged ? command.preset : "iso");
+      : contentChanged || viewChanged
+        ? cameraFitForBox(bounds, fov, aspect, viewChanged ? command.preset : "iso")
+        : cameraFitForDirection(bounds, fov, aspect, direction);
     camera.position.copy(fit.position);
     camera.up.copy(fit.up);
     camera.lookAt(fit.target);
     camera.updateMatrixWorld();
-    if (camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera) {
+    if (camera instanceof THREE.OrthographicCamera) {
+      const fitDirection = fit.position.clone().sub(fit.target).normalize();
+      camera.zoom = orthographicZoomForBox(
+        bounds,
+        currentSize.width,
+        currentSize.height,
+        [fitDirection.x, fitDirection.y, fitDirection.z],
+      );
+      camera.updateProjectionMatrix();
+    } else if (camera instanceof THREE.PerspectiveCamera) {
       camera.updateProjectionMatrix();
     }
     if (controlsRef.current !== null) {

@@ -211,6 +211,55 @@ describe("Mesh2Param project files", () => {
     expect(parsed.file.ui.shell.theme).toBe("dark");
   });
 
+  it.each(["wireframe", "xray", "normals", "zebra"] as const)(
+    "round-trips the %s display mode",
+    async (shading) => {
+      const raw = rawProjectFileFixture();
+      const ui = raw.ui as Record<string, unknown>;
+      (ui.viewer as Record<string, unknown>).shading = shading;
+
+      const parsed = await parseProjectFile(JSON.stringify(raw));
+
+      expect(parsed.file.ui.viewer.shading).toBe(shading);
+    },
+  );
+
+  it("migrates signed browser OCCT volume magnitudes in saved projects", async () => {
+    const raw = rawProjectFileFixture();
+    const state = raw.working as Record<string, unknown>;
+    state.diagnostics = {
+      format: "stl",
+      encoding: "binary-or-text",
+      byteSize: 0,
+      sha256: "0".repeat(64),
+      rawVertexCount: 3,
+      weldedVertexCount: 3,
+      duplicateVertexCount: 0,
+      triangleCount: 1,
+      connectedComponentCount: 1,
+      bounds: [[0, 0, 0], [1, 1, 1]],
+      boundingDimensions: [1, 1, 1],
+      coordinateRange: [0, 1],
+      surfaceArea: 2,
+      closedVolume: -12.5,
+      watertight: true,
+      windingConsistent: true,
+      degenerateTriangleCount: 0,
+      duplicateFaceCount: 0,
+      nonManifoldEdgeCount: 0,
+      openBoundaryEdgeCount: 0,
+      openBoundaryCount: 0,
+      selfIntersectionStatus: "not-evaluated-in-browser",
+      warnings: [],
+    };
+    state.metrics = { volume: -12.5 };
+
+    const parsed = await parseProjectFile(JSON.stringify(raw));
+
+    expect(parsed.file.working.diagnostics?.closedVolume).toBe(12.5);
+    expect(parsed.file.working.metrics?.volume).toBe(12.5);
+  });
+
   it.each([
     ["diagnostics strings", (state: Record<string, unknown>) => { state.diagnostics = "truthy"; }],
     ["empty repair objects", (state: Record<string, unknown>) => { state.repair = {}; }],
@@ -362,5 +411,30 @@ describe("Mesh2Param project files", () => {
     expect(stored?.byteSize).toBe(bytes.byteLength);
     expect(stored?.blob).toBeDefined();
     expect(storedUi?.state).toEqual(file.ui);
+  });
+
+  it("drops unavailable artifact descriptors from the active imported workspace", async () => {
+    const file = projectFileFixture();
+    file.working.artifactSetId = "artifact-set-1";
+    file.working.artifacts = [{
+      id: "artifact-1",
+      name: "reconstructed.glb",
+      kind: "reconstructed",
+      sha256: "1".repeat(64),
+      byteSize: 128,
+      mediaType: "model/gltf-binary",
+    }];
+    file.artifactManifest = structuredClone(file.working.artifacts);
+    const db = new Mesh2ParamWorkspaceDB(`mesh2param-test-${crypto.randomUUID()}`);
+    databases.push(db);
+    const repository = new WorkspaceRepository(db);
+
+    const imported = await repository.importProjectFile(serializeProjectFile(file));
+    const stored = await db.documents.get(file.project.id);
+
+    expect(imported.file.artifactManifest).toHaveLength(1);
+    expect(imported.file.working.artifacts).toEqual([]);
+    expect(imported.file.working.artifactSetId).toBeNull();
+    expect(stored?.document.artifacts).toEqual([]);
   });
 });
