@@ -101,5 +101,7 @@ def test_curved_reconstruct_fails_closed_on_unsupported_topology(tmp_path: Path)
     payload = _payload(source, {"mode": "curved"})
     with pytest.raises(JobFailure) as excinfo:
         run_handler("reconstruct", payload, tmp_path / "job", _progress)
-    assert excinfo.value.code == "curved_patch_unsupported_topology"
+    # The slab's two freeform regions (top and bottom) share no boundary, so
+    # the multi-region crease path rejects it with a precise code.
+    assert excinfo.value.code == "curved_patch_regions_detached"
     assert "faceted" in (excinfo.value.recommended_action or "")

@@ -86,8 +86,10 @@ class CurvedConversionResult:
                 "The curved result is a tolerance-controlled approximation inferred "
                 "from the tessellated source, not the recovered original CAD "
                 "surfaces or design history.",
-                "Only single freeform-topped plate topology (with optional "
-                "recognized through holes) is reconstructed automatically.",
+                "Only freeform-topped plate topology is reconstructed "
+                "automatically: one region, an artificial two-patch split, or "
+                "two regions meeting at one sharp crease; recognized through "
+                "holes are supported on single-region plates only.",
             ],
         }
 

@@ -482,11 +482,41 @@ normal mismatch 0.43 degrees maximum against a 1 degree gate, source deviation
 0.103 mm, volume within 0.05 % of exact, and byte-identical artifacts and
 normalized STEP across repeat runs. Covered by `tests/test_curved_network.py`.
 
-Still open for a follow-up before Milestone 3: multi-region crease networks
-(shared crease curves between separately segmented freeform regions) and
-extraordinary chart vertices. The CADGraph `reconstructedSurfaceNetwork` base
-feature is now implemented (see "CADGraph integration" below); holes arrived
-with Milestone 3.
+Multi-region crease networks are now implemented (see "Multi-region crease
+networks" below); extraordinary chart vertices remain open. The CADGraph
+`reconstructedSurfaceNetwork` base feature is now implemented (see "CADGraph
+integration" below); holes arrived with Milestone 3.
+
+#### Multi-region crease networks (implemented)
+
+Two separately segmented freeform regions meeting at one real crease now
+reconstruct as a shared-topology network without any artificial cut. The
+regions must each be one disk (no interior holes yet), be adjacent, and share
+exactly two boundary corners -- the crease endpoints; every non-crease
+boundary chain must be straight, giving the plate rectangle plus two crease
+endpoints that may sit above it (their walls become planar pentagons, which
+the generalized wall assembly derives from the network's own shared-curve
+endpoints by proximity instead of vertex naming). Both regions are
+parameterized on their own charts and fitted in one joint solve with the
+crease pole row aliased into single unknowns -- G0 is exactly zero by
+construction -- and deliberately **no** C1 coupling: the shared curve is
+declared `crease` and a new evidence gate (`curved_patch_crease_lost`,
+default 5 degrees) fails closed if the fitted dihedral collapses into a
+smooth blend anywhere along the curve (`minimumNormalAngleDeg` joins the
+shared-edge evidence). `forceSplit` fails closed on multi-region plates
+(`curved_patch_force_split_unsupported`), as do detached regions, shared
+corners other than exactly two, and regions with holes.
+
+Measured on the new `bspline-gable-plate` fixture (690 source triangles; two
+exact bicubic roofs meeting at an elevated, bowed ridge): a 7-face solid
+(5 planes plus 2 B-spline patches on one common crease edge), maximum fit
+residual 0.063 mm, G0 gap exactly 0.0, crease dihedral 16.4-28.5 degrees
+(sharp everywhere, well above the 5 degree gate), source deviation 0.068 mm,
+volume within 0.05 % of exact, byte-identical artifacts and normalized STEP
+across repeat runs and through the artifact rebuild, and a cache hit that
+re-runs every downstream gate. The full curved job produces the same network
+through services with 2 B-spline faces in the compile-proven CADGraph.
+Covered by `tests/test_curved_multiregion.py`.
 
 #### CADGraph integration (implemented)
 
@@ -538,8 +568,8 @@ geometry), unknown patch ids fail closed recommending re-analysis, and a
 locked freeform patch refuses chart splitting
 (`curved_patch_locked_split`). Boundary crease-versus-smooth classification
 remains geometry-driven (creases from segmentation, smooth only across
-artificial cuts); a user override for it needs multi-region crease networks
-first.
+artificial cuts); multi-region crease networks now exist, so a user override
+for it is unblocked but still a follow-up.
 
 ### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 
