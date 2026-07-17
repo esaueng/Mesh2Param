@@ -350,23 +350,23 @@ def _plate_openings(
     freeform: SurfacePatch,
     hole_loops: list[np.ndarray],
     mesh_vertices: np.ndarray,
-) -> tuple[PlateHole | PlateCap | PlateCone, ...]:
+) -> tuple[PlateHole | PlateCap | PlateCone | PlateTorus, ...]:
     """Match each interior boundary loop to one recognized analytic patch.
 
     A loop bordered by a recognized cylinder is a through hole (boolean
     subtraction); a loop bordered by a recognized sphere is a proud analytic
-    cap (boolean fusion); a loop bordered by a recognized cone is a proud
-    conical boss (boolean fusion). Anything else fails closed. Entries come
-    back in loop order so callers can pair them with the loops themselves.
+    cap, while loops bordered by a recognized cone or torus are proud analytic
+    features (boolean fusion). Anything else fails closed. Entries come back
+    in loop order so callers can pair them with the loops themselves.
     """
 
-    openings: list[PlateHole | PlateCap | PlateCone] = []
+    openings: list[PlateHole | PlateCap | PlateCone | PlateTorus] = []
     for index, loop in enumerate(hole_loops):
         loop_vertices = set(int(vertex) for vertex in loop)
         matches = [
             patch
             for patch in patches
-            if patch.kind in ("cylinder", "sphere", "cone")
+            if patch.kind in ("cylinder", "sphere", "cone", "torus")
             and loop_vertices & set(patch.vertex_ids)
         ]
         analytic = matches[0] if len(matches) == 1 else None
@@ -376,7 +376,7 @@ def _plate_openings(
                 "curved_patch_hole_unrecognized",
                 (
                     f"interior loop {index} does not border exactly one recognized "
-                    f"cylinder, sphere, or cone (found {len(matches)})"
+                    f"cylinder, sphere, cone, or torus (found {len(matches)})"
                 ),
             )
         if analytic.kind == "cylinder" and analytic.cylinder_radius_mm is not None:
@@ -427,6 +427,23 @@ def _plate_openings(
                     axis=axis,
                     half_angle_deg=float(analytic.cone_half_angle_deg),
                     visible_height=visible_height,
+                    residual_p95=analytic.residuals_mm.p95,
+                    patch_id=analytic.id,
+                )
+            )
+        elif (
+            analytic.kind == "torus"
+            and analytic.torus_center is not None
+            and analytic.torus_axis is not None
+            and analytic.torus_major_radius_mm is not None
+            and analytic.torus_minor_radius_mm is not None
+        ):
+            openings.append(
+                PlateTorus(
+                    major_radius=float(analytic.torus_major_radius_mm),
+                    minor_radius=float(analytic.torus_minor_radius_mm),
+                    center=np.asarray(analytic.torus_center, dtype=np.float64),
+                    axis=np.asarray(analytic.torus_axis, dtype=np.float64),
                     residual_p95=analytic.residuals_mm.p95,
                     patch_id=analytic.id,
                 )
@@ -518,11 +535,11 @@ def reconstruct_single_patch_plate(
     settings.validate()
 
     context = _plate_context(mesh, settings)
-    if context.holes or context.caps or context.cones:
+    if context.holes or context.caps or context.cones or context.tori:
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_holes_unsupported",
-            "single-patch reconstruction does not support holes or analytic bosses; "
+            "single-patch reconstruction does not support holes or analytic features; "
             "use reconstruct_plate_network",
         )
     chart = context.chart
@@ -657,6 +674,8 @@ class CurvedNetworkResult:
     cap_fusers: tuple[CapFuser, ...] = ()
     cones: tuple[PlateCone, ...] = ()
     cone_fusers: tuple[ConeFuser, ...] = ()
+    tori: tuple[PlateTorus, ...] = ()
+    torus_fusers: tuple[TorusFuser, ...] = ()
     candidates: tuple[dict[str, Any], ...] = ()
     cache_status: str = "uncached"
     sewing_tolerance_mm: float = 1e-3
@@ -678,6 +697,7 @@ class CurvedNetworkResult:
             "holes": [hole.to_dict() for hole in self.holes],
             "caps": [cap.to_dict() for cap in self.caps],
             "cones": [cone.to_dict() for cone in self.cones],
+            "tori": [torus.to_dict() for torus in self.tori],
             "candidates": [dict(candidate) for candidate in self.candidates],
             "cacheStatus": self.cache_status,
             "limitations": [
@@ -723,6 +743,29 @@ class PlateCap:
             "kind": "sphere",
             "radiusMm": self.radius,
             "center": [float(value) for value in self.center],
+            "residualP95Mm": self.residual_p95,
+            "patchId": self.patch_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PlateTorus:
+    """A recognized analytic torus bead standing proud of the plate top."""
+
+    major_radius: float
+    minor_radius: float
+    center: np.ndarray = field(repr=False)
+    axis: np.ndarray = field(repr=False)
+    residual_p95: float
+    patch_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "torus",
+            "majorRadiusMm": self.major_radius,
+            "minorRadiusMm": self.minor_radius,
+            "center": [float(value) for value in self.center],
+            "axis": [float(value) for value in self.axis],
             "residualP95Mm": self.residual_p95,
             "patchId": self.patch_id,
         }
@@ -827,6 +870,55 @@ class ConeFuser:
 
 
 @dataclass(frozen=True, slots=True)
+class TorusFuser:
+    """Exact vertical torus fuser recorded verbatim for deterministic replay.
+
+    A torus has both major- and minor-parameter seams and no poles. The
+    empirically stable placement is CadQuery's canonical positive vertical
+    axis; reversing it can fragment an otherwise identical boolean result.
+    """
+
+    major_radius: float
+    minor_radius: float
+    center: tuple[float, float, float]
+    axis: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "majorRadiusMm": self.major_radius,
+            "minorRadiusMm": self.minor_radius,
+            "center": list(self.center),
+            "axis": list(self.axis),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> TorusFuser:
+        return cls(
+            major_radius=float(payload["majorRadiusMm"]),
+            minor_radius=float(payload["minorRadiusMm"]),
+            center=(
+                float(payload["center"][0]),
+                float(payload["center"][1]),
+                float(payload["center"][2]),
+            ),
+            axis=(
+                float(payload["axis"][0]),
+                float(payload["axis"][1]),
+                float(payload["axis"][2]),
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _SupplementalRegion:
+    """Observed plate island fitted into the primary rectangular chart."""
+
+    vertices: np.ndarray = field(repr=False)
+    faces: np.ndarray = field(repr=False)
+    uv: np.ndarray = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class _PlateContext:
     chart_vertices: np.ndarray
     chart_faces: np.ndarray
@@ -840,12 +932,14 @@ class _PlateContext:
     holes: tuple[PlateHole, ...] = ()
     caps: tuple[PlateCap, ...] = ()
     cones: tuple[PlateCone, ...] = ()
+    tori: tuple[PlateTorus, ...] = ()
     hole_loops: tuple[np.ndarray, ...] = ()
     # Per interior loop: the recognized cap standing over it, or None for a
     # through hole. Cap loops get dense synthetic fill on the ball surface
     # lowered by a clearance, so the fitted patch tracks a smooth dome
     # strictly inside the ball and the fuse intersects cleanly at the rim.
     fill_analytics: tuple[PlateCap | PlateCone | None, ...] = ()
+    supplemental_regions: tuple[_SupplementalRegion, ...] = ()
     freeform_locked: bool = False
 
 
@@ -974,13 +1068,18 @@ def _plate_context(
     settings: CurvedPatchSettings,
     patch_overrides: dict[str, dict[str, Any]] | None = None,
     segmentation: SegmentationResult | None = None,
+    primary_freeform: SurfacePatch | None = None,
+    additional_freeforms: tuple[SurfacePatch, ...] = (),
+    fill_holes_for_parameterization: bool = False,
 ) -> _PlateContext:
     """Segment, extract, parameterize, and bound the plate's freeform chart."""
 
     if segmentation is None:
         segmentation, _ = _segment_with_overrides(mesh, settings, patch_overrides)
-    freeform = _freeform_patch(segmentation.patches)
-    bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
+    freeform = primary_freeform or _freeform_patch(segmentation.patches)
+    bottom_origin, bottom_normal = _bottom_plane(
+        segmentation.patches, freeform, *additional_freeforms
+    )
 
     triangle_ids = np.asarray(freeform.triangle_ids, dtype=np.int64)
     chart_faces_global = np.asarray(mesh.faces, dtype=np.int64)[triangle_ids]
@@ -1014,12 +1113,31 @@ def _plate_context(
         )
 
     try:
-        chart = harmonic_square_parameterization(
-            chart_vertices,
-            chart_faces,
-            chart_loop,
-            minimum_turn_deg=settings.corner_turn_threshold_deg,
-        )
+        if fill_holes_for_parameterization and hole_loops_local:
+            detected = detect_rectangle_corners(
+                chart_vertices,
+                chart_loop,
+                minimum_turn_deg=settings.corner_turn_threshold_deg,
+            )
+            corner_ids = (
+                int(chart_loop[detected[0]]),
+                int(chart_loop[detected[1]]),
+                int(chart_loop[detected[2]]),
+                int(chart_loop[detected[3]]),
+            )
+            filled_half = reindexed_chart_region(chart_vertices, chart_faces, corner_ids)
+            chart = _parameterize_half(filled_half)
+            chart_vertices = filled_half.vertices
+            chart_faces = filled_half.faces
+            chart_loop = filled_half.boundary_loop
+            hole_loops_local = filled_half.hole_loops
+        else:
+            chart = harmonic_square_parameterization(
+                chart_vertices,
+                chart_faces,
+                chart_loop,
+                minimum_turn_deg=settings.corner_turn_threshold_deg,
+            )
     except ChartParameterizationError as exc:
         raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
 
@@ -1088,6 +1206,25 @@ def _plate_context(
                 f"hole {index} axis is not perpendicular to the plate",
             )
 
+    for index, torus in enumerate(o for o in openings if isinstance(o, PlateTorus)):
+        axis = torus.axis / max(float(np.linalg.norm(torus.axis)), 1e-300)
+        if abs(float(axis @ rectangle_normal)) < np.cos(
+            np.radians(settings.plane_parallel_tolerance_deg)
+        ):
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_torus_not_normal",
+                f"torus {index} axis is not perpendicular to the plate",
+            )
+        if float(axis @ np.asarray((0.0, 0.0, 1.0))) < np.cos(
+            np.radians(settings.plane_parallel_tolerance_deg)
+        ):
+            raise CurvedPatchError(
+                "segmenting mesh",
+                "curved_patch_torus_not_vertical",
+                f"torus {index} axis is not the supported positive vertical axis",
+            )
+
     counts = dict(segmentation.counts_by_type)
     return _PlateContext(
         chart_vertices=chart_vertices,
@@ -1102,6 +1239,7 @@ def _plate_context(
         holes=tuple(o for o in openings if isinstance(o, PlateHole)),
         caps=tuple(o for o in openings if isinstance(o, PlateCap)),
         cones=tuple(o for o in openings if isinstance(o, PlateCone)),
+        tori=tuple(o for o in openings if isinstance(o, PlateTorus)),
         hole_loops=hole_loops_local,
         fill_analytics=tuple(
             opening if isinstance(opening, (PlateCap, PlateCone)) else None for opening in openings
@@ -1323,6 +1461,23 @@ def _cone_fusers(cones: tuple[PlateCone, ...]) -> tuple[ConeFuser, ...]:
     )
 
 
+def _torus_fusers(tori: tuple[PlateTorus, ...]) -> tuple[TorusFuser, ...]:
+    """Record the canonical seam orientation for each recognized torus."""
+
+    return tuple(
+        TorusFuser(
+            major_radius=float(torus.major_radius),
+            minor_radius=float(torus.minor_radius),
+            center=(
+                float(torus.center[0]),
+                float(torus.center[1]),
+                float(torus.center[2]),
+            ),
+        )
+        for torus in tori
+    )
+
+
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
     """Boolean-subtract each recorded hole cutter from the plate solid.
 
@@ -1435,6 +1590,34 @@ def _fuse_cones(
     return result
 
 
+def _fuse_tori(solid: cq.Shape, fusers: tuple[TorusFuser, ...]) -> cq.Shape:
+    """Fuse recorded torus beads without cleaning or seam reorientation."""
+
+    result = solid
+    for index, fuser in enumerate(fusers):
+        torus = cq.Solid.makeTorus(
+            fuser.major_radius,
+            fuser.minor_radius,
+            cq.Vector(*fuser.center),
+            cq.Vector(*fuser.axis),
+        )
+        try:
+            result = result.fuse(torus)
+        except Exception as exc:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_torus_boolean_failed",
+                f"fusing torus {index} failed: {exc}",
+            ) from exc
+        if len(result.Solids()) != 1:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_torus_boolean_failed",
+                f"fusing torus {index} did not produce exactly one solid",
+            )
+    return result
+
+
 def _plate_solid_from_network(
     network: SurfaceNetwork,
     corners: np.ndarray,
@@ -1443,6 +1626,7 @@ def _plate_solid_from_network(
     sewing_tolerance: float,
     cap_fusers: tuple[CapFuser, ...] = (),
     cone_fusers: tuple[ConeFuser, ...] = (),
+    torus_fusers: tuple[TorusFuser, ...] = (),
 ) -> cq.Shape:
     """The single assembly path shared by the driver, cache, and compiler.
 
@@ -1487,6 +1671,7 @@ def _plate_solid_from_network(
     solid = _network_plate_solid(network, wall_chains, corners, prism_vector, sewing_tolerance)
     fused = _fuse_caps(solid, cap_fusers, sewing_tolerance)
     fused = _fuse_cones(fused, cone_fusers, sewing_tolerance)
+    fused = _fuse_tori(fused, torus_fusers)
     return _subtract_holes(fused, cutters)
 
 
@@ -1584,6 +1769,7 @@ def _network_gates(
     expected_cylinders: int = 0,
     expected_spheres: int = 0,
     expected_cones: int = 0,
+    expected_tori: int = 0,
     expected_face_count: int | None = None,
 ) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
     shape_validation = validate_shape(solid)
@@ -1634,6 +1820,15 @@ def _network_gates(
             (
                 f"expected {expected_face_count} total faces after cone fusion, "
                 f"found {len(solid.Faces())}"
+            ),
+        )
+    if face_surfaces["torus"] != expected_tori:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_torus_faces_mismatch",
+            (
+                f"expected {expected_tori} torus faces from recognized beads, "
+                f"found {face_surfaces['torus']}"
             ),
         )
     evidence = shared_edge_evidence(network, sample_count=network_settings.evidence_sample_count)
@@ -1805,6 +2000,143 @@ def _parameterize_half(half: ChartHalf) -> ChartParameterization:
     )
 
 
+def _project_plate_region_uv(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    corners: np.ndarray,
+) -> np.ndarray:
+    """Project a near-planar observed island into the primary chart frame.
+
+    Torus fusion hides an annulus of the plate but leaves a disconnected
+    inner island.  The plate-specific topology guarantees a height field over
+    the fitted rectangle, so its in-plane coordinates provide the common UV
+    frame without inventing correspondence across the hidden annulus.
+    """
+
+    basis = np.column_stack((corners[1] - corners[0], corners[3] - corners[0]))
+    if np.linalg.matrix_rank(basis) != 2:
+        raise CurvedPatchError(
+            "parameterizing chart",
+            "curved_patch_torus_uv_degenerate",
+            "the plate rectangle does not define a two-dimensional UV frame",
+        )
+    uv = np.linalg.lstsq(basis, (vertices - corners[0]).T, rcond=None)[0].T
+    if not np.all(np.isfinite(uv)) or np.any(uv < -1e-9) or np.any(uv > 1.0 + 1e-9):
+        raise CurvedPatchError(
+            "parameterizing chart",
+            "curved_patch_torus_uv_outside",
+            "the inner torus island projects outside the plate chart",
+        )
+    edge_a = uv[faces[:, 1]] - uv[faces[:, 0]]
+    edge_b = uv[faces[:, 2]] - uv[faces[:, 0]]
+    signed = edge_a[:, 0] * edge_b[:, 1] - edge_a[:, 1] * edge_b[:, 0]
+    scale = max(float(np.max(np.abs(signed))), 1e-300)
+    if np.any(np.abs(signed) <= scale * 1e-12) or not (
+        np.all(signed > 0.0) or np.all(signed < 0.0)
+    ):
+        raise CurvedPatchError(
+            "parameterizing chart",
+            "curved_patch_torus_uv_folded",
+            "the inner torus island has folded or degenerate projected UV triangles",
+        )
+    return np.asarray(uv)
+
+
+def _torus_plate_context(
+    mesh: trimesh.Trimesh,
+    segmentation: SegmentationResult,
+    settings: CurvedPatchSettings,
+) -> _PlateContext | None:
+    """Build one fitted chart from two regions separated by a torus bead."""
+
+    regions = sorted(
+        (patch for patch in segmentation.patches if patch.kind in ("freeform", "unknown")),
+        key=lambda patch: patch.id,
+    )
+    if len(regions) != 2:
+        return None
+    bridging = [
+        patch
+        for patch in segmentation.patches
+        if patch.kind == "torus" and all(patch.id in region.neighbor_ids for region in regions)
+    ]
+    if not bridging:
+        return None
+    if len(bridging) != 1:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            f"expected one torus between the two freeform regions, found {len(bridging)}",
+        )
+    torus_patch = bridging[0]
+    if regions[1].id in regions[0].neighbor_ids:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            "torus-separated plate regions must not also share a direct boundary",
+        )
+    plane_ids = {patch.id for patch in segmentation.patches if patch.kind == "plane"}
+    outer_candidates = [region for region in regions if plane_ids & set(region.neighbor_ids)]
+    if len(outer_candidates) != 1:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            "exactly one torus-separated region must carry the plate's outer walls",
+        )
+    outer = outer_candidates[0]
+    inner = regions[1] if outer is regions[0] else regions[0]
+    if len(outer.boundary_loops) != 2 or len(inner.boundary_loops) != 1:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            "a torus bead requires an outer annulus region and one inner disk region",
+        )
+    if not all(loop.closed for loop in (*outer.boundary_loops, *inner.boundary_loops)):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_not_disk",
+            "all torus-separated freeform boundary loops must be closed",
+        )
+    torus_vertices = set(torus_patch.vertex_ids)
+    inner_loop = inner.boundary_loops[0]
+    if not set(inner_loop.vertex_ids).issubset(torus_vertices):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            "the inner freeform disk does not share its entire rim with the torus",
+        )
+
+    context = _plate_context(
+        mesh,
+        settings,
+        segmentation=segmentation,
+        primary_freeform=outer,
+        additional_freeforms=(inner,),
+        fill_holes_for_parameterization=True,
+    )
+    if len(context.tori) != 1 or context.tori[0].patch_id != torus_patch.id:
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_torus_topology_unsupported",
+            "the outer plate loop did not resolve to the separating torus",
+        )
+
+    mesh_faces = np.asarray(mesh.faces, dtype=np.int64)
+    mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
+    inner_faces_global = mesh_faces[np.asarray(inner.triangle_ids, dtype=np.int64)]
+    inner_used = np.unique(inner_faces_global)
+    inner_local = np.full(len(mesh_vertices), -1, dtype=np.int64)
+    inner_local[inner_used] = np.arange(len(inner_used))
+    inner_vertices = mesh_vertices[inner_used]
+    inner_faces = inner_local[inner_faces_global]
+    inner_uv = _project_plate_region_uv(inner_vertices, inner_faces, context.corners)
+    return replace(
+        context,
+        supplemental_regions=(_SupplementalRegion(inner_vertices, inner_faces, inner_uv),),
+        freeform_locked=context.freeform_locked or inner.locked,
+    )
+
+
 def _crease_context(
     mesh: trimesh.Trimesh,
     segmentation: SegmentationResult,
@@ -1857,7 +2189,7 @@ def _crease_context(
                 interior_loops.append(loop)
                 interior_regions.append(region)
     loop_a, loop_b = outer_loops
-    openings: list[PlateHole | PlateCap | PlateCone] = []
+    openings: list[PlateHole | PlateCap | PlateCone | PlateTorus] = []
     for region, loop in zip(interior_regions, interior_loops, strict=True):
         openings.extend(_plate_openings(segmentation.patches, region, [loop], mesh_vertices))
     if any(isinstance(opening, PlateCone) for opening in openings):
@@ -1871,6 +2203,12 @@ def _crease_context(
             "segmenting mesh",
             "curved_patch_multiregion_caps",
             "analytic caps on multi-region plates are not supported yet",
+        )
+    if any(isinstance(opening, PlateTorus) for opening in openings):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_multiregion_tori",
+            "torus beads spanning a crease network are not supported",
         )
     holes = tuple(opening for opening in openings if isinstance(opening, PlateHole))
     positions_a, ids_a = _region_corner_cycle(mesh_vertices, loop_a, settings)
@@ -2387,8 +2725,10 @@ def reconstruct_plate_network(
     fits both halves jointly with a C1 coupling across the artificial smooth
     boundary. Two adjacent freeform regions: fits both jointly with the real
     crease boundary aliased and declared ``crease`` (sharp, no coupling).
-    Either way everything assembles on common OCCT edges with exact iso
-    pcurves.
+    Two regions separated by one recognized torus are fitted into one
+    rectangular chart across the hidden annulus, then fused with the recorded
+    analytic torus. Either way everything assembles on common OCCT edges with
+    exact iso pcurves.
     """
 
     settings = settings or CurvedPatchSettings()
@@ -2408,7 +2748,10 @@ def reconstruct_plate_network(
             "curved_patch_cone_multiregion_unsupported",
             "conical bosses are supported only on a single freeform plate region",
         )
-    if freeform_count == 2:
+    torus_context = (
+        _torus_plate_context(mesh, segmentation, settings) if freeform_count == 2 else None
+    )
+    if freeform_count == 2 and torus_context is None:
         return _reconstruct_crease_network(
             mesh,
             segmentation,
@@ -2419,7 +2762,7 @@ def reconstruct_plate_network(
             source_sha256=source_sha256,
             smooth_pairs=smooth_pairs,
         )
-    context = _plate_context(mesh, settings, segmentation=segmentation)
+    context = torus_context or _plate_context(mesh, settings, segmentation=segmentation)
     guard.stage("parameterizing chart", 20.0)
     corners = context.corners
     degree = settings.fit.degree
@@ -2465,6 +2808,14 @@ def reconstruct_plate_network(
     sample_uv = sample_uv[valid]
     sample_points = sample_points[valid]
     sample_weights = sample_weights[valid]
+    for supplemental in context.supplemental_regions:
+        extra_uv, extra_points, extra_weights = chart_lattice_samples(
+            supplemental.vertices, supplemental.faces, supplemental.uv
+        )
+        extra_valid = extra_weights > 0.0
+        sample_uv = np.concatenate([sample_uv, extra_uv[extra_valid]])
+        sample_points = np.concatenate([sample_points, extra_points[extra_valid]])
+        sample_weights = np.concatenate([sample_weights, extra_weights[extra_valid]])
     real_sample_count = len(sample_uv)
     if context.hole_loops:
         fill_weight = 0.05 * float(np.median(sample_weights))
@@ -2489,9 +2840,10 @@ def reconstruct_plate_network(
         gate_count=real_sample_count,
         checkpoint=guard.checkpoint,
     )
+    layout = "torus-single-patch" if context.tori else "single-patch"
     candidates.append(
         {
-            "layout": "single-patch",
+            "layout": layout,
             "converged": fitted.converged,
             "residualMaximum": fitted.maximum_distance,
             "residualRms": fitted.rms_distance,
@@ -2515,6 +2867,7 @@ def reconstruct_plate_network(
         cutters = _hole_cutters(context.holes, mesh)
         fusers = _cap_fusers(context.caps)
         cone_fusers = _cone_fusers(context.cones)
+        torus_fusers = _torus_fusers(context.tori)
         solid = _plate_solid_from_network(
             network,
             corners,
@@ -2523,6 +2876,7 @@ def reconstruct_plate_network(
             settings.sewing_tolerance_mm,
             cap_fusers=fusers,
             cone_fusers=cone_fusers,
+            torus_fusers=torus_fusers,
         )
         guard.stage("validating solid", 90.0)
         face_surfaces, comparison, evidence = _network_gates(
@@ -2534,12 +2888,14 @@ def reconstruct_plate_network(
             expected_cylinders=len(context.holes),
             expected_spheres=len(context.caps),
             expected_cones=len(context.cones),
+            expected_tori=len(context.tori),
             expected_face_count=(
                 5
                 + len(network.patches)
                 + len(context.holes)
                 + len(context.caps)
                 + len(context.cones)
+                + len(context.tori)
                 if context.cones
                 else None
             ),
@@ -2548,7 +2904,7 @@ def reconstruct_plate_network(
             fit_cache.store(
                 cache_key,
                 _fit_cache_payload(
-                    "single-patch",
+                    layout,
                     network,
                     fitted.iterations,
                     candidates,
@@ -2580,16 +2936,18 @@ def reconstruct_plate_network(
             cap_fusers=fusers,
             cones=context.cones,
             cone_fusers=cone_fusers,
+            tori=context.tori,
+            torus_fusers=torus_fusers,
             candidates=tuple(candidates),
             cache_status="stored" if fit_cache is not None else "uncached",
             sewing_tolerance_mm=settings.sewing_tolerance_mm,
         )
 
-    if context.holes or context.caps or context.cones:
+    if context.holes or context.caps or context.cones or context.tori:
         raise CurvedPatchError(
             "cutting chart",
             "curved_patch_holes_unsupported_split",
-            "chart cutting across regions with holes or analytic bosses is not supported yet; "
+            "chart cutting across regions with holes or analytic features is not supported yet; "
             "the single-patch layout did not meet tolerance",
         )
 
@@ -2877,6 +3235,11 @@ def plate_artifact_payload(result: CurvedNetworkResult, *, units: str = "mm") ->
                 if result.cone_fusers
                 else {}
             ),
+            **(
+                {"tori": [fuser.to_dict() for fuser in result.torus_fusers]}
+                if result.torus_fusers
+                else {}
+            ),
         },
     }
 
@@ -2911,6 +3274,7 @@ def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
     cutters = tuple(HoleCutter.from_dict(entry) for entry in assembly["holes"])
     fusers = tuple(CapFuser.from_dict(entry) for entry in assembly.get("caps", []))
     cone_fusers = tuple(ConeFuser.from_dict(entry) for entry in assembly.get("cones", []))
+    torus_fusers = tuple(TorusFuser.from_dict(entry) for entry in assembly.get("tori", []))
     return _plate_solid_from_network(
         network,
         corners,
@@ -2919,6 +3283,7 @@ def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
         float(assembly["sewingToleranceMm"]),
         cap_fusers=fusers,
         cone_fusers=cone_fusers,
+        torus_fusers=torus_fusers,
     )
 
 
@@ -2961,6 +3326,7 @@ def _assemble_cached_network(
     cutters = _hole_cutters(context.holes, mesh)
     fusers = _cap_fusers(context.caps)
     cone_fusers = _cone_fusers(context.cones)
+    torus_fusers = _torus_fusers(context.tori)
     solid = _plate_solid_from_network(
         network,
         corners,
@@ -2969,6 +3335,7 @@ def _assemble_cached_network(
         settings.sewing_tolerance_mm,
         cap_fusers=fusers,
         cone_fusers=cone_fusers,
+        torus_fusers=torus_fusers,
     )
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
@@ -2980,8 +3347,14 @@ def _assemble_cached_network(
         expected_cylinders=len(context.holes),
         expected_spheres=len(context.caps),
         expected_cones=len(context.cones),
+        expected_tori=len(context.tori),
         expected_face_count=(
-            5 + len(network.patches) + len(context.holes) + len(context.caps) + len(context.cones)
+            5
+            + len(network.patches)
+            + len(context.holes)
+            + len(context.caps)
+            + len(context.cones)
+            + len(context.tori)
             if context.cones
             else None
         ),
@@ -3020,6 +3393,8 @@ def _assemble_cached_network(
         cap_fusers=fusers,
         cones=context.cones,
         cone_fusers=cone_fusers,
+        tori=context.tori,
+        torus_fusers=torus_fusers,
         candidates=tuple(dict(candidate) for candidate in payload["candidates"]),
         cache_status="hit",
         sewing_tolerance_mm=settings.sewing_tolerance_mm,
@@ -3039,8 +3414,10 @@ __all__ = [
     "PlateCap",
     "PlateCone",
     "PlateHole",
+    "PlateTorus",
     "ProgressCallback",
     "ReconstructionBudget",
+    "TorusFuser",
     "assemble_single_patch_plate",
     "chart_lattice_samples",
     "plate_artifact_bytes",

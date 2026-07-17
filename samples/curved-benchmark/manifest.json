@@ -210,6 +210,58 @@
     },
     {
       "category": "positive",
+      "description": "A near-planar freeform plate fused with an exact circular torus bead, leaving outer and inner freeform regions separated by the recognized analytic ring.",
+      "directory": "bspline-torus-bead-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 20962.07264937365,
+        "boundingBox": [
+          -0.05993126092372894,
+          -0.05993126092372894,
+          -25.000000100000005,
+          80.05993126092373,
+          80.05993126092373,
+          2.660223614887214
+        ],
+        "edgeCount": 15,
+        "faceCount": 8,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 1
+        },
+        "volume": 162131.35160458478
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-torus-bead-plate",
+      "stl": {
+        "byteSize": 675884,
+        "path": "source.stl",
+        "sha256": "4f2987e360339dbe1a72c7969e3c48533c0c29a30623910d61b5857e34fd6d02",
+        "triangleCount": 13516,
+        "vertexCount": 6760
+      },
+      "tessellation": {
+        "angularTolerance": 0.12,
+        "linearTolerance": 0.0015
+      },
+      "title": "B-spline plate with a raised torus bead",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "A plate whose top is two exact B-spline roof patches meeting at an elevated, bowed sharp ridge crease: the multi-region crease network reconstruction target (two freeform regions sharing one crease curve, pentagon end walls).",
       "directory": "bspline-gable-plate",
       "expectation": "closed-manifold",
