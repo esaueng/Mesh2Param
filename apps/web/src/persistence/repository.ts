@@ -281,22 +281,31 @@ export class WorkspaceRepository {
 
   async importParsedProjectFile(parsed: ParsedProjectFile): Promise<ParsedProjectFile> {
     const now = new Date().toISOString();
-    // Project files carry an artifact manifest, not the artifact bytes. Do not
-    // hydrate stale descriptors into the active viewer; the browser client can
-    // deterministically regenerate a preview from the embedded source/CADGraph.
+    // Artifact manifests record immutable service/CAS outputs, but they do not
+    // contain the artifact bytes.  A project file can therefore outlive the
+    // server project that produced its GLBs.  Do not hydrate those descriptors
+    // into the active workspace: doing so mounts a viewer that can only fetch
+    // stale URLs and leaves an apparently empty (black) canvas.
     const working = structuredClone(parsed.file.working);
     working.artifacts = [];
     working.artifactSetId = null;
+    const imported: ParsedProjectFile = {
+      ...parsed,
+      file: {
+        ...parsed.file,
+        working,
+      },
+    };
     const contentHash = await contentSha256(working);
     const project: ProjectRecord = {
-      ...parsed.file.project,
+      ...imported.file.project,
       lastOpenedAt: now,
       activeVersionId: working.currentVersionId,
       syncState: "clean",
     };
-    const document: DocumentRecord = {
-      projectId: project.id,
-      document: working,
+      const document: DocumentRecord = {
+        projectId: project.id,
+        document: structuredClone(working),
       updatedAt: now,
       baseVersionId: project.basedOnVersionId,
       localRevision: 0,
@@ -304,7 +313,7 @@ export class WorkspaceRepository {
       lastAckedLocalRevision: 0,
       contentHash,
     };
-    const versions: VersionRecord[] = parsed.file.versions.map((snapshot) => ({
+    const versions: VersionRecord[] = imported.file.versions.map((snapshot) => ({
       projectId: snapshot.projectId,
       versionId: snapshot.id,
       parentVersionId: snapshot.parentId,
@@ -314,8 +323,8 @@ export class WorkspaceRepository {
     const ui: UIRecord = {
       projectId: project.id,
       updatedAt: now,
-      state: structuredClone(parsed.file.ui),
-      cameraPose: parsed.file.ui.cameraPose,
+      state: structuredClone(imported.file.ui),
+      cameraPose: imported.file.ui.cameraPose,
     };
     await this.db.transaction(
       "rw",
@@ -334,9 +343,9 @@ export class WorkspaceRepository {
         await this.db.ui.put(ui);
         await this.db.versions.where("projectId").equals(project.id).delete();
         if (versions.length > 0) await this.db.versions.bulkPut(versions);
-        if (parsed.embeddedSource !== null) {
+        if (imported.embeddedSource !== null) {
           await this.db.blobs.put({
-            ...parsed.embeddedSource,
+            ...imported.embeddedSource,
             projectId: project.id,
             kind: "source",
             createdAt: now,
@@ -346,7 +355,7 @@ export class WorkspaceRepository {
         await this.db.outbox.where("projectId").equals(project.id).delete();
       },
     );
-    return { ...parsed, file: { ...parsed.file, working } };
+    return imported;
   }
 
   async exportProjectFile(

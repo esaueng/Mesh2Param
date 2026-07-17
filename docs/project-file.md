@@ -34,7 +34,9 @@ file when it contains a local blob reference.
 
 The working document and validated `ui` record include restore-relevant project state but do not
 duplicate large GLB/STEP arrays in React state. Artifact descriptors refer to authoritative
-service/CAS outputs.
+service/CAS outputs. On import they remain in `artifactManifest` for verification, but are removed
+from the active working document: a project file cannot establish that the corresponding service
+blobs still exist, so the viewer must not try to render them.
 
 ## Source representations
 
