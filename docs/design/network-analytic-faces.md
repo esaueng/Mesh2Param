@@ -101,9 +101,9 @@ The following are hard invariants, not scoring preferences:
 
 Schema 2 replaces the schema-1 `patches` array with a `faces` array. Each face
 owns a supporting surface and its trim topology. Tensor faces retain their
-implicit rectangular outer boundary so the existing straight plate closure
-does not need to become explicit topology in the same change. Analytic faces
-use explicit trim loops.
+implicit rectangular outer boundary. The curved-plate envelope names the exact
+unshared tensor iso sides used by the plate closure, so those natural sides do
+not need duplicate 3-D curve records. Analytic faces use explicit trim loops.
 
 The following is a complete, valid schema-2 object. It describes a planar
 cubic tensor patch trimmed by an exact rational quadratic circle and a
@@ -271,8 +271,9 @@ reserved until the builder and STEP round trip have dedicated coverage.
 
 `role` is `patchJoin` or `interiorTrim`:
 
-- `patchJoin` is referenced from two tensor-domain `sharedBoundaries` and may
-  contribute endpoints to plate wall-chain derivation.
+- `patchJoin` is referenced from two tensor-domain `sharedBoundaries`. It does
+  not by itself determine the plate wall layout; that closure is explicit in
+  the curved-plate envelope.
 - `interiorTrim` is referenced from trim loops. It never changes wall chains.
   A manifold internal curve must have exactly two face uses, normally a tensor
   interior loop and an analytic outer loop.
@@ -358,30 +359,72 @@ byte; otherwise it fails with `network_noncanonical_artifact`. This creates one
 hash for one schema-2 semantic object. It does not apply a new canonicalizer to
 schema 1.
 
+### `mesh2param/curved-plate/2`
+
 The CADGraph feature continues to hash the complete `curved-plate.json` file,
-not only the nested network. `mesh2param/curved-plate/2` has the same top-level
-shape as version 1:
+not only the nested network. `mesh2param/curved-plate/2` keeps the version-1
+envelope but replaces the fixed four-point `assembly.corners` layout with an
+explicit wall-chain closure:
 
 ```text
 schema = "mesh2param/curved-plate/2"
 units = <project units>
 network = <complete mesh2param/surface-network/2 object>
-assembly.corners = <four 3-D plate corners>
+assembly.baseCornerVertexIds = [<ordered network vertex id>, ...]
+assembly.wallChains = [
+  {
+    baseStartVertexId = <network vertex id>,
+    baseEndVertexId = <network vertex id>,
+    topSides = [{patchId, iso, forward}, ...]
+  },
+  ...
+]
 assembly.prismVector = <3-D vector in project units>
 assembly.sewingTolerance = <positive length in project units>
 assembly.holes = [{radius, basePoint, direction, height}, ...] or []
 ```
 
 The actual file contains the nested object directly; the notation above is not
-serialized JSON. Version 2 changes `sewingToleranceMm` to
-`sewingTolerance` because its `units` field is authoritative. It never has an
-`assembly.caps` key: analytic caps are faces in the network. Recorded hole
-cutters use unsuffixed `radius` and `height` lengths in the declared units;
-`direction` is a finite unit vector. They are retained during the cap migration
-so current single- and multi-region hole behavior composes without a
-simultaneous hole-topology rewrite. A later step migrates each cylinder into
-analytic network faces and then writes an empty `assembly.holes` list for new
-artifacts.
+serialized JSON. `baseCornerVertexIds` contains at least three unique vertex
+ids from the nested network in base-polygon order. Version-2 rectangular plates
+normally contain four, but the representation is not fixed to four corners.
+There is one `wallChains` entry per directed consecutive base-polygon edge,
+including the closing edge. Its `baseStartVertexId` and `baseEndVertexId` are
+that ordered pair. Each `topSides` entry references an unshared tensor-patch
+outer side by `patchId` and `iso` (`u0`, `u1`, `v0`, or `v1`); `forward`
+selects the canonical side direction or its reverse. Array order is topology
+and is preserved by canonical serialization.
+
+Schema-2 plate validation requires all of the following before OCCT assembly:
+
+- every base and patch reference resolves, every wall chain has at least one
+  side, and adjacent `topSides` are continuous in their recorded traversal;
+- the first and last top-side endpoints are exactly the chain's named base
+  vertices, and the wall-chain order matches `baseCornerVertexIds` including
+  wraparound;
+- across all wall chains, the unshared patch sides cover the complete top outer
+  boundary exactly once; a missing side, duplicate side, shared side, or
+  interior-trim edge is invalid; and
+- every intermediate top-chain vertex lies in the wall plane through the named
+  base edge and `prismVector` within the existing boundary tolerance. The
+  validator does not widen that tolerance or substitute `sewingTolerance` for
+  it.
+
+The lower wire is the ordered base-corner polygon translated by
+`prismVector`. This closure is forward-compatible with the
+extraordinary-vertex design's triangular footprints and multi-side wall chains:
+`curved-plate/3` can reuse the same assembly fields without a second closure
+representation. That does not make an extraordinary junction valid in a
+`surface-network/2`; the later network schema still owns junction incidence.
+
+Version 2 changes `sewingToleranceMm` to `sewingTolerance` because its `units`
+field is authoritative. It never has an `assembly.caps` key: analytic caps are
+faces in the network. Recorded hole cutters use unsuffixed `radius` and
+`height` lengths in the declared units; `direction` is a finite unit vector.
+They are retained during the cap migration so current single- and multi-region
+hole behavior composes without a simultaneous hole-topology rewrite. A later
+step migrates each cylinder into analytic network faces and then writes an
+empty `assembly.holes` list for new artifacts.
 
 The plate hash is SHA-256 of the schema-2 canonical bytes of the entire plate
 object. The compiler still verifies the CADGraph hash against the raw file
@@ -526,9 +569,14 @@ The sphere's stored frame and unwrapped pcurve handle the meridian seam. The
 implementation does not rotate the sphere to a horizontal parametric axis, and
 it does not call `clean()` on the assembled result.
 
-`_plate_solid_from_network` must stop using `len(network.curves)` to infer plate
-layout. Wall chains derive only from `patchJoin` curves referenced by tensor
-outer `sharedBoundaries`. `interiorTrim` curves never contribute wall vertices.
+The version-2 `build_network_faces` result includes the exact edge for every
+unshared tensor side keyed by `(patchId, iso)`, in addition to its curve-id map
+for shared boundaries. `_plate_solid_from_network` must stop using
+`len(network.curves)`, `patchJoin` endpoints, vertex names, or nearest-segment
+tests to infer plate layout. It consumes `assembly.wallChains`, orients the
+recorded top edges with `forward`, validates their endpoints and wall-plane
+membership, and creates each planar wall wire from that exact chain and the
+translated base edge. `interiorTrim` curves never contribute wall vertices.
 This is necessary for one crease plus one or more cap/hole rims.
 
 ## Multi-region and hole composition
@@ -577,6 +625,11 @@ required in addition to the existing curved reconstruction gates.
 - closed-loop vertex continuity and declared UV orientation;
 - `patchJoin` adjacency of exactly two tensor outer boundaries;
 - manifold `interiorTrim` adjacency of exactly two face uses;
+- an ordered base polygon with one matching wall chain per edge;
+- exact-once coverage of the top outer boundary by referenced unshared tensor
+  sides, with continuous traversal and no shared or interior-trim side uses;
+- every wall-chain intermediate vertex in its recorded wall plane within the
+  unchanged boundary tolerance;
 - canonical bytes and SHA-256 reproducibility;
 - schema-1 golden bytes and hashes unchanged.
 
@@ -725,7 +778,13 @@ the cap boolean or `clean()` on the schema-2 path.
 
 ### Step 6: curved-plate/2, compiler, and cache
 
-- Emit the version-2 plate envelope for successful explicit-cap networks.
+- Emit `baseCornerVertexIds` and explicit ordered `wallChains` in the
+  version-2 plate envelope for successful explicit-cap networks.
+- Add schema validation for chain order, endpoint identity, exact-once
+  unshared-side coverage, and intermediate-vertex wall-plane tolerance.
+- Return unshared tensor-side edges by `(patchId, iso)` and rebuild each wall
+  from the recorded `topSides`; neither the writer nor compiler infers layout
+  from curve count or `patchJoin` endpoints.
 - Dispatch compiler rebuilds without changing the CADGraph feature contract.
 - Introduce the v5 cache key/payload and rerun all gates on hits.
 - Prove fresh, cache-hit, artifact-rebuild, compiler-rebuild, and service-job
@@ -735,7 +794,8 @@ the cap boolean or `clean()` on the schema-2 path.
 
 - Permit a cap trim loop to belong to either tensor face of a crease or smooth
   two-region network.
-- Derive wall chains only from `patchJoin` curves.
+- Preserve and validate the recorded wall chains when cap and hole trim curves
+  coexist; neither `patchJoin` nor `interiorTrim` changes wall ownership.
 - Preserve virtual fan parameterization and excluded weak samples for every
   hole-bearing region.
 - Add cap-only, hole-only, and cap-plus-hole multi-region fixtures and prove the
@@ -764,8 +824,8 @@ smuggled into these steps.
 - `engine/mesh2param/surface_fit.py`: shared rim unknowns, hard equality rows,
   pcurve alternation, adaptive curve/surface checks.
 - `engine/mesh2param/curved_patch.py`: cap candidate construction, role-based
-  wall derivation, versioned plate assembly, removal of booleans only on the
-  proven version-2 path.
+  network topology, explicit wall-chain plate assembly, removal of booleans
+  only on the proven version-2 path.
 - `engine/mesh2param/fit_cache.py`: versioned algorithm/key/payload.
 - `engine/mesh2param/compiler.py`: strict curved-plate version dispatch.
 - `engine/mesh2param/validation.py` and `step_audit.py`: analytic shared-edge,
@@ -784,6 +844,8 @@ defaults, and tolerance values do not change in the initial implementation.
 The design is fully implemented only when:
 
 - new explicit-cap artifacts use `surface-network/2` inside `curved-plate/2`;
+- new version-2 plates close from validated `baseCornerVertexIds` and
+  `wallChains`, never from curve-count or endpoint-layout inference;
 - the patch and analytic face reference one rim curve record and one
   `TopoDS_Edge`;
 - the patch is constrained to that rim during fitting;
