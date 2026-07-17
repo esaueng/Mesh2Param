@@ -1,7 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { apiClient } from "./api/client";
 import { normalizeApiError } from "./api/errors";
+import { ErrorToast } from "./components/ErrorToast";
 import { workspaceRepository } from "./persistence/repository";
+import { loadAppPreferences } from "./persistence/appPreferences";
 import { CanvasLanding } from "./canvas/CanvasLanding";
 import { workspaceStore } from "./state/store";
 import type {
@@ -27,13 +29,16 @@ export default function App() {
   const [initialUpload, setInitialUpload] = useState<{ file: File; units: Units; scale: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dismissError = useCallback(() => setError(null), []);
 
   useEffect(() => {
     const activeProjectId = sessionStorage.getItem("mesh2param-active-project");
     if (activeProjectId === null) return;
     let cancelled = false;
-    void workspaceRepository.getWorkspace(activeProjectId).then((stored) => {
+    void workspaceRepository.getWorkspace(activeProjectId).then(async (stored) => {
       if (cancelled || stored === null) return;
+      await apiClient.listArtifacts(activeProjectId).catch(() => undefined);
+      if (cancelled) return;
       hydrateStoredWorkspace(stored);
       setScreen("workspace");
     });
@@ -137,42 +142,62 @@ export default function App() {
   }
 
   return (
-    <CanvasLanding
-      samples={samples}
-      recentProjects={recentProjects}
-      readiness={readiness}
-      busy={busy}
-      error={error}
-      onOpenMesh={(file) => void withBusy(async () => {
-        const result = await apiClient.createProject(deriveProjectName(file.name), "mm");
-        openWorkspace(result.data, null, null, { file, units: "mm", scale: 1 });
-      })}
-      onOpenProjectFile={(file) => void withBusy(async () => {
-        const parsed = await workspaceRepository.importProjectFileBlob(file);
-        openWorkspace(
-          { ...parsed.file.project, state: parsed.file.working },
-          null,
-          parsed.file.ui,
-        );
-      })}
-      onOpenRecent={(projectId) => void withBusy(async () => {
-        try {
-          const result = await apiClient.getProject(projectId);
-          openWorkspace(result.data);
-        } catch (cause) {
-          const stored = await workspaceRepository.getWorkspace(projectId);
-          if (stored === null) throw cause;
-          hydrateStoredWorkspace(stored);
-          sessionStorage.setItem("mesh2param-active-project", projectId);
-          setInitialJob(null);
-          setScreen("workspace");
-        }
-      })}
-      onOpenSample={(sampleId) => void withBusy(async () => {
-        const result = await apiClient.openSample(sampleId);
-        openWorkspace(result.data.project, result.data.job);
-      })}
-    />
+    <>
+      <CanvasLanding
+        samples={samples}
+        recentProjects={recentProjects}
+        readiness={readiness}
+        busy={busy}
+        onOpenMesh={(file) => void withBusy(async () => {
+          const result = await apiClient.createProject(deriveProjectName(file.name), "mm");
+          openWorkspace(result.data, null, null, { file, units: "mm", scale: 1 });
+        })}
+        onOpenProjectFile={(file) => void withBusy(async () => {
+          const parsed = await workspaceRepository.importProjectFileBlob(file);
+          const imported = { ...parsed.file.project, state: parsed.file.working };
+          let regenerationJob: Job | null = null;
+          if (parsed.file.artifactManifest.length > 0) {
+            const operation = imported.state.cadgraph !== null
+              ? "rebuild"
+              : imported.state.source?.format === "stl"
+                ? "analyze"
+                : null;
+            if (operation !== null) {
+              regenerationJob = (await apiClient.startOperation(
+                imported.id,
+                operation,
+                imported.revision,
+                operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
+              )).data;
+            }
+          }
+          openWorkspace(
+            imported,
+            regenerationJob,
+            parsed.file.ui,
+          );
+        })}
+        onOpenRecent={(projectId) => void withBusy(async () => {
+          try {
+            const result = await apiClient.getProject(projectId);
+            openWorkspace(result.data);
+          } catch (cause) {
+            const stored = await workspaceRepository.getWorkspace(projectId);
+            if (stored === null) throw cause;
+            await apiClient.listArtifacts(projectId).catch(() => undefined);
+            hydrateStoredWorkspace(stored);
+            sessionStorage.setItem("mesh2param-active-project", projectId);
+            setInitialJob(null);
+            setScreen("workspace");
+          }
+        })}
+        onOpenSample={(sampleId) => void withBusy(async () => {
+          const result = await apiClient.openSample(sampleId);
+          openWorkspace(result.data.project, result.data.job);
+        })}
+      />
+      {error === null ? null : <ErrorToast message={error} onDismiss={dismissError} />}
+    </>
   );
 }
 
@@ -195,6 +220,10 @@ function mergeRecents(
 }
 
 function hydrateStoredWorkspace(stored: NonNullable<Awaited<ReturnType<typeof workspaceRepository.getWorkspace>>>) {
+  // localStorage is synchronous and therefore captures even the final preference
+  // change immediately before a reload. Keep it authoritative over an older,
+  // asynchronously flushed per-project UI record.
+  const appPreferences = loadAppPreferences();
   workspaceStore.getState().hydrateProject(normalizeProjectDetail({
     id: stored.project.id,
     name: stored.project.name,
@@ -219,5 +248,10 @@ function hydrateStoredWorkspace(stored: NonNullable<Awaited<ReturnType<typeof wo
     state.setSelection(stored.ui.state.selection);
     state.setViewerPreferences(stored.ui.state.viewer);
     state.setShellState(stored.ui.state.shell);
+  }
+  if (appPreferences !== null) {
+    const state = workspaceStore.getState();
+    state.setViewerPreferences(appPreferences.viewer);
+    state.setShellState(appPreferences.shell);
   }
 }

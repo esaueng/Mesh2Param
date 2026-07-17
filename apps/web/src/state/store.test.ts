@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createWorkspaceStore, MAX_HISTORY_ENTRIES } from "./store";
 import type { ProjectDetail, ProjectWorkingDocument } from "./types";
+import { hasPersistedWorkspaceChanges } from "../persistence/workspaceState";
 
 function workingDocument(overrides: Partial<ProjectWorkingDocument> = {}): ProjectWorkingDocument {
   return {
@@ -95,6 +96,19 @@ describe("workspace unified history", () => {
 
     expect(store.getState().history).toEqual({ past: [], future: [] });
     expect(store.getState().localRevision).toBe(0);
+  });
+
+  it("marks display and shell-only changes for workspace persistence", () => {
+    const store = createWorkspaceStore();
+    store.getState().hydrateProject(project());
+    const before = store.getState();
+
+    store.getState().setViewerPreferences({ shading: "xray", edges: false });
+    const afterDisplay = store.getState();
+    expect(hasPersistedWorkspaceChanges(afterDisplay, before)).toBe(true);
+
+    store.getState().setShellState({ theme: "light" });
+    expect(hasPersistedWorkspaceChanges(store.getState(), afterDisplay)).toBe(true);
   });
 
   it("evicts the oldest whole entries at the count bound", () => {

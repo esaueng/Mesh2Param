@@ -6,6 +6,7 @@ import {
   shouldShowViewCubeFaceLabel,
   VIEWER_GIZMO_ALIGNMENT,
   VIEWER_GIZMO_AXIS_LENGTH,
+  VIEWER_GIZMO_DPR,
   VIEWER_GIZMO_LABEL_DISTANCE,
   VIEWER_GIZMO_MARGIN,
   VIEWER_GIZMO_SCALE,
@@ -18,6 +19,7 @@ describe("OpenCAE orientation gizmo", () => {
   test("keeps the exact OpenCAE layout and placement", () => {
     expect(VIEWER_GIZMO_ALIGNMENT).toBe("bottom-right");
     expect(VIEWER_GIZMO_MARGIN).toEqual([112, 112]);
+    expect(VIEWER_GIZMO_DPR).toEqual([2, 3]);
     expect(VIEWER_GIZMO_SCALE).toBe(40);
     expect(VIEWER_GIZMO_AXIS_LENGTH).toBe(1.75);
     expect(VIEWER_GIZMO_LABEL_DISTANCE).toBe(1.9);
