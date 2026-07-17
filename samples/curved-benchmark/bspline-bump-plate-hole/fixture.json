@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "The bump plate pierced by a vertical 8 mm-radius cylindrical hole: the Milestone 3 hybrid target mixing a trimmed B-spline face, a cylinder, and five planes in one shell.",
+  "directory": "bspline-bump-plate-hole",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 21904.115441811024,
+    "boundingBox": [
+      -0.1166330653190126,
+      -0.1166330653190126,
+      -25.005481016755066,
+      80.11663306531901,
+      80.11663306531901,
+      5.8649661847127135
+    ],
+    "edgeCount": 16,
+    "faceCount": 7,
+    "faceSurfaces": {
+      "bspline": 1,
+      "cone": 0,
+      "cylinder": 1,
+      "other": 0,
+      "plane": 5,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 169450.82197113504
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "bspline-bump-plate-hole",
+  "stl": {
+    "byteSize": 107584,
+    "path": "source.stl",
+    "sha256": "7ba5fa01563ed6d15065215688c4a86fc4a1066c00d1309d145088e7f8bccc04",
+    "triangleCount": 2150,
+    "vertexCount": 1075
+  },
+  "tessellation": {
+    "angularTolerance": 0.15,
+    "linearTolerance": 0.002
+  },
+  "title": "B-spline bump plate with a through hole",
+  "units": "mm"
+}
