@@ -658,11 +658,51 @@ five parts per million -- OCCT's STEP translator approximates the trimming
 pcurve where a cylinder pierces a freeform B-spline face, which is inherent to
 hybrid shells and far below any engineering tolerance.
 
-Still open for follow-ups: analytic patches fitted as reconstructed faces
-beyond subtraction (spherical caps, cones, and tori assembled into the shell
-with shared network edges), and the user controls for split/merge, crease
-classification, and patch locking (an `apps/web` and `services/api` change on
-top of the existing evidence).
+The user controls for split/merge, crease classification, and patch locking
+are implemented (see the per-patch controls and crease-classification
+sections above). Spherical caps are now assembled into the shell (see
+"Analytic caps" below); cones and tori as reconstructed faces, and shared
+network edges for analytic faces, remain open.
+
+#### Analytic caps (implemented)
+
+A recognized sphere region standing proud of the freeform top now joins the
+shell as a true sphere face: the exact dual of hole subtraction. Each
+interior boundary loop of the freeform chart is matched to either a
+recognized cylinder (through hole, boolean subtraction) or a recognized
+sphere (cap, boolean fusion); anything else fails closed
+(`curved_patch_hole_unrecognized`). The recorded `CapFuser` (center, radius,
+vertical parametric axis) is replayed verbatim by the fit cache and the
+compiler rebuild -- the plate artifact's assembly gains a `caps` list that
+is present only when non-empty, so cap-free artifacts keep their historical
+bytes and hashes. Caps fuse before holes subtract, so a future hole may
+pierce a cap.
+
+Three hard-won pitfalls live in this path. First, the ball's parametric
+axis must stay vertical: a horizontal seam meridian across the trim curve
+breaks OCCT's fuse against fitted splines outright, and the pole's
+genuinely zero-area triangles are instead dropped exactly by the canonical
+tessellation (previously any visible sphere pole failed tessellation).
+Second, `clean()` after a sphere/spline fuse demonstrably corrupts the
+shell (volume changes by hundreds of mm^3); the fused result is used raw.
+Third, the fill samples under a cap loop must track the recognized ball
+lowered by a clearance with strong weights and dense rings -- the weak
+rim-height fill used for holes lets the patch overshoot above the ball, and
+every such island becomes a spurious trim that fragments the fuse. Even
+then, a cap on a steep, wavy part of the top produces a wide near-tangency
+band between the fitted patch and the ball (slow tessellation, marginal
+deviation, occasional islands); a cap on a locally near-planar site crosses
+in a single clean transversal curve. The reconstruction fails closed with
+`curved_patch_cap_boolean_failed` when geometry does not permit a clean
+join, recommending the faceted fallback.
+
+Measured on the new `bspline-dome-plate` fixture (5076 source triangles; a
+gentle freeform top with an exact 10 mm ball poking 4.3 mm proud at the
+apex): a 7-face solid (5 planes, 1 trimmed B-spline, 1 true sphere face)
+reconstructed in ~9 s, maximum fit residual 0.149 mm, source deviation
+0.076 mm, volume within 0.02 % of exact, recognized radius exact to 1e-3,
+byte-identical artifacts and STEP across repeat runs, the artifact rebuild,
+and cache hits. Covered by `tests/test_curved_caps.py`.
 
 ### Milestone 4: production hardening (core implemented)
 

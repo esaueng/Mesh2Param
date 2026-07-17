@@ -106,6 +106,58 @@
     },
     {
       "category": "positive",
+      "description": "The bump plate fused with an exact spherical cap poking through the freeform top at a sharp crease rim: the analytic-cap target mixing a trimmed B-spline top, a true sphere face, and five planes in one shell.",
+      "directory": "bspline-dome-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 20873.272393693183,
+        "boundingBox": [
+          -0.03152364073072117,
+          -0.03152364073072117,
+          -25.000000100000005,
+          80.03152364073073,
+          80.03152364073073,
+          6.413256521261265
+        ],
+        "edgeCount": 14,
+        "faceCount": 7,
+        "faceSurfaces": {
+          "bspline": 1,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 1,
+          "torus": 0
+        },
+        "volume": 165903.16156738193
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-dome-plate",
+      "stl": {
+        "byteSize": 253884,
+        "path": "source.stl",
+        "sha256": "0f706eb2bbc46cc4c8fc2da4f4538b0588f375ec6951d3ed7aee804c4bdec781",
+        "triangleCount": 5076,
+        "vertexCount": 2540
+      },
+      "tessellation": {
+        "angularTolerance": 0.1,
+        "linearTolerance": 0.0008
+      },
+      "title": "B-spline bump plate with a spherical dome cap",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "A plate whose top is two exact B-spline roof patches meeting at an elevated, bowed sharp ridge crease: the multi-region crease network reconstruction target (two freeform regions sharing one crease curve, pentagon end walls).",
       "directory": "bspline-gable-plate",
       "expectation": "closed-manifold",
