@@ -102,6 +102,7 @@ def test_cap_artifact_rebuild_is_byte_identical(dome_plate: Path, tmp_path: Path
     # The caps key is present only when caps exist, so cap-free artifacts
     # keep their historical bytes and hashes.
     assert len(payload["assembly"]["caps"]) == 1
+    assert "cones" not in payload["assembly"]
     rebuilt = rebuild_plate_solid(payload)
     driver_sha = export_step_validated(first.solid, tmp_path / "driver" / "plate.step").sha256
     rebuilt_sha = export_step_validated(rebuilt, tmp_path / "rebuilt" / "plate.step").sha256
@@ -151,9 +152,7 @@ def test_curved_job_reconstructs_dome_plate(dome_plate: Path, tmp_path: Path) ->
         },
         "projectState": {"patches": [], "settings": {}},
     }
-    output = run_handler(
-        "reconstruct", payload, tmp_path, lambda _phase, _value, _detail: None
-    )
+    output = run_handler("reconstruct", payload, tmp_path, lambda _phase, _value, _detail: None)
     state = output.state_patch["settings"]["curvedReconstruction"]
     assert state["faceSurfaces"]["sphere"] == 1
     assert state["faceSurfaces"]["bspline"] == 1
@@ -162,9 +161,9 @@ def test_curved_job_reconstructs_dome_plate(dome_plate: Path, tmp_path: Path) ->
     assert fuser["radiusMm"] == pytest.approx(10.0, abs=1e-3)
 
 
-def test_canonical_tessellation_drops_exact_pole_degenerates() -> None:
-    # OCCT's sphere pole fans emit triangles with two bitwise-identical
-    # vertices: genuinely zero-area, dropped exactly.
+def test_canonical_tessellation_drops_exact_analytic_pole_degenerates() -> None:
+    # OCCT's sphere pole and cone apex fans emit triangles with two
+    # bitwise-identical vertices: genuinely zero-area, dropped exactly.
     pole = (0.0, 0.0, 1.0)
     mesh = Tessellation(
         vertices=(pole, pole, (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),

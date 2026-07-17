@@ -349,22 +349,25 @@ def _plate_openings(
     patches: tuple[SurfacePatch, ...],
     freeform: SurfacePatch,
     hole_loops: list[np.ndarray],
-) -> tuple[PlateHole | PlateCap, ...]:
+    mesh_vertices: np.ndarray,
+) -> tuple[PlateHole | PlateCap | PlateCone, ...]:
     """Match each interior boundary loop to one recognized analytic patch.
 
     A loop bordered by a recognized cylinder is a through hole (boolean
     subtraction); a loop bordered by a recognized sphere is a proud analytic
-    cap (boolean fusion). Anything else fails closed. Entries come back in
-    loop order so callers can pair them with the loops themselves.
+    cap (boolean fusion); a loop bordered by a recognized cone is a proud
+    conical boss (boolean fusion). Anything else fails closed. Entries come
+    back in loop order so callers can pair them with the loops themselves.
     """
 
-    openings: list[PlateHole | PlateCap] = []
+    openings: list[PlateHole | PlateCap | PlateCone] = []
     for index, loop in enumerate(hole_loops):
         loop_vertices = set(int(vertex) for vertex in loop)
         matches = [
             patch
             for patch in patches
-            if patch.kind in ("cylinder", "sphere") and loop_vertices & set(patch.vertex_ids)
+            if patch.kind in ("cylinder", "sphere", "cone")
+            and loop_vertices & set(patch.vertex_ids)
         ]
         analytic = matches[0] if len(matches) == 1 else None
         if analytic is None:
@@ -373,7 +376,7 @@ def _plate_openings(
                 "curved_patch_hole_unrecognized",
                 (
                     f"interior loop {index} does not border exactly one recognized "
-                    f"cylinder or sphere (found {len(matches)})"
+                    f"cylinder, sphere, or cone (found {len(matches)})"
                 ),
             )
         if analytic.kind == "cylinder" and analytic.cylinder_radius_mm is not None:
@@ -391,6 +394,39 @@ def _plate_openings(
                 PlateCap(
                     radius=float(analytic.sphere_radius_mm),
                     center=np.asarray(analytic.sphere_center, dtype=np.float64),
+                    residual_p95=analytic.residuals_mm.p95,
+                    patch_id=analytic.id,
+                )
+            )
+        elif (
+            analytic.kind == "cone"
+            and analytic.cone_apex is not None
+            and analytic.cone_axis is not None
+            and analytic.cone_half_angle_deg is not None
+        ):
+            apex = np.asarray(analytic.cone_apex, dtype=np.float64)
+            axis = np.asarray(analytic.cone_axis, dtype=np.float64)
+            axis /= float(np.linalg.norm(axis))
+            # Segmentation canonicalizes direction for stable patch ids. A
+            # cone fuser instead needs the geometric direction from its apex
+            # into the recognized side region.
+            if float((np.asarray(analytic.centroid) - apex) @ axis) < 0.0:
+                axis = -axis
+            region_points = mesh_vertices[np.asarray(analytic.vertex_ids, dtype=np.int64)]
+            axial = (region_points - apex) @ axis
+            visible_height = float(np.max(axial))
+            if visible_height <= 0.0:
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_hole_unrecognized",
+                    f"interior loop {index} borders a cone with no positive axial height",
+                )
+            openings.append(
+                PlateCone(
+                    apex=apex,
+                    axis=axis,
+                    half_angle_deg=float(analytic.cone_half_angle_deg),
+                    visible_height=visible_height,
                     residual_p95=analytic.residuals_mm.p95,
                     patch_id=analytic.id,
                 )
@@ -482,11 +518,11 @@ def reconstruct_single_patch_plate(
     settings.validate()
 
     context = _plate_context(mesh, settings)
-    if context.holes or context.caps:
+    if context.holes or context.caps or context.cones:
         raise CurvedPatchError(
             "segmenting mesh",
             "curved_patch_holes_unsupported",
-            "single-patch reconstruction does not support holes or caps; "
+            "single-patch reconstruction does not support holes or analytic bosses; "
             "use reconstruct_plate_network",
         )
     chart = context.chart
@@ -619,6 +655,8 @@ class CurvedNetworkResult:
     hole_cutters: tuple[HoleCutter, ...] = ()
     caps: tuple[PlateCap, ...] = ()
     cap_fusers: tuple[CapFuser, ...] = ()
+    cones: tuple[PlateCone, ...] = ()
+    cone_fusers: tuple[ConeFuser, ...] = ()
     candidates: tuple[dict[str, Any], ...] = ()
     cache_status: str = "uncached"
     sewing_tolerance_mm: float = 1e-3
@@ -639,6 +677,7 @@ class CurvedNetworkResult:
             "prismVector": list(self.prism_vector),
             "holes": [hole.to_dict() for hole in self.holes],
             "caps": [cap.to_dict() for cap in self.caps],
+            "cones": [cone.to_dict() for cone in self.cones],
             "candidates": [dict(candidate) for candidate in self.candidates],
             "cacheStatus": self.cache_status,
             "limitations": [
@@ -730,6 +769,64 @@ class CapFuser:
 
 
 @dataclass(frozen=True, slots=True)
+class PlateCone:
+    """A recognized analytic conical boss standing proud of the plate top."""
+
+    apex: np.ndarray = field(repr=False)
+    axis: np.ndarray = field(repr=False)
+    half_angle_deg: float
+    visible_height: float
+    residual_p95: float
+    patch_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "cone",
+            "apex": [float(value) for value in self.apex],
+            "axis": [float(value) for value in self.axis],
+            "halfAngleDeg": self.half_angle_deg,
+            "visibleHeightMm": self.visible_height,
+            "residualP95Mm": self.residual_p95,
+            "patchId": self.patch_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ConeFuser:
+    """Exact apex-ended cone fuser recorded verbatim for deterministic replay."""
+
+    apex: tuple[float, float, float]
+    axis: tuple[float, float, float]
+    half_angle_deg: float
+    height: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "apex": list(self.apex),
+            "axis": list(self.axis),
+            "halfAngleDeg": self.half_angle_deg,
+            "heightMm": self.height,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> ConeFuser:
+        return cls(
+            apex=(
+                float(payload["apex"][0]),
+                float(payload["apex"][1]),
+                float(payload["apex"][2]),
+            ),
+            axis=(
+                float(payload["axis"][0]),
+                float(payload["axis"][1]),
+                float(payload["axis"][2]),
+            ),
+            half_angle_deg=float(payload["halfAngleDeg"]),
+            height=float(payload["heightMm"]),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class _PlateContext:
     chart_vertices: np.ndarray
     chart_faces: np.ndarray
@@ -742,12 +839,13 @@ class _PlateContext:
     segmentation_counts: dict[str, int]
     holes: tuple[PlateHole, ...] = ()
     caps: tuple[PlateCap, ...] = ()
+    cones: tuple[PlateCone, ...] = ()
     hole_loops: tuple[np.ndarray, ...] = ()
     # Per interior loop: the recognized cap standing over it, or None for a
     # through hole. Cap loops get dense synthetic fill on the ball surface
     # lowered by a clearance, so the fitted patch tracks a smooth dome
     # strictly inside the ball and the fuse intersects cleanly at the rim.
-    fill_caps: tuple[PlateCap | None, ...] = ()
+    fill_analytics: tuple[PlateCap | PlateCone | None, ...] = ()
     freeform_locked: bool = False
 
 
@@ -904,7 +1002,7 @@ def _plate_context(
     outer_index = int(np.argmax([perimeter(loop) for loop in loops_global]))
     loop_global = loops_global[outer_index]
     hole_loops = [loop for index, loop in enumerate(loops_global) if index != outer_index]
-    openings = _plate_openings(segmentation.patches, freeform, hole_loops)
+    openings = _plate_openings(segmentation.patches, freeform, hole_loops, mesh_vertices)
 
     chart_loop = local_index[loop_global]
     hole_loops_local = tuple(local_index[loop] for loop in hole_loops)
@@ -1003,9 +1101,10 @@ def _plate_context(
         segmentation_counts=counts,
         holes=tuple(o for o in openings if isinstance(o, PlateHole)),
         caps=tuple(o for o in openings if isinstance(o, PlateCap)),
+        cones=tuple(o for o in openings if isinstance(o, PlateCone)),
         hole_loops=hole_loops_local,
-        fill_caps=tuple(
-            opening if isinstance(opening, PlateCap) else None for opening in openings
+        fill_analytics=tuple(
+            opening if isinstance(opening, (PlateCap, PlateCone)) else None for opening in openings
         ),
         freeform_locked=freeform.locked,
     )
@@ -1016,7 +1115,7 @@ def _hole_fill_samples(
     vertices: np.ndarray,
     hole_loops: tuple[np.ndarray, ...],
     base_weight: float,
-    fill_caps: tuple[PlateCap | None, ...] = (),
+    fill_analytics: tuple[PlateCap | PlateCone | None, ...] = (),
     normal: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Weak synthetic samples across hole interiors.
@@ -1043,8 +1142,8 @@ def _hole_fill_samples(
         rim_points = vertices[loop]
         centroid_uv = rim_uv.mean(axis=0)
         centroid_point = rim_points.mean(axis=0)
-        cap = fill_caps[index] if index < len(fill_caps) else None
-        if cap is None or normal is None:
+        analytic = fill_analytics[index] if index < len(fill_analytics) else None
+        if analytic is None or normal is None:
             push(centroid_uv[None, :], centroid_point[None, :], base_weight)
             step = max(1, len(loop) // 12)
             selected = np.arange(0, len(loop), step)
@@ -1055,41 +1154,75 @@ def _hole_fill_samples(
                     base_weight,
                 )
             continue
-        # Cap loop: dense fill ON the recognized ball lowered by a clearance,
-        # so the fitted patch tracks a smooth dome strictly inside the ball
-        # (the clearance absorbs the weak fit's overshoot).
-        cap_center = np.asarray(cap.center, dtype=np.float64)
-        cap_radius = float(cap.radius)
-        cap_clearance = max(1.5, 0.15 * cap_radius)
-        # The chart's rectangle normal may point either way; orient it toward
-        # the proud side of the cap (the rim sits above the ball center).
-        up = -normal if float((centroid_point - cap_center) @ normal) < 0.0 else normal
+        lowered_analytic: Callable[[np.ndarray], np.ndarray]
+        if isinstance(analytic, PlateCap):
+            # Sphere loop: dense fill ON the recognized ball lowered by a
+            # clearance so the fitted patch stays strictly inside the ball.
+            cap_center = np.asarray(analytic.center, dtype=np.float64)
+            cap_radius = float(analytic.radius)
+            clearance = max(1.5, 0.15 * cap_radius)
+            # The chart normal may point either way; orient it toward the
+            # proud side of the cap (the rim sits above the ball center).
+            up = -normal if float((centroid_point - cap_center) @ normal) < 0.0 else normal
 
-        def on_lowered_ball(
-            points: np.ndarray,
-            center: np.ndarray = cap_center,
-            radius: float = cap_radius,
-            clearance: float = cap_clearance,
-            up: np.ndarray = up,
-        ) -> np.ndarray:
-            radial = points - center
-            radial = radial - np.outer(radial @ up, up)
-            rho_sq = np.einsum("ij,ij->i", radial, radial)
-            lift = np.sqrt(np.maximum(radius**2 - rho_sq, (0.2 * radius) ** 2))
-            result: np.ndarray = center + radial + np.outer(lift - clearance, up)
-            return result
+            def on_lowered_ball(
+                points: np.ndarray,
+                center: np.ndarray = cap_center,
+                radius: float = cap_radius,
+                clearance: float = clearance,
+                up: np.ndarray = up,
+            ) -> np.ndarray:
+                radial = points - center
+                radial = radial - np.outer(radial @ up, up)
+                rho_sq = np.einsum("ij,ij->i", radial, radial)
+                lift = np.sqrt(np.maximum(radius**2 - rho_sq, (0.2 * radius) ** 2))
+                result: np.ndarray = center + radial + np.outer(lift - clearance, up)
+                return result
+
+            lowered_analytic = on_lowered_ball
+
+        else:
+            # Cone loop: preserve each sample's radial direction and place it
+            # on the recognized cone, shifted farther from the apex along the
+            # cone axis. This is the cone analogue of on_lowered_ball: the
+            # fitted patch stays strictly inside the fuser and cannot poke up
+            # through it as disconnected B-spline islands.
+            cone_apex = np.asarray(analytic.apex, dtype=np.float64)
+            cone_axis = np.asarray(analytic.axis, dtype=np.float64)
+            cone_slope = math.tan(math.radians(analytic.half_angle_deg))
+            clearance = max(2.0, 0.35 * analytic.visible_height)
+
+            def on_lowered_cone(
+                points: np.ndarray,
+                apex: np.ndarray = cone_apex,
+                axis: np.ndarray = cone_axis,
+                slope: float = cone_slope,
+                clearance: float = clearance,
+            ) -> np.ndarray:
+                offsets = points - apex
+                radial = offsets - np.outer(offsets @ axis, axis)
+                rho = np.linalg.norm(radial, axis=1)
+                axial = rho / slope + clearance
+                result = apex + radial + np.outer(axial, axis)
+                return np.asarray(result)
+
+            lowered_analytic = on_lowered_cone
 
         # Strong, dense fill: a weak fill lets the patch overshoot above the
         # ball between rings, and every such island becomes a spurious trim
         # in the cap join. These samples are trimmed away by the ball anyway.
-        cap_weight = 50.0 * base_weight
-        push(centroid_uv[None, :], on_lowered_ball(centroid_point[None, :]), cap_weight)
+        analytic_weight = 50.0 * base_weight
+        push(
+            centroid_uv[None, :],
+            lowered_analytic(centroid_point[None, :]),
+            analytic_weight,
+        )
         step = max(1, len(loop) // 24)
         selected = np.arange(0, len(loop), step)
         for fraction in np.linspace(0.1, 0.95, 10):
             blend_uv = centroid_uv + fraction * (rim_uv[selected] - centroid_uv)
             blend_points = centroid_point + fraction * (rim_points[selected] - centroid_point)
-            push(blend_uv, on_lowered_ball(blend_points), cap_weight)
+            push(blend_uv, lowered_analytic(blend_points), analytic_weight)
     if not fill_uv:
         empty = np.zeros((0, 3))
         return np.zeros((0, 2)), empty, np.zeros(0)
@@ -1176,6 +1309,20 @@ def _cap_fusers(caps: tuple[PlateCap, ...]) -> tuple[CapFuser, ...]:
     )
 
 
+def _cone_fusers(cones: tuple[PlateCone, ...]) -> tuple[ConeFuser, ...]:
+    """Extend each recognized visible cone just inside the fitted plate."""
+
+    return tuple(
+        ConeFuser(
+            apex=(float(cone.apex[0]), float(cone.apex[1]), float(cone.apex[2])),
+            axis=(float(cone.axis[0]), float(cone.axis[1]), float(cone.axis[2])),
+            half_angle_deg=float(cone.half_angle_deg),
+            height=float(cone.visible_height + max(1.5, 0.15 * cone.visible_height)),
+        )
+        for cone in cones
+    )
+
+
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
     """Boolean-subtract each recorded hole cutter from the plate solid.
 
@@ -1209,9 +1356,7 @@ def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shap
     return result
 
 
-def _fuse_caps(
-    solid: cq.Shape, fusers: tuple[CapFuser, ...], sewing_tolerance: float
-) -> cq.Shape:
+def _fuse_caps(solid: cq.Shape, fusers: tuple[CapFuser, ...], sewing_tolerance: float) -> cq.Shape:
     """Boolean-fuse each recorded cap ball into the plate solid.
 
     The kernel computes the exact intersection curve where the ball pokes
@@ -1250,6 +1395,46 @@ def _fuse_caps(
     return result
 
 
+def _fuse_cones(
+    solid: cq.Shape, fusers: tuple[ConeFuser, ...], sewing_tolerance: float
+) -> cq.Shape:
+    """Boolean-fuse recorded apex-ended cones into the plate solid.
+
+    The cone extends beyond the recognized rim and terminates inside the
+    plate. OCCT therefore computes the exact cone/B-spline trim curve while
+    the base face remains internal to the union. As with spherical caps, the
+    raw fuse result is mandatory: post-fuse ``clean()`` can corrupt a hybrid
+    analytic/B-spline shell. Cone fusion precedes every hole subtraction.
+    """
+
+    del sewing_tolerance
+    result = solid
+    for index, fuser in enumerate(fusers):
+        radius = fuser.height * math.tan(math.radians(fuser.half_angle_deg))
+        cone = cq.Solid.makeCone(
+            0.0,
+            radius,
+            fuser.height,
+            cq.Vector(*fuser.apex),
+            cq.Vector(*fuser.axis),
+        )
+        try:
+            result = result.fuse(cone)
+        except Exception as exc:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_cone_boolean_failed",
+                f"fusing cone {index} failed: {exc}",
+            ) from exc
+        if len(result.Solids()) != 1:
+            raise CurvedPatchError(
+                "assembling solid",
+                "curved_patch_cone_boolean_failed",
+                f"fusing cone {index} split the plate into multiple solids",
+            )
+    return result
+
+
 def _plate_solid_from_network(
     network: SurfaceNetwork,
     corners: np.ndarray,
@@ -1257,6 +1442,7 @@ def _plate_solid_from_network(
     cutters: tuple[HoleCutter, ...],
     sewing_tolerance: float,
     cap_fusers: tuple[CapFuser, ...] = (),
+    cone_fusers: tuple[ConeFuser, ...] = (),
 ) -> cq.Shape:
     """The single assembly path shared by the driver, cache, and compiler.
 
@@ -1299,7 +1485,9 @@ def _plate_solid_from_network(
     else:
         wall_chains = [[corners[k], corners[(k + 1) % 4]] for k in range(4)]
     solid = _network_plate_solid(network, wall_chains, corners, prism_vector, sewing_tolerance)
-    return _subtract_holes(_fuse_caps(solid, cap_fusers, sewing_tolerance), cutters)
+    fused = _fuse_caps(solid, cap_fusers, sewing_tolerance)
+    fused = _fuse_cones(fused, cone_fusers, sewing_tolerance)
+    return _subtract_holes(fused, cutters)
 
 
 def _project_to_line(point: np.ndarray, line: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
@@ -1395,6 +1583,8 @@ def _network_gates(
     *,
     expected_cylinders: int = 0,
     expected_spheres: int = 0,
+    expected_cones: int = 0,
+    expected_face_count: int | None = None,
 ) -> tuple[dict[str, int], ComparisonReport, tuple[SharedEdgeEvidence, ...]]:
     shape_validation = validate_shape(solid)
     if not shape_validation.valid:
@@ -1426,6 +1616,24 @@ def _network_gates(
             (
                 f"expected {expected_spheres} sphere faces from recognized caps, "
                 f"found {face_surfaces['sphere']}"
+            ),
+        )
+    if face_surfaces["cone"] != expected_cones:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_cone_faces_mismatch",
+            (
+                f"expected {expected_cones} cone faces from recognized bosses, "
+                f"found {face_surfaces['cone']}"
+            ),
+        )
+    if expected_face_count is not None and len(solid.Faces()) != expected_face_count:
+        raise CurvedPatchError(
+            "validating solid",
+            "curved_patch_cone_face_count_mismatch",
+            (
+                f"expected {expected_face_count} total faces after cone fusion, "
+                f"found {len(solid.Faces())}"
             ),
         )
     evidence = shared_edge_evidence(network, sample_count=network_settings.evidence_sample_count)
@@ -1530,9 +1738,7 @@ def _region_chain_line(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Fit one straight boundary chain of a region, gating its deviation."""
 
-    selected = _chain_positions(
-        len(loop), int(positions[chain]), int(positions[(chain + 1) % 4])
-    )
+    selected = _chain_positions(len(loop), int(positions[chain]), int(positions[(chain + 1) % 4]))
     centroid, direction, deviation = _fit_line(mesh_vertices[loop[selected]])
     if deviation > settings.boundary_line_tolerance_mm:
         raise CurvedPatchError(
@@ -1651,9 +1857,15 @@ def _crease_context(
                 interior_loops.append(loop)
                 interior_regions.append(region)
     loop_a, loop_b = outer_loops
-    openings: list[PlateHole | PlateCap] = []
+    openings: list[PlateHole | PlateCap | PlateCone] = []
     for region, loop in zip(interior_regions, interior_loops, strict=True):
-        openings.extend(_plate_openings(segmentation.patches, region, [loop]))
+        openings.extend(_plate_openings(segmentation.patches, region, [loop], mesh_vertices))
+    if any(isinstance(opening, PlateCone) for opening in openings):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_cone_multiregion_unsupported",
+            "conical bosses are supported only on a single freeform plate region",
+        )
     if any(isinstance(opening, PlateCap) for opening in openings):
         raise CurvedPatchError(
             "segmenting mesh",
@@ -2190,6 +2402,12 @@ def reconstruct_plate_network(
     freeform_count = sum(
         1 for patch in segmentation.patches if patch.kind in ("freeform", "unknown")
     )
+    if freeform_count != 1 and any(patch.kind == "cone" for patch in segmentation.patches):
+        raise CurvedPatchError(
+            "segmenting mesh",
+            "curved_patch_cone_multiregion_unsupported",
+            "conical bosses are supported only on a single freeform plate region",
+        )
     if freeform_count == 2:
         return _reconstruct_crease_network(
             mesh,
@@ -2255,7 +2473,7 @@ def reconstruct_plate_network(
             context.chart_vertices,
             context.hole_loops,
             fill_weight,
-            fill_caps=context.fill_caps,
+            fill_analytics=context.fill_analytics,
             normal=context.rectangle_normal,
         )
         sample_uv = np.concatenate([sample_uv, fill_uv])
@@ -2296,6 +2514,7 @@ def reconstruct_plate_network(
         guard.stage("assembling solid", 70.0)
         cutters = _hole_cutters(context.holes, mesh)
         fusers = _cap_fusers(context.caps)
+        cone_fusers = _cone_fusers(context.cones)
         solid = _plate_solid_from_network(
             network,
             corners,
@@ -2303,6 +2522,7 @@ def reconstruct_plate_network(
             cutters,
             settings.sewing_tolerance_mm,
             cap_fusers=fusers,
+            cone_fusers=cone_fusers,
         )
         guard.stage("validating solid", 90.0)
         face_surfaces, comparison, evidence = _network_gates(
@@ -2313,6 +2533,16 @@ def reconstruct_plate_network(
             network_settings,
             expected_cylinders=len(context.holes),
             expected_spheres=len(context.caps),
+            expected_cones=len(context.cones),
+            expected_face_count=(
+                5
+                + len(network.patches)
+                + len(context.holes)
+                + len(context.caps)
+                + len(context.cones)
+                if context.cones
+                else None
+            ),
         )
         if fit_cache is not None and cache_key is not None:
             fit_cache.store(
@@ -2348,16 +2578,18 @@ def reconstruct_plate_network(
             hole_cutters=cutters,
             caps=context.caps,
             cap_fusers=fusers,
+            cones=context.cones,
+            cone_fusers=cone_fusers,
             candidates=tuple(candidates),
             cache_status="stored" if fit_cache is not None else "uncached",
             sewing_tolerance_mm=settings.sewing_tolerance_mm,
         )
 
-    if context.holes or context.caps:
+    if context.holes or context.caps or context.cones:
         raise CurvedPatchError(
             "cutting chart",
             "curved_patch_holes_unsupported_split",
-            "chart cutting across regions with holes or caps is not supported yet; "
+            "chart cutting across regions with holes or analytic bosses is not supported yet; "
             "the single-patch layout did not meet tolerance",
         )
 
@@ -2633,11 +2865,16 @@ def plate_artifact_payload(result: CurvedNetworkResult, *, units: str = "mm") ->
             "prismVector": [float(value) for value in result.prism_vector],
             "sewingToleranceMm": float(result.sewing_tolerance_mm),
             "holes": [cutter.to_dict() for cutter in result.hole_cutters],
-            # Present only when non-empty so cap-free artifacts keep their
-            # historical bytes and hashes.
+            # Analytic-fuser keys are present only when non-empty so existing
+            # cap- and cone-free artifacts keep their historical bytes.
             **(
                 {"caps": [fuser.to_dict() for fuser in result.cap_fusers]}
                 if result.cap_fusers
+                else {}
+            ),
+            **(
+                {"cones": [fuser.to_dict() for fuser in result.cone_fusers]}
+                if result.cone_fusers
                 else {}
             ),
         },
@@ -2673,6 +2910,7 @@ def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
     prism_vector = np.asarray(assembly["prismVector"], dtype=np.float64)
     cutters = tuple(HoleCutter.from_dict(entry) for entry in assembly["holes"])
     fusers = tuple(CapFuser.from_dict(entry) for entry in assembly.get("caps", []))
+    cone_fusers = tuple(ConeFuser.from_dict(entry) for entry in assembly.get("cones", []))
     return _plate_solid_from_network(
         network,
         corners,
@@ -2680,6 +2918,7 @@ def rebuild_plate_solid(payload: dict[str, Any]) -> cq.Shape:
         cutters,
         float(assembly["sewingToleranceMm"]),
         cap_fusers=fusers,
+        cone_fusers=cone_fusers,
     )
 
 
@@ -2721,6 +2960,7 @@ def _assemble_cached_network(
     corners = context.corners
     cutters = _hole_cutters(context.holes, mesh)
     fusers = _cap_fusers(context.caps)
+    cone_fusers = _cone_fusers(context.cones)
     solid = _plate_solid_from_network(
         network,
         corners,
@@ -2728,6 +2968,7 @@ def _assemble_cached_network(
         cutters,
         settings.sewing_tolerance_mm,
         cap_fusers=fusers,
+        cone_fusers=cone_fusers,
     )
     guard.stage("validating solid", 90.0)
     face_surfaces, comparison, evidence = _network_gates(
@@ -2738,6 +2979,12 @@ def _assemble_cached_network(
         network_settings,
         expected_cylinders=len(context.holes),
         expected_spheres=len(context.caps),
+        expected_cones=len(context.cones),
+        expected_face_count=(
+            5 + len(network.patches) + len(context.holes) + len(context.caps) + len(context.cones)
+            if context.cones
+            else None
+        ),
     )
     iterations = tuple(
         FitIteration(
@@ -2771,6 +3018,8 @@ def _assemble_cached_network(
         hole_cutters=cutters,
         caps=context.caps,
         cap_fusers=fusers,
+        cones=context.cones,
+        cone_fusers=cone_fusers,
         candidates=tuple(dict(candidate) for candidate in payload["candidates"]),
         cache_status="hit",
         sewing_tolerance_mm=settings.sewing_tolerance_mm,
@@ -2780,6 +3029,7 @@ def _assemble_cached_network(
 __all__ = [
     "PLATE_ARTIFACT_SCHEMA",
     "CapFuser",
+    "ConeFuser",
     "CurvedNetworkResult",
     "CurvedNetworkSettings",
     "CurvedPatchError",
@@ -2787,6 +3037,7 @@ __all__ = [
     "CurvedPatchSettings",
     "HoleCutter",
     "PlateCap",
+    "PlateCone",
     "PlateHole",
     "ProgressCallback",
     "ReconstructionBudget",
