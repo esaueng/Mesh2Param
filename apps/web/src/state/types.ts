@@ -160,6 +160,8 @@ export interface SurfacePatch {
   boundaryLoops?: Array<{ vertexIds: number[]; closed: boolean }>;
   fit?: JsonObject;
   userOverriddenClassification?: boolean;
+  /** Neighbor ids whose shared boundary the user declared a smooth join. */
+  smoothBoundaryIds?: string[];
   locked: boolean;
   hidden?: boolean;
   excludedTriangleIds?: number[];

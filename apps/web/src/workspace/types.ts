@@ -23,7 +23,7 @@ export interface WorkspaceActions {
   confirmImport(): void;
   run(operation: "repair" | "analyze" | "reconstruct" | "rebuild" | "validate" | "export", settings?: JsonObject): Promise<void>;
   cancelJob(): Promise<void>;
-  updatePatch(patchId: string, patch: Partial<Pick<SurfacePatch,"name"|"hidden"|"locked">> & { classification?: SurfacePatch["type"] }): Promise<void>;
+  updatePatch(patchId: string, patch: Partial<Pick<SurfacePatch,"name"|"hidden"|"locked"|"smoothBoundaryIds">> & { classification?: SurfacePatch["type"] }): Promise<void>;
   mergePatches(patchIds: [string, string]): Promise<void>;
   updateCadgraph(graph: CADGraph, label: string): Promise<void>;
   undo(): void;

@@ -47,7 +47,12 @@ export interface PatchPanelProps {
   onSelect(id: string | null): void;
   onUpdate(
     patchId: string,
-    patch: { locked?: boolean; hidden?: boolean; classification?: PatchClassification },
+    patch: {
+      locked?: boolean;
+      hidden?: boolean;
+      classification?: PatchClassification;
+      smoothBoundaryIds?: string[];
+    },
   ): void;
   onMerge(patchIds: [string, string]): void;
 }
@@ -133,6 +138,46 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
               ))}
             </select>
           </label>
+          {selected.type === "freeform"
+            ? patches
+                .filter(
+                  (neighbor) =>
+                    neighbor.type === "freeform" &&
+                    (selected.neighborIds ?? []).includes(neighbor.id),
+                )
+                .map((neighbor) => {
+                  const smooth = (selected.smoothBoundaryIds ?? []).includes(neighbor.id);
+                  return (
+                    <label className="panel-field" key={neighbor.id}>
+                      <span>Boundary to {neighbor.id}</span>
+                      <select
+                        aria-label={`Boundary continuity to ${neighbor.id}`}
+                        value={smooth ? "smooth" : "crease"}
+                        disabled={disabled || selected.locked || neighbor.locked}
+                        title={
+                          selected.locked || neighbor.locked
+                            ? "Unlock both patches to change the boundary"
+                            : "A smooth join is refit with tangent continuity; its endpoints stay sharp where the walls force corners"
+                        }
+                        onChange={(event) => {
+                          const others = (selected.smoothBoundaryIds ?? []).filter(
+                            (id) => id !== neighbor.id,
+                          );
+                          onUpdate(selected.id, {
+                            smoothBoundaryIds:
+                              event.currentTarget.value === "smooth"
+                                ? [...others, neighbor.id].sort()
+                                : others,
+                          });
+                        }}
+                      >
+                        <option value="crease">Sharp crease (detected)</option>
+                        <option value="smooth">Smooth join (override)</option>
+                      </select>
+                    </label>
+                  );
+                })
+            : null}
           {selected.locked ? <p className="panel-hint info">Locked: unlock to reclassify.</p> : null}
           {selected.userOverriddenClassification === true ? (
             <p className="panel-hint info">User override: the next conversion refits and fails closed if the triangles do not satisfy this kind.</p>

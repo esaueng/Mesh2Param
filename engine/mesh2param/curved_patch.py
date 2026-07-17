@@ -557,6 +557,10 @@ class CurvedNetworkSettings:
     # dihedral means the join degenerated into a smooth blend.
     crease_minimum_angle_deg: float = 5.0
     coupling_weight: float = 10.0
+    # A user-declared smooth join fights data that genuinely wants a crease,
+    # so its C1 penalty must dominate the local sample influence; the default
+    # cut coupling only has to agree with already-smooth data.
+    smooth_override_coupling_weight: float = 1000.0
     curve_fairness: float = 1e-3
     evidence_sample_count: int = 64
     solve_rounds: int = 2
@@ -568,6 +572,8 @@ class CurvedNetworkSettings:
             raise ValueError("crease sharpness gate must be in (0, 90) degrees")
         if self.coupling_weight < 0.0 or self.curve_fairness < 0.0:
             raise ValueError("coupling weight and curve fairness must be non-negative")
+        if self.smooth_override_coupling_weight <= 0.0:
+            raise ValueError("smooth override coupling weight must be positive")
         if self.evidence_sample_count < 2 or self.solve_rounds < 1:
             raise ValueError("evidence samples and solve rounds must be positive")
 
@@ -654,21 +660,75 @@ class _PlateContext:
     freeform_locked: bool = False
 
 
+def _smooth_boundary_pairs(
+    segmentation: SegmentationResult,
+    patch_overrides: dict[str, dict[str, Any]],
+) -> set[frozenset[str]]:
+    """Validate user smooth-boundary declarations against the segmentation.
+
+    A smooth override names the neighbor whose shared boundary should join
+    with tangent continuity instead of the detected sharp crease. It is only
+    meaningful between two adjacent freeform regions; anything else fails
+    closed rather than silently reinterpreting the user's intent.
+    """
+
+    by_id = {patch.id: patch for patch in segmentation.patches}
+    pairs: set[frozenset[str]] = set()
+    for patch_id in sorted(patch_overrides):
+        neighbors = patch_overrides[patch_id].get("smooth_boundaries")
+        if not neighbors:
+            continue
+        patch = by_id[patch_id]
+        for neighbor_id in sorted(set(neighbors)):
+            neighbor = by_id.get(neighbor_id)
+            if neighbor is None:
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_override_unknown",
+                    (
+                        f"smooth boundary override on {patch_id!r} references "
+                        f"unknown patch {neighbor_id!r}; re-run analysis before converting"
+                    ),
+                )
+            if neighbor_id not in patch.neighbor_ids:
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_override_rejected",
+                    f"patches {patch_id!r} and {neighbor_id!r} do not share a boundary",
+                )
+            if patch.kind not in ("freeform", "unknown") or neighbor.kind not in (
+                "freeform",
+                "unknown",
+            ):
+                raise CurvedPatchError(
+                    "segmenting mesh",
+                    "curved_patch_override_rejected",
+                    (
+                        "smooth boundary overrides apply only between two "
+                        f"freeform regions; {patch_id!r} and {neighbor_id!r} are "
+                        f"{patch.kind} and {neighbor.kind}"
+                    ),
+                )
+            pairs.add(frozenset((patch_id, neighbor_id)))
+    return pairs
+
+
 def _apply_patch_overrides(
     mesh: trimesh.Trimesh,
     segmentation: SegmentationResult,
     patch_overrides: dict[str, dict[str, Any]],
-) -> SegmentationResult:
+) -> tuple[SegmentationResult, set[frozenset[str]]]:
     """Apply persisted user reclassifications and locks, failing closed.
 
     Reclassification reuses the segmentation edit session, so an analytic
     override is refitted and rejected when the triangles do not satisfy the
     requested kind's tolerance -- user intent never fabricates geometry.
+    Smooth boundary declarations are validated against the pre-edit adjacency
+    (the ids the client knows) and remapped through any reclassifications.
     """
 
     session = PatchEditSession(mesh, segmentation)
     for patch_id in sorted(patch_overrides):
-        override = patch_overrides[patch_id]
         if patch_id not in session.patches:
             raise CurvedPatchError(
                 "segmenting mesh",
@@ -678,6 +738,11 @@ def _apply_patch_overrides(
                     "segmentation; re-run analysis before converting"
                 ),
             )
+    smooth_pairs = _smooth_boundary_pairs(segmentation, patch_overrides)
+
+    id_map: dict[str, str] = {}
+    for patch_id in sorted(patch_overrides):
+        override = patch_overrides[patch_id]
         kind = override.get("kind")
         if kind is not None:
             if kind not in get_args(PatchKind):
@@ -693,22 +758,26 @@ def _apply_patch_overrides(
                     "curved_patch_override_rejected",
                     f"reclassifying {patch_id!r} to {kind!r} failed: {record.warning}",
                 )
+            id_map[patch_id] = record.after[0].id
             patch_id = record.after[0].id
         if override.get("locked"):
             session.lock(patch_id, True)
     patches = tuple(sorted(session.patches.values(), key=lambda patch: patch.id))
-    return SegmentationResult(patches, segmentation.settings, segmentation.warnings)
+    remapped = {
+        frozenset(id_map.get(patch_id, patch_id) for patch_id in pair) for pair in smooth_pairs
+    }
+    return SegmentationResult(patches, segmentation.settings, segmentation.warnings), remapped
 
 
 def _segment_with_overrides(
     mesh: trimesh.Trimesh,
     settings: CurvedPatchSettings,
     patch_overrides: dict[str, dict[str, Any]] | None,
-) -> SegmentationResult:
+) -> tuple[SegmentationResult, set[frozenset[str]]]:
     segmentation = segment_mesh(mesh, settings.segmentation)
     if patch_overrides:
-        segmentation = _apply_patch_overrides(mesh, segmentation, patch_overrides)
-    return segmentation
+        return _apply_patch_overrides(mesh, segmentation, patch_overrides)
+    return segmentation, set()
 
 
 def _plate_context(
@@ -720,7 +789,7 @@ def _plate_context(
     """Segment, extract, parameterize, and bound the plate's freeform chart."""
 
     if segmentation is None:
-        segmentation = _segment_with_overrides(mesh, settings, patch_overrides)
+        segmentation, _ = _segment_with_overrides(mesh, settings, patch_overrides)
     freeform = _freeform_patch(segmentation.patches)
     bottom_origin, bottom_normal = _bottom_plane(segmentation.patches, freeform)
 
@@ -1162,16 +1231,19 @@ def _network_gates(
                     f"exceeds the sewing tolerance"
                 ),
             )
+        # Gate smooth joins on the interior: the plate's straight boundary
+        # chains meet at an angle at the shared curve's endpoints, so the
+        # walls force C0 corners there even when the join itself is smooth.
         if (
             entry.continuity == "smooth"
-            and entry.maximum_normal_angle_deg > network_settings.g1_maximum_angle_deg
+            and entry.interior_maximum_normal_angle_deg > network_settings.g1_maximum_angle_deg
         ):
             raise CurvedPatchError(
                 "validating solid",
                 "curved_patch_g1_angle",
                 (
-                    f"shared curve {entry.curve_id!r} tangent mismatch "
-                    f"{entry.maximum_normal_angle_deg:g} deg exceeds "
+                    f"shared curve {entry.curve_id!r} interior tangent mismatch "
+                    f"{entry.interior_maximum_normal_angle_deg:g} deg exceeds "
                     f"{network_settings.g1_maximum_angle_deg:g} deg"
                 ),
             )
@@ -1212,6 +1284,7 @@ def _network_gates(
 class _CreaseContext:
     """Two adjacent freeform regions sharing one real crease boundary."""
 
+    region_ids: tuple[str, str]
     halves: tuple[ChartHalf, ChartHalf]
     charts: tuple[ChartParameterization, ChartParameterization]
     corners: np.ndarray
@@ -1419,6 +1492,7 @@ def _crease_context(
         raise CurvedPatchError("parameterizing chart", exc.code, str(exc)) from exc
 
     return _CreaseContext(
+        region_ids=(region_a.id, region_b.id),
         halves=halves,
         charts=(charts[0], charts[1]),
         corners=corners,
@@ -1440,12 +1514,18 @@ def _reconstruct_crease_network(
     *,
     fit_cache: CurvedFitCache | None,
     source_sha256: str | None,
+    smooth_pairs: set[frozenset[str]] | None = None,
 ) -> CurvedNetworkResult:
-    """Jointly fit two adjacent freeform regions sharing one real crease.
+    """Jointly fit two adjacent freeform regions sharing one real boundary.
 
-    The crease pole row is aliased into single unknowns across both patches
-    (G0 exactly zero by construction) with no C1 coupling: the join is a
-    declared ``crease`` and must stay sharp, which the evidence gates enforce.
+    The shared pole row is aliased into single unknowns across both patches
+    (G0 exactly zero by construction). By default the join is a declared
+    ``crease`` with no tangent coupling and must stay sharp. When the user
+    overrides the boundary to smooth, the same C1 rows used for artificial
+    cuts couple the tangents, the curve is declared ``smooth``, and the G1
+    angle gate replaces the sharpness gate -- if the data is genuinely
+    creased the deviation gates reject the smoothed fit rather than
+    fabricating the user's intent.
     """
 
     if network_settings.force_split:
@@ -1467,6 +1547,9 @@ def _reconstruct_crease_network(
     guard.stage("parameterizing chart", 20.0)
     degree = settings.fit.degree
     corners = context.corners
+    smooth_join = bool(smooth_pairs) and frozenset(context.region_ids) in (smooth_pairs or set())
+    curve_id = "smooth-0" if smooth_join else "crease-0"
+    layout = "smooth-join-network" if smooth_join else "crease-network"
 
     pole_cap = min(
         settings.budget.maximum_total_control_points,
@@ -1479,6 +1562,7 @@ def _reconstruct_crease_network(
             settings,
             network_settings,
             (np.asarray(mesh.vertices, dtype=np.float64), context.cache_faces),
+            extras={"smoothJoin": True} if smooth_join else None,
         )
         cached = fit_cache.load(cache_key)
         if cached is not None:
@@ -1553,9 +1637,11 @@ def _reconstruct_crease_network(
         knots = open_uniform_knots(control, degree)
         greville = greville_abscissae(knots, degree)
         # Pin the three straight outer chains of each region; the shared
-        # crease row stays a FREE pole row aliased across both patches with
-        # NO tangent coupling, so the joint fit keeps the dihedral the data
-        # demands instead of smoothing it away.
+        # boundary row stays a FREE pole row aliased across both patches.
+        # For a crease there is deliberately NO tangent coupling, so the
+        # joint fit keeps the dihedral the data demands instead of smoothing
+        # it away; a user-declared smooth join adds the same C1 rows the
+        # artificial cut uses.
         fixed_sets: list[dict[tuple[int, int], np.ndarray]] = []
         for side, side_corners in enumerate(half_corners):
             fixed = rectangle_boundary_poles(side_corners, greville, greville)
@@ -1563,6 +1649,21 @@ def _reconstruct_crease_network(
                 del fixed[(control - 1, j) if side == 0 else (0, j)]
             fixed_sets.append(fixed)
         shared_poles = [((0, (control - 1, j)), (1, (0, j))) for j in range(control)]
+        constraints = (
+            [
+                PoleConstraint(
+                    entries=(
+                        (0, (control - 2, j), 1.0),
+                        (1, (1, j), 1.0),
+                        (0, (control - 1, j), -2.0),
+                    ),
+                    target=np.zeros(3),
+                )
+                for j in range(control)
+            ]
+            if smooth_join
+            else []
+        )
 
         uv_state = [sample[0].copy() for sample in samples]
         poles: list[np.ndarray] = []
@@ -1583,8 +1684,8 @@ def _reconstruct_crease_network(
                 degree,
                 fairness=settings.fit.fairness,
                 shared_poles=shared_poles,
-                constraints=[],
-                constraint_weight=network_settings.coupling_weight,
+                constraints=constraints,
+                constraint_weight=network_settings.smooth_override_coupling_weight,
             )
             uv_state = [
                 reproject_patch_uv(
@@ -1622,7 +1723,7 @@ def _reconstruct_crease_network(
     control = len(knots) - degree - 1
     candidates = [
         {
-            "layout": "crease-network",
+            "layout": layout,
             "converged": bool(residuals.max() <= settings.fit_tolerance_mm),
             "residualMaximum": float(residuals.max()),
             "residualRms": float(np.sqrt(np.mean(residuals**2))),
@@ -1644,17 +1745,17 @@ def _reconstruct_crease_network(
     curve_poles = np.asarray(poles[0][-1], dtype=np.float64)
     vertices = (
         *(NetworkVertex(f"corner-{index}", corners[index]) for index in range(4)),
-        NetworkVertex("crease-0-start", context.crease_start),
-        NetworkVertex("crease-0-end", context.crease_end),
+        NetworkVertex(f"{curve_id}-start", context.crease_start),
+        NetworkVertex(f"{curve_id}-end", context.crease_end),
     )
     curve = NetworkCurve(
-        id="crease-0",
+        id=curve_id,
         degree=degree,
         knots=knots,
         poles=curve_poles,
-        start_vertex_id="crease-0-start",
-        end_vertex_id="crease-0-end",
-        continuity="crease",
+        start_vertex_id=f"{curve_id}-start",
+        end_vertex_id=f"{curve_id}-end",
+        continuity="smooth" if smooth_join else "crease",
     )
     patch_a = NetworkPatch(
         id="patch-0",
@@ -1662,8 +1763,8 @@ def _reconstruct_crease_network(
         knots_u=knots,
         knots_v=knots,
         poles=poles[0],
-        corner_vertex_ids=("corner-0", "crease-0-start", "crease-0-end", "corner-3"),
-        shared_boundaries={"u1": "crease-0"},
+        corner_vertex_ids=("corner-0", f"{curve_id}-start", f"{curve_id}-end", "corner-3"),
+        shared_boundaries={"u1": curve_id},
     )
     patch_b = NetworkPatch(
         id="patch-1",
@@ -1671,8 +1772,8 @@ def _reconstruct_crease_network(
         knots_u=knots,
         knots_v=knots,
         poles=poles[1],
-        corner_vertex_ids=("crease-0-start", "corner-1", "corner-2", "crease-0-end"),
-        shared_boundaries={"u0": "crease-0"},
+        corner_vertex_ids=(f"{curve_id}-start", "corner-1", "corner-2", f"{curve_id}-end"),
+        shared_boundaries={"u0": curve_id},
     )
     network = SurfaceNetwork(
         units="mm", vertices=vertices, curves=(curve,), patches=(patch_a, patch_b)
@@ -1690,7 +1791,7 @@ def _reconstruct_crease_network(
         fit_cache.store(
             cache_key,
             _fit_cache_payload(
-                "crease-network",
+                layout,
                 network,
                 tuple(iterations_list),
                 candidates,
@@ -1751,7 +1852,7 @@ def reconstruct_plate_network(
     guard = _StageGuard(settings.budget, progress, should_cancel)
 
     guard.stage("segmenting mesh", 5.0)
-    segmentation = _segment_with_overrides(mesh, settings, patch_overrides)
+    segmentation, smooth_pairs = _segment_with_overrides(mesh, settings, patch_overrides)
     freeform_count = sum(
         1 for patch in segmentation.patches if patch.kind in ("freeform", "unknown")
     )
@@ -1764,6 +1865,7 @@ def reconstruct_plate_network(
             guard,
             fit_cache=fit_cache,
             source_sha256=source_sha256,
+            smooth_pairs=smooth_pairs,
         )
     context = _plate_context(mesh, settings, segmentation=segmentation)
     guard.stage("parameterizing chart", 20.0)

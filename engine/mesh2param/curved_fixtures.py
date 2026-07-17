@@ -150,7 +150,12 @@ def _bump_plate_solid(scale: float = 1.0) -> cq.Shape:
     )
 
 
-def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
+def _gable_plate_solid(
+    scale: float = 1.0,
+    *,
+    ridge_poles: tuple[float, ...] = (10.0, 11.5, 14.0, 12.5, 13.5, 11.5, 10.0),
+    bumps: tuple[float, float] = (3.0, 2.2),
+) -> cq.Shape:
     """A plate whose top is two exact B-spline roofs meeting at a sharp crease.
 
     The ridge is an elevated, bowed cubic curve shared pole-for-pole by both
@@ -160,6 +165,9 @@ def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
     the end walls planar pentagons). Built through the same artifact rebuild
     path the reconstruction uses, which keeps fixture and target topology
     identical by construction: the Milestone 2 multi-region follow-up target.
+    ``ridge_poles`` controls the dihedral: the default is decisively sharp,
+    while the soft variant stays just above the segmentation threshold so a
+    user may plausibly declare the join smooth.
     """
 
     degree = 3
@@ -170,7 +178,7 @@ def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
     knots = open_uniform_knots(control, degree)
     greville = greville_abscissae(knots, degree)
     # Ridge elevation poles: clamped cubic bowing between elevated endpoints.
-    ridge = np.asarray([10.0, 11.5, 14.0, 12.5, 13.5, 11.5, 10.0]) * scale
+    ridge = np.asarray(ridge_poles, dtype=np.float64) * scale
 
     def roof_poles(side: int, bump: float) -> np.ndarray:
         poles = np.zeros((control, control, 3))
@@ -214,7 +222,7 @@ def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
                 degree=degree,
                 knots_u=knots,
                 knots_v=knots,
-                poles=roof_poles(0, bump=3.0),
+                poles=roof_poles(0, bump=bumps[0]),
                 corner_vertex_ids=("corner-0", "crease-0-start", "crease-0-end", "corner-3"),
                 shared_boundaries={"u1": "crease-0"},
             ),
@@ -223,7 +231,7 @@ def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
                 degree=degree,
                 knots_u=knots,
                 knots_v=knots,
-                poles=roof_poles(1, bump=2.2),
+                poles=roof_poles(1, bump=bumps[1]),
                 corner_vertex_ids=("crease-0-start", "corner-1", "corner-2", "crease-0-end"),
                 shared_boundaries={"u0": "crease-0"},
             ),
@@ -477,6 +485,23 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.15,
     ),
     CurvedFixtureSpec(
+        slug="bspline-soft-gable-plate",
+        title="B-spline gable plate with a soft ridge crease",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "The gable plate with a gentle ridge: the dihedral stays just "
+            "above the segmentation crease threshold, so the top still "
+            "segments into two freeform regions while a user may plausibly "
+            "override the detected crease to a smooth join."
+        ),
+        # The nearly ruled roofs barely trigger curvature-driven subdivision,
+        # so a finer relative deflection keeps the source honestly denser
+        # than the exact ground truth.
+        linear_tolerance=0.0006,
+        angular_tolerance=0.1,
+    ),
+    CurvedFixtureSpec(
         slug="wavy-slab",
         title="Wavy B-spline slab",
         category="positive",
@@ -583,6 +608,14 @@ _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Sha
     "bspline-bump-plate": _positive_builder(_bump_plate_solid),
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
     "bspline-gable-plate": _positive_builder(_gable_plate_solid),
+    # Small bumps: the bump's u-derivative subtracts from the ridge slope, so
+    # large interior bumps would flatten the dihedral below the segmentation
+    # threshold and merge the two roof regions.
+    "bspline-soft-gable-plate": _positive_builder(
+        lambda: _gable_plate_solid(
+            ridge_poles=(6.5, 6.8, 7.4, 7.0, 7.3, 6.8, 6.5), bumps=(0.5, 0.4)
+        )
+    ),
     "wavy-slab": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-dense": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-noisy": _positive_builder(_wavy_bspline_solid),

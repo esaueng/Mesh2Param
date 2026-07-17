@@ -230,7 +230,9 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
       debugLog.warn("run", `${operation} not queued: no writable project revision`);
       return;
     }
-    if (operation === "reconstruct" && settings.mode !== "faceted" && current.working !== null) {
+    // Only the automatic exact path (no explicit mode) is scoped by the capability
+    // check; the curved and faceted modes are the fallbacks it points users toward.
+    if (operation === "reconstruct" && settings.mode === undefined && current.working !== null) {
       const capability = automaticReconstructionCapability(current.working);
       if (!capability.supported) {
         debugLog.warn("run", "Automatic reconstruction unavailable", capability.reason);

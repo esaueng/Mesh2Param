@@ -566,10 +566,48 @@ refitted through the segmentation edit session and fail closed when the
 triangles do not satisfy the requested kind (user intent never fabricates
 geometry), unknown patch ids fail closed recommending re-analysis, and a
 locked freeform patch refuses chart splitting
-(`curved_patch_locked_split`). Boundary crease-versus-smooth classification
-remains geometry-driven (creases from segmentation, smooth only across
-artificial cuts); multi-region crease networks now exist, so a user override
-for it is unblocked but still a follow-up.
+(`curved_patch_locked_split`). The crease-classification override is now
+implemented (see "Crease-classification user override" below).
+
+#### Crease-classification user override (implemented)
+
+When analysis finds two adjacent freeform regions, the patch panel offers a
+boundary-continuity control on either region: "Sharp crease (detected)" or
+"Smooth join (override)". The declaration persists as `smoothBoundaryIds`
+on the patch, mirrored symmetrically onto the neighbor by the PATCH route
+(one request updates both sides; a locked patch on either side blocks the
+edit with 409, and non-neighbor references fail with 422). The reconstruct
+job collects the pairs from the persisted project state, echoes them as
+`appliedSmoothBoundaries`, and the engine validates them fail-closed:
+unknown ids (`curved_patch_override_unknown`), non-adjacent pairs, or pairs
+that are not two freeform regions (`curved_patch_override_rejected`).
+
+In the two-region network fit, a smooth-declared boundary keeps the aliased
+shared pole row (G0 still exactly zero) and adds the same C1 rows the
+artificial cut uses -- but with a much stronger penalty
+(`smooth_override_coupling_weight`, default 1000): the default cut coupling
+merely agrees with already-smooth data, while a user-declared smooth join
+must dominate samples that genuinely pull toward a crease. The curve is
+declared `smooth` (id `smooth-0`), the layout is recorded as
+`smooth-join-network`, and the override participates in the fit-cache key.
+
+One geometric honesty note: a plate's straight boundary chains meet at an
+angle at the shared curve's endpoints, so the walls force C0 corners there
+no matter what -- a fully smooth join is impossible under plate topology.
+The shared-edge evidence therefore gains `interiorMaximumNormalAngleDeg`
+(excluding the clamped end spans) and the smooth G1 gate uses it; the
+full-range maximum keeps reporting the forced end corners honestly. The
+deviation gates still measure truth: on the sharp gable the smoothed fit
+legitimately concentrates curvature into a narrow band and stays within
+tolerance (max deviation 0.09 mm), which is approximation, not fabrication.
+
+Measured on the new `bspline-soft-gable-plate` fixture (386 triangles,
+ridge dihedral 17.7-19.1 degrees, just above the 12 degree segmentation
+threshold): the default reconstruction keeps the sharp crease; with the
+override, maximum fit residual 0.209 mm, interior G1 0.16 degrees against
+the 1 degree gate, G0 exactly 0, source deviation 0.19 mm, and declaring
+the boundary from either side produces the identical artifact. Covered by
+`tests/test_curved_smooth_override.py`.
 
 ### Milestone 3: hybrid analytic/freeform reconstruction (core implemented)
 
