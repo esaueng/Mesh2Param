@@ -22,6 +22,7 @@ import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type { ViewerMode } from "../state/types";
 import { CadViewport } from "../viewer/CadViewport";
+import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
@@ -230,6 +231,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </button>
           </div>
         </section>
+
+        {state.patches.length > 0 && state.cadgraph === null ? (
+          <PatchPanel
+            patches={state.patches}
+            selectedPatchId={vm.selectedPatchId}
+            disabled={activeJob !== null}
+            onSelect={actions.selectPatch}
+            onUpdate={(patchId, patch) => void actions.updatePatch(patchId, patch)}
+            onMerge={(patchIds) => void actions.mergePatches(patchIds)}
+          />
+        ) : null}
 
         <section className="panel-group panel-convert">
           <h2 className="panel-label">Convert</h2>
