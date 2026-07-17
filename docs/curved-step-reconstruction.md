@@ -435,13 +435,59 @@ deviation 0.095 mm, RMS 0.014 mm, volume within 0.05 % of the exact ground
 truth; the STEP reimport preserves surface types and byte-identical repeat
 runs. Covered by `tests/test_curved_patch.py`.
 
-### Milestone 2: surface-network topology
+### Milestone 2: surface-network topology (core implemented)
 
 - Add deterministic chart cutting, shared boundary curves, pcurves, and common
   OCCT edges.
 - Add G0 and smooth-boundary G1 evidence.
 - Support multiple B-spline patches, holes, and extraordinary chart vertices.
 - Add the content-addressed surface-network artifact and CADGraph base feature.
+
+Implemented in this milestone:
+
+- [`engine/mesh2param/surface_network.py`](../engine/mesh2param/surface_network.py):
+  the shared-topology network model (vertices, boundary curves with declared
+  crease/smooth continuity intent, tensor-product patches whose boundary pole
+  rows equal the shared curve poles exactly), canonical content-addressed
+  JSON artifact (`mesh2param/surface-network/1`, SHA-256 over canonical
+  bytes) with deterministic rebuild, OCCT face construction on one common
+  `TopoDS_Edge` per shared curve with exact iso-line pcurves (SameParameter
+  by construction, not approximation), and per-curve G0 gap plus G1
+  normal-angle evidence.
+- [`engine/mesh2param/parameterization.py`](../engine/mesh2param/parameterization.py):
+  deterministic chart cutting -- boundary-edge midpoint insertion (straight
+  crease edges never subdivide, so the cut endpoints must be created), a
+  Dijkstra interior path weighted toward the u = 0.5 isoline, and a fail-closed
+  split into exactly two reindexed disk halves.
+- [`engine/mesh2param/surface_fit.py`](../engine/mesh2param/surface_fit.py):
+  the joint network solver. Shared boundary poles are aliased into single
+  unknowns across patches (true common topology, solved once), with weighted
+  linear pole constraints expressing C1 -- hence G1 -- coupling across
+  artificial smooth boundaries. An earlier design that pre-fitted the shared
+  curve to the discrete cut path failed: the Dijkstra path zig-zags through
+  mesh vertices and no smooth cubic should interpolate it; with aliasing the
+  shared curve emerges from the joint fit lying on the surface.
+- [`engine/mesh2param/curved_patch.py`](../engine/mesh2param/curved_patch.py):
+  `reconstruct_plate_network` fits one patch when the budget allows and
+  otherwise (or when forced) cuts, fits both halves jointly, and assembles the
+  network faces with split walls. Network residuals measure distance to the
+  closest patch of the network -- cut-adjacent samples legitimately land on
+  the neighbor's side of the smooth emergent boundary.
+
+Measured on `bspline-bump-plate` with a forced split: 7 faces (5 planes plus
+2 B-spline patches on one common edge; 15 edges, satisfying the Euler count
+for shared topology), maximum fit residual 0.095 mm, G0 gap exactly 0.0, G1
+normal mismatch 0.43 degrees maximum against a 1 degree gate, source deviation
+0.103 mm, volume within 0.05 % of exact, and byte-identical artifacts and
+normalized STEP across repeat runs. Covered by `tests/test_curved_network.py`.
+
+Still open for a follow-up before Milestone 3: multi-region crease networks
+(shared crease curves between separately segmented freeform regions), holes
+and extraordinary chart vertices, and the CADGraph `reconstructedSurfaceNetwork`
+base feature. The CADGraph feature requires a contracts schema change (the
+authoritative JSON Schema, regenerated TypeScript types, migrations, compiler
+resolution mirroring `ImportedFacetedFeature`, and services/web surfacing);
+the engine artifact above is designed to slot into it unchanged.
 
 ### Milestone 3: hybrid analytic/freeform reconstruction
 
