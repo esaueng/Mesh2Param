@@ -28,8 +28,9 @@ from OCP.GeomAPI import GeomAPI_PointsToBSplineSurface
 from OCP.gp import gp_Pnt, gp_Vec
 from OCP.TColgp import TColgp_Array2OfPnt
 
-from .curved_patch import assemble_single_patch_plate
+from .curved_patch import PLATE_ARTIFACT_SCHEMA, assemble_single_patch_plate, rebuild_plate_solid
 from .surface_fit import build_occt_bspline_surface, greville_abscissae, open_uniform_knots
+from .surface_network import NetworkCurve, NetworkPatch, NetworkVertex, SurfaceNetwork
 from .tessellation import tessellate_shape
 from .validation import classify_face_surfaces, validate_shape
 
@@ -147,6 +148,104 @@ def _bump_plate_solid(scale: float = 1.0) -> cq.Shape:
     return assemble_single_patch_plate(
         surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
     )
+
+
+def _gable_plate_solid(scale: float = 1.0) -> cq.Shape:
+    """A plate whose top is two exact B-spline roofs meeting at a sharp crease.
+
+    The ridge is an elevated, bowed cubic curve shared pole-for-pole by both
+    roof patches, so the ground truth is a true two-patch crease network: G0
+    exact along the ridge with a dihedral angle everywhere above the
+    segmentation crease threshold (the ridge endpoints stay elevated, making
+    the end walls planar pentagons). Built through the same artifact rebuild
+    path the reconstruction uses, which keeps fixture and target topology
+    identical by construction: the Milestone 2 multi-region follow-up target.
+    """
+
+    degree = 3
+    control = 7
+    half = 40.0 * scale
+    depth = 80.0 * scale
+    thickness = 25.0 * scale
+    knots = open_uniform_knots(control, degree)
+    greville = greville_abscissae(knots, degree)
+    # Ridge elevation poles: clamped cubic bowing between elevated endpoints.
+    ridge = np.asarray([10.0, 11.5, 14.0, 12.5, 13.5, 11.5, 10.0]) * scale
+
+    def roof_poles(side: int, bump: float) -> np.ndarray:
+        poles = np.zeros((control, control, 3))
+        for i, gu in enumerate(greville):
+            for j, gv in enumerate(greville):
+                rise = gu if side == 0 else 1.0 - gu
+                poles[i, j, 0] = (gu if side == 0 else 1.0 + gu) * half
+                poles[i, j, 1] = gv * depth
+                # The sine factors vanish on every edge pole row, so the
+                # straight outer boundaries and the shared ridge stay exact.
+                poles[i, j, 2] = rise * ridge[j] + bump * scale * sin(pi * gu) * sin(pi * gv)
+        return poles
+
+    curve_poles = np.column_stack(
+        [np.full(control, half), greville * depth, ridge.astype(np.float64)]
+    )
+    network = SurfaceNetwork(
+        units="mm",
+        vertices=(
+            NetworkVertex("corner-0", np.asarray([0.0, 0.0, 0.0])),
+            NetworkVertex("corner-1", np.asarray([2.0 * half, 0.0, 0.0])),
+            NetworkVertex("corner-2", np.asarray([2.0 * half, depth, 0.0])),
+            NetworkVertex("corner-3", np.asarray([0.0, depth, 0.0])),
+            NetworkVertex("crease-0-start", np.asarray([half, 0.0, ridge[0]])),
+            NetworkVertex("crease-0-end", np.asarray([half, depth, ridge[-1]])),
+        ),
+        curves=(
+            NetworkCurve(
+                id="crease-0",
+                degree=degree,
+                knots=knots,
+                poles=curve_poles,
+                start_vertex_id="crease-0-start",
+                end_vertex_id="crease-0-end",
+                continuity="crease",
+            ),
+        ),
+        patches=(
+            NetworkPatch(
+                id="patch-0",
+                degree=degree,
+                knots_u=knots,
+                knots_v=knots,
+                poles=roof_poles(0, bump=3.0),
+                corner_vertex_ids=("corner-0", "crease-0-start", "crease-0-end", "corner-3"),
+                shared_boundaries={"u1": "crease-0"},
+            ),
+            NetworkPatch(
+                id="patch-1",
+                degree=degree,
+                knots_u=knots,
+                knots_v=knots,
+                poles=roof_poles(1, bump=2.2),
+                corner_vertex_ids=("crease-0-start", "corner-1", "corner-2", "crease-0-end"),
+                shared_boundaries={"u0": "crease-0"},
+            ),
+        ),
+    )
+    payload = {
+        "schema": PLATE_ARTIFACT_SCHEMA,
+        "units": "mm",
+        "network": network.to_artifact(),
+        "assembly": {
+            "corners": [
+                [0.0, 0.0, 0.0],
+                [2.0 * half, 0.0, 0.0],
+                [2.0 * half, depth, 0.0],
+                [0.0, depth, 0.0],
+            ],
+            "prismVector": [0.0, 0.0, -thickness],
+            "sewingToleranceMm": 1e-6,
+            "holes": [],
+        },
+    }
+    return rebuild_plate_solid(payload)
 
 
 def _bump_plate_with_hole(scale: float = 1.0) -> cq.Shape:
@@ -362,6 +461,22 @@ CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
         angular_tolerance=0.15,
     ),
     CurvedFixtureSpec(
+        slug="bspline-gable-plate",
+        title="B-spline gable plate with a sharp ridge crease",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "A plate whose top is two exact B-spline roof patches meeting at "
+            "an elevated, bowed sharp ridge crease: the multi-region crease "
+            "network reconstruction target (two freeform regions sharing one "
+            "crease curve, pentagon end walls)."
+        ),
+        linear_tolerance=0.002,
+        # Below the 12-degree smooth-region threshold so the gently curved
+        # roofs stay single regions while the ridge crease separates them.
+        angular_tolerance=0.15,
+    ),
+    CurvedFixtureSpec(
         slug="wavy-slab",
         title="Wavy B-spline slab",
         category="positive",
@@ -467,6 +582,7 @@ CURVED_FIXTURES_BY_SLUG: dict[str, CurvedFixtureSpec] = {
 _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Shape | None]]] = {
     "bspline-bump-plate": _positive_builder(_bump_plate_solid),
     "bspline-bump-plate-hole": _positive_builder(_bump_plate_with_hole),
+    "bspline-gable-plate": _positive_builder(_gable_plate_solid),
     "wavy-slab": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-dense": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-noisy": _positive_builder(_wavy_bspline_solid),
