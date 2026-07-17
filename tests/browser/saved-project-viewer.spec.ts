@@ -1,11 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
-
-async function waitForJob(page: Page, kind: string, timeout = 240_000) {
-  const progress = page.locator(`.canvas-progress[data-job-kind="${kind}"]`);
-  await expect(progress).toBeVisible({ timeout: 30_000 });
-  await expect(progress).toBeHidden({ timeout });
-  await expect(page.getByRole("alert")).toHaveCount(0);
-}
+import { expect, test } from "@playwright/test";
 
 test("saved project with unavailable artifact bytes does not mount a black viewer", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
@@ -16,7 +9,11 @@ test("saved project with unavailable artifact bytes does not mount a black viewe
 
   await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
   await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
-  await waitForJob(page, "sample_open");
+  // Durable outcome instead of the transient progress bar: fast jobs finish
+  // before a visibility assertion can attach (the same reason
+  // primary-workflow.spec.ts waits on the primary action).
+  await expect(page.locator(".dock-primary")).toContainText("Download STEP", { timeout: 240_000 });
+  await expect(page.getByRole("alert")).toHaveCount(0);
 
   const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
   await page.getByRole("button", { name: "Save project", exact: true }).click();
@@ -41,5 +38,5 @@ test("saved project with unavailable artifact bytes does not mount a black viewe
   await expect(page.getByText("Mesh loaded", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("cad-viewport")).toHaveCount(0);
   await expect(page.locator("canvas")).toHaveCount(0);
-  await page.screenshot({ path: "/private/tmp/mesh2param-saved-project-repro.png" });
+  await page.screenshot({ path: testInfo.outputPath("saved-project-reopen.png") });
 });
