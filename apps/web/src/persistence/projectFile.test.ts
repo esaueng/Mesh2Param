@@ -391,26 +391,42 @@ describe("Mesh2Param project files", () => {
       originalFileName: "part.stl",
       blob: new Blob([bytes.buffer], { type: "model/stl" }),
     });
+    const sourceArtifact = {
+      name: "source.glb",
+      kind: "source-mesh",
+      sha256: "1".repeat(64),
+      byteSize: 1024,
+      mediaType: "model/gltf-binary",
+    };
+    const savedWorking = working(sha256, bytes.byteLength);
+    savedWorking.artifactSetId = "artifact-set-1";
+    savedWorking.artifacts = [sourceArtifact];
     const file: Mesh2ParamProjectFile = createProjectFile({
       project: project(sha256, bytes.byteLength),
-      working: working(sha256, bytes.byteLength),
+      working: savedWorking,
       ui: persistedUi(),
       versions: [],
       source,
-      artifactManifest: [],
+      artifactManifest: [sourceArtifact],
     });
     const db = new Mesh2ParamWorkspaceDB(`mesh2param-test-${crypto.randomUUID()}`);
     databases.push(db);
     const repository = new WorkspaceRepository(db);
 
-    await repository.importProjectFile(serializeProjectFile(file));
+    const imported = await repository.importProjectFile(serializeProjectFile(file));
 
     const stored = await db.blobs.get(`source:${sha256}`);
+    const storedDocument = await db.documents.get(file.project.id);
     const storedUi = await db.ui.get(file.project.id);
     expect(stored?.projectId).toBe(file.project.id);
     expect(stored?.byteSize).toBe(bytes.byteLength);
     expect(stored?.blob).toBeDefined();
     expect(storedUi?.state).toEqual(file.ui);
+    expect(imported.file.artifactManifest).toEqual([sourceArtifact]);
+    expect(imported.file.working.artifacts).toEqual([]);
+    expect(imported.file.working.artifactSetId).toBeNull();
+    expect(storedDocument?.document.artifacts).toEqual([]);
+    expect(storedDocument?.document.artifactSetId).toBeNull();
   });
 
   it("drops unavailable artifact descriptors from the active imported workspace", async () => {
