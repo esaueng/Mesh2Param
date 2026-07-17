@@ -89,7 +89,9 @@ class CurvedConversionResult:
                 "Only freeform-topped plate topology is reconstructed "
                 "automatically: one region, an artificial two-patch split, or "
                 "two regions meeting at one sharp crease; recognized through "
-                "holes are supported on single-region plates only.",
+                "holes are supported on single- and multi-region plates, and a "
+                "vertical torus bead may separate one outer region from one "
+                "inner freeform island.",
             ],
         }
 
@@ -218,6 +220,7 @@ def _build_graph(
                     "patchCount": len(reconstruction.network.patches),
                     "sharedCurveCount": len(reconstruction.network.curves),
                     "holeCount": len(reconstruction.holes),
+                    "torusCount": len(reconstruction.tori),
                     "residualMaximumMm": reconstruction.residual_maximum,
                     "residualRmsMm": reconstruction.residual_rms,
                     "deviationToleranceMm": deviation_mm,

@@ -7,9 +7,10 @@ import itertools
 import json
 import math
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Protocol
 
 import numpy as np
 import trimesh
@@ -38,6 +39,14 @@ OperationName = Literal[
 ]
 
 DETERMINISTIC_OPERATION_TIMESTAMP = "1970-01-01T00:00:00Z"
+
+
+class _FixNormals(Protocol):
+    def __call__(self, mesh: trimesh.Trimesh, *, multibody: bool) -> None: ...
+
+
+_fix_winding: Callable[[trimesh.Trimesh], None] = trimesh.repair.fix_winding
+_fix_normals: _FixNormals = trimesh.repair.fix_normals
 
 
 def _camel_case_key(value: str) -> str:
@@ -429,13 +438,13 @@ def _remove_unreferenced(
 
 def _orient_winding(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh, tuple[str, ...]]:
     repaired = mesh.copy()
-    trimesh.repair.fix_winding(repaired)
+    _fix_winding(repaired)
     return repaired, ()
 
 
 def _repair_normals(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh, tuple[str, ...]]:
     repaired = mesh.copy()
-    trimesh.repair.fix_normals(repaired, multibody=True)
+    _fix_normals(repaired, multibody=True)
     return repaired, ()
 
 
