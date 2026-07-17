@@ -281,13 +281,16 @@ def harmonic_square_parameterization(
 
 @dataclass(frozen=True, slots=True)
 class ChartHalf:
-    """One side of a cut chart, reindexed with its own vertex array."""
+    """One reindexed chart region: a cut side or a segmented freeform region."""
 
     vertices: np.ndarray = field(repr=False)
     faces: np.ndarray = field(repr=False)
     boundary_loop: np.ndarray = field(repr=False)
     corner_positions: tuple[int, int, int, int]
     parent_vertex_ids: np.ndarray = field(repr=False)
+    # Interior boundary loops (local indices): recognized-hole rims that stay
+    # interior to the chart's harmonic map.
+    hole_loops: tuple[np.ndarray, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,8 +307,8 @@ class ChartCut:
         return np.asarray(self.vertices[self.path_vertex_ids], dtype=np.float64)
 
 
-def _ordered_boundary_loop(faces: np.ndarray) -> np.ndarray:
-    """The single closed boundary loop of a disk-like triangle subset."""
+def _ordered_boundary_loops(faces: np.ndarray) -> list[np.ndarray]:
+    """Every closed boundary loop of a triangle subset, each walked in order."""
 
     counts: dict[tuple[int, int], int] = {}
     directed: dict[int, list[int]] = {}
@@ -319,29 +322,65 @@ def _ordered_boundary_loop(faces: np.ndarray) -> np.ndarray:
                 directed.setdefault(left, []).append(right)
     if not directed or any(len(nexts) != 1 for nexts in directed.values()):
         raise ChartParameterizationError(
+            "chart_cut_boundary", "a chart region does not have simple boundary loops"
+        )
+    remaining = set(directed)
+    loops: list[np.ndarray] = []
+    while remaining:
+        start = min(remaining)
+        loop = [start]
+        current = directed[start][0]
+        while current != start:
+            loop.append(current)
+            current = directed[current][0]
+            if len(loop) > len(directed) + 1:
+                raise ChartParameterizationError(
+                    "chart_cut_boundary", "a chart region's boundary walk did not close"
+                )
+        remaining.difference_update(loop)
+        loops.append(np.asarray(loop, dtype=np.int64))
+    return loops
+
+
+def _ordered_boundary_loop(faces: np.ndarray) -> np.ndarray:
+    """The single closed boundary loop of a disk-like triangle subset."""
+
+    loops = _ordered_boundary_loops(faces)
+    if len(loops) != 1:
+        raise ChartParameterizationError(
             "chart_cut_boundary", "a cut side does not have one simple boundary loop"
         )
-    start = min(directed)
-    loop = [start]
-    current = directed[start][0]
-    while current != start:
-        loop.append(current)
-        current = directed[current][0]
-        if len(loop) > len(directed) + 1:
-            raise ChartParameterizationError(
-                "chart_cut_boundary", "a cut side's boundary walk did not close"
-            )
-    return np.asarray(loop, dtype=np.int64)
+    return loops[0]
 
 
 def reindexed_chart_region(
     vertices: np.ndarray, faces: np.ndarray, corner_vertex_ids: tuple[int, int, int, int]
 ) -> ChartHalf:
+    """Reindex a region and orient its corner-bearing loop as the boundary.
+
+    Any other closed loop is an interior hole rim, kept for synthetic fill;
+    the harmonic map constrains only the outer boundary.
+    """
+
     used = np.unique(faces)
     local = np.full(len(vertices), -1, dtype=np.int64)
     local[used] = np.arange(len(used))
-    loop = _ordered_boundary_loop(local[faces])
+    loops = _ordered_boundary_loops(local[faces])
     corner_local = [int(local[vertex]) for vertex in corner_vertex_ids]
+    outer_index = next(
+        (
+            index
+            for index, candidate in enumerate(loops)
+            if all(corner in candidate for corner in corner_local)
+        ),
+        None,
+    )
+    if outer_index is None:
+        raise ChartParameterizationError(
+            "chart_cut_corner", "no boundary loop carries all four chart corners"
+        )
+    loop = loops[outer_index]
+    hole_loops = tuple(loops[index] for index in range(len(loops)) if index != outer_index)
     positions = []
     for corner in corner_local:
         found = np.flatnonzero(loop == corner)
@@ -373,6 +412,7 @@ def reindexed_chart_region(
         boundary_loop=rolled,
         corner_positions=(positions[0], positions[1], positions[2], positions[3]),
         parent_vertex_ids=used,
+        hole_loops=hole_loops,
     )
 
 
