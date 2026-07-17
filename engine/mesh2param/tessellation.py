@@ -120,6 +120,12 @@ def canonicalize_tessellation(
             index < 0 or index >= len(rounded_vertices) for index in raw_triangle
         ):
             raise ValueError(f"invalid tessellation triangle: {raw_triangle!r}")
+        raw_coordinates = tuple(mesh.vertices[index] for index in raw_triangle)
+        if len(set(raw_coordinates)) != 3:
+            # OCCT emits genuinely zero-area triangles at the parametric pole
+            # of a sphere face (two UV corners map to the identical 3-D
+            # point). They carry no geometry; dropping them is exact.
+            continue
         coordinate_triangle: CoordinateTriangle = (
             rounded_vertices[raw_triangle[0]],
             rounded_vertices[raw_triangle[1]],
