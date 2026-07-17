@@ -372,6 +372,7 @@ each direction):
 
 | Fixture | Source triangles | Faceted faces | STEP size | Runtime | Max distance (mm) |
 | --- | ---: | ---: | ---: | ---: | ---: |
+| `bspline-bump-plate` | 492 | 492 | 1167 KiB | 0.47 s | 2.1e-07 |
 | `wavy-slab` | 262 | 262 | 582 KiB | 0.31 s | 4.7e-07 |
 | `wavy-slab-dense` | 2784 | 2784 | 6637 KiB | 2.36 s | 5.7e-07 |
 | `wavy-slab-noisy` | 262 | 262 | 617 KiB | 0.32 s | 5.5e-07 |
@@ -392,7 +393,7 @@ path must stay within tolerance while collapsing the face count and file size
 by orders of magnitude. All four invalid meshes are correctly rejected today
 with structured error codes, which curved qualification must preserve.
 
-### Milestone 1: one freeform disk patch
+### Milestone 1: one freeform disk patch (implemented)
 
 - Add harmonic square parameterization with flip/distortion checks.
 - Fit one cubic B-spline patch using sparse least squares and fairness.
@@ -401,7 +402,38 @@ with structured error codes, which curved qualification must preserve.
 - Adaptively refine until source tolerance is met or a hard budget is reached.
 
 This milestone proves the full vertical path without pretending to support
-arbitrary topology.
+arbitrary topology. Implementation:
+
+- [`engine/mesh2param/parameterization.py`](../engine/mesh2param/parameterization.py):
+  square boundary mapping by arc length, positive Floater mean-value harmonic
+  interior solve (geometry-aware while keeping the convex-boundary injectivity
+  guarantee; uniform Tutte weights proved unusable on boundary fan
+  triangulations, reaching stretch 413 on the reference fixture versus 81 with
+  mean-value weights), and fold/stretch/area-distortion evidence that fails
+  closed.
+- [`engine/mesh2param/surface_fit.py`](../engine/mesh2param/surface_fit.py):
+  clamped open-uniform cubic tensor basis, sparse area-weighted least squares
+  with second-difference fairness, boundary poles pinned exactly to the crease
+  rectangle (collinear poles make the natural boundary geometrically straight
+  and shareable), Huber IRLS reweighting, vectorized Gauss-Newton UV
+  reprojection, and span doubling capped both by budget and by sample count so
+  the normal equations stay overdetermined.
+- [`engine/mesh2param/curved_patch.py`](../engine/mesh2param/curved_patch.py):
+  the vertical driver. Segments with the existing plane/cylinder segmentation,
+  requires exactly one disk-like freeform region, fits its straight crease
+  boundary and bottom plane, samples triangle interiors on an area-scaled
+  barycentric lattice (straight crease edges never subdivide, so boundary fan
+  triangles would otherwise leave knot spans empty), fits the patch, sews it
+  with the analytic walls and bottom into one closed solid, and gates on
+  B-Rep validity, surviving B-spline face type, and symmetric source
+  deviation.
+
+Measured on `bspline-bump-plate` (492 source triangles): the curved result is
+a 6-face solid (5 planes + 1 B-spline, 7x7 control net) in a 20 KiB STEP versus
+492 planar faces in 1167 KiB from the faceted baseline; maximum source
+deviation 0.095 mm, RMS 0.014 mm, volume within 0.05 % of the exact ground
+truth; the STEP reimport preserves surface types and byte-identical repeat
+runs. Covered by `tests/test_curved_patch.py`.
 
 ### Milestone 2: surface-network topology
 

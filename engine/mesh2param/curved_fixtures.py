@@ -15,7 +15,7 @@ import hashlib
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from math import cos, sin
+from math import cos, pi, sin
 from pathlib import Path
 from typing import Any, Literal
 
@@ -28,6 +28,8 @@ from OCP.GeomAPI import GeomAPI_PointsToBSplineSurface
 from OCP.gp import gp_Pnt, gp_Vec
 from OCP.TColgp import TColgp_Array2OfPnt
 
+from .curved_patch import assemble_single_patch_plate
+from .surface_fit import build_occt_bspline_surface, greville_abscissae, open_uniform_knots
 from .tessellation import tessellate_shape
 from .validation import classify_face_surfaces, validate_shape
 
@@ -108,6 +110,43 @@ def _wavy_bspline_solid(
     face = BRepBuilderAPI_MakeFace(fitter.Surface(), 1e-6).Face()
     prism = BRepPrimAPI_MakePrism(face, gp_Vec(0.0, 0.0, -thickness * scale))
     return cq.Shape.cast(prism.Shape())
+
+
+def _bump_plate_solid(scale: float = 1.0) -> cq.Shape:
+    """A plate whose only curved face is one exact bicubic B-spline bump.
+
+    Boundary poles lie exactly on a planar rectangle, so the freeform top
+    meets four true planes and a planar bottom at straight C0 creases: the
+    canonical Milestone 1 single-patch reconstruction target (5 planes plus
+    1 B-spline face).
+    """
+
+    degree = 3
+    control = 7
+    size = 80.0 * scale
+    height = 25.0 * scale
+    knots = open_uniform_knots(control, degree)
+    greville = greville_abscissae(knots, degree)
+    poles = np.zeros((control, control, 3))
+    for i, gu in enumerate(greville):
+        for j, gv in enumerate(greville):
+            poles[i, j, 0] = gu * size
+            poles[i, j, 1] = gv * size
+            interior = 0 < i < control - 1 and 0 < j < control - 1
+            if interior:
+                poles[i, j, 2] = (6.0 * scale * sin(pi * gu) * sin(pi * gv)) * (1.0 + 0.35 * gu)
+    surface = build_occt_bspline_surface(poles, knots, knots, degree)
+    corners = np.asarray(
+        [
+            [0.0, 0.0, 0.0],
+            [size, 0.0, 0.0],
+            [size, size, 0.0],
+            [0.0, size, 0.0],
+        ]
+    )
+    return assemble_single_patch_plate(
+        surface, corners, np.asarray([0.0, 0.0, -height]), sewing_tolerance=1e-6
+    )
 
 
 def _wavy_solid_with_hole(scale: float = 1.0) -> cq.Shape:
@@ -275,6 +314,21 @@ def _mesh_builder(
 
 CURVED_FIXTURE_SPECS: tuple[CurvedFixtureSpec, ...] = (
     CurvedFixtureSpec(
+        slug="bspline-bump-plate",
+        title="B-spline bump plate",
+        category="positive",
+        expectation="closed-manifold",
+        description=(
+            "A plate whose only curved face is one exact bicubic B-spline bump "
+            "meeting four planar walls and a planar bottom at straight creases: "
+            "the Milestone 1 single-patch reconstruction target."
+        ),
+        # OCCT deflection is relative to edge size here; 0.002 on 80 mm edges
+        # keeps the chordal error near 0.16 mm.
+        linear_tolerance=0.002,
+        angular_tolerance=0.25,
+    ),
+    CurvedFixtureSpec(
         slug="wavy-slab",
         title="Wavy B-spline slab",
         category="positive",
@@ -378,6 +432,7 @@ CURVED_FIXTURES_BY_SLUG: dict[str, CurvedFixtureSpec] = {
 }
 
 _BUILDERS: dict[str, Callable[[CurvedFixtureSpec], tuple[trimesh.Trimesh, cq.Shape | None]]] = {
+    "bspline-bump-plate": _positive_builder(_bump_plate_solid),
     "wavy-slab": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-dense": _positive_builder(_wavy_bspline_solid),
     "wavy-slab-noisy": _positive_builder(_wavy_bspline_solid),

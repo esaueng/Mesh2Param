@@ -2,6 +2,58 @@
   "fixtures": [
     {
       "category": "positive",
+      "description": "A plate whose only curved face is one exact bicubic B-spline bump meeting four planar walls and a planar bottom at straight creases: the Milestone 1 single-patch reconstruction target.",
+      "directory": "bspline-bump-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 20882.811169325847,
+        "boundingBox": [
+          -0.11005531938706872,
+          -0.11005531938706872,
+          -25.000000100000005,
+          80.11005531938707,
+          80.11005531938707,
+          5.850656567104918
+        ],
+        "edgeCount": 12,
+        "faceCount": 6,
+        "faceSurfaces": {
+          "bspline": 1,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 175171.54969402566
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-bump-plate",
+      "stl": {
+        "byteSize": 24684,
+        "path": "source.stl",
+        "sha256": "9dfc5f8ab46d15913cd9589fa5df2e2c4e4231b918287e8468c5ab49cb06adff",
+        "triangleCount": 492,
+        "vertexCount": 248
+      },
+      "tessellation": {
+        "angularTolerance": 0.25,
+        "linearTolerance": 0.002
+      },
+      "title": "B-spline bump plate",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "Closed solid whose top face is a non-round B-spline sheet meeting extruded walls at sharp creases, tessellated at standard density.",
       "directory": "wavy-slab",
       "expectation": "closed-manifold",
