@@ -106,6 +106,58 @@
     },
     {
       "category": "positive",
+      "description": "A plate whose top is two exact B-spline roof patches meeting at an elevated, bowed sharp ridge crease: the multi-region crease network reconstruction target (two freeform regions sharing one crease curve, pentagon end walls).",
+      "directory": "bspline-gable-plate",
+      "expectation": "closed-manifold",
+      "groundTruth": {
+        "area": 21952.214147252427,
+        "boundingBox": [
+          -0.10138267374402393,
+          -0.10398630735635733,
+          -25.00000010000002,
+          80.10398630735635,
+          80.10398630735635,
+          13.345579378923263
+        ],
+        "edgeCount": 15,
+        "faceCount": 7,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 0,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 205295.30524937797
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "noise": {
+        "amplitude": 0.0,
+        "seed": 0
+      },
+      "slug": "bspline-gable-plate",
+      "stl": {
+        "byteSize": 34584,
+        "path": "source.stl",
+        "sha256": "26a27d0cc50d62ea35228b93f7fae8a5258758a75c4c73ded67fd73ed734b739",
+        "triangleCount": 690,
+        "vertexCount": 347
+      },
+      "tessellation": {
+        "angularTolerance": 0.15,
+        "linearTolerance": 0.002
+      },
+      "title": "B-spline gable plate with a sharp ridge crease",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
       "description": "Closed solid whose top face is a non-round B-spline sheet meeting extruded walls at sharp creases, tessellated at standard density.",
       "directory": "wavy-slab",
       "expectation": "closed-manifold",

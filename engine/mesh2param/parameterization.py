@@ -334,7 +334,7 @@ def _ordered_boundary_loop(faces: np.ndarray) -> np.ndarray:
     return np.asarray(loop, dtype=np.int64)
 
 
-def _reindexed_half(
+def reindexed_chart_region(
     vertices: np.ndarray, faces: np.ndarray, corner_vertex_ids: tuple[int, int, int, int]
 ) -> ChartHalf:
     used = np.unique(faces)
@@ -529,8 +529,12 @@ def cut_chart_midline(
             "chart_cut_components", "could not attribute the chart corners to one side each"
         )
 
-    half_a = _reindexed_half(vertices, faces_a, (corner_ids[0], start_id, end_id, corner_ids[3]))
-    half_b = _reindexed_half(vertices, faces_b, (start_id, corner_ids[1], corner_ids[2], end_id))
+    half_a = reindexed_chart_region(
+        vertices, faces_a, (corner_ids[0], start_id, end_id, corner_ids[3])
+    )
+    half_b = reindexed_chart_region(
+        vertices, faces_b, (start_id, corner_ids[1], corner_ids[2], end_id)
+    )
     return ChartCut(
         vertices=vertices,
         path_vertex_ids=path_ids,
@@ -547,4 +551,5 @@ __all__ = [
     "cut_chart_midline",
     "detect_rectangle_corners",
     "harmonic_square_parameterization",
+    "reindexed_chart_region",
 ]

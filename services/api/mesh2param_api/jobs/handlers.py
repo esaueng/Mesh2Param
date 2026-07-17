@@ -796,6 +796,9 @@ def _curved_reconstruct(
                     "curved_patch_boundary_not_straight",
                     "curved_patch_holes_unsupported_split",
                     "curved_patch_tolerance_not_met",
+                    "curved_patch_regions_detached",
+                    "curved_patch_crease_corners",
+                    "curved_patch_multiregion_holes",
                 }
                 else "Review the reconstruction evidence or adjust the tolerances."
             ),
