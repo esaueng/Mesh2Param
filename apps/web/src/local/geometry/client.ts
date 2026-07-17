@@ -1,6 +1,12 @@
 import type { CADGraph } from "@mesh2param/contracts";
 
-import type { BrowserCadResult, GeometryRequest, GeometryResponse, StlGeometryRequest } from "./types";
+import type {
+  BrowserCadResult,
+  CurvedStlGeometryRequest,
+  GeometryRequest,
+  GeometryResponse,
+  StlGeometryRequest,
+} from "./types";
 
 class BrowserGeometryClient {
   private workerInstance: Worker | null = null;
@@ -49,6 +55,20 @@ class BrowserGeometryClient {
         solidify: options.solidify ?? true,
         validateStep: options.validateStep ?? true,
       } satisfies StlGeometryRequest, [bytes]);
+    });
+  }
+
+  async compileCurvedStl(blob: Blob, tolerance: number): Promise<BrowserCadResult> {
+    const id = crypto.randomUUID();
+    const bytes = await blob.arrayBuffer();
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.worker().postMessage({
+        id,
+        operation: "curved-stl",
+        bytes,
+        tolerance,
+      } satisfies CurvedStlGeometryRequest, [bytes]);
     });
   }
 }
