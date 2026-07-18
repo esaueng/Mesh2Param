@@ -1,18 +1,147 @@
+/* Mesh2Param design tokens — the single source of truth for color, type,
+   spacing, radii, elevation, and motion. Components must consume these
+   custom properties; no hex or rgba literals in component stylesheets. */
 :root {
-  --color-bg: #0b0f14; --color-surface: #111821; --color-surface-2: #17202b; --color-hover: #1b2430;
-  --color-border: #2a3441; --color-border-strong: #3a4554; --color-text: #e6edf3; --color-muted: #8b949e; --color-subtle: #828d99;
-  --color-accent: #4da3ff; --color-accent-dim: rgba(77,163,255,.12); --color-accent-border: rgba(77,163,255,.45);
-  --color-warning: #f59e0b; --color-error: #ef4444; --color-success: #22c55e; --color-viewport: #070b10;
-  --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif; --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
-  --fs-mini: 10.5px; --fs-xs: 11.5px; --fs-sm: 12px; --fs-base: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 22px; --fs-display: 38px;
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
-  --radius-sm: 3px; --radius-md: 4px; --radius-pill: 10px;
-  --topbar-h: 44px; --statusbar-h: 30px; --rail-w: 124px; --rail-collapsed-w: 56px; --inspector-w: 344px;
-  --dur-fast: 100ms; --dur-base: 200ms; --dur-slow: 500ms; --ease-out: cubic-bezier(.16,1,.3,1); color-scheme: dark;
+  /* ---- surface elevations (dark-first) ---- */
+  --color-bg: #0b0f14;
+  --color-surface: #111821;
+  --color-surface-2: #17202b;
+  --color-hover: #1b2430;
+  --color-border: #2a3441;
+  --color-border-strong: #3a4554;
+  --color-viewport: #070b10;
+  --color-glow: #0e141c;
+  --color-overlay-bg: rgba(13, 18, 24, 0.97);
+
+  /* ---- text ---- */
+  --color-text: #e6edf3;
+  --color-muted: #8b949e;
+  --color-subtle: #828d99;
+
+  /* ---- accent ramp ---- */
+  --color-accent: #4da3ff;
+  --color-accent-dim: rgba(77, 163, 255, 0.12);
+  --color-accent-border: rgba(77, 163, 255, 0.45);
+  --color-accent-soft: #8bc2ff;
+  --color-accent-strong: #1673de;
+  --color-accent-strong-hover: #1264c6;
+  --color-accent-strong-border: #268cf4;
+  --color-accent-contrast: #ffffff;
+  --color-on-accent: #04121f;
+  --color-focus: var(--color-accent);
+
+  /* ---- semantic ---- */
+  --color-success: #22c55e;
+  --color-success-dim: rgba(34, 197, 94, 0.13);
+  --color-success-border: rgba(34, 197, 94, 0.4);
+  --color-warning: #f59e0b;
+  --color-warning-dim: rgba(245, 158, 11, 0.13);
+  --color-warning-border: rgba(245, 158, 11, 0.4);
+  --color-warning-contrast: #111821;
+  --color-error: #ef4444;
+  --color-error-dim: rgba(239, 68, 68, 0.13);
+  --color-error-border: rgba(239, 68, 68, 0.45);
+
+  /* ---- typography ---- */
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --fs-mini: 10.5px;
+  --fs-xs: 11.5px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+  --fs-display: 38px;
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* ---- spacing ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* ---- radii ---- */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 10px;
+  --radius-pill: 10px;
+
+  /* ---- elevation ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 22px 54px -18px rgba(0, 0, 0, 0.75);
+
+  /* ---- layout metrics ---- */
+  --topbar-h: 44px;
+  --statusbar-h: 30px;
+  --rail-w: 124px;
+  --rail-collapsed-w: 56px;
+  --inspector-w: 344px;
+
+  /* ---- motion: functional and fast, nothing bounces ---- */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- layering ---- */
+  --z-overlay: 5;
+  --z-chrome: 6;
+  --z-console: 9;
+  --z-toast: 100;
+  --z-skip: 1000;
+
+  color-scheme: dark;
 }
+
 .theme-light {
-  --color-bg:#edf2f7; --color-surface:#f8fafc; --color-surface-2:#e9eff6; --color-hover:#dfe8f2;
-  --color-border:#c8d2df; --color-border-strong:#aebbc9; --color-text:#17202b; --color-muted:#536170; --color-subtle:#5f6b7a;
-  --color-accent:#0b63b6; --color-accent-dim:rgba(22,119,210,.12); --color-accent-border:rgba(22,119,210,.42);
-  --color-warning:#a16207; --color-error:#b91c1c; --color-success:#15803d; --color-viewport:#f7f9fc; color-scheme: light;
+  --color-bg: #edf2f7;
+  --color-surface: #f8fafc;
+  --color-surface-2: #e9eff6;
+  --color-hover: #dfe8f2;
+  --color-border: #c8d2df;
+  --color-border-strong: #aebbc9;
+  --color-viewport: #f7f9fc;
+  --color-glow: #ffffff;
+  --color-overlay-bg: rgba(248, 250, 252, 0.96);
+
+  --color-text: #17202b;
+  --color-muted: #536170;
+  --color-subtle: #5f6b7a;
+
+  --color-accent: #0b63b6;
+  --color-accent-dim: rgba(22, 119, 210, 0.12);
+  --color-accent-border: rgba(22, 119, 210, 0.42);
+  --color-accent-soft: #0b63b6;
+  --color-accent-strong: #1673de;
+  --color-accent-strong-hover: #1264c6;
+  --color-accent-strong-border: #268cf4;
+  --color-accent-contrast: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-focus: var(--color-accent);
+
+  --color-success: #15803d;
+  --color-success-dim: rgba(21, 128, 61, 0.12);
+  --color-success-border: rgba(21, 128, 61, 0.4);
+  --color-warning: #a16207;
+  --color-warning-dim: rgba(161, 98, 7, 0.12);
+  --color-warning-border: rgba(161, 98, 7, 0.4);
+  --color-warning-contrast: #ffffff;
+  --color-error: #b91c1c;
+  --color-error-dim: rgba(185, 28, 28, 0.1);
+  --color-error-border: rgba(185, 28, 28, 0.38);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.1);
+  --shadow-md: 0 4px 18px rgba(15, 23, 42, 0.12), 0 8px 24px -12px rgba(15, 23, 42, 0.18);
+  --shadow-lg: 0 22px 54px -18px rgba(15, 23, 42, 0.28);
+
+  color-scheme: light;
 }
