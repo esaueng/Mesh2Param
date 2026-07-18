@@ -158,6 +158,29 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
     }
     const capability = automaticReconstructionCapability(state);
     if (capability.supported) {
+      if (capability.approximate === true) {
+        // Freeform patches present: the automatic path recovers a parametric
+        // feature model (sketch + extrude + fillet) where the engine's
+        // candidate evaluation permits, and fails closed otherwise. The
+        // curved plate path stays one click away as the standing alternate.
+        return {
+          kind: "reconstruct",
+          operation: "reconstruct",
+          label: "Reconstruct",
+          hint: "Recover an editable parametric feature model (approximate where freeform)",
+          disabled: runBlocked !== null,
+          ...(runBlocked !== null ? { reason: runBlocked } : {}),
+          alternate: {
+            kind: "curved",
+            operation: "reconstruct",
+            settings: { mode: "curved" },
+            label: "Generate curved STEP",
+            hint: "Fit an approximate curved B-Rep to the mesh within tolerance (not recovered design history)",
+            disabled: runBlocked !== null,
+            ...(runBlocked !== null ? { reason: runBlocked } : {}),
+          },
+        };
+      }
       return {
         kind: "reconstruct",
         operation: "reconstruct",
