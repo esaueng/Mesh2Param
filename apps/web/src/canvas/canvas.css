@@ -184,7 +184,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .landing-recent-index{color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);font-variant-numeric:tabular-nums}
 .landing-recent-copy{min-width:0;display:grid;gap:2px}
 .landing-recent-name{overflow:hidden;font:500 var(--fs-sm) var(--font-ui);text-overflow:ellipsis;white-space:nowrap}
-.landing-recent-meta{display:flex;align-items:center;gap:6px;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);text-transform:none}
+.landing-recent-meta{min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);text-transform:none;white-space:nowrap}
 .landing-recent-meta>span:first-child{text-transform:uppercase}
 .landing-recents-list button>svg{color:var(--color-subtle);transition:color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .landing-recents-list button:hover:not(:disabled)>svg{color:var(--color-accent);transform:translateX(2px)}
