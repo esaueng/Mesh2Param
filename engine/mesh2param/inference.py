@@ -13,6 +13,7 @@ import trimesh
 from mesh2param_contracts import CADGraph
 
 from .compiler import CompilationResult, compile_cadgraph
+from .fillets import FilletRadiusGroup
 from .frame import CoordinateFrame
 from .prismatic import ArcPrimitive, BSplineSegment, CirclePrimitive, ExtrusionCandidate
 from .segmentation import SurfacePatch
@@ -440,9 +441,7 @@ def build_prismatic_cadgraph(
         for profile in candidate.profiles
         for primitive in profile
     )
-    polygon_hypotheses = [
-        item for item in candidate.polygon_hypotheses if item is not None
-    ]
+    polygon_hypotheses = [item for item in candidate.polygon_hypotheses if item is not None]
     polygon = polygon_hypotheses[0] if polygon_hypotheses else None
     if spline_mode and (len(candidate.profiles) != 2 or len(polygon_hypotheses) != 1):
         raise ValueError(
@@ -499,9 +498,7 @@ def build_prismatic_cadgraph(
                         **common,
                         "kind": "bspline",
                         "degree": primitive.degree,
-                        "controlPoints": [
-                            _vector2(point) for point in primitive.control_points
-                        ],
+                        "controlPoints": [_vector2(point) for point in primitive.control_points],
                         "clamped": True,
                         "rational": False,
                         "periodic": False,
@@ -732,7 +729,11 @@ def build_prismatic_cadgraph(
                 "sourceType": "meshPatch",
                 "sourceIds": list(candidate.cap_patch_ids),
                 "measuredValue": float(candidate.distance_mm),
-                "residual": float(candidate.side_normal_rms or 0.0),
+                "residual": (
+                    float(candidate.side_normal_rms)
+                    if candidate.side_normal_rms is not None
+                    else None
+                ),
                 "confidence": float(candidate.confidence),
                 "notes": (
                     "Matched opposing caps and perpendicular side normals support one "
@@ -825,6 +826,141 @@ def build_prismatic_cadgraph(
             }
         },
     }
+    return CADGraph.model_validate(document)
+
+
+def select_prismatic_profile_edges(
+    compilation: CompilationResult,
+    axis: Sequence[float],
+) -> tuple[str, ...]:
+    """Select the base extrusion's two profile rims from resolved topology.
+
+    Non-linear base edges belong to the profile rims. Linear edges parallel to
+    the extrusion axis are the ruled side seams and are excluded with an
+    angular epsilon instead of relying on compiler edge numbering.
+    """
+
+    axis_array = np.asarray(axis, dtype=np.float64)
+    axis_norm = float(np.linalg.norm(axis_array))
+    if axis_norm <= 1e-12 or not np.all(np.isfinite(axis_array)):
+        raise ValueError("prismatic edge selection requires a finite non-zero axis")
+    axis_array /= axis_norm
+    selected: list[str] = []
+    for semantic_id, record in sorted(compilation.topology.items()):
+        if (
+            record.kind != "edge"
+            or record.producer_feature_id != "feature.base"
+            or record.status != "resolved"
+            or record.descriptor is None
+        ):
+            continue
+        descriptor_kind = str(record.descriptor.get("kind", "")).upper()
+        if descriptor_kind == "LINE":
+            raw_direction = record.descriptor.get("direction")
+            if not isinstance(raw_direction, (list, tuple)) or len(raw_direction) != 3:
+                raise ValueError(f"resolved line edge {semantic_id} has no direction")
+            direction = np.asarray(raw_direction, dtype=np.float64)
+            direction_norm = float(np.linalg.norm(direction))
+            if direction_norm <= 1e-12:
+                raise ValueError(f"resolved line edge {semantic_id} has zero direction")
+            if abs(float(np.dot(direction / direction_norm, axis_array))) >= 1.0 - 1e-6:
+                continue
+        selected.append(semantic_id)
+    if len(selected) < 4 or len(selected) % 2:
+        raise ValueError(
+            "resolved prismatic base does not expose paired lower/upper profile-rim edges"
+        )
+    return tuple(selected)
+
+
+def build_filleted_prismatic_cadgraph(
+    *,
+    source: Mapping[str, Any],
+    candidate: ExtrusionCandidate,
+    fillet_group: FilletRadiusGroup,
+    target_edge_ids: Sequence[str],
+    deterministic_seed: int = 0x4D325006,
+) -> CADGraph:
+    """Insert one semantic constant-radius fillet before the polygon cut."""
+
+    if not target_edge_ids:
+        raise ValueError("fillet reconstruction requires semantic target edges")
+    graph = build_prismatic_cadgraph(
+        source=source,
+        candidate=candidate,
+        deterministic_seed=deterministic_seed,
+    )
+    document = graph.model_dump(mode="json", by_alias=True)
+    features = document["features"]
+    hex_cut = next((item for item in features if item["id"] == "feature.hex-cut"), None)
+    if hex_cut is None:
+        raise ValueError("fillet reconstruction requires the explicit polygon-cut sequence")
+    evidence_id = "evidence.outer-fillet"
+    fillet_feature = {
+        "id": "feature.outer-fillet",
+        "name": "Recovered constant-radius outer fillets",
+        "operation": "fillet",
+        "order": 1,
+        "dependencies": ["feature.base"],
+        "suppressed": False,
+        "sourceEvidence": [evidence_id],
+        "confidence": float(candidate.confidence),
+        "userLocks": [],
+        "overrides": [],
+        "semanticOutputs": ["feature.outer-fillet.result"],
+        "targetEdges": list(target_edge_ids),
+        "radius": float(fillet_group.radius_mm),
+    }
+    features.insert(1, fillet_feature)
+    hex_cut["order"] = 2
+    hex_cut["dependencies"] = ["feature.outer-fillet"]
+
+    topology = document["semanticTopology"]
+    for item in topology:
+        if item["id"] == "feature.base.result":
+            item["role"] = "intermediateSolid"
+    topology.insert(
+        1,
+        {
+            "id": "feature.outer-fillet.result",
+            "kind": "solid",
+            "producerFeatureId": "feature.outer-fillet",
+            "role": "intermediateSolid",
+            "generatedFrom": list(target_edge_ids),
+            "status": "unresolved",
+        },
+    )
+    document["sourceEvidence"].append(
+        {
+            "id": evidence_id,
+            "sourceType": "derived",
+            "sourceIds": list(fillet_group.band_patch_ids),
+            "measuredValue": float(fillet_group.radius_mm),
+            "residual": float(fillet_group.loop_fit_rms_residual_mm),
+            "confidence": float(candidate.confidence),
+            "notes": (
+                "Matched lower and upper curvature bands support one loop-global "
+                "constant-radius fillet feature."
+            ),
+            "metadata": {
+                "targetEdges": list(target_edge_ids),
+                "maximumCapRadiusDeltaMm": float(fillet_group.maximum_cap_radius_delta_mm),
+                "loopFitMaximumResidualMm": float(fillet_group.loop_fit_maximum_residual_mm),
+                "sourceTriangleIds": list(fillet_group.source_triangle_ids),
+            },
+        }
+    )
+    document["id"] = "reconstruction.prismatic-filleted"
+    document["name"] = "Recovered analytic extrusion with constant-radius fillets"
+    extension = document["extensions"]["mesh2param.dev/prismaticReconstruction"]
+    extension["scope"] = (
+        "validated spline-aware linear extrusion, semantic constant-radius fillets, and polygon cut"
+    )
+    extension["filletRadiusGroup"] = fillet_group.to_dict()
+    document["versionMetadata"]["message"] = (
+        "Analytic prismatic profile and semantic constant-radius fillets reconstructed "
+        "from bounded evidence."
+    )
     return CADGraph.model_validate(document)
 
 
@@ -935,6 +1071,7 @@ __all__ = [
     "CandidateSearchSettings",
     "InferredHole",
     "Measurement",
+    "build_filleted_prismatic_cadgraph",
     "build_l_bracket_cadgraph",
     "build_prismatic_cadgraph",
     "compile_candidate",
@@ -943,4 +1080,5 @@ __all__ = [
     "nominal_preview",
     "score_candidate",
     "select_bounded_candidates",
+    "select_prismatic_profile_edges",
 ]

@@ -49,11 +49,19 @@ and circular arcs and extrudes one analytic face. This supports one exterior loo
 holes on an arbitrary sketch plane; line/arc profiles may include tangent transitions even when the
 side wall was segmented as one smooth `freeform` region.
 
-The path currently rejects tapered or twisted sweeps, inconsistent caps, branching/open boundaries,
-splines, arbitrary freeform surfaces, multiple disjoint exterior profiles, and geometry outside its
-residual and scale limits. Rejection does not relabel the hypothesis as analytic and does not block
-other supported inference paths. If no analytic path succeeds, the explicit source-bound faceted
-operation below remains available; it is never presented as recovered parametric history.
+The bounded general-parametric extension admits one clamped cubic B-spline with at most eight
+control points when two dominant lines and one broad circular arc anchor the remaining exterior
+profile. It may also recover one regular-polygon through cut and one loop-global constant-radius
+fillet group covering the lower and upper exterior rims. The sharp parent is compiled first; fillet
+targets come from resolved semantic edge records, excluding side seams by their direction relative
+to the extrusion axis. The polygon cut follows the fillet when its rim remains sharp in the source.
+
+The path still rejects tapered or twisted sweeps, inconsistent caps, branching/open boundaries,
+multiple or unbounded splines, arbitrary freeform surfaces, multiple disjoint exterior profiles,
+variable-radius or ambiguously grouped fillets, and geometry outside its residual and scale limits.
+Rejection does not relabel the hypothesis as analytic and does not block other supported inference
+paths. If no analytic path succeeds, the explicit source-bound faceted operation below remains
+available; it is never presented as recovered parametric history.
 
 ## Explicit faceted STEP fallback
 
