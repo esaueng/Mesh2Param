@@ -90,7 +90,7 @@ class CurvaturePatchEvidence:
     median_maximum_mm_inv: float
     estimated_minimum_radius_mm: float | None
     valid_vertex_fraction: float
-    fit_rms_p95_mm: float
+    fit_rms_p95_mm: float | None
     absorbed_fragments: tuple[CurvatureFragmentMerge, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -1773,7 +1773,7 @@ def _curvature_evidence(
         median_maximum_mm_inv=median_maximum,
         estimated_minimum_radius_mm=estimated_radius,
         valid_vertex_fraction=valid_fraction,
-        fit_rms_p95_mm=(float(np.quantile(fit_rms_values, 0.95)) if fit_rms_values else math.inf),
+        fit_rms_p95_mm=(float(np.quantile(fit_rms_values, 0.95)) if fit_rms_values else None),
         absorbed_fragments=tuple(aggregated_fragments[key] for key in sorted(aggregated_fragments)),
     )
 

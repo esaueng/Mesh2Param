@@ -106,6 +106,51 @@ def test_curvature_stage_is_off_by_default_and_preserves_serialization() -> None
 
 
 @pytest.mark.geometry
+def test_under_resolved_curvature_evidence_remains_strict_json() -> None:
+    mesh = trimesh.Trimesh(
+        vertices=np.asarray(
+            [
+                (0.0, 0.0, 0.0),
+                (1.0, 0.0, 0.0),
+                (0.0, 1.0, 0.0),
+                (1.0, 1.0, 0.2),
+                (0.5, 0.5, 1.0),
+            ],
+            dtype=np.float64,
+        ),
+        faces=np.asarray(
+            [
+                (0, 1, 4),
+                (1, 3, 4),
+                (3, 2, 4),
+                (2, 0, 4),
+                (0, 2, 3),
+                (0, 3, 1),
+            ],
+            dtype=np.int64,
+        ),
+        process=False,
+    )
+    settings = SegmentationSettings(
+        smooth_angle_deg=89.0,
+        planar_fit_tolerance_mm=1e-12,
+        cylinder_fit_tolerance_mm=1e-12,
+        sphere_fit_tolerance_mm=1e-12,
+        cone_fit_tolerance_mm=1e-12,
+        torus_fit_tolerance_mm=1e-12,
+        enable_curvature_subsegmentation=True,
+    )
+
+    serialized = segment_mesh(mesh, settings).to_dict()
+
+    assert any(
+        patch["curvatureEvidence"]["fitRmsP95Mm"] is None
+        for patch in serialized["patches"]
+    )
+    json.dumps(serialized, allow_nan=False)
+
+
+@pytest.mark.geometry
 @pytest.mark.samples
 def test_spanner_curvature_subsegmentation_separates_required_patches() -> None:
     mesh = _spanner_mesh()
