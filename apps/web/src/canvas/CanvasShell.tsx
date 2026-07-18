@@ -49,6 +49,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedRef = useRef(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [recoverFullDetails, setRecoverFullDetails] = useState(false);
   const logs = useDebugLog();
   const issueCount = logs.filter((entry) => entry.level === "error" || entry.level === "warn").length;
 
@@ -71,6 +72,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   useEffect(() => {
     debugLog.debug("pipeline", `Stage: ${action.label}${action.disabled ? " (unavailable)" : ""}`);
   }, [action.label, action.disabled]);
+  useEffect(() => setRecoverFullDetails(false), [vm.project.id]);
   useEffect(() => {
     if (action.disabled && action.reason) debugLog.warn("pipeline", `${action.label} unavailable`, action.reason);
   }, [action.disabled, action.reason, action.label]);
@@ -117,7 +119,14 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") void downloadStep();
-    else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
+    else if (action.operation !== undefined) {
+      const settings = action.kind === "reconstruct"
+        && action.settings === undefined
+        && recoverFullDetails
+        ? { detailMode: "full" }
+        : action.settings;
+      void actions.run(action.operation, settings);
+    }
   };
 
   const onRegenerate = () => {
@@ -268,6 +277,34 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           />
         ) : null}
 
+        {state.cadgraph !== null ? (
+          <section className="panel-group panel-features" aria-labelledby="panel-features-label">
+            <h2 className="panel-label" id="panel-features-label">Features</h2>
+            <div className="panel-feature-list">
+              {[...state.cadgraph.features]
+                .sort((left, right) => left.order - right.order)
+                .map((feature) => (
+                  <button
+                    key={feature.id}
+                    className={vm.selectedFeatureId === feature.id ? "active" : ""}
+                    aria-pressed={vm.selectedFeatureId === feature.id}
+                    onClick={() => actions.selectFeature(feature.id)}
+                  >
+                    <span>{feature.order + 1}</span>
+                    <strong>{feature.name}</strong>
+                    <small>{humanPhase(feature.operation)}</small>
+                  </button>
+                ))}
+            </div>
+            {detailEvidence(state.cadgraph.extensions) !== null ? (
+              <p className="panel-hint info" role="note" data-testid="detail-evidence">
+                <Layers size={13} />
+                <span>{detailEvidence(state.cadgraph.extensions)}</span>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <section className="panel-group panel-convert">
           <h2 className="panel-label">Convert</h2>
           {activeJob !== null ? (
@@ -284,6 +321,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </div>
           ) : (
             <>
+              {action.kind === "reconstruct" && action.settings === undefined ? (
+                <button
+                  className={`panel-btn ${recoverFullDetails ? "active" : ""}`}
+                  aria-pressed={recoverFullDetails}
+                  onClick={() => setRecoverFullDetails((value) => !value)}
+                  title="Recover qualifying cap-attached loops as editable shallow features"
+                >
+                  <Layers size={14} />
+                  Full detail recovery
+                </button>
+              ) : null}
               {rerunAnalysis !== null || regenerate !== null ? (
                 <div className="panel-secondary-grid">
                   {rerunAnalysis !== null ? (
@@ -432,4 +480,23 @@ function curvedEvidence(state: WorkspaceViewModel["project"]["state"]): string |
     .map(([kind, count]) => `${String(count)} ${kind}`)
     .join(", ");
   return `Approximate curved B-Rep: ${counts} faces · max deviation ${residual.toFixed(3)} mm. Design history is not recovered.`;
+}
+
+function detailEvidence(extensions: unknown): string | null {
+  if (extensions === null || typeof extensions !== "object" || Array.isArray(extensions)) return null;
+  const raw = (extensions as Record<string, unknown>)["mesh2param.dev/prismaticReconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const recovery = record.detailRecovery;
+  if (recovery !== null && typeof recovery === "object" && !Array.isArray(recovery)) {
+    const regions = (recovery as Record<string, unknown>).regions;
+    if (Array.isArray(regions) && regions.length > 0) {
+      return `${regions.length} shallow additive ${regions.length === 1 ? "detail" : "details"} recovered from bounded loop evidence.`;
+    }
+  }
+  const suppressed = record.suppressedRegions;
+  if (Array.isArray(suppressed) && suppressed.length > 0) {
+    return `${suppressed.length} shallow ${suppressed.length === 1 ? "region" : "regions"} suppressed for functional validation; use the Suppressed view to inspect residuals.`;
+  }
+  return null;
 }

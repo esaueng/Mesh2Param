@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from mesh2param_contracts import CADGraph, canonical_json_bytes
@@ -34,6 +34,7 @@ from .inference import (
     CandidateSearchSettings,
     InferredHole,
     build_filleted_prismatic_cadgraph,
+    build_full_detail_prismatic_cadgraph,
     build_l_bracket_cadgraph,
     build_prismatic_cadgraph,
     compile_candidate,
@@ -84,7 +85,12 @@ class ReconstructionSettings:
     prismatic: PrismaticSettings = field(default_factory=PrismaticSettings)
     sections: SectionStackSettings = field(default_factory=SectionStackSettings)
     details: DetailSuppressionSettings = field(default_factory=DetailSuppressionSettings)
+    detail_mode: Literal["functional", "full"] = "functional"
     include_nominal_preview: bool = True
+
+    def __post_init__(self) -> None:
+        if self.detail_mode not in {"functional", "full"}:
+            raise ValueError("detail mode must be either 'functional' or 'full'")
 
 
 class ReconstructionError(ValueError):
@@ -169,6 +175,8 @@ class PrismaticReconstructionResult:
     comparison: ComparisonReport
     functional_comparison: FunctionalComparisonReport | None
     suppression: DetailSuppressionAnalysis | None
+    detail_mode: Literal["functional", "full"]
+    recovered_details: DetailSuppressionAnalysis | None
     step: StepValidation
     patch_selection: SelectionMapArtifact
     artifacts: dict[str, str]
@@ -194,6 +202,12 @@ class PrismaticReconstructionResult:
             "suppressedRegions": (
                 [region.to_dict() for region in self.suppression.regions]
                 if self.suppression is not None
+                else []
+            ),
+            "detailMode": self.detail_mode,
+            "recoveredDetails": (
+                [region.to_dict() for region in self.recovered_details.regions]
+                if self.recovered_details is not None
                 else []
             ),
             "stepValidation": self.step.to_dict(),
@@ -487,7 +501,26 @@ def _complete_filleted_section_reconstruction(
         fillet_group=analysis.groups[0],
         target_edge_ids=target_edges,
     )
-    filleted = compile_candidate("analytic-prismatic-spline-filleted", filleted_graph)
+    recovered_details = (
+        DetailSuppressionAnalysis("full", suppression.regions, suppression.diagnostics)
+        if settings.detail_mode == "full" and suppression.regions
+        else None
+    )
+    selected_graph = (
+        build_full_detail_prismatic_cadgraph(
+            graph=filleted_graph,
+            candidate=candidate,
+            regions=suppression.regions,
+        )
+        if recovered_details is not None
+        else filleted_graph
+    )
+    selected_label = (
+        "analytic-prismatic-spline-filleted-full-detail"
+        if recovered_details is not None
+        else "analytic-prismatic-spline-filleted"
+    )
+    filleted = compile_candidate(selected_label, selected_graph)
     return _complete_prismatic_reconstruction(
         source=source,
         repaired=repaired,
@@ -496,11 +529,12 @@ def _complete_filleted_section_reconstruction(
         output=output,
         units=units,
         settings=settings,
-        graph=filleted_graph,
+        graph=selected_graph,
         selected=filleted,
-        candidate_label="analytic-prismatic-spline-filleted",
+        candidate_label=selected_label,
         rejected_candidates=(sharp,),
-        suppression=suppression,
+        suppression=suppression if settings.detail_mode == "functional" else None,
+        recovered_details=recovered_details,
     )
 
 
@@ -518,6 +552,7 @@ def _complete_prismatic_reconstruction(
     candidate_label: str | None = None,
     rejected_candidates: tuple[CandidateEvaluation, ...] = (),
     suppression: DetailSuppressionAnalysis | None = None,
+    recovered_details: DetailSuppressionAnalysis | None = None,
 ) -> PrismaticReconstructionResult:
     """Compile, compare, round-trip, and materialize one accepted extrusion."""
 
@@ -668,6 +703,8 @@ def _complete_prismatic_reconstruction(
     )
     if suppression is not None and suppression.regions:
         _write_json(output / "suppressed-regions.json", suppression.to_dict())
+    if recovered_details is not None and recovered_details.regions:
+        _write_json(output / "detail-regions.json", recovered_details.to_dict())
     _write_json(output / "prismatic.json", candidate.to_dict())
     candidates = (*rejected_candidates, selected)
     _write_json(output / "candidates.json", [item.to_dict() for item in candidates])
@@ -693,6 +730,8 @@ def _complete_prismatic_reconstruction(
     }
     if suppression is not None and suppression.regions:
         artifacts["suppressedRegions"] = str(output / "suppressed-regions.json")
+    if recovered_details is not None and recovered_details.regions:
+        artifacts["detailRegions"] = str(output / "detail-regions.json")
     for name, filename in (
         ("sections", "sections.json"),
         ("sectionsGlb", "sections.glb"),
@@ -718,6 +757,8 @@ def _complete_prismatic_reconstruction(
         comparison,
         functional_comparison,
         suppression if suppression is not None and suppression.regions else None,
+        settings.detail_mode,
+        recovered_details if recovered_details is not None and recovered_details.regions else None,
         step,
         patch_selection,
         artifacts,

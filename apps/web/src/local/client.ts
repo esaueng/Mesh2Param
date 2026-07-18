@@ -381,6 +381,12 @@ export class BrowserApiClient {
           relativeVolumeDelta: evidence.relativeVolumeDelta,
         };
       }
+      if (operation === "reconstruct" && options.settings?.detailMode === "full") {
+        throw new Error(
+          "Full shallow-detail recovery requires the Python geometry service; "
+          + "browser-local reconstruction supports functional geometry only.",
+        );
+      }
       const next = await this.requireProject(projectId);
       if (next.state.cadgraph === null && operation === "reconstruct") {
         const source = await this.sourceBlob(next);

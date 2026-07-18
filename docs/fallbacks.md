@@ -75,7 +75,13 @@ or out-of-footprint evidence reject with a structured detail diagnostic.
 The functional reference removes only the recorded source triangles and closes the exact support
 loop. Both masked and complete-source comparisons are retained; the unmasked report and heatmap
 continue to show the omitted detail. This is an explicit equivalence policy, not recovery of the
-original boss feature. Full editable emboss recovery remains a separate opt-in milestone.
+original boss feature.
+
+Full mode is an explicit native-service alternative for regions that pass those same guards. It
+reuses the ordered support loop as a sketch, preserves its measured support plane and outward cap
+normal, and appends a blind additive extrusion after the existing fillet and polygon-cut sequence.
+It does not infer arbitrary pockets, engraving, patterns, or historical design intent. The
+browser-local solver rejects this setting rather than silently returning functional geometry.
 
 ## Explicit faceted STEP fallback
 

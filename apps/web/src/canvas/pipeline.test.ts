@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ProjectWorkingDocument } from "../state/types";
+import type { ArtifactDescriptor, ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
 import {
   analysisRerunAction,
+  availableModes,
   nextAction,
   regenerationAction,
   reconstructedRevealPreferences,
@@ -77,6 +78,17 @@ describe("canvas pipeline actions", () => {
       shading: "shaded",
       edges: true,
     });
+  });
+
+  it("surfaces the functional suppression residual layer with an explicit label", () => {
+    const artifacts = [
+      { name: "source.glb" },
+      { name: "reconstructed.glb" },
+      { name: "residual.glb" },
+      { name: "suppressed-regions.json" },
+    ] as ArtifactDescriptor[];
+
+    expect(availableModes(artifacts)).toContainEqual({ mode: "residual", label: "Suppressed" });
   });
 
   it("regenerates a completed parametric STEP through the validated exporter", () => {

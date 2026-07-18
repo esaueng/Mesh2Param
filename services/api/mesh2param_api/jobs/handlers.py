@@ -11,7 +11,7 @@ import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 Progress = Callable[[str, float, str | None], None]
 
@@ -559,7 +559,54 @@ def _reconstruction_project_settings(
         raise RuntimeError("reconstruction result omitted candidate histories")
     settings["candidateHistories"] = copy.deepcopy(candidates)
     settings["selectedCandidate"] = selected
+    detail_mode = result.get("detailMode")
+    if detail_mode in {"functional", "full"}:
+        settings["detailMode"] = detail_mode
     return settings
+
+
+def _automatic_detail_mode(payload: dict[str, Any]) -> Literal["functional", "full"]:
+    """Validate the one bounded setting accepted by automatic reconstruction."""
+
+    raw = payload.get("settings", {})
+    if not isinstance(raw, dict):
+        raise JobFailure(
+            "invalid_reconstruction_settings",
+            "recovering details",
+            "Reconstruction settings are invalid",
+            "Reconstruction settings must be an object.",
+            recoverable=True,
+            recommended_action="Use the reconstruction controls offered by the current UI.",
+        )
+    if "mode" in raw:
+        raise JobFailure(
+            "invalid_reconstruction_mode",
+            "starting reconstruction",
+            "Reconstruction mode is invalid",
+            "Automatic reconstruction does not accept an explicit mode field.",
+            recoverable=True,
+            recommended_action="Choose automatic, curved, or faceted reconstruction.",
+        )
+    if set(raw) - {"detailMode"}:
+        raise JobFailure(
+            "invalid_reconstruction_settings",
+            "recovering details",
+            "Reconstruction settings are invalid",
+            "Automatic reconstruction settings contain an unsupported field.",
+            recoverable=True,
+            recommended_action="Use only the displayed detail-recovery control.",
+        )
+    detail_mode = raw.get("detailMode", "functional")
+    if detail_mode not in {"functional", "full"}:
+        raise JobFailure(
+            "invalid_detail_mode",
+            "recovering details",
+            "Detail recovery mode is invalid",
+            "detailMode must be either 'functional' or 'full'.",
+            recoverable=True,
+            recommended_action="Choose functional suppression or full detail recovery.",
+        )
+    return "full" if detail_mode == "full" else "functional"
 
 
 def _faceted_sewing_tolerance(payload: dict[str, Any]) -> float | None:
@@ -1002,11 +1049,13 @@ def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
     sewing_tolerance = _faceted_sewing_tolerance(payload)
     if sewing_tolerance is not None:
         return _faceted_reconstruct(payload, workdir, progress, sewing_tolerance)
+    detail_mode = _automatic_detail_mode(payload)
 
     try:
         reconstruction_settings = ReconstructionSettings(
             mesh_limits=_mesh_limits(payload),
             segmentation=_reconstruction_segmentation_settings(payload),
+            detail_mode=detail_mode,
         )
         reconstruction = reconstruct_file(
             _source_path(payload),
@@ -1054,6 +1103,12 @@ def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
         "modelGlb": ("reconstructed.glb", "model/gltf-binary", "reconstructed"),
         "comparison": ("metrics.json", "application/json", "metrics"),
         "residualHeatmap": ("residual.glb", "model/gltf-binary", "residual"),
+        "suppressedRegions": (
+            "suppressed-regions.json",
+            "application/json",
+            "suppressed-regions",
+        ),
+        "detailRegions": ("detail-regions.json", "application/json", "detail-regions"),
         "reconstruction": ("reconstruction.json", "application/json", "reconstruction"),
     }
     artifacts: list[ArtifactOutput] = []

@@ -13,6 +13,7 @@ import trimesh
 from mesh2param_contracts import CADGraph
 
 from .compiler import CompilationResult, compile_cadgraph
+from .details import SuppressedRegion
 from .fillets import FilletRadiusGroup
 from .frame import CoordinateFrame
 from .prismatic import ArcPrimitive, BSplineSegment, CirclePrimitive, ExtrusionCandidate
@@ -964,6 +965,160 @@ def build_filleted_prismatic_cadgraph(
     return CADGraph.model_validate(document)
 
 
+def build_full_detail_prismatic_cadgraph(
+    *,
+    graph: CADGraph,
+    candidate: ExtrusionCandidate,
+    regions: Sequence[SuppressedRegion],
+) -> CADGraph:
+    """Append bounded cap-attached additive details to a semantic prismatic graph."""
+
+    if candidate.frame is None:
+        raise ValueError("full-detail reconstruction requires the validated projection frame")
+    if not regions:
+        raise ValueError("full-detail reconstruction requires at least one qualifying region")
+    document = graph.model_dump(mode="json", by_alias=True)
+    features = document["features"]
+    topology = document["semanticTopology"]
+    previous_feature_id = str(features[-1]["id"])
+    for index, region in enumerate(regions, start=1):
+        if region.kind != "embossedCapDetail":
+            raise ValueError(f"unsupported full-detail region kind {region.kind!r}")
+        if len(region.boundary_points_2d_mm) < 3 or region.depth_mm <= 0:
+            raise ValueError("full-detail region requires a positive depth and closed profile")
+        sketch_id = f"sketch.detail.{index}"
+        feature_id = f"feature.detail.{index}"
+        evidence_id = f"evidence.detail.{index}"
+        entity_ids = [
+            f"{sketch_id}.entity.{entity_index:03d}"
+            for entity_index in range(1, len(region.boundary_points_2d_mm) + 1)
+        ]
+        entities: list[dict[str, Any]] = []
+        # CadQuery derives the sketch Y axis as normal x X.  On the lower cap
+        # that is -frame.v, so reflect the measured V coordinate instead of
+        # silently mirroring the recovered footprint in world space.
+        points = tuple(
+            (x_value, y_value if region.cap_side == "upper" else -y_value)
+            for x_value, y_value in region.boundary_points_2d_mm
+        )
+        for entity_index, (start, end) in enumerate(
+            zip(points, (*points[1:], points[0]), strict=True)
+        ):
+            entities.append(
+                {
+                    "id": entity_ids[entity_index],
+                    "kind": "line",
+                    "construction": False,
+                    "start": _vector2(start),
+                    "end": _vector2(end),
+                    "sourceEvidence": [evidence_id],
+                    "confidence": float(candidate.confidence),
+                    "locked": False,
+                    "suppressed": False,
+                }
+            )
+        profile_id = f"{sketch_id}.profile"
+        document["sketches"].append(
+            {
+                "id": sketch_id,
+                "name": f"Recovered shallow boss profile {index}",
+                "plane": {
+                    "origin": _vector3(region.support_origin_mm),
+                    "normal": _vector3(region.support_normal),
+                    "xAxis": _vector3(candidate.frame.u),
+                },
+                "entities": entities,
+                "constraints": [],
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": f"Recovered shallow boss boundary {index}",
+                        "outerLoop": entity_ids,
+                        "innerLoops": [],
+                        "orientation": "counterclockwise",
+                        "closed": True,
+                        "sourceEvidence": [evidence_id],
+                        "confidence": float(candidate.confidence),
+                        "locked": False,
+                    }
+                ],
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "suppressed": False,
+            }
+        )
+        for item in topology:
+            if item["id"] == f"{previous_feature_id}.result":
+                item["role"] = "intermediateSolid"
+        features.append(
+            {
+                "id": feature_id,
+                "name": f"Recovered shallow additive boss {index}",
+                "operation": "extrusion",
+                "booleanMode": "additive",
+                "order": len(features),
+                "dependencies": [previous_feature_id],
+                "suppressed": False,
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "semanticOutputs": [f"{feature_id}.result"],
+                "sketchId": sketch_id,
+                "profileIds": [profile_id],
+                "direction": _vector3(region.support_normal),
+                "extent": "blind",
+                "distance": float(region.depth_mm),
+            }
+        )
+        topology.append(
+            {
+                "id": f"{feature_id}.result",
+                "kind": "solid",
+                "producerFeatureId": feature_id,
+                "role": "resultSolid",
+                "generatedFrom": [profile_id],
+                "status": "unresolved",
+            }
+        )
+        document["sourceEvidence"].append(
+            {
+                "id": evidence_id,
+                "sourceType": "derived",
+                "sourceIds": [region.id],
+                "measuredValue": float(region.depth_mm),
+                "confidence": float(candidate.confidence),
+                "notes": (
+                    "One closed cap-attached loop and constant shallow offset support "
+                    "an additive boss extrusion."
+                ),
+                "metadata": {
+                    "region": region.to_dict(),
+                    "sourceTriangleIds": list(region.source_triangle_ids),
+                },
+            }
+        )
+        previous_feature_id = feature_id
+    document["id"] = "reconstruction.prismatic-filleted-full-detail"
+    document["name"] = "Recovered analytic extrusion with fillets and shallow details"
+    extension = document["extensions"]["mesh2param.dev/prismaticReconstruction"]
+    extension["scope"] = (
+        "validated spline-aware linear extrusion, semantic constant-radius fillets, "
+        "polygon cut, and bounded shallow additive details"
+    )
+    extension["detailRecovery"] = {
+        "mode": "full",
+        "regions": [region.to_dict() for region in regions],
+    }
+    document["versionMetadata"]["message"] = (
+        "Analytic prismatic features and bounded shallow additive details reconstructed "
+        "from explicit mesh evidence."
+    )
+    return CADGraph.model_validate(document)
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateSearchSettings:
     beam_width: int = 2
@@ -1072,6 +1227,7 @@ __all__ = [
     "InferredHole",
     "Measurement",
     "build_filleted_prismatic_cadgraph",
+    "build_full_detail_prismatic_cadgraph",
     "build_l_bracket_cadgraph",
     "build_prismatic_cadgraph",
     "compile_candidate",
