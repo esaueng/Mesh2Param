@@ -183,6 +183,30 @@ Sample triangle interiors as well as vertices. Vertex-only fitting is biased by
 irregular tessellation density. Use mixed-area or per-triangle area weights so a
 dense local tessellation does not dominate the surface.
 
+#### G1 curvature-space sub-segmentation (implemented)
+
+`SegmentationSettings.enable_curvature_subsegmentation` enables a deterministic
+second pass over otherwise smooth patches and remains `False` by default. The
+pass fits a robust local quadric in each vertex's ordered two-ring
+neighborhood, derives the shape operator and its two principal curvatures, and
+uses strict seeds plus hysteretic region growth to classify planar,
+cylindrical, constant-minimum-radius fillet-band, and remaining freeform
+support. Materially sized coplanar seeds protect exact planes where a
+boundary-centered quadric sees an adjoining blend. Sub-floor fragments are
+absorbed into their dominant compatible neighbor; the source/target class,
+triangle count, area, and shared-boundary length remain attached to the target
+patch as evidence.
+
+On `spanner-filleted`, the enabled stage produces two plane patches, one outer
+wall band, two fillet bands, and the six separate hex-cut wall patches. The two
+reported fillet radii are approximately 1.52 mm and 1.53 mm against the feature
+manifest's exact 1.5 mm radius. Patch identifiers, counts, and serialized
+evidence are stable across repeat runs. This milestone only refines
+segmentation evidence: it does not route the patches into reconstruction,
+services, artifacts, or STEP generation; that wiring belongs to G2. With the
+flag disabled, curvature settings and evidence are omitted from serialization
+so the existing segmentation path retains its prior byte representation.
+
 ### 3. Recognize analytic regions first
 
 Extend surface fitting from plane/cylinder to:
