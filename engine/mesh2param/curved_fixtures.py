@@ -48,6 +48,31 @@ FIXTURE_STL_NAME = "source.stl"
 FIXTURE_MANIFEST_NAME = "fixture.json"
 CORPUS_MANIFEST_NAME = "manifest.json"
 
+SPANNER_FEATURE_TREE_SCHEMA = "mesh2param/spanner-fixture/1"
+SPANNER_PROFILE_START = (-35.0, -10.0)
+SPANNER_PROFILE_LINE_1_END = (25.0, -10.0)
+SPANNER_PROFILE_ARC_THROUGH = (35.0, 0.0)
+SPANNER_PROFILE_ARC_END = (25.0, 10.0)
+SPANNER_PROFILE_LINE_2_END = (-35.0, 10.0)
+SPANNER_PROFILE_BSPLINE_POINTS = (
+    (-42.0, 9.0),
+    (-48.0, 5.0),
+    (-50.0, 0.0),
+    (-48.0, -5.0),
+    (-42.0, -9.0),
+    SPANNER_PROFILE_START,
+)
+SPANNER_PROFILE_BSPLINE_TANGENTS = ((-1.0, 0.0), (1.0, 0.0))
+SPANNER_EXTRUDE_DEPTH_MM = 8.0
+SPANNER_FILLET_RADIUS_MM = 1.5
+SPANNER_HEX_CENTER = (25.0, 0.0)
+SPANNER_HEX_SIDES = 6
+SPANNER_HEX_CIRCUMDIAMETER_MM = 12.0
+SPANNER_EMBOSS_CENTER = (-5.0, 0.0)
+SPANNER_EMBOSS_WIDTH_MM = 18.0
+SPANNER_EMBOSS_HEIGHT_MM = 6.0
+SPANNER_EMBOSS_DEPTH_MM = 0.4
+
 
 @dataclass(frozen=True, slots=True)
 class CurvedFixtureSpec:
@@ -78,6 +103,253 @@ class CurvedFixtureSpec:
             },
             "noise": {"amplitude": self.noise_amplitude, "seed": self.noise_seed},
         }
+
+
+@dataclass(frozen=True, slots=True)
+class SpannerFixtureSpec:
+    """One exact G0 feature-tree variant and its deterministic tessellation."""
+
+    slug: str
+    title: str
+    description: str
+    with_fillets: bool
+    emboss_depth_mm: float | None = None
+    linear_tolerance: float = 0.005
+    angular_tolerance: float = 0.18
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "slug": self.slug,
+            "title": self.title,
+            "family": "spanner-curvature-segmentation",
+            "category": "positive",
+            "expectation": "closed-manifold",
+            "description": self.description,
+            "units": "mm",
+            "tessellation": {
+                "linearTolerance": self.linear_tolerance,
+                "angularTolerance": self.angular_tolerance,
+            },
+            "featureTree": _spanner_feature_tree(self),
+        }
+
+
+SPANNER_FIXTURE_SPECS: tuple[SpannerFixtureSpec, ...] = (
+    SpannerFixtureSpec(
+        slug="spanner-filleted",
+        title="Filleted ring spanner",
+        description=(
+            "A line, circular-arc, and B-spline profile extruded 8 mm, with "
+            "1.5 mm outer top/bottom fillets and one hexagonal through-cut."
+        ),
+        with_fillets=True,
+    ),
+    SpannerFixtureSpec(
+        slug="spanner-sharp",
+        title="Sharp ring spanner",
+        description=(
+            "The same line, circular-arc, and B-spline profile and hexagonal "
+            "through-cut, with the top and bottom fillet feature omitted."
+        ),
+        with_fillets=False,
+    ),
+    SpannerFixtureSpec(
+        slug="spanner-filleted-embossed",
+        title="Filleted ring spanner with shallow boss",
+        description=(
+            "The filleted spanner with an additional 18 x 6 x 0.4 mm "
+            "rectangular boss on the top handle face."
+        ),
+        with_fillets=True,
+        emboss_depth_mm=SPANNER_EMBOSS_DEPTH_MM,
+    ),
+)
+
+SPANNER_FIXTURES_BY_SLUG: dict[str, SpannerFixtureSpec] = {
+    spec.slug: spec for spec in SPANNER_FIXTURE_SPECS
+}
+
+
+def _spanner_profile_entities() -> list[dict[str, Any]]:
+    """Return the exact ordered inputs used to construct the closed sketch."""
+
+    return [
+        {
+            "id": "profile-line-0",
+            "type": "line",
+            "start": list(SPANNER_PROFILE_START),
+            "end": list(SPANNER_PROFILE_LINE_1_END),
+        },
+        {
+            "id": "profile-arc-0",
+            "type": "threePointArc",
+            "start": list(SPANNER_PROFILE_LINE_1_END),
+            "through": list(SPANNER_PROFILE_ARC_THROUGH),
+            "end": list(SPANNER_PROFILE_ARC_END),
+        },
+        {
+            "id": "profile-line-1",
+            "type": "line",
+            "start": list(SPANNER_PROFILE_ARC_END),
+            "end": list(SPANNER_PROFILE_LINE_2_END),
+        },
+        {
+            "id": "profile-bspline-0",
+            "type": "bsplineInterpolation",
+            "start": list(SPANNER_PROFILE_LINE_2_END),
+            "interpolationPoints": [list(point) for point in SPANNER_PROFILE_BSPLINE_POINTS],
+            "endTangents": [list(tangent) for tangent in SPANNER_PROFILE_BSPLINE_TANGENTS],
+            "periodic": False,
+            "scaleTangents": True,
+        },
+    ]
+
+
+def _spanner_feature_tree(spec: SpannerFixtureSpec) -> dict[str, Any]:
+    features: list[dict[str, Any]] = [
+        {
+            "id": "profile",
+            "type": "sketchProfile",
+            "plane": "XY",
+            "closed": True,
+            "entities": _spanner_profile_entities(),
+        },
+        {
+            "id": "extrude",
+            "type": "extrude",
+            "inputFeatureId": "profile",
+            "depth": SPANNER_EXTRUDE_DEPTH_MM,
+            "direction": [0.0, 0.0, 1.0],
+        },
+    ]
+    previous_feature_id = "extrude"
+    if spec.with_fillets:
+        features.append(
+            {
+                "id": "outer-fillets",
+                "type": "fillet",
+                "inputFeatureId": previous_feature_id,
+                "radius": SPANNER_FILLET_RADIUS_MM,
+                "edgeSelection": {
+                    "kind": "outerTopAndBottomLoops",
+                    "cadquerySelector": ">Z or <Z",
+                    "deterministicOrder": "centerZXYThenLength",
+                },
+            }
+        )
+        previous_feature_id = "outer-fillets"
+    features.append(
+        {
+            "id": "hex-cut",
+            "type": "cutExtrude",
+            "inputFeatureId": previous_feature_id,
+            "profile": {
+                "type": "regularPolygon",
+                "plane": "topFace",
+                "center": list(SPANNER_HEX_CENTER),
+                "sideCount": SPANNER_HEX_SIDES,
+                "circumdiameter": SPANNER_HEX_CIRCUMDIAMETER_MM,
+                "circumscribed": False,
+                "firstVertexDirection": [1.0, 0.0],
+            },
+            "extent": "throughAll",
+            "direction": [0.0, 0.0, -1.0],
+        }
+    )
+    if spec.emboss_depth_mm is not None:
+        features.append(
+            {
+                "id": "emboss",
+                "type": "bossExtrude",
+                "inputFeatureId": "hex-cut",
+                "profile": {
+                    "type": "centeredRectangle",
+                    "plane": "topFace",
+                    "center": list(SPANNER_EMBOSS_CENTER),
+                    "width": SPANNER_EMBOSS_WIDTH_MM,
+                    "height": SPANNER_EMBOSS_HEIGHT_MM,
+                },
+                "depth": spec.emboss_depth_mm,
+                "direction": [0.0, 0.0, 1.0],
+            }
+        )
+    return {
+        "schema": SPANNER_FEATURE_TREE_SCHEMA,
+        "units": "mm",
+        "modelingSystem": {"library": "cadquery", "version": "2.8.0"},
+        "features": features,
+    }
+
+
+def _spanner_profile() -> cq.Workplane:
+    return (
+        cq.Workplane("XY")
+        .moveTo(*SPANNER_PROFILE_START)
+        .lineTo(*SPANNER_PROFILE_LINE_1_END)
+        .threePointArc(SPANNER_PROFILE_ARC_THROUGH, SPANNER_PROFILE_ARC_END)
+        .lineTo(*SPANNER_PROFILE_LINE_2_END)
+        .spline(
+            SPANNER_PROFILE_BSPLINE_POINTS,
+            tangents=SPANNER_PROFILE_BSPLINE_TANGENTS,
+            periodic=False,
+            scale=True,
+            includeCurrent=True,
+        )
+        .close()
+    )
+
+
+def build_spanner_fixture_shape(spec: SpannerFixtureSpec) -> cq.Shape:
+    """Replay one G0 fixture's recorded feature tree through CadQuery."""
+
+    model = _spanner_profile().extrude(SPANNER_EXTRUDE_DEPTH_MM)
+    if spec.with_fillets:
+        base = model.val()
+        if not isinstance(base, cq.Solid):
+            raise TypeError(f"extrude returned {type(base).__name__}, not a CadQuery solid")
+        edge_plane_epsilon = 1e-8
+        loop_edges = [
+            edge
+            for edge in base.Edges()
+            if abs(edge.Center().z) <= edge_plane_epsilon
+            or abs(edge.Center().z - SPANNER_EXTRUDE_DEPTH_MM) <= edge_plane_epsilon
+        ]
+        # OCCT filleting is order-sensitive for mixed line/arc/B-spline loops.
+        loop_edges.sort(
+            key=lambda edge: (
+                round(edge.Center().z, 9),
+                round(edge.Center().x, 9),
+                round(edge.Center().y, 9),
+                round(edge.Length(), 9),
+            )
+        )
+        if len(loop_edges) != 8:
+            raise ValueError(f"expected 8 outer top/bottom edges, found {len(loop_edges)}")
+        filleted = base.fillet(SPANNER_FILLET_RADIUS_MM, loop_edges)
+        model = cq.Workplane("XY").newObject([filleted])
+    model = (
+        model.faces(">Z")
+        .workplane(origin=(0.0, 0.0, SPANNER_EXTRUDE_DEPTH_MM))
+        .center(*SPANNER_HEX_CENTER)
+        .polygon(
+            SPANNER_HEX_SIDES,
+            SPANNER_HEX_CIRCUMDIAMETER_MM,
+            circumscribed=False,
+        )
+        .cutThruAll()
+    )
+    if spec.emboss_depth_mm is not None:
+        model = (
+            model.faces(">Z")
+            .workplane(origin=(0.0, 0.0, SPANNER_EXTRUDE_DEPTH_MM))
+            .center(*SPANNER_EMBOSS_CENTER)
+            .rect(SPANNER_EMBOSS_WIDTH_MM, SPANNER_EMBOSS_HEIGHT_MM)
+            .extrude(spec.emboss_depth_mm)
+        )
+    shape = model.val()
+    if not isinstance(shape, cq.Shape):
+        raise TypeError(f"feature replay returned {type(shape).__name__}, not a CadQuery shape")
+    return shape
 
 
 def _wavy_bspline_solid(
@@ -904,6 +1176,36 @@ class GeneratedCurvedFixture:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class GeneratedSpannerFixture:
+    spec: SpannerFixtureSpec
+    directory: str
+    stl_sha256: str
+    stl_byte_size: int
+    triangle_count: int
+    vertex_count: int
+    ground_truth: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            **self.spec.to_dict(),
+            "directory": self.directory,
+            "stl": {
+                "path": FIXTURE_STL_NAME,
+                "sha256": self.stl_sha256,
+                "byteSize": self.stl_byte_size,
+                "triangleCount": self.triangle_count,
+                "vertexCount": self.vertex_count,
+            },
+            "mesh": {
+                "watertight": True,
+                "windingConsistent": True,
+                "bodyCount": 1,
+            },
+            "groundTruth": self.ground_truth,
+        }
+
+
 def _ground_truth_summary(shape: cq.Shape) -> dict[str, Any]:
     validation = validate_shape(shape, require_tessellation=False)
     bbox = shape.BoundingBox()
@@ -953,24 +1255,76 @@ def generate_curved_fixture(
     return generated
 
 
+def generate_spanner_fixture(
+    spec: SpannerFixtureSpec, output_root: str | Path
+) -> GeneratedSpannerFixture:
+    """Build one exact G0 feature tree and export its deterministic STL."""
+
+    shape = build_spanner_fixture_shape(spec)
+    tessellation = tessellate_shape(
+        shape,
+        linear_tolerance=spec.linear_tolerance,
+        angular_tolerance=spec.angular_tolerance,
+    )
+    mesh = _welded(
+        trimesh.Trimesh(
+            vertices=np.asarray(tessellation.vertices, dtype=np.float64),
+            faces=np.asarray(tessellation.triangles, dtype=np.int64),
+            process=False,
+            validate=False,
+        )
+    )
+    if not mesh.is_watertight or not mesh.is_winding_consistent or mesh.body_count != 1:
+        raise ValueError(f"{spec.slug} did not tessellate to one closed consistently wound body")
+
+    directory = Path(output_root) / spec.slug
+    directory.mkdir(parents=True, exist_ok=True)
+    stl_path = directory / FIXTURE_STL_NAME
+    payload = mesh.export(file_type="stl")
+    if not isinstance(payload, bytes):
+        raise TypeError(f"binary STL export returned {type(payload).__name__}, not bytes")
+    stl_path.write_bytes(payload)
+
+    generated = GeneratedSpannerFixture(
+        spec=spec,
+        directory=spec.slug,
+        stl_sha256=hashlib.sha256(payload).hexdigest(),
+        stl_byte_size=len(payload),
+        triangle_count=len(mesh.faces),
+        vertex_count=len(mesh.vertices),
+        ground_truth=_ground_truth_summary(shape),
+    )
+    _write_json(directory / FIXTURE_MANIFEST_NAME, generated.to_dict())
+    return generated
+
+
 def generate_curved_fixture_corpus(
     output_root: str | Path, slugs: Sequence[str] | None = None
-) -> list[GeneratedCurvedFixture]:
+) -> list[GeneratedCurvedFixture | GeneratedSpannerFixture]:
     selected = CURVED_FIXTURE_SPECS
+    selected_spanners = SPANNER_FIXTURE_SPECS
     if slugs is not None:
-        unknown = sorted(set(slugs) - set(CURVED_FIXTURES_BY_SLUG))
+        known_slugs = set(CURVED_FIXTURES_BY_SLUG) | set(SPANNER_FIXTURES_BY_SLUG)
+        unknown = sorted(set(slugs) - known_slugs)
         if unknown:
             raise KeyError(f"unknown curved fixture slugs: {', '.join(unknown)}")
-        selected = tuple(spec for spec in CURVED_FIXTURE_SPECS if spec.slug in set(slugs))
+        requested = set(slugs)
+        selected = tuple(spec for spec in CURVED_FIXTURE_SPECS if spec.slug in requested)
+        selected_spanners = tuple(spec for spec in SPANNER_FIXTURE_SPECS if spec.slug in requested)
     root = Path(output_root)
     root.mkdir(parents=True, exist_ok=True)
     generated = [generate_curved_fixture(spec, root) for spec in selected]
+    generated_spanners = [generate_spanner_fixture(spec, root) for spec in selected_spanners]
     if slugs is None:
         _write_json(
             root / CORPUS_MANIFEST_NAME,
-            {"fixtures": [fixture.to_dict() for fixture in generated]},
+            {
+                "fixtures": [fixture.to_dict() for fixture in generated],
+                "g0Fixtures": [fixture.to_dict() for fixture in generated_spanners],
+                "g0Schema": SPANNER_FEATURE_TREE_SCHEMA,
+            },
         )
-    return generated
+    return [*generated, *generated_spanners]
 
 
 __all__ = [
@@ -979,8 +1333,15 @@ __all__ = [
     "CURVED_FIXTURE_SPECS",
     "FIXTURE_MANIFEST_NAME",
     "FIXTURE_STL_NAME",
+    "SPANNER_FEATURE_TREE_SCHEMA",
+    "SPANNER_FIXTURES_BY_SLUG",
+    "SPANNER_FIXTURE_SPECS",
     "CurvedFixtureSpec",
     "GeneratedCurvedFixture",
+    "GeneratedSpannerFixture",
+    "SpannerFixtureSpec",
+    "build_spanner_fixture_shape",
     "generate_curved_fixture",
     "generate_curved_fixture_corpus",
+    "generate_spanner_fixture",
 ]
