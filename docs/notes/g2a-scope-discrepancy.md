@@ -73,3 +73,26 @@ therefore stops without weakening either gate. The prerequisites need separate
 review: either select a Wrangler dependency set that passes the existing
 license policy or explicitly review the LGPL package, and reconcile the
 committed sample tolerance with the current five-ppm validation contract.
+
+## Resolution after explicit continuation
+
+The user authorized resolving the measured prerequisites and continuing the
+plan. Commit `86fc91b` added the narrow prerequisite files to the G2a
+allow-list. The implementation then:
+
+- kept one-part-per-million STEP volume tolerance for analytic surfaces while
+  retaining five parts per million when source or reimport geometry contains
+  an exact freeform surface;
+- explicitly reviewed and documented the existing platform-constrained
+  libvips 8.17.3 bundle used by Wrangler development tooling, without changing
+  the dependency graph; and
+- regenerated only the dependency inventory in `THIRD_PARTY_NOTICES.md`.
+
+The complete G2a gate subsequently passed: 100 committed sample files were
+byte-stable, the license audit covered 88 Python and 391 JavaScript records,
+the focused suite passed 9 tests, the backend suite passed 260 tests with one
+fixture-dependent skip, the managed-sandbox semaphore test passed unchanged
+when rerun outside the sandbox, and the L-bracket geometry acceptance passed.
+All three spanner CLI runs retained the calibrated
+`segmentation` / `unsupported-freeform-remainder` rejection, and the repeated
+general baseline reproduced the recorded normalized STEP hashes.

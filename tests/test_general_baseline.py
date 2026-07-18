@@ -50,6 +50,14 @@ def test_p99_comparison_is_deterministic_and_serialized() -> None:
 
 
 @pytest.mark.geometry
+def test_analytic_step_keeps_one_part_per_million_volume_tolerance(tmp_path: Path) -> None:
+    shape = cq.Workplane("XY").box(40.0, 30.0, 12.0)
+    report = export_step_validated(shape, tmp_path / "analytic-box.step")
+
+    assert report.volume_tolerance == pytest.approx(report.source.volume * 1e-6)
+
+
+@pytest.mark.geometry
 def test_sharp_spanner_surface_audit_survives_step_reimport(tmp_path: Path) -> None:
     shape = build_general_fixture_shape(GENERAL_FIXTURES_BY_SLUG["spanner-sharp"])
     policy = ParametricSurfacePolicy(
@@ -70,6 +78,7 @@ def test_sharp_spanner_surface_audit_survives_step_reimport(tmp_path: Path) -> N
     assert report.parametric_surface_audit.surface_counts["cylinder"] == 1
     assert report.parametric_surface_audit.surface_counts["surfaceOfExtrusion"] == 1
     assert report.to_dict()["parametricSurfaceAudit"]["valid"] is True
+    assert report.volume_tolerance == pytest.approx(report.source.volume * 5e-6)
 
 
 @pytest.mark.geometry
