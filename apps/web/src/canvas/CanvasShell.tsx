@@ -47,7 +47,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const viewer = useWorkspaceSelector((state) => state.viewer);
   const theme = useWorkspaceSelector((state) => state.shell.theme);
   const fileRef = useRef<HTMLInputElement>(null);
-  const revealedRef = useRef(false);
+  const revealedKey = `mesh2param-revealed-${vm.project.id}`;
+  const [revealed, setRevealed] = useState(() => sessionStorage.getItem(revealedKey) === "1");
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [recoverFullDetails, setRecoverFullDetails] = useState(false);
   const logs = useDebugLog();
@@ -78,14 +79,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   }, [action.disabled, action.reason, action.label]);
 
   // Reveal the clean reconstructed result the first time it becomes available.
+  // Persist the "already revealed" flag per project in sessionStorage so a reload
+  // does not clobber user-customized viewer preferences (mode, shading, edges).
   useEffect(() => {
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
-    if (revealedRef.current || !names.has("reconstructed.glb")) return;
-    revealedRef.current = true;
+    if (revealed || !names.has("reconstructed.glb")) return;
+    sessionStorage.setItem(revealedKey, "1");
+    setRevealed(true);
     const store = workspaceStore.getState();
     debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
     store.setViewerPreferences(reconstructedRevealPreferences());
-  }, [vm.artifacts]);
+  }, [vm.artifacts, revealed, revealedKey]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
@@ -243,7 +247,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
-            <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme">
+            <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme" aria-label="Toggle light or dark theme">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               {theme === "dark" ? "Light" : "Dark"}
             </button>
