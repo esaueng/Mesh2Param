@@ -116,6 +116,25 @@ class ComparisonReport:
 
 
 @dataclass(frozen=True, slots=True)
+class FunctionalComparisonReport:
+    """Paired evidence for a declared functional-detail suppression."""
+
+    masked: ComparisonReport
+    unmasked: ComparisonReport
+    suppressed_region_ids: tuple[str, ...]
+    suppressed_triangle_count: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "validationMode": "functional",
+            "masked": self.masked.to_dict(),
+            "unmasked": self.unmasked.to_dict(),
+            "suppressedRegionIds": list(self.suppressed_region_ids),
+            "suppressedTriangleCount": self.suppressed_triangle_count,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ResidualHeatmapArtifact:
     path: str
     byte_size: int
@@ -323,6 +342,33 @@ def compare_mesh_to_shape(
     return compare_meshes(source, result, settings)
 
 
+def compare_functional_mesh_to_shape(
+    source: trimesh.Trimesh,
+    functional_reference: trimesh.Trimesh,
+    shape: cq.Shape | cq.Workplane,
+    *,
+    suppressed_region_ids: tuple[str, ...],
+    suppressed_triangle_count: int,
+    transform: np.ndarray | None = None,
+    settings: ComparisonSettings | None = None,
+) -> FunctionalComparisonReport:
+    """Report honest full-source metrics and gate on the closed functional reference."""
+
+    settings = settings or ComparisonSettings()
+    result = mesh_from_shape(
+        shape,
+        linear_tolerance=settings.linear_tessellation_mm,
+        angular_tolerance=settings.angular_tessellation_rad,
+        transform=transform,
+    )
+    return FunctionalComparisonReport(
+        masked=compare_meshes(functional_reference, result, settings),
+        unmasked=compare_meshes(source, result, settings),
+        suppressed_region_ids=suppressed_region_ids,
+        suppressed_triangle_count=suppressed_triangle_count,
+    )
+
+
 def compare_mesh_to_step(
     source: trimesh.Trimesh,
     step_path: str | Path,
@@ -467,7 +513,9 @@ def tessellation_to_mesh(mesh: Tessellation) -> trimesh.Trimesh:
 __all__ = [
     "ComparisonReport",
     "ComparisonSettings",
+    "FunctionalComparisonReport",
     "ResidualHeatmapArtifact",
+    "compare_functional_mesh_to_shape",
     "compare_mesh_to_shape",
     "compare_mesh_to_step",
     "compare_meshes",
