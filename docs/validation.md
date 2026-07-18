@@ -78,6 +78,14 @@ masked metrics determine functional-mode acceptance; both reports are persisted 
 `comparison.json`, and the CADGraph snapshot records `validationMode: functional` plus the same
 suppressed-region declarations.
 
+Full detail mode is opt-in. It uses the same accepted region declaration as an editable closed
+sketch on the measured support plane, then compiles a blind additive extrusion along the outward
+cap normal. Validation is unmasked against the complete source because the detail is present in the
+result. The `detail-regions.json` artifact and CADGraph `detailRecovery` extension preserve the
+measured footprint, depth, volume, support plane, and source triangle IDs. A recovered detail must
+pass the same P95/P99/maximum/normal/volume gates and the independent STEP reimport audit; kernel
+validity alone is insufficient.
+
 ## Artifacts and reproducibility
 
 Successful validation persists:
