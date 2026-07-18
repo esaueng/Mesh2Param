@@ -102,7 +102,7 @@ class SuppressedRegion:
 
 @dataclass(frozen=True, slots=True)
 class DetailSuppressionAnalysis:
-    mode: Literal["functional"]
+    mode: Literal["functional", "full"]
     regions: tuple[SuppressedRegion, ...]
     diagnostics: tuple[DetailDiagnostic, ...] = ()
 

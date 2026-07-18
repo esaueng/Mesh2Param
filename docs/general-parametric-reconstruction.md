@@ -421,6 +421,19 @@ overlay, reusing existing patches/residual GLB layers), tests, docs.
 Gate: full mode recovers the boss within Section 8 gates; functional mode
 remains the default.
 
+**G4b implementation evidence (2026-07-18):** passed. The opt-in graph is
+`base extrusion → constant-radius fillet → hex through-cut → additive boss`.
+The recovered boss footprint is 108.0000 mm² (18 × 6 mm), measured depth is
+0.400073 mm, and measured volume is 43.2079 mm³. The independently reimported
+STEP has 25 faces versus 5,874 source triangles. At 1,000 deterministic samples
+per direction: median 0.000123 mm, P95 0.009352 mm, P99 0.040706 mm, maximum
+0.096499 mm, P95 normal error 2.85038°, and relative volume delta 0.00439%.
+All Section 8 gates passed; functional mode remains the default and retained
+its masked/unmasked evidence. The complete backend suite passed 279 tests with
+one expected missing-attachment skip in 968.17 seconds; strict typecheck, lint,
+production build, 100-file sample determinism, sixteen-step geometry acceptance,
+license audit, and the general faceted baseline also passed.
+
 ### G5 (deferred, recorded for completeness)
 
 Revolution-family detection with a turned-shaft negative fixture, vertical-edge
@@ -677,7 +690,8 @@ DEFINITION OF DONE
   1.5 ± 0.02 mm, top+bottom outer loops, kernel-generated fillet faces;
   ≈20 faces vs 5 858 triangles.
 - spanner-filleted-embossed: succeeds in functional mode with the 43.2 mm³
-  boss declared in suppressedRegions; masked metrics meet the filleted gates.
+  boss declared in suppressedRegions; masked metrics meet the filleted gates;
+  opt-in full mode recovers the 18 × 6 × 0.4 mm additive boss within gates.
 - Program gates (plan Section 8): P95 ≤ 1.5t, P99 ≤ 3t, max ≤ 6t outside
   declared regions, volume error ≤ 0.1 %, zero missing through-features,
   deterministic hashes, and the full pre-existing suite (curved corpus,

@@ -14,8 +14,13 @@ from mesh2param.details import (
     analyze_shallow_cap_details,
     build_functional_reference_mesh,
 )
-from mesh2param.reconstruction import PrismaticReconstructionResult, reconstruct_file
+from mesh2param.reconstruction import (
+    PrismaticReconstructionResult,
+    ReconstructionSettings,
+    reconstruct_file,
+)
 from mesh2param.sections import extract_section_stack
+from mesh2param_contracts.models import ExtrusionFeature
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = REPOSITORY_ROOT / "samples" / "general-parametric-benchmark"
@@ -80,6 +85,7 @@ def test_embossed_spanner_declares_only_boss_and_passes_masked_gates(
         units="mm",
     )
     assert isinstance(result, PrismaticReconstructionResult)
+    assert result.to_dict()["detailMode"] == "functional"
     assert result.suppression is not None
     assert result.functional_comparison is not None
     assert result.graph.validation.status == "valid"
@@ -122,3 +128,60 @@ def test_embossed_spanner_declares_only_boss_and_passes_masked_gates(
         (result.selected.graph.extensions or {})["mesh2param.dev/prismaticReconstruction"],
     )
     assert selected_snapshot["suppressedRegions"] == extension["suppressedRegions"]
+
+
+@pytest.mark.geometry
+@pytest.mark.samples
+def test_embossed_spanner_full_mode_recovers_additive_boss(tmp_path: Path) -> None:
+    output = tmp_path / "full"
+    result = reconstruct_file(
+        FIXTURE_ROOT / "spanner-filleted-embossed" / "source.stl",
+        output,
+        units="mm",
+        settings=ReconstructionSettings(detail_mode="full"),
+    )
+
+    assert isinstance(result, PrismaticReconstructionResult)
+    assert result.suppression is None
+    assert result.functional_comparison is None
+    assert result.recovered_details is not None
+    assert result.recovered_details.mode == "full"
+    assert result.graph.validation.status == "valid"
+    assert result.step.valid
+    assert result.step.source.face_count == 25
+    assert [feature.operation for feature in result.graph.features] == [
+        "extrusion",
+        "fillet",
+        "extrusion",
+        "extrusion",
+    ]
+    boss = result.graph.features[-1]
+    assert isinstance(boss, ExtrusionFeature)
+    assert boss.id == "feature.detail.1"
+    assert boss.boolean_mode == "additive"
+    assert boss.distance == pytest.approx(0.4, abs=1e-3)
+    region = result.recovered_details.regions[0]
+    assert region.footprint_area_mm2 == pytest.approx(18.0 * 6.0, abs=1e-6)
+    assert region.measured_volume_mm3 == pytest.approx(43.2, abs=0.01)
+
+    tolerance = result.graph.project_tolerance.surface_deviation
+    assert result.comparison.p95_distance_mm <= 1.5 * tolerance
+    assert result.comparison.p99_distance_mm <= 3.0 * tolerance
+    assert result.comparison.maximum_distance_mm <= 6.0 * tolerance
+    assert result.comparison.p95_normal_angle_deg <= 3.0
+    assert result.comparison.relative_volume_delta is not None
+    assert result.comparison.relative_volume_delta <= 0.001
+    assert result.artifacts["detailRegions"] == str(output / "detail-regions.json")
+    assert "suppressedRegions" not in result.artifacts
+
+    reconstruction = json.loads((output / "reconstruction.json").read_text())
+    assert reconstruction["detailMode"] == "full"
+    assert reconstruction["suppressedRegions"] == []
+    assert reconstruction["recoveredDetails"] == [region.to_dict()]
+    assert json.loads((output / "detail-regions.json").read_text())["mode"] == "full"
+    extension = cast(
+        dict[str, Any],
+        (result.graph.extensions or {})["mesh2param.dev/prismaticReconstruction"],
+    )
+    assert extension["detailRecovery"]["mode"] == "full"
+    assert extension["detailRecovery"]["regions"] == [region.to_dict()]

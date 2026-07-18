@@ -17,7 +17,7 @@ silently replaced by a plausible-looking model.
 
 | Path | Result | Current supported scope | Validation meaning |
 | --- | --- | --- | --- |
-| Parametric inference | Editable CADGraph and analytic OCCT B-Rep | Straight extrusions with matched planar caps and closed line/arc/circle profiles, including profile holes; the bounded four-hole L-bracket path remains supported | Kernel-valid, STEP-reimport-valid, and compared with the source mesh |
+| Parametric inference | Editable CADGraph and analytic OCCT B-Rep | Straight extrusions with matched planar caps and closed line/arc/circle profiles, including profile holes; bounded spline-profile spanners may also recover a regular-polygon cut, constant-radius rim fillets, and qualifying shallow cap details | Kernel-valid, STEP-reimport-valid, and compared with the source mesh; functional detail suppression is the default, while full additive-detail recovery is opt-in |
 | Native curved reconstruction | Approximate B-spline/analytic surface-network B-Rep | Bounded plate-like STL topology with one or two freeform top regions, sharp or user-declared smooth joins, recognized cylindrical holes, and supported spherical, conical, or toroidal protrusions | Measured source deviation, continuity evidence, B-Rep checks, STEP round trip, surface inventory, and structural STEP audit |
 | Browser-local curved reconstruction | Approximate swept or smooth-loft B-Rep in OCCT WebAssembly | One valid, consistently wound, watertight, axis-aligned layered STL within browser budgets | Solid and STEP-reimport checks, curved-face inventory, volume gate, and bounds-delta gate |
 | Faceted fallback | Non-parametric STEP with one planar face per preserved triangle | Source-bound STL with unchanged project units and scale factor `1` | B-Rep and STEP reimport are proven; geometric tolerance remains unmeasured, so validation is intentionally partial |
@@ -60,8 +60,8 @@ The current web app uses a canvas-first workflow:
    override a detected crease where the server can prove the requested edit.
 4. Follow the guided conversion action. Supported geometry uses parametric reconstruction;
    otherwise the app offers approximate curved STEP first and a clearly labeled faceted fallback.
-5. Compare Source, Result, and overlay views, inspect validation evidence, then download STEP or save
-   the working project.
+5. Inspect the ordered feature tree and detail diagnostics. Compare Source, Result, overlay, and
+   residual/suppressed views, then download STEP or save the working project.
 
 Projects, versions, jobs, display preferences, and artifact descriptors survive reloads. Browser
 mode uses IndexedDB as its local authority; server mode mirrors the workspace while enforcing
@@ -156,6 +156,14 @@ The `reconstruct` CLI runs bounded parametric inference. Approximate curved and 
 currently exposed through the web workspace and `POST /api/projects/{id}/reconstruct`:
 
 ```json
+{"settings":{"detailMode":"full"}}
+```
+
+`detailMode: "full"` is an opt-in native-service setting that converts qualifying bounded shallow
+cap loops into additive extrusion features. Omitting it preserves the default functional mode,
+which declares and masks qualifying details without changing the preserved source mesh.
+
+```json
 {"settings":{"mode":"curved","fitTolerance":0.25,"surfaceDeviationTolerance":0.3,"forceSplit":false}}
 ```
 
@@ -213,6 +221,7 @@ model.cadgraph.json       model.cq.py              model.step
 source.glb                repaired.glb             analysis-proxy.glb
 patches.glb               reconstructed.glb        residual.glb
 analysis.json             metrics.json             validation.json
+suppressed-regions.json   detail-regions.json      candidates.json
 curved-plate.json         manifest.json            mesh2param-export.zip
 project.mesh2param.json
 ```
