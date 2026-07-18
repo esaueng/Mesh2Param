@@ -16,7 +16,6 @@ from mesh2param.general_fixtures import (
 )
 from mesh2param.reconstruction import (
     PrismaticReconstructionResult,
-    ReconstructionError,
     reconstruct_file,
 )
 from mesh2param.validation import (
@@ -146,25 +145,6 @@ def test_triangle_per_face_parametric_claim_is_rejected(tmp_path: Path) -> None:
 
 
 @pytest.mark.geometry
-def test_embossed_fixture_keeps_measured_structured_rejection(tmp_path: Path) -> None:
-    with pytest.raises(ReconstructionError) as excinfo:
-        reconstruct_file(
-            _GENERAL_FIXTURES / "spanner-filleted-embossed" / "source.stl",
-            tmp_path / "spanner-filleted-embossed",
-            units="mm",
-        )
-
-    error = excinfo.value
-    assert error.stage == "prismatic-validation"
-    assert error.code == "geometric_validation_failure"
-    assert str(error).startswith("analytic extrusion exceeds source agreement gates:")
-    assert error.measured["p95DistanceMm"] == pytest.approx(0.0309455, abs=1e-6)
-    assert error.measured["maximumDistanceMm"] == pytest.approx(0.400067, abs=1e-6)
-    relative_volume = error.measured["relativeVolumeDelta"]
-    assert isinstance(relative_volume, float)
-    assert relative_volume > 0.003
-
-
 @pytest.mark.geometry
 def test_sharp_spanner_reconstructs_as_spline_extrusion_and_polygon_cut(
     tmp_path: Path,

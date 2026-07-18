@@ -16,8 +16,16 @@ from mesh2param_contracts import CADGraph, canonical_json_bytes
 from .comparison import (
     ComparisonReport,
     ComparisonSettings,
+    FunctionalComparisonReport,
+    compare_functional_mesh_to_shape,
     compare_mesh_to_shape,
     write_residual_heatmap_glb,
+)
+from .details import (
+    DetailSuppressionAnalysis,
+    DetailSuppressionSettings,
+    analyze_shallow_cap_details,
+    build_functional_reference_mesh,
 )
 from .fillets import analyze_fillet_bands
 from .frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
@@ -75,6 +83,7 @@ class ReconstructionSettings:
     candidate_search: CandidateSearchSettings = field(default_factory=CandidateSearchSettings)
     prismatic: PrismaticSettings = field(default_factory=PrismaticSettings)
     sections: SectionStackSettings = field(default_factory=SectionStackSettings)
+    details: DetailSuppressionSettings = field(default_factory=DetailSuppressionSettings)
     include_nominal_preview: bool = True
 
 
@@ -158,6 +167,8 @@ class PrismaticReconstructionResult:
     selected: CandidateEvaluation
     graph: CADGraph
     comparison: ComparisonReport
+    functional_comparison: FunctionalComparisonReport | None
+    suppression: DetailSuppressionAnalysis | None
     step: StepValidation
     patch_selection: SelectionMapArtifact
     artifacts: dict[str, str]
@@ -175,6 +186,16 @@ class PrismaticReconstructionResult:
             "candidates": [candidate.to_dict() for candidate in self.candidates],
             "selectedCandidate": self.selected.label,
             "comparison": self.comparison.to_dict(),
+            "functionalComparison": (
+                self.functional_comparison.to_dict()
+                if self.functional_comparison is not None
+                else None
+            ),
+            "suppressedRegions": (
+                [region.to_dict() for region in self.suppression.regions]
+                if self.suppression is not None
+                else []
+            ),
             "stepValidation": self.step.to_dict(),
             "patchSelection": self.patch_selection.to_dict(),
             "artifacts": dict(sorted(self.artifacts.items())),
@@ -276,6 +297,21 @@ def _final_graph(
     return CADGraph.model_validate(document)
 
 
+def _graph_with_suppressed_regions(
+    graph: CADGraph,
+    analysis: DetailSuppressionAnalysis,
+) -> CADGraph:
+    document = graph.model_dump(mode="json", by_alias=True)
+    reconstruction = document["extensions"]["mesh2param.dev/prismaticReconstruction"]
+    reconstruction["validationMode"] = "functional"
+    reconstruction["suppressedRegions"] = [region.to_dict() for region in analysis.regions]
+    document["versionMetadata"]["message"] = (
+        f"{document['versionMetadata']['message']} "
+        "Shallow cap details are explicitly declared and functionally suppressed."
+    )
+    return CADGraph.model_validate(document)
+
+
 def _mesh_tessellation(mesh: Any) -> Tessellation:
     vertices = tuple(tuple(float(value) for value in vertex) for vertex in mesh.vertices)
     triangles = tuple(tuple(int(value) for value in face) for face in mesh.faces)
@@ -372,6 +408,20 @@ def _complete_filleted_section_reconstruction(
             "filleted prismatic reconstruction requires one radius group; "
             f"found {len(analysis.groups)}",
         )
+    suppression = analyze_shallow_cap_details(
+        repaired.mesh,
+        section_stack,
+        settings.details,
+    )
+    if suppression.diagnostics:
+        detail_diagnostic = suppression.diagnostics[0]
+        raise ReconstructionError(
+            "detail-suppression",
+            detail_diagnostic.code,
+            detail_diagnostic.message,
+            measured=detail_diagnostic.measured,
+            source_triangle_ids=detail_diagnostic.source_triangle_ids,
+        )
     candidate = _section_prismatic_candidate(section_stack, settings.prismatic)
     if not candidate.accepted:
         candidate_diagnostic = candidate.diagnostics[-1] if candidate.diagnostics else None
@@ -450,6 +500,7 @@ def _complete_filleted_section_reconstruction(
         selected=filleted,
         candidate_label="analytic-prismatic-spline-filleted",
         rejected_candidates=(sharp,),
+        suppression=suppression,
     )
 
 
@@ -466,6 +517,7 @@ def _complete_prismatic_reconstruction(
     selected: CandidateEvaluation | None = None,
     candidate_label: str | None = None,
     rejected_candidates: tuple[CandidateEvaluation, ...] = (),
+    suppression: DetailSuppressionAnalysis | None = None,
 ) -> PrismaticReconstructionResult:
     """Compile, compare, round-trip, and materialize one accepted extrusion."""
 
@@ -490,11 +542,26 @@ def _complete_prismatic_reconstruction(
             "invalid_compiled_brep",
             f"{candidate_label} was rejected by OpenCascade: {details}",
         )
-    comparison = compare_mesh_to_shape(
-        repaired.mesh,
-        selected.shape,
-        settings=settings.comparison,
-    )
+    functional_comparison: FunctionalComparisonReport | None = None
+    if suppression is not None and suppression.regions:
+        functional_reference = build_functional_reference_mesh(repaired.mesh, suppression)
+        functional_comparison = compare_functional_mesh_to_shape(
+            repaired.mesh,
+            functional_reference,
+            selected.shape,
+            suppressed_region_ids=tuple(region.id for region in suppression.regions),
+            suppressed_triangle_count=len(suppression.source_triangle_ids),
+            settings=settings.comparison,
+        )
+        comparison = functional_comparison.masked
+        graph = _graph_with_suppressed_regions(graph, suppression)
+        selected.graph = graph
+    else:
+        comparison = compare_mesh_to_shape(
+            repaired.mesh,
+            selected.shape,
+            settings=settings.comparison,
+        )
     selected.comparison = comparison
     score_candidate(selected, comparison)
     tolerance = graph.project_tolerance.surface_deviation
@@ -559,6 +626,11 @@ def _complete_prismatic_reconstruction(
                 if warning != "freeform remainder preserved; automatic feature inference is partial"
             ]
             + list(comparison.warnings)
+            + (
+                list(functional_comparison.unmasked.warnings)
+                if functional_comparison is not None
+                else []
+            )
         )
     )
     final_feature_id = graph.features[-1].id
@@ -572,7 +644,11 @@ def _complete_prismatic_reconstruction(
     heatmap_path = output / "residual-heatmap.glb"
     heatmap = write_residual_heatmap_glb(
         repaired.mesh,
-        comparison.source_vertex_residuals_mm,
+        (
+            functional_comparison.unmasked.source_vertex_residuals_mm
+            if functional_comparison is not None
+            else comparison.source_vertex_residuals_mm
+        ),
         heatmap_path,
         tolerance_mm=settings.comparison.tolerance_mm,
     )
@@ -582,7 +658,16 @@ def _complete_prismatic_reconstruction(
         output / "patches.glb",
         output / "selection-map.json",
     )
-    _write_json(output / "comparison.json", comparison.to_dict())
+    _write_json(
+        output / "comparison.json",
+        (
+            functional_comparison.to_dict()
+            if functional_comparison is not None
+            else comparison.to_dict()
+        ),
+    )
+    if suppression is not None and suppression.regions:
+        _write_json(output / "suppressed-regions.json", suppression.to_dict())
     _write_json(output / "prismatic.json", candidate.to_dict())
     candidates = (*rejected_candidates, selected)
     _write_json(output / "candidates.json", [item.to_dict() for item in candidates])
@@ -606,6 +691,8 @@ def _complete_prismatic_reconstruction(
         "residualHeatmap": heatmap.path,
         "originalSource": str(output / f"source.original{source.metadata.extension}"),
     }
+    if suppression is not None and suppression.regions:
+        artifacts["suppressedRegions"] = str(output / "suppressed-regions.json")
     for name, filename in (
         ("sections", "sections.json"),
         ("sectionsGlb", "sections.glb"),
@@ -629,6 +716,8 @@ def _complete_prismatic_reconstruction(
         selected,
         final_graph,
         comparison,
+        functional_comparison,
+        suppression if suppression is not None and suppression.regions else None,
         step,
         patch_selection,
         artifacts,
