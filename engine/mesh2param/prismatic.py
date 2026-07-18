@@ -851,9 +851,10 @@ def _cyclic_interval(
 ) -> np.ndarray:
     start_index = int(np.argmin(np.linalg.norm(points - np.asarray(start), axis=1)))
     end_index = int(np.argmin(np.linalg.norm(points - np.asarray(end), axis=1)))
-    if float(np.linalg.norm(points[start_index] - np.asarray(start))) > 1e-8 or float(
-        np.linalg.norm(points[end_index] - np.asarray(end))
-    ) > 1e-8:
+    if (
+        float(np.linalg.norm(points[start_index] - np.asarray(start))) > 1e-8
+        or float(np.linalg.norm(points[end_index] - np.asarray(end))) > 1e-8
+    ):
         raise PrismaticFitError(
             "spline_endpoint_mismatch", "spline interval endpoints are absent from cap evidence"
         )
@@ -879,24 +880,35 @@ def _fit_spline_aware_outer(
         for index, primitive in enumerate(line_arc_chain)
         if isinstance(primitive, ArcPrimitive) and abs(primitive.sweep_deg) >= 120.0
     ]
-    if len(line_indices) != 2 or len(broad_arc_indices) != 1 or len(line_arc_chain) < 5:
+    if len(line_indices) < 2 or len(broad_arc_indices) != 1 or len(line_arc_chain) < 5:
         raise PrismaticFitError(
             "no_valid_spline_decomposition",
-            "profile does not contain two lines, one broad arc, and one spline remainder",
+            "profile does not contain two dominant lines, one broad arc, and one spline remainder",
         )
-    anchors = set((*line_indices, *broad_arc_indices))
-    remainder = [index for index in range(len(line_arc_chain)) if index not in anchors]
+    dominant_lines = sorted(
+        line_indices,
+        key=lambda index: (-line_arc_chain[index].length_mm, index),
+    )[:2]
+    anchors = set((*dominant_lines, *broad_arc_indices))
+    count = len(line_arc_chain)
+    anchor_start = next(
+        (
+            index
+            for index in range(count)
+            if {(index + offset) % count for offset in range(3)} == anchors
+        ),
+        None,
+    )
+    if anchor_start is None:
+        raise PrismaticFitError(
+            "no_valid_spline_decomposition",
+            "dominant line and broad-arc anchors are not cyclically consecutive",
+        )
+    ordered_anchors = tuple((anchor_start + offset) % count for offset in range(3))
+    remainder = tuple((anchor_start + offset) % count for offset in range(3, count))
     if not remainder:
         raise PrismaticFitError(
             "no_valid_spline_decomposition", "profile has no freeform remainder to fit"
-        )
-    count = len(line_arc_chain)
-    if any(
-        (remainder[index] + 1) % count != remainder[index + 1]
-        for index in range(len(remainder) - 1)
-    ):
-        raise PrismaticFitError(
-            "no_valid_spline_decomposition", "profile freeform remainder is not contiguous"
         )
     first = remainder[0]
     last = remainder[-1]
@@ -913,13 +925,7 @@ def _fit_spline_aware_outer(
         )
     except ValueError as exc:
         raise PrismaticFitError("no_valid_spline_decomposition", str(exc)) from exc
-    result: list[Primitive] = []
-    for index, primitive in enumerate(line_arc_chain):
-        if index == first:
-            result.append(spline)
-        elif index not in remainder:
-            result.append(primitive)
-    return _continuity(tuple(result))
+    return _continuity((*tuple(line_arc_chain[index] for index in ordered_anchors), spline))
 
 
 def _classify_projected_loops(loops: list[ProjectedLoop]) -> tuple[ProjectedLoop, ...]:
