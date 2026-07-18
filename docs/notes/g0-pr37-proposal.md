@@ -1,4 +1,4 @@
-# G0 PR #37 review proposal
+# G0 PR #37 review record
 
 ## Finding
 
@@ -22,14 +22,14 @@ Keeping the original PR implementation would create two fixture APIs, two
 benchmark locations, and two schema names for identical geometry. That would
 make the G1 source of truth ambiguous and add avoidable generated binaries.
 
-## Proposal
+## Resolution
 
 Keep the G0 implementation already present on `main` under
 `engine/mesh2param/general_fixtures.py` and
 `samples/general-parametric-benchmark`. Remove the redundant implementation
-from PR #37 and treat this note as the draft PR deliverable documenting why.
+from PR #37 and retain this note as the review record documenting why.
 
-Do not start G1 on this branch or in this session. G1 should begin later on a
+G1 was intentionally not started on this branch. It later began in PR #38 on a
 new branch from the then-current `origin/main`, using the merged G0 fixtures as
 its prerequisite and touching only the stated G1 allow-list.
 
@@ -45,4 +45,4 @@ is proposed.
   a different implementation while the draft was open.
 - No G1 segmentation or reconstruction work was started.
 
-No geometry outside engine/mesh2param; no merges or deploys performed.
+No geometry outside engine/mesh2param was introduced by this PR.
