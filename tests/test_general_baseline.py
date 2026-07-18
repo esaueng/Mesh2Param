@@ -14,13 +14,20 @@ from mesh2param.general_fixtures import (
     GENERAL_FIXTURES_BY_SLUG,
     build_general_fixture_shape,
 )
-from mesh2param.reconstruction import ReconstructionError, reconstruct_file
+from mesh2param.reconstruction import (
+    PrismaticReconstructionResult,
+    ReconstructionError,
+    reconstruct_file,
+)
 from mesh2param.validation import (
     ParametricSurfacePolicy,
     audit_parametric_surfaces,
+    classify_face_surfaces,
     classify_parametric_face_surfaces,
     export_step_validated,
+    import_step_shape,
 )
+from mesh2param_contracts.models import ExtrusionFeature
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _GENERAL_FIXTURES = _REPOSITORY_ROOT / "samples" / "general-parametric-benchmark"
@@ -143,11 +150,6 @@ def test_triangle_per_face_parametric_claim_is_rejected(tmp_path: Path) -> None:
     ("slug", "expected_code", "expected_message"),
     (
         (
-            "spanner-sharp",
-            "unsupported-freeform-remainder",
-            "automatic L-bracket inference requires only plane and full-cylinder patches",
-        ),
-        (
             "spanner-filleted",
             "fillet-band-detected",
             "section inset series fits a constant-radius circle model",
@@ -176,15 +178,80 @@ def test_general_fixtures_keep_calibrated_structured_rejection(
     assert error.stage == "segmentation"
     assert error.code == expected_code
     assert str(error) == expected_message
-    if expected_code == "fillet-band-detected":
-        assert error.measured["radiusMm"] == pytest.approx(1.5, abs=0.1)
-        rms_residual = error.measured["rmsResidualMm"]
-        assert isinstance(rms_residual, float)
-        assert rms_residual < 0.03
-        assert error.source_triangle_ids
-    else:
-        assert error.measured == {}
-        assert error.source_triangle_ids == ()
+    assert error.measured["radiusMm"] == pytest.approx(1.5, abs=0.1)
+    rms_residual = error.measured["rmsResidualMm"]
+    assert isinstance(rms_residual, float)
+    assert rms_residual < 0.03
+    assert error.source_triangle_ids
+
+
+@pytest.mark.geometry
+def test_sharp_spanner_reconstructs_as_spline_extrusion_and_polygon_cut(
+    tmp_path: Path,
+) -> None:
+    first_output = tmp_path / "first"
+    second_output = tmp_path / "second"
+    first = reconstruct_file(
+        _GENERAL_FIXTURES / "spanner-sharp" / "source.stl",
+        first_output,
+        units="mm",
+    )
+    second = reconstruct_file(
+        _GENERAL_FIXTURES / "spanner-sharp" / "source.stl",
+        second_output,
+        units="mm",
+    )
+    assert isinstance(first, PrismaticReconstructionResult)
+    assert isinstance(second, PrismaticReconstructionResult)
+    assert first.selected.label == "analytic-prismatic-spline"
+    assert [feature.operation for feature in first.graph.features] == ["extrusion", "extrusion"]
+    base_feature, cut_feature = first.graph.features
+    assert isinstance(base_feature, ExtrusionFeature)
+    assert isinstance(cut_feature, ExtrusionFeature)
+    assert [base_feature.boolean_mode, cut_feature.boolean_mode] == ["base", "subtractive"]
+    assert cut_feature.extent == "throughAll"
+
+    outer_kinds = [entity.kind for entity in first.graph.sketches[0].entities]
+    assert outer_kinds.count("line") == 2
+    assert outer_kinds.count("circularArc") == 1
+    assert outer_kinds.count("bspline") == 1
+    cut_kinds = [entity.kind for entity in first.graph.sketches[1].entities]
+    assert cut_kinds.count("line") == 6
+    assert first.prismatic.distance_mm == 8.0
+    assert first.prismatic.distance_measurement is not None
+    assert first.prismatic.distance_measurement.accepted
+    polygon = next(item for item in first.prismatic.polygon_hypotheses if item is not None)
+    assert polygon.side_count == 6
+    assert polygon.selected_circumdiameter_mm == 12.0
+    spline = next(
+        item
+        for item in first.prismatic.profiles[0]
+        if item.kind == "bspline"
+    )
+    assert spline.rms_residual_mm < 0.03
+    assert spline.maximum_residual_mm < 0.075
+
+    comparison = first.comparison
+    tolerance = first.graph.project_tolerance.surface_deviation
+    assert comparison.p95_distance_mm <= 1.5 * tolerance
+    assert comparison.p99_distance_mm <= 3.0 * tolerance
+    assert comparison.maximum_distance_mm <= 6.0 * tolerance
+    assert comparison.p95_normal_angle_deg <= 3.0
+    assert comparison.relative_volume_delta is not None
+    assert comparison.relative_volume_delta <= 0.001
+    assert first.step.valid
+    assert first.step.source.face_count == 12
+    assert len(first.source.mesh.faces) == 508
+    ground_truth = build_general_fixture_shape(GENERAL_FIXTURES_BY_SLUG["spanner-sharp"])
+    assert abs(first.step.source.volume - ground_truth.Volume()) / ground_truth.Volume() <= 0.001
+    surfaces = classify_face_surfaces(import_step_shape(first.step.path))
+    assert surfaces["plane"] == 10
+    assert surfaces["cylinder"] == 1
+    assert surfaces["other"] == 1
+    assert sum(surfaces.values()) == 12
+
+    for name in ("model.cadgraph.json", "model.cq.py", "model.step", "candidates.json"):
+        assert (first_output / name).read_bytes() == (second_output / name).read_bytes(), name
 
 
 @pytest.mark.geometry
