@@ -36,6 +36,7 @@ def test_schema_and_strict_model_accept_fixture() -> None:
         "rectangle",
         "circle",
         "circularArc",
+        "bspline",
         "closedProfile",
         "constructionAxis",
     }
@@ -108,3 +109,51 @@ def test_migration_is_deterministic_and_non_mutating() -> None:
     assert migrated.schema_version == "1.0.0"
     assert migrated.deterministic_seed == 7
     assert legacy == original
+
+
+def test_legacy_bspline_entity_migration_adds_only_safe_base_defaults() -> None:
+    legacy = fixture()
+    legacy["schemaVersion"] = "0.1.0"
+    entity = next(
+        item
+        for item in legacy["sketches"][0]["entities"]  # type: ignore[index]
+        if item["kind"] == "bspline"
+    )
+    entity["type"] = entity.pop("kind")
+    for key in ("construction", "sourceEvidence", "confidence", "locked", "suppressed"):
+        entity.pop(key)
+
+    migrated = migrate_cadgraph(legacy)
+    bspline = next(item for item in migrated.sketches[0].entities if item.kind == "bspline")
+    assert bspline.construction is False
+    assert bspline.degree == 3
+    assert len(bspline.control_points) == 4
+    assert bspline.clamped and not bspline.rational and not bspline.periodic
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        ("degree", 4, "less than or equal to 3"),
+        (
+            "controlPoints",
+            [{"x": 0.0, "y": 20.0}, {"x": -4.0, "y": 16.0}, {"x": 0.0, "y": 0.0}],
+            "at least 4 items",
+        ),
+        ("rational", True, "Input should be False"),
+    ),
+)
+def test_bspline_contract_rejects_unbounded_or_non_rational_data(
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    document = fixture()
+    entity = next(
+        item
+        for item in document["sketches"][0]["entities"]  # type: ignore[index]
+        if item["kind"] == "bspline"
+    )
+    entity[field] = value
+    with pytest.raises(ValidationError, match=message):
+        CADGraph.model_validate(document)

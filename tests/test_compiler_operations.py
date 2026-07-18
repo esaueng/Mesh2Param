@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +17,13 @@ from mesh2param import (
     create_faceted_fallback,
 )
 from mesh2param.samples import sample_graph
+from mesh2param.source import generate_cadquery_source
 from mesh2param.tessellation import export_binary_stl
-from mesh2param.validation import export_step_validated
+from mesh2param.validation import (
+    ParametricSurfacePolicy,
+    classify_parametric_face_surfaces,
+    export_step_validated,
+)
 from mesh2param_contracts import CADGraph
 
 
@@ -45,6 +51,173 @@ def _compile(document: dict[str, Any]) -> CompilationResult:
     result = compile_cadgraph(CADGraph.model_validate(document))
     assert result.success, [error.to_dict() for error in result.errors]
     return result
+
+
+def _spanner_bspline_document() -> dict[str, Any]:
+    document = _document()
+
+    def entity_fields(identifier: str) -> dict[str, Any]:
+        return {
+            "id": identifier,
+            "construction": False,
+            "sourceEvidence": [],
+            "confidence": 1.0,
+            "locked": False,
+            "suppressed": False,
+        }
+
+    hexagon = [
+        {
+            "x": 25.0 + 6.0 * math.cos(index * math.pi / 3.0),
+            "y": 6.0 * math.sin(index * math.pi / 3.0),
+        }
+        for index in range(6)
+    ]
+    document["sketches"] = [
+        {
+            "id": "sketch.spanner",
+            "name": "Bounded B-spline spanner profile",
+            "plane": {
+                "origin": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "normal": {"x": 0.0, "y": 0.0, "z": 1.0},
+                "xAxis": {"x": 1.0, "y": 0.0, "z": 0.0},
+            },
+            "entities": [
+                {
+                    **entity_fields("entity.lower"),
+                    "kind": "line",
+                    "start": {"x": -35.0, "y": -10.0},
+                    "end": {"x": 25.0, "y": -10.0},
+                },
+                {
+                    **entity_fields("entity.ring"),
+                    "kind": "circularArc",
+                    "center": {"x": 25.0, "y": 0.0},
+                    "radius": 10.0,
+                    "startAngleDeg": -90.0,
+                    "endAngleDeg": 90.0,
+                    "clockwise": False,
+                },
+                {
+                    **entity_fields("entity.upper"),
+                    "kind": "line",
+                    "start": {"x": 25.0, "y": 10.0},
+                    "end": {"x": -35.0, "y": 10.0},
+                },
+                {
+                    **entity_fields("entity.jaw"),
+                    "kind": "bspline",
+                    "degree": 3,
+                    "controlPoints": [
+                        {"x": -35.0, "y": 10.0},
+                        {"x": -46.0, "y": 10.0},
+                        {"x": -54.0, "y": -10.0},
+                        {"x": -35.0, "y": -10.0},
+                    ],
+                    "clamped": True,
+                    "rational": False,
+                    "periodic": False,
+                },
+                {
+                    **entity_fields("entity.hex"),
+                    "kind": "polyline",
+                    "points": hexagon,
+                    "closed": True,
+                },
+            ],
+            "constraints": [],
+            "profiles": [
+                {
+                    "id": "profile.spanner",
+                    "name": "Spanner with hex through-cut",
+                    "outerLoop": [
+                        "entity.lower",
+                        "entity.ring",
+                        "entity.upper",
+                        "entity.jaw",
+                    ],
+                    "innerLoops": [["entity.hex"]],
+                    "orientation": "counterclockwise",
+                    "closed": True,
+                    "sourceEvidence": [],
+                    "confidence": 1.0,
+                    "locked": False,
+                }
+            ],
+            "sourceEvidence": [],
+            "confidence": 1.0,
+            "userLocks": [],
+            "overrides": [],
+            "suppressed": False,
+        }
+    ]
+    feature = {
+        **sample_models._feature_fields("feature.base", "Spanner extrusion", 0, []),
+        "operation": "extrusion",
+        "booleanMode": "base",
+        "sketchId": "sketch.spanner",
+        "profileIds": ["profile.spanner"],
+        "direction": {"x": 0.0, "y": 0.0, "z": 1.0},
+        "extent": "blind",
+        "distance": 8.0,
+    }
+    document["features"] = [feature]
+    document["semanticTopology"] = [_result_reference(feature)]
+    return document
+
+
+@pytest.mark.geometry
+def test_bounded_bspline_spanner_compiles_and_round_trips_step(tmp_path: Path) -> None:
+    document = _spanner_bspline_document()
+    graph = CADGraph.model_validate(document)
+    result = compile_cadgraph(graph)
+
+    assert result.success, [error.to_dict() for error in result.errors]
+    shape = result.require_shape()
+    assert shape.isValid()
+    assert shape.Volume() > 0.0
+    assert [str(edge.geomType()).upper() for edge in shape.Edges()].count("BSPLINE") == 2
+    source_counts = classify_parametric_face_surfaces(shape)
+    assert source_counts["plane"] == 10
+    assert source_counts["cylinder"] == 1
+    assert source_counts["surfaceOfExtrusion"] == 1
+
+    report = export_step_validated(
+        shape,
+        tmp_path / "bspline-spanner.step",
+        parametric_surface_policy=ParametricSurfacePolicy(
+            allowed_surface_types=("plane", "cylinder", "surfaceOfExtrusion"),
+            source_triangle_count=508,
+        ),
+    )
+    assert report.valid
+    assert report.source.face_count == report.reimport.face_count == 12
+    assert report.source.solid_count == report.reimport.solid_count == 1
+    assert report.volume_delta <= report.volume_tolerance
+    assert report.parametric_surface_audit is not None
+    assert report.parametric_surface_audit.valid
+
+    generated = generate_cadquery_source(graph)
+    assert generated == generate_cadquery_source(graph)
+    assert '"kind":"bspline"' in generated
+    assert "compile_cadgraph" in generated
+
+
+@pytest.mark.geometry
+def test_bspline_profile_rejects_disconnected_shared_endpoint() -> None:
+    document = _spanner_bspline_document()
+    jaw = next(
+        entity for entity in document["sketches"][0]["entities"] if entity["kind"] == "bspline"
+    )
+    jaw["controlPoints"][0] = {"x": -34.0, "y": 10.0}
+
+    result = compile_cadgraph(CADGraph.model_validate(document))
+
+    assert not result.success
+    assert result.shape is None
+    assert result.last_valid_feature_id is None
+    assert result.errors[0].feature_id == "feature.base"
+    assert result.errors[0].code == "disconnected_profile"
 
 
 @pytest.mark.geometry

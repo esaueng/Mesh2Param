@@ -13,7 +13,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
-
 CURRENT_SCHEMA_VERSION = "1.0.0"
 
 
@@ -280,6 +279,24 @@ class CircularArcEntity(EntityBase):
         return self
 
 
+class BSplineEntity(EntityBase):
+    """Bounded clamped, non-rational B-spline sketch segment."""
+
+    kind: Literal["bspline"]
+    construction: Literal[False]
+    degree: Annotated[int, Field(ge=1, le=3)]
+    control_points: Annotated[list[Vector2], Field(min_length=4, max_length=8)]
+    clamped: Literal[True]
+    rational: Literal[False]
+    periodic: Literal[False]
+
+    @model_validator(mode="after")
+    def validate_bspline(self) -> BSplineEntity:
+        if len(self.control_points) < self.degree + 1:
+            raise ValueError("B-spline requires at least degree + 1 control points")
+        return self
+
+
 class ClosedProfileEntity(EntityBase):
     kind: Literal["closedProfile"]
     construction: Literal[False]
@@ -310,6 +327,7 @@ SketchEntity = Annotated[
     | RectangleEntity
     | CircleEntity
     | CircularArcEntity
+    | BSplineEntity
     | ClosedProfileEntity
     | ConstructionAxisEntity,
     Field(discriminator="kind"),
@@ -350,7 +368,14 @@ class SketchConstraint(StrictModel):
 
     @model_validator(mode="after")
     def validate_dimension(self) -> SketchConstraint:
-        dimensional = {"distance", "horizontalDistance", "verticalDistance", "angle", "radius", "diameter"}
+        dimensional = {
+            "distance",
+            "horizontalDistance",
+            "verticalDistance",
+            "angle",
+            "radius",
+            "diameter",
+        }
         if self.kind in dimensional and self.value is None:
             raise ValueError(f"{self.kind} constraint requires value")
         if self.kind in {"radius", "diameter"} and self.value is not None and self.value <= 0:
@@ -389,15 +414,22 @@ class Sketch(StrictModel):
         _unique_ids(self.constraints, f"sketch {self.id} constraints")
         _unique_ids(self.profiles, f"sketch {self.id} profiles")
         for constraint in self.constraints:
-            _require_subset(constraint.entity_ids, entity_ids, f"constraint {constraint.id} entityIds")
+            _require_subset(
+                constraint.entity_ids, entity_ids, f"constraint {constraint.id} entityIds"
+            )
         for profile in self.profiles:
             _require_subset(profile.outer_loop, entity_ids, f"profile {profile.id} outerLoop")
             for index, loop in enumerate(profile.inner_loops):
                 _require_subset(loop, entity_ids, f"profile {profile.id} innerLoops[{index}]")
         for entity in self.entities:
             if isinstance(entity, ClosedProfileEntity):
-                targets = [*entity.outer_loop, *(item for loop in entity.inner_loops for item in loop)]
-                _require_subset(targets, entity_ids - {entity.id}, f"closed profile entity {entity.id}")
+                targets = [
+                    *entity.outer_loop,
+                    *(item for loop in entity.inner_loops for item in loop),
+                ]
+                _require_subset(
+                    targets, entity_ids - {entity.id}, f"closed profile entity {entity.id}"
+                )
         return self
 
 
@@ -762,11 +794,17 @@ class CADGraph(StrictModel):
                     raise ValueError(
                         f"feature {feature.id} dependency {dependency} must have an earlier order"
                     )
-            _require_subset(feature.source_evidence, evidence_ids, f"feature {feature.id} sourceEvidence")
-            _require_subset(feature.semantic_outputs, topology_ids, f"feature {feature.id} semanticOutputs")
+            _require_subset(
+                feature.source_evidence, evidence_ids, f"feature {feature.id} sourceEvidence"
+            )
+            _require_subset(
+                feature.semantic_outputs, topology_ids, f"feature {feature.id} semanticOutputs"
+            )
             if isinstance(feature, (ExtrusionFeature, PocketFeature, RevolutionFeature)):
                 _require_subset([feature.sketch_id], sketch_ids, f"feature {feature.id} sketchId")
-                _require_subset(feature.profile_ids, profile_ids, f"feature {feature.id} profileIds")
+                _require_subset(
+                    feature.profile_ids, profile_ids, f"feature {feature.id} profileIds"
+                )
             if isinstance(feature, (LinearPatternFeature, CircularPatternFeature, MirrorFeature)):
                 _require_subset(
                     feature.source_feature_ids,
@@ -775,7 +813,9 @@ class CADGraph(StrictModel):
                 )
 
         for sketch in self.sketches:
-            _require_subset(sketch.source_evidence, evidence_ids, f"sketch {sketch.id} sourceEvidence")
+            _require_subset(
+                sketch.source_evidence, evidence_ids, f"sketch {sketch.id} sourceEvidence"
+            )
             for entity in sketch.entities:
                 _require_subset(
                     entity.source_evidence,
@@ -812,20 +852,21 @@ class CADGraph(StrictModel):
 
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
+    "BSplineEntity",
     "CADGraph",
-    "Feature",
-    "SketchEntity",
-    "ExtrusionFeature",
-    "PocketFeature",
-    "HoleFeature",
+    "ChamferFeature",
+    "CircularPatternFeature",
     "CounterboreFeature",
     "CountersinkFeature",
-    "RevolutionFeature",
-    "LinearPatternFeature",
-    "CircularPatternFeature",
-    "MirrorFeature",
-    "ChamferFeature",
+    "ExtrusionFeature",
+    "Feature",
     "FilletFeature",
+    "HoleFeature",
     "ImportedFacetedFeature",
+    "LinearPatternFeature",
+    "MirrorFeature",
+    "PocketFeature",
     "ReconstructedSurfaceNetworkFeature",
+    "RevolutionFeature",
+    "SketchEntity",
 ]
