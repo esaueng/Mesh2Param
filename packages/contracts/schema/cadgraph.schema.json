@@ -281,6 +281,13 @@
       ],
       "unevaluatedProperties": false
     },
+    "bsplineEntity": {
+      "allOf": [
+        { "$ref": "#/$defs/entityBase" },
+        { "type": "object", "required": ["degree", "controlPoints", "clamped", "rational", "periodic"], "properties": { "kind": { "const": "bspline" }, "construction": { "const": false }, "degree": { "type": "integer", "minimum": 1, "maximum": 3 }, "controlPoints": { "type": "array", "minItems": 4, "maxItems": 8, "items": { "$ref": "#/$defs/vector2" } }, "clamped": { "const": true }, "rational": { "const": false }, "periodic": { "const": false } } }
+      ],
+      "unevaluatedProperties": false
+    },
     "closedProfileEntity": {
       "allOf": [
         { "$ref": "#/$defs/entityBase" },
@@ -305,6 +312,7 @@
         { "$ref": "#/$defs/rectangleEntity" },
         { "$ref": "#/$defs/circleEntity" },
         { "$ref": "#/$defs/circularArcEntity" },
+        { "$ref": "#/$defs/bsplineEntity" },
         { "$ref": "#/$defs/closedProfileEntity" },
         { "$ref": "#/$defs/constructionAxisEntity" }
       ]

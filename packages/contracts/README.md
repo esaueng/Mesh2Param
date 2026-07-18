@@ -19,3 +19,10 @@ UV_CACHE_DIR=/private/tmp/uv-cache uv run --extra test pytest
 Current schema version: `1.0.0`. Migration from the initial `0.1.0` development shape is supported;
 unknown versions fail closed. Migration fills deterministic metadata defaults but never fabricates
 missing feature geometry.
+
+The `bspline` sketch entity is deliberately bounded: degree 1–3, four to eight
+control points, deterministic open-uniform clamped knots derived by the
+compiler, and required `rational: false` / `periodic: false` declarations.
+Composite profile entities must share their end/start coordinates; the
+authoritative compiler rejects a disconnected B-spline loop before building or
+scoring a solid.
