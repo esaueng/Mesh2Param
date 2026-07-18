@@ -1,0 +1,206 @@
+/* Dev-only styleguide chrome (U1). Consumes tokens like every other surface. */
+.sg {
+  height: 100dvh;
+  padding: var(--sp-5) var(--sp-5) var(--sp-7);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  overflow: auto;
+}
+.sg-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  max-width: 1080px;
+  margin: 0 auto var(--sp-5);
+}
+.sg-header h1 {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+}
+.sg-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+}
+.sg-theme-toggle {
+  display: flex;
+  gap: var(--sp-2);
+}
+.sg-section {
+  max-width: 1080px;
+  margin: 0 auto var(--sp-5);
+  padding: var(--sp-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.sg-section > h2 {
+  margin: 0 0 var(--sp-3);
+  color: var(--color-subtle);
+  font: var(--fw-medium) var(--fs-mini) var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sg-section h3 {
+  margin: 0 0 var(--sp-2);
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.sg-token-group + .sg-token-group {
+  margin-top: var(--sp-4);
+}
+.sg-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+.sg-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.sg-swatch-chip {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.sg-swatch code,
+.sg-type-row code,
+.sg-note code,
+.sg-motion code {
+  color: var(--color-subtle);
+  font: var(--fs-mini) var(--font-mono);
+}
+.sg-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-5);
+}
+.sg-type-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-1);
+  line-height: var(--lh-tight);
+}
+.sg-type-row code {
+  flex: none;
+  width: 92px;
+}
+.sg-numerals {
+  display: grid;
+  gap: 3px;
+  padding: var(--sp-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+.sg-numerals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  font: var(--fs-sm) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sg-numerals span {
+  text-align: right;
+}
+.sg-note {
+  margin: var(--sp-2) 0 0;
+  color: var(--color-subtle);
+  font-size: var(--fs-xs);
+}
+.sg-matrix {
+  display: grid;
+  grid-template-columns: 90px repeat(4, max-content);
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+.sg-matrix-head {
+  color: var(--color-subtle);
+  font: var(--fs-mini) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.sg-matrix-label {
+  color: var(--color-muted);
+  font: var(--fs-xs) var(--font-mono);
+}
+.sg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.sg-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 var(--sp-4);
+}
+.sg-toasts {
+  display: grid;
+  gap: var(--sp-2);
+  max-width: 560px;
+}
+.sg-motion-demo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font: var(--fs-xs) var(--font-mono);
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
+}
+.sg-motion-demo:hover {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent);
+}
+
+/* Forced state mirrors for static display (hover/active also work live). */
+.sg-force-hover.ui-button {
+  background: var(--color-hover);
+  border-color: var(--color-accent-border);
+}
+.sg-force-hover.ui-button--primary {
+  background: var(--color-accent-strong-hover);
+  border-color: var(--color-accent-strong-border);
+}
+.sg-force-hover.ui-button--ghost {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  border-color: transparent;
+}
+.sg-force-hover.ui-button--danger {
+  background: var(--color-error-dim);
+  border-color: var(--color-error-border);
+}
+.sg-force-active.ui-button {
+  background: var(--color-surface-2);
+  border-color: var(--color-accent);
+}
+.sg-force-active.ui-button--primary {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent);
+}
+.sg-force-active.ui-button--danger {
+  background: var(--color-error-dim);
+  border-color: var(--color-error);
+}
+.sg-force-hover.ui-icon-button {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
