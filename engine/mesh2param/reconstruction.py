@@ -40,6 +40,12 @@ from .prismatic import (
     validate_prismatic_candidate,
 )
 from .repair import RepairResult, RepairSettings, repair_mesh
+from .sections import (
+    SectionExtractionError,
+    SectionStackSettings,
+    extract_section_stack,
+    write_section_debug_glb,
+)
 from .segmentation import SegmentationResult, SegmentationSettings, segment_mesh
 from .selection import SelectionMapArtifact, write_patch_selection_artifacts
 from .sketches import (
@@ -63,17 +69,34 @@ class ReconstructionSettings:
     comparison: ComparisonSettings = field(default_factory=ComparisonSettings)
     candidate_search: CandidateSearchSettings = field(default_factory=CandidateSearchSettings)
     prismatic: PrismaticSettings = field(default_factory=PrismaticSettings)
+    sections: SectionStackSettings = field(default_factory=SectionStackSettings)
     include_nominal_preview: bool = True
 
 
 class ReconstructionError(ValueError):
-    def __init__(self, stage: str, code: str, message: str) -> None:
+    def __init__(
+        self,
+        stage: str,
+        code: str,
+        message: str,
+        *,
+        measured: dict[str, float | int | str] | None = None,
+        source_triangle_ids: tuple[int, ...] = (),
+    ) -> None:
         super().__init__(message)
         self.stage = stage
         self.code = code
+        self.measured = measured or {}
+        self.source_triangle_ids = source_triangle_ids
 
-    def to_dict(self) -> dict[str, str]:
-        return {"stage": self.stage, "code": self.code, "message": str(self)}
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "stage": self.stage,
+            "code": self.code,
+            "message": str(self),
+            "measured": dict(sorted(self.measured.items())),
+            "sourceTriangleIds": list(self.source_triangle_ids),
+        }
 
 
 @dataclass(slots=True)
@@ -493,6 +516,38 @@ def reconstruct_file(
                 )
 
         if segmentation.counts_by_type["freeform"] or segmentation.counts_by_type["unknown"]:
+            try:
+                section_stack = extract_section_stack(repaired.mesh, settings.sections)
+            except SectionExtractionError as exc:
+                completed["sectionStack"] = {
+                    "status": "rejected",
+                    "diagnostic": {"code": exc.code, "message": str(exc)},
+                }
+            else:
+                completed["sectionStack"] = section_stack.to_dict()
+                _write_json(output / "sections.json", section_stack.to_dict())
+                write_section_debug_glb(
+                    section_stack,
+                    output / "sections.glb",
+                    settings.sections,
+                )
+                diagnostic_by_code = {
+                    diagnostic.code: diagnostic for diagnostic in section_stack.diagnostics
+                }
+                for code in (
+                    "fillet-band-detected",
+                    "unsupported-blind-feature",
+                    "unsupported-tapered-extrusion",
+                ):
+                    diagnostic = diagnostic_by_code.get(code)
+                    if diagnostic is not None:
+                        raise ReconstructionError(
+                            "segmentation",
+                            code,
+                            diagnostic.message,
+                            measured=diagnostic.measured,
+                            source_triangle_ids=diagnostic.source_triangle_ids,
+                        )
             raise ReconstructionError(
                 "segmentation",
                 "unsupported-freeform-remainder",

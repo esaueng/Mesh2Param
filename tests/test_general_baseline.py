@@ -140,11 +140,29 @@ def test_triangle_per_face_parametric_claim_is_rejected(tmp_path: Path) -> None:
 
 @pytest.mark.geometry
 @pytest.mark.parametrize(
-    "slug",
-    ("spanner-sharp", "spanner-filleted", "spanner-filleted-embossed"),
+    ("slug", "expected_code", "expected_message"),
+    (
+        (
+            "spanner-sharp",
+            "unsupported-freeform-remainder",
+            "automatic L-bracket inference requires only plane and full-cylinder patches",
+        ),
+        (
+            "spanner-filleted",
+            "fillet-band-detected",
+            "section inset series fits a constant-radius circle model",
+        ),
+        (
+            "spanner-filleted-embossed",
+            "fillet-band-detected",
+            "section inset series fits a constant-radius circle model",
+        ),
+    ),
 )
 def test_general_fixtures_keep_calibrated_structured_rejection(
     slug: str,
+    expected_code: str,
+    expected_message: str,
     tmp_path: Path,
 ) -> None:
     with pytest.raises(ReconstructionError) as excinfo:
@@ -156,10 +174,17 @@ def test_general_fixtures_keep_calibrated_structured_rejection(
 
     error = excinfo.value
     assert error.stage == "segmentation"
-    assert error.code == "unsupported-freeform-remainder"
-    assert str(error) == (
-        "automatic L-bracket inference requires only plane and full-cylinder patches"
-    )
+    assert error.code == expected_code
+    assert str(error) == expected_message
+    if expected_code == "fillet-band-detected":
+        assert error.measured["radiusMm"] == pytest.approx(1.5, abs=0.1)
+        rms_residual = error.measured["rmsResidualMm"]
+        assert isinstance(rms_residual, float)
+        assert rms_residual < 0.03
+        assert error.source_triangle_ids
+    else:
+        assert error.measured == {}
+        assert error.source_triangle_ids == ()
 
 
 @pytest.mark.geometry

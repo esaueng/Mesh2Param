@@ -23,5 +23,12 @@ inconsistent.
 - Do not broaden G2b to profile fitting, CADGraph emission, or fillet feature
   reconstruction; those remain assigned to PR-G2d and G3.
 
-No G2b implementation has been made. Work stops here as required by Hard Rule
-7 until the plan records the amended allow-list.
+No G2b implementation was made before this stop, as required by Hard Rule 7.
+
+## Resolution
+
+The user approved the minimal amendment. Commit `af50641` records
+`tests/test_general_baseline.py` in the controlling PR-G2b allow-list for the
+two calibrated filleted rejection expectations only. G2b resumed after that
+plan commit was merged into the implementation branch; the sharp calibration
+remains unchanged.
