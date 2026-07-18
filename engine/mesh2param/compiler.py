@@ -15,6 +15,7 @@ import cadquery as cq
 import trimesh
 from mesh2param_contracts import CADGraph
 from mesh2param_contracts.models import (
+    BSplineEntity,
     ChamferFeature,
     CircleEntity,
     CircularArcEntity,
@@ -37,8 +38,12 @@ from mesh2param_contracts.models import (
     Sketch,
     SketchProfile,
 )
-from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_Sewing
+from OCP.Geom import Geom_BSplineCurve
+from OCP.gp import gp_Pnt
 from OCP.ShapeFix import ShapeFix_Shell, ShapeFix_Solid
+from OCP.TColgp import TColgp_Array1OfPnt
+from OCP.TColStd import TColStd_Array1OfInteger, TColStd_Array1OfReal
 from OCP.TopoDS import TopoDS
 
 from .curved_patch import CurvedPatchError, rebuild_plate_solid
@@ -211,6 +216,146 @@ def _arc_points(entity: CircularArcEntity) -> tuple[tuple[float, float], ...]:
     return point(start), point(start + sweep / 2), point(start + sweep)
 
 
+def _bspline_edge(entity: BSplineEntity, plane: cq.Plane) -> cq.Edge:
+    """Build one exact non-rational OCCT B-spline edge from bounded contract data."""
+
+    poles = TColgp_Array1OfPnt(1, len(entity.control_points))
+    for index, point in enumerate(entity.control_points, start=1):
+        world = plane.toWorldCoords((float(point.x), float(point.y)))
+        poles.SetValue(index, gp_Pnt(world.x, world.y, world.z))
+
+    interior_count = len(entity.control_points) - int(entity.degree) - 1
+    unique_knots = [0.0]
+    unique_knots.extend((index + 1) / (interior_count + 1) for index in range(interior_count))
+    unique_knots.append(1.0)
+    multiplicities = [int(entity.degree) + 1, *([1] * interior_count), int(entity.degree) + 1]
+    knots = TColStd_Array1OfReal(1, len(unique_knots))
+    knot_multiplicities = TColStd_Array1OfInteger(1, len(unique_knots))
+    for index, (knot, multiplicity) in enumerate(
+        zip(unique_knots, multiplicities, strict=True), start=1
+    ):
+        knots.SetValue(index, knot)
+        knot_multiplicities.SetValue(index, multiplicity)
+
+    try:
+        curve = Geom_BSplineCurve(
+            poles,
+            knots,
+            knot_multiplicities,
+            int(entity.degree),
+            False,
+        )
+        builder = BRepBuilderAPI_MakeEdge(curve)
+    except Exception as exc:
+        raise FeatureBuildFailure(
+            "invalid_bspline",
+            f"B-spline {entity.id} could not form an OCCT curve: {exc}",
+            "Use a clamped, non-rational degree-1-to-3 curve with at most eight poles.",
+        ) from exc
+    if not builder.IsDone():
+        raise FeatureBuildFailure(
+            "invalid_bspline",
+            f"B-spline {entity.id} did not produce an OCCT edge",
+            "Check the knot domain and remove coincident control-point degeneracy.",
+        )
+    edge = cq.Edge(builder.Edge())
+    if str(edge.geomType()).upper() != "BSPLINE":
+        raise FeatureBuildFailure(
+            "invalid_bspline",
+            f"B-spline {entity.id} did not retain BSPLINE kernel geometry",
+            "Review the bounded curve definition before compiling the profile.",
+        )
+    return edge
+
+
+def _mixed_bspline_wire(
+    sketch: Sketch,
+    identifiers: Sequence[str],
+    entities: dict[str, Any],
+) -> cq.Wire:
+    plane = _plane(sketch)
+    edges: list[cq.Edge] = []
+    current: tuple[float, float] | None = None
+    initial: tuple[float, float] | None = None
+    for identifier in identifiers:
+        entity = entities.get(identifier)
+        if entity is None:
+            raise FeatureBuildFailure(
+                "missing_profile_entity",
+                f"profile references unavailable entity {identifier!r}",
+                "Restore the referenced sketch entity or edit the profile.",
+            )
+        if isinstance(entity, LineEntity):
+            start = (float(entity.start.x), float(entity.start.y))
+            end = (float(entity.end.x), float(entity.end.y))
+            edge = cq.Edge.makeLine(plane.toWorldCoords(start), plane.toWorldCoords(end))
+        elif isinstance(entity, CircularArcEntity):
+            start, middle, end = _arc_points(entity)
+            edge = cq.Edge.makeThreePointArc(
+                plane.toWorldCoords(start),
+                plane.toWorldCoords(middle),
+                plane.toWorldCoords(end),
+            )
+        elif isinstance(entity, BSplineEntity):
+            start = (
+                float(entity.control_points[0].x),
+                float(entity.control_points[0].y),
+            )
+            end = (
+                float(entity.control_points[-1].x),
+                float(entity.control_points[-1].y),
+            )
+            edge = _bspline_edge(entity, plane)
+        else:
+            raise FeatureBuildFailure(
+                "unsupported_profile_entity",
+                f"entity {identifier} ({entity.kind}) is unsupported in a B-spline loop",
+                "Use connected line, circularArc, and bspline entities.",
+            )
+        if current is not None and not (
+            math.isclose(current[0], start[0], rel_tol=0.0, abs_tol=1e-8)
+            and math.isclose(current[1], start[1], rel_tol=0.0, abs_tol=1e-8)
+        ):
+            raise FeatureBuildFailure(
+                "disconnected_profile",
+                f"entity {identifier} does not continue the preceding profile entity",
+                "Share exact end/start points between authored profile entities.",
+            )
+        initial = start if initial is None else initial
+        current = end
+        edges.append(edge)
+    if initial is None or current is None:
+        raise FeatureBuildFailure(
+            "empty_profile",
+            "profile has no buildable entities",
+            "Add at least one closed profile entity.",
+        )
+    if not (
+        math.isclose(current[0], initial[0], rel_tol=0.0, abs_tol=1e-8)
+        and math.isclose(current[1], initial[1], rel_tol=0.0, abs_tol=1e-8)
+    ):
+        raise FeatureBuildFailure(
+            "disconnected_profile",
+            "B-spline profile loop does not close at the first shared endpoint",
+            "Share exact end/start points between the last and first profile entities.",
+        )
+    try:
+        wire = cq.Wire.assembleEdges(edges)
+    except Exception as exc:
+        raise FeatureBuildFailure(
+            "invalid_profile",
+            f"B-spline profile edges could not form a wire: {exc}",
+            "Remove self-intersections and preserve authored edge order.",
+        ) from exc
+    if not wire.isValid() or not wire.IsClosed():
+        raise FeatureBuildFailure(
+            "invalid_profile",
+            "B-spline profile did not produce a valid closed wire",
+            "Remove self-intersections and preserve endpoint continuity.",
+        )
+    return wire
+
+
 def _wire_from_loop(sketch: Sketch, identifiers: Sequence[str]) -> cq.Wire:
     entities = {entity.id: entity for entity in sketch.entities if not entity.suppressed}
     if len(identifiers) == 1:
@@ -224,6 +369,8 @@ def _wire_from_loop(sketch: Sketch, identifiers: Sequence[str]) -> cq.Wire:
         if isinstance(entity, ClosedProfileEntity):
             return _wire_from_loop(sketch, entity.outer_loop)
         return _wire_for_entity(entity, _plane(sketch))
+    if any(isinstance(entities.get(identifier), BSplineEntity) for identifier in identifiers):
+        return _mixed_bspline_wire(sketch, identifiers, entities)
 
     workplane = cq.Workplane(_plane(sketch))
     started = False

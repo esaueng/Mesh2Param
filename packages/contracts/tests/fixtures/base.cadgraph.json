@@ -165,6 +165,25 @@
           "suppressed": false
         },
         {
+          "id": "entity.bspline",
+          "kind": "bspline",
+          "construction": false,
+          "degree": 3,
+          "controlPoints": [
+            { "x": 0, "y": 20 },
+            { "x": -4, "y": 16 },
+            { "x": -4, "y": 4 },
+            { "x": 0, "y": 0 }
+          ],
+          "clamped": true,
+          "rational": false,
+          "periodic": false,
+          "sourceEvidence": ["evidence.source"],
+          "confidence": 1,
+          "locked": false,
+          "suppressed": false
+        },
+        {
           "id": "entity.closedProfile",
           "kind": "closedProfile",
           "construction": false,

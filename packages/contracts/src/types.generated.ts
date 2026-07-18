@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * GENERATED from schema/cadgraph.schema.json.
- * Schema SHA-256: 1e41231b9274c76cc6dfadb00859bbb5b226f5c28db1abf2359d78ba1c37ec54
+ * Schema SHA-256: 5c61ac525aeddac333f1d90cf020ce3d17925519a8504cbfea99038332ad1831
  * Run `pnpm generate` in this package after changing the schema.
  */
 
@@ -38,6 +38,7 @@ export type SketchEntity =
   | RectangleEntity
   | CircleEntity
   | CircularArcEntity
+  | BsplineEntity
   | ClosedProfileEntity
   | ConstructionAxisEntity;
 /**
@@ -125,6 +126,28 @@ export type CircularArcEntity = EntityBase & {
   startAngleDeg: number;
   endAngleDeg: number;
   clockwise: boolean;
+};
+/**
+ * This interface was referenced by `CADGraph`'s JSON-Schema
+ * via the `definition` "bsplineEntity".
+ */
+export type BsplineEntity = EntityBase & {
+  kind?: "bspline";
+  construction?: false;
+  degree: number;
+  /**
+   * @minItems 4
+   * @maxItems 8
+   */
+  controlPoints:
+    | [Vector2, Vector2, Vector2, Vector2]
+    | [Vector2, Vector2, Vector2, Vector2, Vector2]
+    | [Vector2, Vector2, Vector2, Vector2, Vector2, Vector2]
+    | [Vector2, Vector2, Vector2, Vector2, Vector2, Vector2, Vector2]
+    | [Vector2, Vector2, Vector2, Vector2, Vector2, Vector2, Vector2, Vector2];
+  clamped: true;
+  rational: false;
+  periodic: false;
 };
 /**
  * This interface was referenced by `CADGraph`'s JSON-Schema
