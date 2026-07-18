@@ -294,6 +294,7 @@ docs/                 Architecture, formats, deployment, security, research, and
 - [Validation](docs/validation.md)
 - [Project-file format](docs/project-file.md)
 - [Curved STEP reconstruction](docs/curved-step-reconstruction.md)
+- [General parametric reconstruction plan](docs/general-parametric-reconstruction.md)
 - [Freeform reconstruction research](docs/freeform-step-reconstruction.md)
 - [Fallbacks and limitations](docs/fallbacks.md)
 - [Deployment](docs/deployment.md)
