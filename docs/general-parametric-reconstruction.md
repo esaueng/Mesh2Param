@@ -302,7 +302,9 @@ table committed to this document.
 
 **PR-G2b — Section-stack extraction.**
 Allow-list: `engine/mesh2param/sections.py` (new), `prismatic.py`,
-`reconstruction.py` (wiring), `tests/test_sections.py` (new), debug GLB writer.
+`reconstruction.py` (wiring), `tests/test_sections.py` (new),
+`tests/test_general_baseline.py` (calibrated filleted rejection expectations
+only), debug GLB writer.
 
 - Deterministic section stack, loop assembly with bounded gap bridging,
   stationary/moving classification, debug geometry artifacts.
