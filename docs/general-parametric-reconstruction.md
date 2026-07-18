@@ -89,7 +89,7 @@ standing Mesh2Param principles. The material corrections are:
 | Capability (draft epic) | Status | Where |
 | --- | --- | --- |
 | Mesh ingestion, repair, adjacency, units discipline | exists | `ingest.py`, `repair.py`, `units.py` |
-| Bidirectional comparison: RMS/median/P95/max, normals, volume/area, unmatched/excess, heatmap GLB | exists — extend with P99 and suppression masks | `comparison.py` |
+| Bidirectional comparison: RMS/median/P95/P99/max, normals, volume/area, unmatched/excess, heatmap GLB | exists — add P99 regression coverage and extend with suppression masks | `comparison.py` |
 | B-Rep validity, STEP export + independent reimport, structural Part 21 audit | exists | `validation.py`, `step_audit.py` |
 | Extrusion detection (antipodal caps, side-normal covariance) | exists — extend for filleted caps | `prismatic.py` |
 | 2-D profile DP segmentation (line, circularArc) | exists — extend with bounded B-spline segments | `prismatic.py`, new `profile_fitting.py` |
@@ -253,12 +253,17 @@ rejection reasons for every bounded candidate.
 
 ### 5.7 Validation upgrades
 
-- Add P99 to the comparison record alongside RMS/median/P95/max.
-- Add a surface-type distribution gate to the parametric path: the reimported
-  STEP for this family may contain only plane, cylinder/cone, and (declared)
-  B-spline faces; one-planar-face-per-triangle output is a hard failure for
-  any candidate labeled parametric (the explicit faceted fallback is
-  unaffected and stays labeled non-parametric).
+- Preserve P99 in the comparison record alongside RMS/median/P95/max and add
+  deterministic regression coverage for its calculation and serialization.
+- Add a surface-type distribution gate to the parametric path. Classify OCCT
+  `GeomAbs_SurfaceOfExtrusion` explicitly instead of folding it into `other`.
+  The sharp family may contain plane, cylinder/cone, and the declared linear
+  extrusion of a B-spline profile edge. A declared fillet candidate may add
+  torus and B-spline surfaces produced by the kernel fillet operation. Any
+  unclassified surface, any surface not justified by the candidate's declared
+  operations, and one-planar-face-per-triangle output are hard failures for a
+  candidate labeled parametric (the explicit faceted fallback is unaffected
+  and stays labeled non-parametric).
 - Add suppression-mask handling to comparison (Section 5.5).
 - Keep the entire existing chain unchanged: schema → OCCT build → BRepCheck →
   normalized STEP → independent reimport → re-check → comparison → persisted
@@ -275,10 +280,12 @@ the G0 review record applies: no work outside a PR's stated scope.
 
 **PR-G2a — Evaluation hardening and recorded baseline.**
 Allow-list: `engine/mesh2param/comparison.py`, `engine/mesh2param/validation.py`,
-`scripts/run_general_baseline.py` (new), `tests/`, this document.
+`scripts/run_general_baseline.py` (new), `package.json`, `tests/`, this
+document.
 
-- P99 in comparison; surface-type distribution gate; calibration tests that
-  assert the Section-1 structured rejections on all three fixtures.
+- Deterministic P99 regression coverage; surface-type distribution gate;
+  calibration tests that assert the Section-1 structured rejections on all
+  three fixtures.
 - `pnpm general:baseline` records the faceted-baseline face counts/STEP sizes
   for the spanner corpus, mirroring the curved baseline table.
 
@@ -408,7 +415,7 @@ pockets. No work is scheduled; the rejection codes from G2 keep these honest.
   `docs/fallbacks.md`).
 - `engine/mesh2param/inference.py`, `reconstruction.py`: new candidate
   builders, semantic edge resolution, scoring penalties.
-- `engine/mesh2param/comparison.py`: P99, suppression masks.
+- `engine/mesh2param/comparison.py`: P99 regression coverage, suppression masks.
 - `engine/mesh2param/validation.py`: surface-type distribution gate for the
   parametric path.
 - `engine/mesh2param/compiler.py`: `bsplineEntity` compilation; fillet selector
@@ -438,7 +445,7 @@ Program-wide, with `t` from Section 5.1 (fixtures: `c ≈ 0.005` mm, default
 | Maximum distance | ≤ 6 t outside declared regions |
 | P95 normal error | ≤ 3° |
 | Relative volume error | ≤ 0.1 % (masked regions reported separately) |
-| Surface-type audit on reimport | only plane, cylinder/cone, declared B-spline |
+| Surface-type audit on reimport | no unclassified or triangle-per-face surfaces; only surfaces justified by declared operations (`plane`, `cylinder`/`cone`, declared spline-profile `surfaceOfExtrusion`; fillet candidates may add kernel-generated `torus`/`bspline`) |
 | Triangle-per-face STEP on a parametric candidate | prohibited (hard fail) |
 | Missing through-features, extra components | zero |
 | Determinism | identical artifact hashes on repeated runs |
@@ -635,7 +642,8 @@ DEFINITION OF DONE
   8.00 ± 0.05 mm with the snapped value recorded; profile = 2 lines + 1 arc +
   1 declared B-spline; hex through-cut recovered as 6 edges, 12.0 ± 0.05 mm;
   ≈12 B-Rep faces vs 508 triangles; reimport surface audit contains only
-  plane, cylinder/cone, and the declared B-spline.
+  plane, cylinder/cone, and the declared B-spline profile's linear-extrusion
+  surface.
 - spanner-filleted: all sharp gates plus one fillet group, radius
   1.5 ± 0.02 mm, top+bottom outer loops, kernel-generated fillet faces;
   ≈20 faces vs 5 858 triangles.
