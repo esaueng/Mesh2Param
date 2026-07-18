@@ -295,13 +295,21 @@ the G0 review record applies: no work outside a PR's stated scope.
 **PR-G2a — Evaluation hardening and recorded baseline.**
 Allow-list: `engine/mesh2param/comparison.py`, `engine/mesh2param/validation.py`,
 `scripts/run_general_baseline.py` (new), `package.json`, `tests/`, this
-document.
+document, `licenses/overrides.toml`, `licenses/README.md`, and
+`THIRD_PARTY_NOTICES.md` for the measured pre-existing gate reconciliation.
 
 - Deterministic P99 regression coverage; surface-type distribution gate;
   calibration tests that assert the Section-1 structured rejections on all
   three fixtures.
 - `pnpm general:baseline` records the faceted-baseline face counts/STEP sizes
   for the spanner corpus, mirroring the curved baseline table.
+- Preserve the committed sample corpus without rewriting it: retain the
+  historical one-part-per-million STEP volume tolerance for analytic models
+  and use five parts per million only when the source or reimport contains a
+  freeform surface that requires the wider OCCT p-curve allowance.
+- Review the existing platform-constrained libvips package pulled by the
+  Wrangler development toolchain through the repository's explicit copyleft
+  policy and notices mechanism; do not add or conceal a dependency.
 
 Gate: tests fail if the current rejection codes change silently; baseline
 table committed to this document.
