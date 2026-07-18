@@ -52,6 +52,7 @@ export interface BrowserPrismaticReconstruction {
     axis: Vec3;
     distanceMm: number;
     confidence: number;
+    relativeVolumeDelta: number;
     profiles: Array<Array<Record<string, unknown>>>;
   };
 }
@@ -65,6 +66,7 @@ const MINIMUM_ARC_SWEEP_DEG = 8;
 const MINIMUM_ARC_SAGITTA = 0.04;
 const MAXIMUM_PROFILE_VERTICES = 1024;
 const MAXIMUM_INTERVAL_VERTICES = 512;
+const MAXIMUM_RELATIVE_VOLUME_DELTA = 0.01;
 
 function distance(left: Vec2, right: Vec2): number {
   return Math.hypot(right[0] - left[0], right[1] - left[1]);
@@ -106,6 +108,28 @@ function triangleArea(positions: Float32Array, triangle: number): number {
     abz * acx - abx * acz,
     abx * acy - aby * acx,
   ) / 2;
+}
+
+function meshVolume(positions: Float32Array): number {
+  let signedVolume = 0;
+  for (let triangle = 0; triangle < positions.length / 9; triangle += 1) {
+    const base = triangle * 9;
+    const ax = positions[base]!;
+    const ay = positions[base + 1]!;
+    const az = positions[base + 2]!;
+    const bx = positions[base + 3]!;
+    const by = positions[base + 4]!;
+    const bz = positions[base + 5]!;
+    const cx = positions[base + 6]!;
+    const cy = positions[base + 7]!;
+    const cz = positions[base + 8]!;
+    signedVolume += (
+      ax * (by * cz - bz * cy)
+      + ay * (bz * cx - bx * cz)
+      + az * (bx * cy - by * cx)
+    ) / 6;
+  }
+  return Math.abs(signedVolume);
 }
 
 function vertexKey(point: Vec3): string {
@@ -502,6 +526,16 @@ export function inferBrowserPrismaticCadGraph(
 ): BrowserPrismaticReconstruction | null {
   const candidate = findAxisCandidate(positions);
   if (candidate === null) return null;
+  const sourceVolume = meshVolume(positions);
+  const profileArea = Math.abs(candidate.loops.reduce((sum, loop) => sum + signedArea(loop), 0));
+  const candidateVolume = profileArea * (candidate.maximum - candidate.minimum);
+  const volumeDelta = Math.abs(candidateVolume - sourceVolume);
+  const relativeVolumeDelta = sourceVolume > 0
+    ? volumeDelta / sourceVolume
+    : Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(relativeVolumeDelta) || relativeVolumeDelta > MAXIMUM_RELATIVE_VOLUME_DELTA) {
+    return null;
+  }
   const axis = axisVector(candidate.axisIndex);
   const frame = frameVectors(candidate.axisIndex);
   const origin = pointOrigin(candidate.axisIndex, candidate.minimum);
@@ -574,7 +608,7 @@ export function inferBrowserPrismaticCadGraph(
     sourceEvidence: [{
       id: evidenceId, sourceType: "derived", sourceIds: [], measuredValue: distanceMm, residual: 0,
       confidence: 0.95, notes: "Matched opposing STL caps and fitted an exact line/circular-arc extrusion profile.",
-      metadata: { axis, primitiveCount: primitiveIndex },
+      metadata: { axis, primitiveCount: primitiveIndex, sourceVolume, candidateVolume, volumeDelta, relativeVolumeDelta },
     }],
     userLocks: [], overrides: [],
     reconstructionSettings: {
@@ -593,7 +627,7 @@ export function inferBrowserPrismaticCadGraph(
     deterministicSeed: 0x4d325006,
     fitMetrics: {
       rmsSurfaceDistance: 0, p95SurfaceDistance: 0, maxSurfaceDistance: 0, normalAgreement: 1,
-      volumeDifference: 0, overlap: 1, unmatchedSourceArea: 0, excessResultArea: 0, score: 0.95,
+      volumeDifference: volumeDelta, overlap: 1, unmatchedSourceArea: 0, excessResultArea: 0, score: 0.95,
     },
     validation: {
       status: "notRun", brepValid: null, stepReimportValid: null, toleranceSatisfied: null,
@@ -604,13 +638,20 @@ export function inferBrowserPrismaticCadGraph(
       createdBy: "mesh2param-browser-reconstruction", message: "Analytic line/arc profile reconstructed in the browser.",
     },
     extensions: {
-      "mesh2param.dev/prismaticReconstruction": { scope: "orthogonal linear extrusion of line/circular-arc profiles", primitiveCount: primitiveIndex },
+      "mesh2param.dev/prismaticReconstruction": {
+        scope: "orthogonal linear extrusion of line/circular-arc profiles",
+        primitiveCount: primitiveIndex,
+        sourceVolume,
+        candidateVolume,
+        volumeDelta,
+        relativeVolumeDelta,
+      },
     },
   } satisfies CADGraph;
   return {
     graph,
     analysis: {
-      accepted: true, axis, distanceMm, confidence: 0.95,
+      accepted: true, axis, distanceMm, confidence: 0.95, relativeVolumeDelta,
       profiles: candidate.profiles.map((profile) => profile.map(primitiveAnalysis)),
     },
   };

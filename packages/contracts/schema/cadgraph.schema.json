@@ -281,6 +281,13 @@
       ],
       "unevaluatedProperties": false
     },
+    "bsplineEntity": {
+      "allOf": [
+        { "$ref": "#/$defs/entityBase" },
+        { "type": "object", "required": ["degree", "controlPoints", "clamped", "rational", "periodic"], "properties": { "kind": { "const": "bspline" }, "construction": { "const": false }, "degree": { "type": "integer", "minimum": 1, "maximum": 3 }, "controlPoints": { "type": "array", "minItems": 4, "maxItems": 8, "items": { "$ref": "#/$defs/vector2" } }, "clamped": { "const": true }, "rational": { "const": false }, "periodic": { "const": false } } }
+      ],
+      "unevaluatedProperties": false
+    },
     "closedProfileEntity": {
       "allOf": [
         { "$ref": "#/$defs/entityBase" },
@@ -305,6 +312,7 @@
         { "$ref": "#/$defs/rectangleEntity" },
         { "$ref": "#/$defs/circleEntity" },
         { "$ref": "#/$defs/circularArcEntity" },
+        { "$ref": "#/$defs/bsplineEntity" },
         { "$ref": "#/$defs/closedProfileEntity" },
         { "$ref": "#/$defs/constructionAxisEntity" }
       ]
@@ -463,6 +471,13 @@
       ],
       "unevaluatedProperties": false
     },
+    "reconstructedSurfaceNetworkFeature": {
+      "allOf": [
+        { "$ref": "#/$defs/featureBase" },
+        { "type": "object", "required": ["sourceArtifactId", "artifactSha256"], "properties": { "operation": { "const": "reconstructedSurfaceNetwork" }, "sourceArtifactId": { "$ref": "#/$defs/identifier" }, "artifactSha256": { "$ref": "#/$defs/sha256" } }, "description": "Approximate curved B-Rep base body rebuilt deterministically from a content-addressed surface-network plate artifact (mesh2param/curved-plate/1). The geometry is a tolerance-controlled approximation of the source mesh, not recovered design history." }
+      ],
+      "unevaluatedProperties": false
+    },
     "feature": {
       "oneOf": [
         { "$ref": "#/$defs/extrusionFeature" },
@@ -476,7 +491,8 @@
         { "$ref": "#/$defs/mirrorFeature" },
         { "$ref": "#/$defs/chamferFeature" },
         { "$ref": "#/$defs/filletFeature" },
-        { "$ref": "#/$defs/importedFacetedFeature" }
+        { "$ref": "#/$defs/importedFacetedFeature" },
+        { "$ref": "#/$defs/reconstructedSurfaceNetworkFeature" }
       ]
     },
     "semanticTopologyReference": {

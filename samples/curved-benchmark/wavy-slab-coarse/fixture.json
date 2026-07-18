@@ -1,0 +1,52 @@
+{
+  "category": "negative",
+  "description": "A valid closed manifold tessellated so coarsely that no unique smooth surface is justified; reconstruction must report uncertainty.",
+  "directory": "wavy-slab-coarse",
+  "expectation": "closed-manifold-coarse",
+  "groundTruth": {
+    "area": 22697.36181817824,
+    "boundingBox": [
+      -2.383614349767518,
+      -2.383614349767518,
+      -34.25619892156559,
+      82.38361434976751,
+      82.23652658368141,
+      7.880219272052399
+    ],
+    "edgeCount": 12,
+    "faceCount": 6,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 0,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 191999.99999999243
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab-coarse",
+  "stl": {
+    "byteSize": 8484,
+    "path": "source.stl",
+    "sha256": "f99d120a74a23fcddcfc93d5a3517d2c6b5e98232e7581397dde9d2863007df0",
+    "triangleCount": 168,
+    "vertexCount": 86
+  },
+  "tessellation": {
+    "angularTolerance": 0.8,
+    "linearTolerance": 2.5
+  },
+  "title": "Wavy slab, too coarse to fit",
+  "units": "mm"
+}

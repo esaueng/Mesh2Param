@@ -317,6 +317,76 @@ export class BrowserApiClient {
         const saved = await this.save(next, true);
         return { operation, revision: saved.revision, mode: "preserved-source-faceted", exactParametric: false };
       }
+      if (operation === "reconstruct" && options.settings?.mode === "curved") {
+        const next = await this.requireProject(projectId);
+        const source = await this.sourceBlob(next);
+        const requestedTolerance = Number(options.settings.surfaceDeviationTolerance ?? 0.1);
+        const tolerance = Number.isFinite(requestedTolerance)
+          ? Math.min(10, Math.max(0.01, requestedTolerance))
+          : 0.1;
+        const compiled = await browserGeometry.compileCurvedStl(source, tolerance);
+        const evidence = compiled.curvedReconstruction;
+        if (!compiled.valid || !compiled.solid || !compiled.stepReimportValid || evidence === undefined) {
+          throw new Error("OCCT could not create and reimport a valid approximate curved solid from this STL");
+        }
+        const artifacts = await Promise.all([
+          this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "curved-step"),
+          this.putArtifact(projectId, "reconstructed.glb", meshToGlb(compiled.mesh), "reconstructed-curved"),
+        ]);
+        next.state.cadgraph = null;
+        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
+        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
+        next.state.validation = {
+          status: "valid-with-warnings",
+          brepValid: true,
+          stepReimportValid: true,
+          toleranceSatisfied: null,
+          issues: [{
+            code: "approximate-layered-curved",
+            message: "STEP contains real swept or spline curved surfaces reconstructed from layered STL sections. It is an approximation; original CAD surfaces and design history are not recoverable from STL.",
+          }],
+          compilation: {
+            kernel: "OCCT WebAssembly",
+            mode: evidence.scope,
+            relativeVolumeDelta: evidence.relativeVolumeDelta,
+            maximumBoundsDelta: evidence.maximumBoundsDelta,
+            faceSurfaces: evidence.faceSurfaces,
+          },
+        };
+        next.state.metrics = {
+          volume: compiled.volume,
+          surfaceArea: compiled.surfaceArea,
+          bounds: compiled.bounds,
+          vertexCount: compiled.mesh.vertexCount,
+          triangleCount: compiled.mesh.triangleCount,
+        };
+        const reconstructionEvidence = {
+          ...evidence,
+          approximate: true,
+          designHistoryRecovered: false,
+          toleranceUnits: next.units,
+        };
+        next.state.settings = {
+          ...next.state.settings,
+          curvedReconstruction: reconstructionEvidence,
+          browserCurvedReconstruction: reconstructionEvidence,
+        };
+        const saved = await this.save(next, true);
+        return {
+          operation,
+          revision: saved.revision,
+          mode: evidence.scope,
+          approximate: true,
+          stepReimportValid: true,
+          relativeVolumeDelta: evidence.relativeVolumeDelta,
+        };
+      }
+      if (operation === "reconstruct" && options.settings?.detailMode === "full") {
+        throw new Error(
+          "Full shallow-detail recovery requires the Python geometry service; "
+          + "browser-local reconstruction supports functional geometry only.",
+        );
+      }
       const next = await this.requireProject(projectId);
       if (next.state.cadgraph === null && operation === "reconstruct") {
         const source = await this.sourceBlob(next);

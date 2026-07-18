@@ -13,7 +13,7 @@ import { automaticReconstructionCapability } from "../workspace/automaticReconst
  * The primary command in the dock advances the conversion one stage at a time,
  * derived purely from the current project state.
  */
-export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "faceted" | "validate" | "export" | "download";
+export type PipelineActionKind = "open" | "analyze" | "reconstruct" | "curved" | "faceted" | "validate" | "export" | "download";
 
 export type RunOperation = "analyze" | "reconstruct" | "validate" | "export";
 
@@ -27,6 +27,8 @@ export interface PipelineAction {
   operation?: RunOperation;
   /** Extra settings forwarded to the worker operation (e.g. the faceted fallback mode). */
   settings?: JsonObject;
+  /** A secondary conversion the user may prefer (e.g. faceted instead of curved). */
+  alternate?: PipelineAction;
 }
 
 /**
@@ -165,18 +167,30 @@ export function nextAction(vm: WorkspaceViewModel): PipelineAction {
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
       };
     }
-    // Exact inference is unavailable; offer the source-bound faceted STEP fallback when it applies.
+    // Exact inference is unavailable; offer the approximate curved B-Rep first and
+    // the source-bound faceted STEP as the explicit alternative. Both are labeled
+    // for what they are: neither recovers the original design history.
     if (facetedApplicable(state)) {
-      return {
+      const faceted: PipelineAction = {
         kind: "faceted",
         operation: "reconstruct",
         settings: { mode: "faceted" },
         label: "Generate faceted STEP",
         hint: capability.reason
-          ? `Smooth analytic reconstruction unavailable. ${capability.reason}`
-          : "Preserve the source triangles as flat STEP faces (not smooth analytic CAD)",
+          ? `Source-bound fallback: ${capability.reason}`
+          : "Build a source-bound faceted STEP (one planar face per source triangle)",
         disabled: runBlocked !== null,
         ...(runBlocked !== null ? { reason: runBlocked } : {}),
+      };
+      return {
+        kind: "curved",
+        operation: "reconstruct",
+        settings: { mode: "curved" },
+        label: "Generate curved STEP",
+        hint: "Fit an approximate curved B-Rep to the mesh within tolerance (not recovered design history)",
+        disabled: runBlocked !== null,
+        ...(runBlocked !== null ? { reason: runBlocked } : {}),
+        alternate: faceted,
       };
     }
     return {
@@ -226,6 +240,12 @@ export function availableModes(artifacts: readonly ArtifactDescriptor[]): ModeOp
   if (names.has("source.glb")) options.push({ mode: "source", label: "Source" });
   if (names.has("reconstructed.glb")) options.push({ mode: "reconstructed", label: "Result" });
   if (names.has("source.glb") && names.has("reconstructed.glb")) options.push({ mode: "overlay", label: "Compare" });
+  if (names.has("residual.glb")) {
+    options.push({
+      mode: "residual",
+      label: names.has("suppressed-regions.json") ? "Suppressed" : "Residual",
+    });
+  }
   return options;
 }
 

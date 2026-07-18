@@ -7,9 +7,10 @@ import itertools
 import json
 import math
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Protocol, cast
 
 import numpy as np
 import trimesh
@@ -25,6 +26,12 @@ from .ingest import (
 )
 
 type RepairParameter = bool | int | float | str
+
+
+class _FixNormals(Protocol):
+    def __call__(self, mesh: trimesh.Trimesh, *, multibody: bool) -> object: ...
+
+
 OperationName = Literal[
     "merge_duplicate_vertices",
     "remove_degenerate_faces",
@@ -429,13 +436,15 @@ def _remove_unreferenced(
 
 def _orient_winding(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh, tuple[str, ...]]:
     repaired = mesh.copy()
-    trimesh.repair.fix_winding(repaired)
+    fix_winding = cast(Callable[[trimesh.Trimesh], object], trimesh.repair.fix_winding)
+    fix_winding(repaired)
     return repaired, ()
 
 
 def _repair_normals(mesh: trimesh.Trimesh) -> tuple[trimesh.Trimesh, tuple[str, ...]]:
     repaired = mesh.copy()
-    trimesh.repair.fix_normals(repaired, multibody=True)
+    fix_normals = cast(_FixNormals, trimesh.repair.fix_normals)
+    fix_normals(repaired, multibody=True)
     return repaired, ()
 
 

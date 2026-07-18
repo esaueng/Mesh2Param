@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { ProjectWorkingDocument } from "../state/types";
+import type { ArtifactDescriptor, ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
 import {
   analysisRerunAction,
+  availableModes,
   nextAction,
   regenerationAction,
   reconstructedRevealPreferences,
 } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
-  it("labels the source-bound faceted fallback explicitly", () => {
+  it("offers curved first with the faceted fallback as the labeled alternate", () => {
     const patches = [{
       id: "patch.freeform",
       type: "freeform",
@@ -51,7 +52,17 @@ describe("canvas pipeline actions", () => {
       serverWritable: true,
     } as unknown as WorkspaceViewModel;
 
-    expect(nextAction(vm)).toMatchObject({
+    const action = nextAction(vm);
+    expect(action).toMatchObject({
+      kind: "curved",
+      label: "Generate curved STEP",
+      operation: "reconstruct",
+      settings: { mode: "curved" },
+      disabled: false,
+    });
+    expect(action.hint).toContain("approximate");
+    expect(action.hint).toContain("not recovered design history");
+    expect(action.alternate).toMatchObject({
       kind: "faceted",
       label: "Generate faceted STEP",
       operation: "reconstruct",
@@ -67,6 +78,17 @@ describe("canvas pipeline actions", () => {
       shading: "shaded",
       edges: true,
     });
+  });
+
+  it("surfaces the functional suppression residual layer with an explicit label", () => {
+    const artifacts = [
+      { name: "source.glb" },
+      { name: "reconstructed.glb" },
+      { name: "residual.glb" },
+      { name: "suppressed-regions.json" },
+    ] as ArtifactDescriptor[];
+
+    expect(availableModes(artifacts)).toContainEqual({ mode: "residual", label: "Suppressed" });
   });
 
   it("regenerates a completed parametric STEP through the validated exporter", () => {

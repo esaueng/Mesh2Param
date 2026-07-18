@@ -33,6 +33,20 @@ export interface BrowserCadResult {
   bounds: [[number, number, number], [number, number, number]];
   featureCount: number;
   diagnostics?: BrowserMeshDiagnostics;
+  curvedReconstruction?: {
+    scope: "axis-aligned layered approximate curved B-Rep";
+    axisIndex: 0 | 1 | 2;
+    sectionCount: number;
+    outerProfileCount: number;
+    holeTrackCount: number;
+    sourceTriangleCount: number;
+    reconstructionMode: "smooth-loft" | "representative-extrusion";
+    sourceVolume: number;
+    resultVolume: number;
+    relativeVolumeDelta: number;
+    maximumBoundsDelta: number;
+    faceSurfaces: Record<string, number>;
+  };
 }
 
 export interface GeometryRequest {
@@ -50,7 +64,14 @@ export interface StlGeometryRequest {
   validateStep: boolean;
 }
 
-export type BrowserGeometryRequest = GeometryRequest | StlGeometryRequest;
+export interface CurvedStlGeometryRequest {
+  id: string;
+  operation: "curved-stl";
+  bytes: ArrayBuffer;
+  tolerance: number;
+}
+
+export type BrowserGeometryRequest = GeometryRequest | StlGeometryRequest | CurvedStlGeometryRequest;
 
 export type GeometryResponse =
   | { id: string; ok: true; result: BrowserCadResult }

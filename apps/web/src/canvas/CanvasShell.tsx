@@ -14,6 +14,7 @@ import {
   ScanSearch,
   ShieldCheck,
   Sparkles,
+  Spline,
   Sun,
   TerminalSquare,
 } from "lucide-react";
@@ -22,9 +23,12 @@ import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type { ViewerMode } from "../state/types";
 import { CadViewport } from "../viewer/CadViewport";
+import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
+import { stepDownloadName } from "./downloadFilename";
+import { EditableProjectName } from "./EditableProjectName";
 import { ViewSettings } from "./ViewSettings";
 import {
   analysisRerunAction,
@@ -43,8 +47,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const viewer = useWorkspaceSelector((state) => state.viewer);
   const theme = useWorkspaceSelector((state) => state.shell.theme);
   const fileRef = useRef<HTMLInputElement>(null);
-  const revealedRef = useRef(false);
+  const revealedKey = `mesh2param-revealed-${vm.project.id}`;
+  const [revealed, setRevealed] = useState(() => sessionStorage.getItem(revealedKey) === "1");
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [recoverFullDetails, setRecoverFullDetails] = useState(false);
   const logs = useDebugLog();
   const issueCount = logs.filter((entry) => entry.level === "error" || entry.level === "warn").length;
 
@@ -67,19 +73,23 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   useEffect(() => {
     debugLog.debug("pipeline", `Stage: ${action.label}${action.disabled ? " (unavailable)" : ""}`);
   }, [action.label, action.disabled]);
+  useEffect(() => setRecoverFullDetails(false), [vm.project.id]);
   useEffect(() => {
     if (action.disabled && action.reason) debugLog.warn("pipeline", `${action.label} unavailable`, action.reason);
   }, [action.disabled, action.reason, action.label]);
 
   // Reveal the clean reconstructed result the first time it becomes available.
+  // Persist the "already revealed" flag per project in sessionStorage so a reload
+  // does not clobber user-customized viewer preferences (mode, shading, edges).
   useEffect(() => {
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
-    if (revealedRef.current || !names.has("reconstructed.glb")) return;
-    revealedRef.current = true;
+    if (revealed || !names.has("reconstructed.glb")) return;
+    sessionStorage.setItem(revealedKey, "1");
+    setRevealed(true);
     const store = workspaceStore.getState();
     debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
     store.setViewerPreferences(reconstructedRevealPreferences());
-  }, [vm.artifacts]);
+  }, [vm.artifacts, revealed, revealedKey]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
@@ -89,8 +99,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const downloadStep = useCallback(async () => {
     const step = stepArtifact(vm.artifacts);
     if (step === undefined) return;
-    const filename = stepDownloadName(vm.project.state.source?.originalFileName ?? null, step.name);
-    // Fetch as a blob so our source-derived filename wins over the server's
+    const filename = stepDownloadName(vm.project.name, step.name);
+    // Fetch as a blob so our project-derived filename wins over the server's
     // Content-Disposition (which names every export "model.step").
     try {
       const response = await fetch(apiClient.artifactUrl(vm.project.id, step.name, step.sha256));
@@ -108,12 +118,19 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     } catch (cause) {
       debugLog.error("export", `Download failed: ${filename}`, cause);
     }
-  }, [vm.artifacts, vm.project.id, vm.project.state.source]);
+  }, [vm.artifacts, vm.project.id, vm.project.name]);
 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") void downloadStep();
-    else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
+    else if (action.operation !== undefined) {
+      const settings = action.kind === "reconstruct"
+        && action.settings === undefined
+        && recoverFullDetails
+        ? { detailMode: "full" }
+        : action.settings;
+      void actions.run(action.operation, settings);
+    }
   };
 
   const onRegenerate = () => {
@@ -185,7 +202,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </button>
           {state.source !== null ? (
             <div className="canvas-file">
-              <span className="canvas-file-name" title={state.source.originalFileName}>{state.source.originalFileName}</span>
+              <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
               <span className="canvas-file-meta">{fileMeta(vm)}</span>
               {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
             </div>
@@ -230,7 +247,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
-            <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme">
+            <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme" aria-label="Toggle light or dark theme">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               {theme === "dark" ? "Light" : "Dark"}
             </button>
@@ -253,6 +270,45 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           />
         </section>
 
+        {state.patches.length > 0 && state.cadgraph === null ? (
+          <PatchPanel
+            patches={state.patches}
+            selectedPatchId={vm.selectedPatchId}
+            disabled={activeJob !== null}
+            onSelect={actions.selectPatch}
+            onUpdate={(patchId, patch) => void actions.updatePatch(patchId, patch)}
+            onMerge={(patchIds) => void actions.mergePatches(patchIds)}
+          />
+        ) : null}
+
+        {state.cadgraph !== null ? (
+          <section className="panel-group panel-features" aria-labelledby="panel-features-label">
+            <h2 className="panel-label" id="panel-features-label">Features</h2>
+            <div className="panel-feature-list">
+              {[...state.cadgraph.features]
+                .sort((left, right) => left.order - right.order)
+                .map((feature) => (
+                  <button
+                    key={feature.id}
+                    className={vm.selectedFeatureId === feature.id ? "active" : ""}
+                    aria-pressed={vm.selectedFeatureId === feature.id}
+                    onClick={() => actions.selectFeature(feature.id)}
+                  >
+                    <span>{feature.order + 1}</span>
+                    <strong>{feature.name}</strong>
+                    <small>{humanPhase(feature.operation)}</small>
+                  </button>
+                ))}
+            </div>
+            {detailEvidence(state.cadgraph.extensions) !== null ? (
+              <p className="panel-hint info" role="note" data-testid="detail-evidence">
+                <Layers size={13} />
+                <span>{detailEvidence(state.cadgraph.extensions)}</span>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <section className="panel-group panel-convert">
           <h2 className="panel-label">Convert</h2>
           {activeJob !== null ? (
@@ -269,6 +325,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </div>
           ) : (
             <>
+              {action.kind === "reconstruct" && action.settings === undefined ? (
+                <button
+                  className={`panel-btn ${recoverFullDetails ? "active" : ""}`}
+                  aria-pressed={recoverFullDetails}
+                  onClick={() => setRecoverFullDetails((value) => !value)}
+                  title="Recover qualifying cap-attached loops as editable shallow features"
+                >
+                  <Layers size={14} />
+                  Full detail recovery
+                </button>
+              ) : null}
               {rerunAnalysis !== null || regenerate !== null ? (
                 <div className="panel-secondary-grid">
                   {rerunAnalysis !== null ? (
@@ -305,10 +372,31 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 <PrimaryIcon kind={action.kind} />
                 {action.label}
               </button>
-              {action.reason !== undefined || action.kind === "faceted" ? (
+              {action.alternate !== undefined ? (
+                <button
+                  className="panel-btn"
+                  onClick={() => {
+                    const alternate = action.alternate;
+                    if (alternate?.operation !== undefined) void actions.run(alternate.operation, alternate.settings);
+                  }}
+                  disabled={action.alternate.disabled}
+                  title={action.alternate.reason ?? action.alternate.hint}
+                  data-action={action.alternate.kind}
+                >
+                  <PrimaryIcon kind={action.alternate.kind} />
+                  {action.alternate.label}
+                </button>
+              ) : null}
+              {action.reason !== undefined || action.kind === "faceted" || action.kind === "curved" ? (
                 <p className={`panel-hint ${action.disabled ? "warn" : "info"}`} role="status">
                   <AlertTriangle size={13} />
                   <span>{action.reason ?? action.hint}</span>
+                </p>
+              ) : null}
+              {curvedEvidence(state) !== null ? (
+                <p className="panel-hint info" role="note" data-testid="curved-evidence">
+                  <Spline size={13} />
+                  <span>{curvedEvidence(state)}</span>
                 </p>
               ) : null}
             </>
@@ -337,20 +425,11 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "open") return <FolderOpen size={size} />;
   if (kind === "analyze") return <ScanSearch size={size} />;
   if (kind === "reconstruct") return <Sparkles size={size} />;
+  if (kind === "curved") return <Spline size={size} />;
   if (kind === "faceted") return <Layers size={size} />;
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
   return <Download size={size} />;
-}
-
-/** Name the downloaded STEP after the source mesh (e.g. "ADP078 cast.stl" -> "ADP078 cast.step"). */
-function stepDownloadName(sourceFileName: string | null, artifactName: string): string {
-  const extension = /\.(step|stp)$/i.exec(artifactName)?.[0].toLowerCase() ?? ".step";
-  const base = (sourceFileName ?? "")
-    .replace(/\.[^./\\]+$/, "")
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .trim();
-  return `${base || "model"}${extension}`;
 }
 
 function fileMeta(vm: WorkspaceViewModel): string {
@@ -367,8 +446,61 @@ export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone:
   if (vm.artifacts.some((artifact) => (
     artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
   ))) return { label: "Faceted STEP", tone: "warn" };
-  if (isValidated(state)) return { label: "Validated", tone: "ok" };
-  if (state.cadgraph !== null) return { label: "Reconstructed", tone: "info" };
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "reconstructed-curved"
+  ))) return isValidated(state)
+      ? { label: "Validated · approximate curved", tone: "ok" }
+      : { label: "Approximate curved B-Rep", tone: "info" };
+  const operation = state.cadgraph?.features[0]?.operation;
+  const flavor = operation === "reconstructedSurfaceNetwork"
+    ? " · approximate curved"
+    : operation === "importedFaceted"
+      ? " · faceted"
+      : "";
+  if (isValidated(state)) return { label: `Validated${flavor}`, tone: "ok" };
+  if (state.cadgraph !== null) {
+    if (operation === "reconstructedSurfaceNetwork") {
+      return { label: "Approximate curved B-Rep", tone: "info" };
+    }
+    if (operation === "importedFaceted") {
+      return { label: "Faceted (non-parametric)", tone: "info" };
+    }
+    return { label: "Reconstructed", tone: "info" };
+  }
   if (state.patches.length > 0) return { label: "Analyzed", tone: "info" };
   return { label: "Loaded", tone: "info" };
+}
+
+/** A one-line evidence summary for a completed approximate curved reconstruction. */
+function curvedEvidence(state: WorkspaceViewModel["project"]["state"]): string | null {
+  const raw = state.settings["curvedReconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as { faceSurfaces?: unknown; residualMaximumMm?: unknown };
+  const faces = record.faceSurfaces;
+  const residual = record.residualMaximumMm;
+  if (faces === null || typeof faces !== "object" || typeof residual !== "number") return null;
+  const counts = Object.entries(faces as Record<string, unknown>)
+    .filter(([, count]) => typeof count === "number" && count > 0)
+    .map(([kind, count]) => `${String(count)} ${kind}`)
+    .join(", ");
+  return `Approximate curved B-Rep: ${counts} faces · max deviation ${residual.toFixed(3)} mm. Design history is not recovered.`;
+}
+
+function detailEvidence(extensions: unknown): string | null {
+  if (extensions === null || typeof extensions !== "object" || Array.isArray(extensions)) return null;
+  const raw = (extensions as Record<string, unknown>)["mesh2param.dev/prismaticReconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const recovery = record.detailRecovery;
+  if (recovery !== null && typeof recovery === "object" && !Array.isArray(recovery)) {
+    const regions = (recovery as Record<string, unknown>).regions;
+    if (Array.isArray(regions) && regions.length > 0) {
+      return `${regions.length} shallow additive ${regions.length === 1 ? "detail" : "details"} recovered from bounded loop evidence.`;
+    }
+  }
+  const suppressed = record.suppressedRegions;
+  if (Array.isArray(suppressed) && suppressed.length > 0) {
+    return `${suppressed.length} shallow ${suppressed.length === 1 ? "region" : "regions"} suppressed for functional validation; use the Suppressed view to inspect residuals.`;
+  }
+  return null;
 }

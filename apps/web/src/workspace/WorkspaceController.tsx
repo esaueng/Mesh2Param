@@ -20,6 +20,7 @@ import { normalizeProjectDetail } from "./normalize";
 import { automaticReconstructionCapability } from "./automaticReconstruction";
 import { failedStepStatus, formatJobFailure, formatJobSnapshotFailure } from "./jobFailure";
 import { CanvasShell } from "../canvas/CanvasShell";
+import { ErrorToast } from "../components/ErrorToast";
 import { debugLog } from "../canvas/debugLog";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
 
@@ -52,6 +53,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   const canRedo = useWorkspaceSelector((state) => state.history.future.length > 0);
   const [versions, setVersions] = useState<ProjectVersionSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const dismissError = useCallback(() => setError(null), []);
   const streams = useRef(new Map<string, () => void>());
 
   // Every surfaced error is mirrored to the in-app debug console.
@@ -231,7 +233,9 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
       debugLog.warn("run", `${operation} not queued: no writable project revision`);
       return;
     }
-    if (operation === "reconstruct" && settings.mode !== "faceted" && current.working !== null) {
+    // Only the automatic exact path (no explicit mode) is scoped by the capability
+    // check; the curved and faceted modes are the fallbacks it points users toward.
+    if (operation === "reconstruct" && settings.mode === undefined && current.working !== null) {
       const capability = automaticReconstructionCapability(current.working);
       if (!capability.supported) {
         debugLog.warn("run", "Automatic reconstruction unavailable", capability.reason);
@@ -497,7 +501,7 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
   return (
     <>
       <CanvasShell vm={vm} actions={actions} />
-      {error === null ? null : <div className="global-error" role="alert">{error}</div>}
+      {error === null ? null : <ErrorToast message={error} onDismiss={dismissError} />}
     </>
   );
 }

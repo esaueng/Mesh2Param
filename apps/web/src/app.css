@@ -1,4 +1,10 @@
 .workspace-loading{min-height:100dvh;display:grid;place-items:center;background:var(--color-bg);color:var(--color-muted);font:var(--fs-sm) var(--font-mono)}
-.global-error{position:fixed;z-index:100;right:18px;bottom:calc(var(--statusbar-h) + 14px);max-width:min(520px,calc(100vw - 36px));padding:10px 14px;border:1px solid color-mix(in srgb,var(--color-error) 56%,transparent);border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-surface) 88%,var(--color-error));color:var(--color-text);box-shadow:var(--shadow-lg);font-size:var(--fs-xs)}
+.global-error{position:fixed;z-index:var(--z-toast);left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);width:max-content;max-width:min(620px,calc(100vw - 32px));display:flex;align-items:flex-start;gap:10px;padding:10px 10px 10px 14px;border:1px solid color-mix(in srgb,var(--color-error) 56%,transparent);border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-surface) 88%,var(--color-error));color:var(--color-text);box-shadow:var(--shadow-lg);font-size:var(--fs-xs);line-height:1.45;animation:error-toast-in var(--dur-base) var(--ease-out)}
+.global-error>span{min-width:0;overflow-wrap:anywhere}
+.global-error>button{width:26px;height:26px;flex:none;display:grid;place-items:center;margin:-4px -4px -4px 0;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--color-muted)}
+.global-error>button:hover{background:color-mix(in srgb,var(--color-error) 20%,transparent);color:var(--color-text)}
+.global-error>button:focus-visible{outline:2px solid var(--color-accent);outline-offset:1px}
+@keyframes error-toast-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@media(prefers-reduced-motion:reduce){.global-error{animation:none}}
 html,body,#root{max-width:100vw;overflow-x:clip}.app-shell{width:100%;max-width:100vw}
 @media(max-width:640px){#root,.app-shell{contain:strict}.topbar,.workflow-rail,.viewport-region,.status-strip{width:100%;max-width:100vw;min-width:0;contain:layout paint inline-size}.workflow-steps{width:max-content;max-width:none}.inspector{max-width:100vw}.viewport-modebar{max-width:calc(100vw - 24px)}}

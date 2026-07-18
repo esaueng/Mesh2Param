@@ -79,10 +79,12 @@ credentials.
 At startup the web client probes the same-origin `/ready` route. A ready response selects the
 FastAPI/OCCT backend for the whole workspace; a missing or unavailable origin keeps the project in
 browser-local mode. Browser-local analysis parses STL triangles directly and avoids an OCCT
-retessellation round-trip, but native conversion is recommended for complex meshes because sewing,
-STEP export, and STEP reimport are memory- and CPU-intensive. The default native job timeout is 300
-seconds; size the API/worker host for the configured 4 GiB worker memory limit and raise the timeout
-deliberately when production models require it.
+retessellation round-trip. Its curved converter is intentionally bounded to watertight,
+axis-aligned layered solids: it fits swept or smooth-loft surfaces, preserves corroborated holes,
+and rejects results outside its volume/bounds safety gates. Native conversion is recommended for
+arbitrary topology because sewing, STEP export, and STEP reimport are memory- and CPU-intensive.
+The default native job timeout is 300 seconds; size the API/worker host for the configured 4 GiB
+worker memory limit and raise the timeout deliberately when production models require it.
 
 For a browser-visible Worker origin such as `https://cad.example.com` and an API origin such as
 `https://api.example.com`, the backend must use exact production values that include:

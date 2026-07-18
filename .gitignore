@@ -20,4 +20,6 @@ coverage.xml
 htmlcov/
 playwright-report/
 test-results/
+output/playwright/
 artifacts/acceptance/
+artifacts/curved-baseline/

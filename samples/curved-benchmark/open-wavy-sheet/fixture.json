@@ -1,0 +1,30 @@
+{
+  "category": "negative",
+  "description": "A wavy height field with boundary edges and no enclosed volume.",
+  "directory": "open-wavy-sheet",
+  "expectation": "open-surface",
+  "groundTruth": null,
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": false,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "open-wavy-sheet",
+  "stl": {
+    "byteSize": 52984,
+    "path": "source.stl",
+    "sha256": "a72efe56c326f505e3b484ef12badd86c9a8350e41b235181640b1782ed3ba42",
+    "triangleCount": 1058,
+    "vertexCount": 576
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Open wavy sheet",
+  "units": "mm"
+}

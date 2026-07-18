@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import cadquery as cq
 import numpy as np
@@ -25,6 +27,12 @@ from mesh2param.prismatic import (
     project_loop_to_plane,
     validate_prismatic_candidate,
 )
+from mesh2param.profile_fitting import (
+    BSplineSegment,
+    NominalSnappingPolicy,
+    fit_bounded_bspline,
+    fit_regular_polygon,
+)
 from mesh2param.reconstruction import (
     PrismaticReconstructionResult,
     ReconstructionSettings,
@@ -44,6 +52,10 @@ STRICT_FIT = PrismaticSettings(
     arc_rms_tolerance_mm=0.01,
     arc_max_residual_tolerance_mm=0.02,
     minimum_arc_sagitta_mm=0.01,
+)
+
+_rotation_matrix: Callable[[float, tuple[float, float, float]], np.ndarray] = (
+    trimesh.transformations.rotation_matrix
 )
 
 
@@ -158,6 +170,35 @@ def test_closed_cyclic_segmentation_and_exact_endpoint_continuity() -> None:
         assert primitive.tangent_to_next_deg is not None
 
 
+def test_bounded_bspline_and_regular_polygon_record_fit_decisions() -> None:
+    controls = np.asarray(((0.0, 0.0), (2.0, 5.0), (7.0, 4.0), (9.0, 0.0)))
+    parameters = np.linspace(0.0, 1.0, 41)
+    one_minus = 1.0 - parameters
+    points = (
+        one_minus[:, None] ** 3 * controls[0]
+        + 3.0 * one_minus[:, None] ** 2 * parameters[:, None] * controls[1]
+        + 3.0 * one_minus[:, None] * parameters[:, None] ** 2 * controls[2]
+        + parameters[:, None] ** 3 * controls[3]
+    )
+    spline = fit_bounded_bspline(points, maximum_iterations=40)
+    assert isinstance(spline, BSplineSegment)
+    assert spline.degree == 3
+    assert len(spline.control_points) == 4
+    assert spline.rms_residual_mm < 0.005
+    assert spline.maximum_residual_mm < 0.015
+    assert spline.penalties.total >= spline.penalties.residual
+    assert spline.uncertainty.sample_count == len(points)
+
+    angles = np.linspace(0.0, -2.0 * math.pi, 7)[:-1]
+    hexagon = np.column_stack((3.0 + 6.0004 * np.cos(angles), -2.0 + 6.0004 * np.sin(angles)))
+    polygon = fit_regular_polygon(hexagon, snapping=NominalSnappingPolicy())
+    assert polygon.side_count == 6
+    assert polygon.clockwise
+    assert polygon.measured_circumdiameter_mm == pytest.approx(12.0008)
+    assert polygon.selected_circumdiameter_mm == 12.0
+    assert polygon.nominal.accepted
+
+
 def test_loop_matching_accepts_cyclic_shift_and_reversed_winding() -> None:
     frame = make_projection_frame(np.asarray((0.0, 0.0, 1.0)), np.zeros(3))
     points = ((0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (0.0, 2.0))
@@ -172,7 +213,11 @@ def test_loop_matching_accepts_cyclic_shift_and_reversed_winding() -> None:
 @pytest.mark.geometry
 def test_rotated_line_arc_extrusion_compiles_to_analytic_surfaces(tmp_path: Path) -> None:
     mesh = mesh_from_shape(_d_profile_shape(), linear_tolerance=0.05, angular_tolerance=0.08)
-    transform = trimesh.transformations.rotation_matrix(0.73, (1.0, 2.0, -0.5))
+    rotation_matrix = cast(
+        Callable[[float, tuple[float, float, float]], np.ndarray],
+        trimesh.transformations.rotation_matrix,
+    )
+    transform = rotation_matrix(0.73, (1.0, 2.0, -0.5))
     transform[:3, 3] = np.asarray((17.0, -9.0, 4.0))
     mesh.apply_transform(transform)
     segmentation = segment_mesh(mesh)
@@ -212,9 +257,7 @@ def test_automatic_reconstruction_uses_prismatic_path(tmp_path: Path) -> None:
     assert result.prismatic.accepted
     serialized = result.to_dict()
     assert serialized["selectedCandidate"] == "analytic-prismatic"
-    assert [candidate["label"] for candidate in serialized["candidates"]] == [
-        "analytic-prismatic"
-    ]
+    assert [candidate["label"] for candidate in serialized["candidates"]] == ["analytic-prismatic"]
     assert [feature.operation for feature in result.graph.features] == ["extrusion"]
     assert all(feature.operation != "importedFaceted" for feature in result.graph.features)
     entity_kinds = [entity.kind for entity in result.graph.sketches[0].entities]

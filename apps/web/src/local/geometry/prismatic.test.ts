@@ -29,8 +29,52 @@ describe("browser-local prismatic reconstruction", () => {
     expect(kinds?.filter((kind) => kind === "line")).toHaveLength(2);
     expect(kinds).not.toContain("polyline");
     expect(result?.analysis.profiles[0]).toHaveLength(kinds?.length ?? 0);
+    expect(result?.analysis.relativeVolumeDelta).toBeLessThanOrEqual(0.01);
+    expect(result?.graph.fitMetrics.volumeDifference).toBeGreaterThanOrEqual(0);
+  });
+
+  it("rejects matching cap fragments when the inferred extrusion volume does not match the source", () => {
+    const positions = Float32Array.from([
+      ...boxTriangles(-5, -4, -1, 1, -1, 1),
+      ...boxTriangles(-4, 4, -2, 2, -2, 2),
+      ...boxTriangles(4, 5, -1, 1, -1, 1),
+    ]);
+    const source: SourceAssetDescriptor = {
+      id: "source.false-extrusion",
+      originalFileName: "false-extrusion.stl",
+      format: "stl",
+      encoding: "binary",
+      sha256: "b".repeat(64),
+      byteSize: positions.byteLength,
+      declaredUnits: "mm",
+      unitsConfirmed: true,
+      scaleFactor: 1,
+      state: "valid",
+    };
+
+    expect(inferBrowserPrismaticCadGraph(positions, source, "mm")).toBeNull();
   });
 });
+
+function boxTriangles(
+  xmin: number,
+  xmax: number,
+  ymin: number,
+  ymax: number,
+  zmin: number,
+  zmax: number,
+): number[] {
+  const p = [
+    [xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymax, zmin],
+    [xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymax, zmax],
+  ];
+  const faces = [
+    [0, 2, 1], [0, 3, 2], [4, 5, 6], [4, 6, 7],
+    [0, 1, 5], [0, 5, 4], [1, 2, 6], [1, 6, 5],
+    [2, 3, 7], [2, 7, 6], [3, 0, 4], [3, 4, 7],
+  ];
+  return faces.flatMap((face) => face.flatMap((index) => p[index]!));
+}
 
 function extrudedCapsule(length: number, diameter: number, height: number, arcSegments: number): Float32Array {
   const radius = diameter / 2;

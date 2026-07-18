@@ -1,7 +1,7 @@
 import { OcctKernel } from "occt-wasm";
 import wasmUrl from "occt-wasm/dist/occt-wasm.wasm?url";
 
-import { compileCadGraph, compileStl } from "./compiler";
+import { compileCadGraph, compileCurvedStl, compileStl } from "./compiler";
 import { analyzeStl } from "./stl";
 import type { BrowserGeometryRequest, GeometryResponse } from "./types";
 
@@ -19,9 +19,9 @@ self.onmessage = (event: MessageEvent<BrowserGeometryRequest>) => {
     ? Promise.resolve(analyzeStl(request.bytes))
     : kernel().then((value) => {
     value.releaseAll();
-    return request.operation === "cadgraph"
-      ? compileCadGraph(value, request.graph)
-      : compileStl(value, request.bytes, request.tolerance, request.solidify, request.validateStep);
+    if (request.operation === "cadgraph") return compileCadGraph(value, request.graph);
+    if (request.operation === "curved-stl") return compileCurvedStl(value, request.bytes, request.tolerance);
+    return compileStl(value, request.bytes, request.tolerance, request.solidify, request.validateStep);
   });
   void operation.then((result) => {
     const response: GeometryResponse = { id: request.id, ok: true, result };
