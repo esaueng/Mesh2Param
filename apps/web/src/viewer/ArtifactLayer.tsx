@@ -8,6 +8,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import { WireframeGeometry2 } from "three/examples/jsm/lines/WireframeGeometry2.js";
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { GLTF } from "three-stdlib";
+import type { ViewerShading } from "../state/types";
 import { surfaceColor, viewerPalette, type ViewerTheme } from "./viewerTheme";
 
 export interface SelectionRange {
@@ -66,11 +67,21 @@ export function edgeOverlayKind(
   return mode === "reconstructed" ? "creases" : "triangles";
 }
 
+export function displayMaterialProperties(shading: ViewerShading, opacity: number) {
+  const displayedOpacity = shading === "xray" ? Math.min(opacity, 0.28) : opacity;
+  return {
+    displayedOpacity,
+    transparent: displayedOpacity < 1,
+    depthWrite: shading !== "xray" && displayedOpacity > 0.55,
+    wireframe: shading === "wireframe",
+  };
+}
+
 interface ArtifactLayerProps {
   url: string;
   mode: string;
   opacity: number;
-  wireframe: boolean;
+  shading: ViewerShading;
   edges: boolean;
   comparisonGhost: boolean;
   facetedProxy: boolean;
@@ -88,7 +99,7 @@ export function ArtifactLayer({
   url,
   mode,
   opacity,
-  wireframe,
+  shading,
   edges,
   comparisonGhost,
   facetedProxy,
@@ -109,7 +120,7 @@ export function ArtifactLayer({
     const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost, facetedProxy);
     const overlayKind = edgeOverlayKind(
       mode,
-      wireframe,
+      shading === "wireframe",
       edges,
       comparisonGhost,
       triangleCount,
@@ -122,11 +133,12 @@ export function ArtifactLayer({
         child.geometry.userData.mesh2paramOwned = true;
       }
       const source = Array.isArray(child.material) ? child.material[0] : child.material;
-      const material = (source ?? new THREE.MeshStandardMaterial()).clone();
-      material.transparent = opacity < 1;
-      material.opacity = opacity;
-      material.depthWrite = opacity > 0.55;
-      material.wireframe = wireframe;
+      const display = displayMaterialProperties(shading, opacity);
+      const material = createDisplayMaterial(source, shading, display.displayedOpacity, !smoothSurface, palette);
+      material.transparent = display.transparent;
+      material.opacity = display.displayedOpacity;
+      material.depthWrite = display.depthWrite;
+      if ("wireframe" in material) material.wireframe = display.wireframe;
       material.polygonOffset = overlayKind !== "none";
       material.polygonOffsetFactor = 1;
       material.polygonOffsetUnits = 1;
@@ -144,10 +156,10 @@ export function ArtifactLayer({
       child.material = material;
     });
     if (overlayKind !== "none") {
-      addShadedEdgeOverlays(clone, palette, opacity, sectionPlane, overlayKind);
+      addShadedEdgeOverlays(clone, palette, displayMaterialProperties(shading, opacity).displayedOpacity, sectionPlane, overlayKind);
     }
     return clone;
-  }, [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, wireframe]);
+  }, [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, shading]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
@@ -194,6 +206,58 @@ export function ArtifactLayer({
       {highlight === null ? null : <primitive object={highlight} data-testid="selected-patch-highlight" />}
     </group>
   );
+}
+
+function createDisplayMaterial(
+  source: THREE.Material | undefined,
+  shading: ViewerShading,
+  opacity: number,
+  flatShading: boolean,
+  palette: ReturnType<typeof viewerPalette>,
+): THREE.Material {
+  if (shading === "normals") {
+    return new THREE.MeshNormalMaterial({ flatShading, opacity, side: THREE.DoubleSide });
+  }
+  if (shading === "zebra") {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        opacity: { value: opacity },
+        darkColor: { value: new THREE.Color(palette.background) },
+        lightColor: { value: new THREE.Color(palette.surfaces.reconstructed) },
+      },
+      vertexShader: `
+        varying vec3 vViewNormal;
+        varying vec3 vViewPosition;
+        #include <clipping_planes_pars_vertex>
+        void main() {
+          vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+          vViewPosition = viewPosition.xyz;
+          vViewNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * viewPosition;
+          #include <clipping_planes_vertex>
+        }
+      `,
+      fragmentShader: `
+        uniform float opacity;
+        uniform vec3 darkColor;
+        uniform vec3 lightColor;
+        varying vec3 vViewNormal;
+        varying vec3 vViewPosition;
+        #include <clipping_planes_pars_fragment>
+        void main() {
+          #include <clipping_planes_fragment>
+          vec3 viewDirection = normalize(-vViewPosition);
+          vec3 reflected = reflect(-viewDirection, normalize(vViewNormal));
+          float wave = 0.5 + 0.5 * sin((reflected.x + reflected.y * 0.32) * 84.0);
+          float stripe = smoothstep(0.44, 0.56, wave);
+          gl_FragColor = vec4(mix(darkColor, lightColor, stripe), opacity);
+        }
+      `,
+      side: THREE.DoubleSide,
+      clipping: true,
+    });
+  }
+  return (source ?? new THREE.MeshStandardMaterial()).clone();
 }
 
 function objectTriangleCount(object: THREE.Object3D): number {

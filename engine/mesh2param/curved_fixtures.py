@@ -374,9 +374,9 @@ def _torus_bead_plate_solid(scale: float = 1.0) -> cq.Shape:
     """A near-planar freeform plate fused with one exact circular torus bead.
 
     The torus intersects the top in two closed curves, leaving an outer
-    annulus and an inner freeform disk as separate observed regions.  A small
+    annulus and an inner freeform disk as separate observed regions. A small
     saddle term keeps the inner disk genuinely freeform while the bead site
-    remains close to planar.  The exact ground truth is eight faces: five
+    remains close to planar. The exact ground truth is eight faces: five
     planes, two trims of one B-spline support, and one torus.
     """
 

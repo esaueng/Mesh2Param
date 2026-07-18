@@ -48,6 +48,10 @@ STRICT_FIT = PrismaticSettings(
     minimum_arc_sagitta_mm=0.01,
 )
 
+_rotation_matrix: Callable[[float, tuple[float, float, float]], np.ndarray] = (
+    trimesh.transformations.rotation_matrix
+)
+
 
 def _d_profile_shape(distance: float = 20.0) -> cq.Workplane:
     return (

@@ -1,42 +1,46 @@
-# Mesh2Param shaded-edge view QA
+# Mesh2Param display modes QA
 
-- Source visual truth: `/var/folders/t_/tvn84c292rzdfcbj06vltnsw0000gn/T/codex-clipboard-7e3d9c61-cfda-4c42-8c14-b6b9d450f17e.png`
-- Implementation screenshot: in-app Browser capture emitted inline during this task (the Browser surface did not expose a durable filesystem path for its successful WebGL frame)
-- Viewport: 1363 x 1606
-- State: dark theme, `Converted` selected, validated ADP078 cast model
+- Source visual truth: `/var/folders/t_/tvn84c292rzdfcbj06vltnsw0000gn/T/codex-clipboard-42cccdfc-ab9c-4a2f-9cb1-4802ff32b04b.png`
+- Implementation screenshot: `/private/tmp/mesh2param-display-menu-desktop.png`
+- Focused comparison: `/private/tmp/mesh2param-display-menu-comparison.png`
+- Viewports: 1280 x 720 desktop and 390 x 844 mobile
+- State: dark theme, validated L-bracket sample, Shaded selected, display menu open
 
 ## Full-view comparison evidence
 
-The source shows a neutral shaded solid with a dense, dark triangle network drawn over visible surfaces. The browser-rendered implementation shows the same visual treatment: light neutral faces, dark triangle lines, normal depth occlusion, and the existing dark CAD grid. The implementation preserves Mesh2Param's camera, controls, top bar, and bottom command dock rather than copying unrelated Blender chrome.
+The source establishes a dark, elevated viewport menu with grouped surface modes, a selected-state checkmark, separators, and switch options. The implementation carries that structure into Mesh2Param's existing bottom command dock: the menu opens above the display button, stays clear of the primary download action, and preserves the model, gizmo, scale bar, and product chrome.
 
 ## Focused-region comparison evidence
 
-A separate crop was not needed: the model edge treatment occupies most of the viewport and the renamed mode control is legible in the same full-view capture. The `Converted` button is visibly selected, and triangle edges are visible across planar, curved, inset, and embossed regions.
+The side-by-side focused comparison shows the source and implementation control at readable scale. Both use a dark rounded panel, compact headings, vertically stacked modes, clear group separators, a selected Shaded row, and a blue Show edges switch. Mesh2Param intentionally adds concise descriptions and uses its existing IBM Plex type and spacing tokens. Unsupported source-app concepts such as decals and hidden-edge primitives are omitted instead of being shown as inert controls.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: unchanged; the request did not target typography, and the existing IBM Plex UI remains consistent.
-- Spacing and layout rhythm: unchanged; the canvas, top bar, scale, gizmo, and dock retain their established positions.
-- Colors and visual tokens: added theme-aware near-black edge colors and opacity values. The dark-theme result closely matches the source's gray surfaces and black edge network.
-- Image quality and asset fidelity: the effect is rendered from the actual model geometry, not a raster approximation. Hidden lines remain occluded and the overlay follows every triangle.
-- Copy and content: the selected `Proxy` label is now `Converted`; matching full-view labels and opacity accessibility text were updated for consistency.
-
-## Comparison history
-
-1. Initial evidence: the implementation rendered only smooth gray shading and exposed the selected mode as `Proxy`. Both were direct mismatches with the requested result.
-2. Fix: connected the existing `edges` viewer preference to a shaded wire overlay, added theme-aware edge tokens, and renamed the user-facing proxy labels to `Converted`.
-3. Post-fix evidence: the in-app Browser rendered the ADP078 model with shaded faces plus dense dark triangle edges; `Converted` was selected. No P0, P1, or P2 mismatch remained.
+- Fonts and typography: IBM Plex Sans remains consistent with Mesh2Param. Heading, label, and helper-text weights establish the same hierarchy as the reference without importing an unrelated product font.
+- Spacing and layout rhythm: the desktop panel is 248 px wide with 43 px rows, 8 px group padding, 12 px radius, and clear dividers. The mobile panel expands to 280 px and fits within the 390 px viewport without horizontal overflow.
+- Colors and visual tokens: the panel, text, borders, hover state, selected check, and switch use existing theme variables. A light-theme portal variant carries the light token scope with it.
+- Image quality and asset fidelity: all icons come from the project's Lucide icon set. Display effects are rendered from the actual GLB geometry rather than raster approximations.
+- Copy and content: the menu exposes Shaded, Wireframe, X-Ray, Surface normals, Zebra, and Show edges. Descriptions clarify the actual render behavior.
 
 ## Interaction and runtime checks
 
-- Page identity: `http://127.0.0.1:5173/`, title `Mesh2Param`.
-- Display-mode interaction: `Source` -> `Converted`; both controls reported the expected pressed state.
-- Fit-to-view interaction: control resolved uniquely and remained functional.
-- Console: the clean final tab reported no errors or warnings.
+- Page identity: `http://127.0.0.1:5174/`, title `Mesh2Param`.
+- Interaction flow: validated sample -> Display settings -> select each mode -> viewport `data-display-mode` updates -> rendered material changes.
+- Verified modes: Shaded, Wireframe, X-Ray, Surface normals, and Zebra.
+- Edge option: Show edges toggles independently and remains in the open menu.
+- Menu behavior: selected radio state, outside/Escape close behavior, and responsive portal placement are implemented.
+- Console: no relevant errors or warnings after every mode switch, including the Zebra shader.
 - Framework overlay: none.
+
+## Comparison history
+
+1. Initial desktop pass: menu structure and interactions matched the reference direction; all five modes rendered successfully.
+2. Initial mobile pass: the dock's horizontal scroll container clipped the menu despite the DOM reporting it open. Classified P2.
+3. Fix: portaled the menu to `document.body`, positioned it from the trigger on desktop and above the dock on mobile, and carried the active theme into the portal.
+4. Post-fix mobile evidence: the complete 280 x 380 panel is visible at 390 x 844, stays within x=98..378, and the document remains 390 px wide. No P0, P1, or P2 issue remains.
 
 ## Findings
 
-No actionable P0, P1, or P2 findings remain. The source and implementation use different camera angles, which is intentional because the request targeted rendering style rather than a fixed pose.
+No actionable P0, P1, or P2 findings remain. The implementation is a product-native adaptation of the reference rather than a copy of unrelated surrounding CAD-app chrome.
 
 final result: passed

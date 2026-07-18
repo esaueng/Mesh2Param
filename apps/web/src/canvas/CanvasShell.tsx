@@ -9,6 +9,7 @@ import {
   Layers,
   LoaderCircle,
   Moon,
+  RefreshCw,
   Save,
   ScanSearch,
   ShieldCheck,
@@ -26,11 +27,17 @@ import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
+import { stepDownloadName } from "./downloadFilename";
+import { EditableProjectName } from "./EditableProjectName";
+import { ViewSettings } from "./ViewSettings";
 import {
+  analysisRerunAction,
   availableModes,
   humanPhase,
   isValidated,
   nextAction,
+  regenerationAction,
+  reconstructedRevealPreferences,
   type PipelineActionKind,
   stepArtifact,
 } from "./pipeline";
@@ -47,6 +54,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const state = vm.project.state;
   const action = nextAction(vm);
+  const rerunAnalysis = analysisRerunAction(vm);
+  const regenerate = regenerationAction(vm);
   const modes = availableModes(vm.artifacts);
   const activeJob = vm.activeJob;
 
@@ -71,8 +80,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
     if (revealedRef.current || !names.has("reconstructed.glb")) return;
     revealedRef.current = true;
-    if (workspaceStore.getState().viewer.mode === "source") setMode("reconstructed");
-  }, [vm.artifacts, setMode]);
+    const store = workspaceStore.getState();
+    debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
+    store.setViewerPreferences(reconstructedRevealPreferences());
+  }, [vm.artifacts]);
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
@@ -82,8 +93,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const downloadStep = useCallback(async () => {
     const step = stepArtifact(vm.artifacts);
     if (step === undefined) return;
-    const filename = stepDownloadName(vm.project.state.source?.originalFileName ?? null, step.name);
-    // Fetch as a blob so our source-derived filename wins over the server's
+    const filename = stepDownloadName(vm.project.name, step.name);
+    // Fetch as a blob so our project-derived filename wins over the server's
     // Content-Disposition (which names every export "model.step").
     try {
       const response = await fetch(apiClient.artifactUrl(vm.project.id, step.name, step.sha256));
@@ -101,12 +112,20 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     } catch (cause) {
       debugLog.error("export", `Download failed: ${filename}`, cause);
     }
-  }, [vm.artifacts, vm.project.id, vm.project.state.source]);
+  }, [vm.artifacts, vm.project.id, vm.project.name]);
 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
     else if (action.kind === "download") void downloadStep();
     else if (action.operation !== undefined) void actions.run(action.operation, action.settings);
+  };
+
+  const onRegenerate = () => {
+    if (regenerate?.operation !== undefined) void actions.run(regenerate.operation, regenerate.settings);
+  };
+
+  const onRerunAnalysis = () => {
+    if (rerunAnalysis?.operation !== undefined) void actions.run(rerunAnalysis.operation, rerunAnalysis.settings);
   };
 
   const status = conversionStatus(vm);
@@ -170,7 +189,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </button>
           {state.source !== null ? (
             <div className="canvas-file">
-              <span className="canvas-file-name" title={state.source.originalFileName}>{state.source.originalFileName}</span>
+              <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
               <span className="canvas-file-meta">{fileMeta(vm)}</span>
               {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
             </div>
@@ -211,7 +230,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </section>
         ) : null}
 
-        <section className="panel-group">
+        <section className="panel-group panel-view-group">
           <h2 className="panel-label">View</h2>
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
@@ -230,6 +249,12 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               {issueCount > 0 ? <span className="panel-count">{issueCount > 99 ? "99+" : issueCount}</span> : null}
             </button>
           </div>
+          <ViewSettings
+            shading={viewer.shading}
+            edges={viewer.edges}
+            disabled={!hasGeometry}
+            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+          />
         </section>
 
         {state.patches.length > 0 && state.cadgraph === null ? (
@@ -259,6 +284,32 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </div>
           ) : (
             <>
+              {rerunAnalysis !== null || regenerate !== null ? (
+                <div className="panel-secondary-grid">
+                  {rerunAnalysis !== null ? (
+                    <button
+                      className="panel-btn"
+                      onClick={onRerunAnalysis}
+                      disabled={rerunAnalysis.disabled}
+                      title={rerunAnalysis.reason ?? rerunAnalysis.hint}
+                    >
+                      <ScanSearch size={14} />
+                      Analysis
+                    </button>
+                  ) : null}
+                  {regenerate !== null ? (
+                    <button
+                      className="panel-btn"
+                      onClick={onRegenerate}
+                      disabled={regenerate.disabled}
+                      title={regenerate.reason ?? regenerate.hint}
+                    >
+                      <RefreshCw size={14} />
+                      STEP
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 className="dock-primary"
                 onClick={onPrimary}
@@ -329,16 +380,6 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   return <Download size={size} />;
 }
 
-/** Name the downloaded STEP after the source mesh (e.g. "ADP078 cast.stl" -> "ADP078 cast.step"). */
-function stepDownloadName(sourceFileName: string | null, artifactName: string): string {
-  const extension = /\.(step|stp)$/i.exec(artifactName)?.[0].toLowerCase() ?? ".step";
-  const base = (sourceFileName ?? "")
-    .replace(/\.[^./\\]+$/, "")
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .trim();
-  return `${base || "model"}${extension}`;
-}
-
 function fileMeta(vm: WorkspaceViewModel): string {
   const state = vm.project.state;
   const parts: string[] = [];
@@ -348,8 +389,16 @@ function fileMeta(vm: WorkspaceViewModel): string {
   return parts.join(" · ");
 }
 
-function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
+export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
+  ))) return { label: "Faceted STEP", tone: "warn" };
+  if (vm.artifacts.some((artifact) => (
+    artifact.name === "reconstructed.glb" && artifact.kind === "reconstructed-curved"
+  ))) return isValidated(state)
+      ? { label: "Validated · approximate curved", tone: "ok" }
+      : { label: "Approximate curved B-Rep", tone: "info" };
   const operation = state.cadgraph?.features[0]?.operation;
   const flavor = operation === "reconstructedSurfaceNetwork"
     ? " · approximate curved"
