@@ -395,6 +395,7 @@ gates; no triangle is discarded outside a declared region.
 
 **PR-G4b — Full-mode boss recovery and UI surfacing.**
 Allow-list: `engine/mesh2param/details.py`, `inference.py`,
+`reconstruction.py` (bounded functional/full mode routing only),
 `services/api` (bounded settings), `apps/web` (feature tree, suppressed-region
 overlay, reusing existing patches/residual GLB layers), tests, docs.
 
