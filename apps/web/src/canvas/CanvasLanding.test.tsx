@@ -6,8 +6,14 @@ import { CanvasLanding } from "./CanvasLanding";
 
 afterEach(cleanup);
 
-function recentProject(id: string, name: string, updatedAt: string, units: "mm" | "inch" = "mm") {
-  return { id, name, updatedAt, units } as ProjectDetail;
+function recentProject(
+  id: string,
+  name: string,
+  updatedAt: string,
+  units: "mm" | "inch" = "mm",
+  revision = 1,
+) {
+  return { id, name, updatedAt, units, revision } as ProjectDetail;
 }
 
 describe("CanvasLanding recent projects", () => {
@@ -17,7 +23,7 @@ describe("CanvasLanding recent projects", () => {
         samples={[]}
         recentProjects={[
           recentProject("older", "Older bracket", "2026-07-11T10:30:00Z"),
-          recentProject("newest", "Newest bracket", "2026-07-13T14:45:00Z", "inch"),
+          recentProject("newest", "Newest bracket", "2026-07-13T14:45:00Z", "inch", 4),
           recentProject("middle", "Middle bracket", "2026-07-12T12:15:00Z"),
         ]}
         readiness={{ status: "ready", database: true, storage: true, supervisor: true }}
@@ -43,6 +49,7 @@ describe("CanvasLanding recent projects", () => {
     if (newest === undefined) throw new Error("Expected a newest recent project");
     expect(within(newest).getByText("inch")).toBeVisible();
     expect(within(newest).getByText("01")).toBeVisible();
+    expect(within(newest).getByText("Revision 4")).toBeVisible();
     expect(newest.querySelector("time")).toHaveAttribute("datetime", "2026-07-13T14:45:00Z");
   });
 
