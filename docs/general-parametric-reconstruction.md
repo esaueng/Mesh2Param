@@ -33,6 +33,20 @@ pnpm mesh2param -- reconstruct samples/general-parametric-benchmark/spanner-fill
 | `spanner-filleted` | 5 858 | 11 821.21 | same rejection, same code |
 | `spanner-filleted-embossed` | 5 874 | 11 864.41 | same rejection, same code |
 
+PR-G2a recorded the explicit non-parametric faceted fallback with
+`pnpm general:baseline` at 1,000 deterministic samples in each direction. The
+one-face-per-source-triangle inventory is evidence that this path is not a
+parametric answer:
+
+| Fixture | Faceted faces / source triangles | STEP bytes | STEP SHA-256 | P99 distance (mm) | Runtime (s) |
+| --- | ---: | ---: | --- | ---: | ---: |
+| `spanner-sharp` | 508 / 508 | 1 178 053 | `0446c3dfe6e3beda097ee69c8c243e3f0848b2da9103bc8893db497d802b42f3` | 3.0995e-7 | 0.605 |
+| `spanner-filleted` | 5 858 / 5 858 | 14 726 732 | `1bc9f0e553d2bd16f10d567da47d56b055249bc89dca0e7b4d30d37ab7853673` | 3.3098e-7 | 5.361 |
+| `spanner-filleted-embossed` | 5 874 / 5 874 | 14 763 993 | `9eea3aaebb85f9aa48792c0c9b79595e34fab7acf509c2e20ece247fa55f972f` | 3.8147e-7 | 5.208 |
+
+The normalized STEP hashes are deterministic; runtime is measured wall-clock
+evidence and is not part of the determinism claim.
+
 The native curved path was also exercised on `spanner-filleted` through
 `create_curved_conversion` and fails qualification with "expected exactly one
 planar region not adjacent to the freeform patch (the bottom), found 0". The

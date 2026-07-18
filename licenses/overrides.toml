@@ -37,6 +37,7 @@ forbidden_fragments = [
   "UNLICENSED",
 ]
 allowed_copyleft_packages = [
+  "javascript:@img/sharp-libvips-darwin-arm64",
   "python:cadquery-ocp",
   "python:casadi",
 ]
