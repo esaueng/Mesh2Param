@@ -1,7 +1,11 @@
 import "./components.css";
+export * from "./Badge";
 export * from "./Button";
+export * from "./Checkbox";
 export * from "./Field";
 export * from "./IconButton";
 export * from "./PanelSection";
 export * from "./StatusGlyph";
+export * from "./Switch";
 export * from "./Tabs";
+export * from "./Toast";
