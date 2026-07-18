@@ -240,6 +240,12 @@ export function availableModes(artifacts: readonly ArtifactDescriptor[]): ModeOp
   if (names.has("source.glb")) options.push({ mode: "source", label: "Source" });
   if (names.has("reconstructed.glb")) options.push({ mode: "reconstructed", label: "Result" });
   if (names.has("source.glb") && names.has("reconstructed.glb")) options.push({ mode: "overlay", label: "Compare" });
+  if (names.has("residual.glb")) {
+    options.push({
+      mode: "residual",
+      label: names.has("suppressed-regions.json") ? "Suppressed" : "Residual",
+    });
+  }
   return options;
 }
 
