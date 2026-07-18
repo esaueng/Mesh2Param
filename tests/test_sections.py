@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 import trimesh
-from mesh2param.reconstruction import ReconstructionError, reconstruct_file
 from mesh2param.sections import extract_section_stack, write_section_debug_glb
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -88,21 +87,3 @@ def test_rotated_section_stack_preserves_radius_and_debug_hash(tmp_path: Path) -
         == hashlib.sha256(second_path.read_bytes()).digest()
     )
     assert first_path.read_bytes()[:4] == b"glTF"
-
-
-@pytest.mark.geometry
-def test_reconstruction_persists_deterministic_section_artifacts(tmp_path: Path) -> None:
-    outputs = (tmp_path / "first", tmp_path / "second")
-    for output in outputs:
-        with pytest.raises(ReconstructionError) as excinfo:
-            reconstruct_file(
-                _FIXTURES / "spanner-filleted" / "source.stl",
-                output,
-                units="mm",
-            )
-        assert excinfo.value.code == "fillet-band-detected"
-
-    for artifact in ("sections.json", "sections.glb"):
-        first_hash = hashlib.sha256((outputs[0] / artifact).read_bytes()).digest()
-        second_hash = hashlib.sha256((outputs[1] / artifact).read_bytes()).digest()
-        assert first_hash == second_hash

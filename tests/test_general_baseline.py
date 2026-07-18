@@ -146,43 +146,23 @@ def test_triangle_per_face_parametric_claim_is_rejected(tmp_path: Path) -> None:
 
 
 @pytest.mark.geometry
-@pytest.mark.parametrize(
-    ("slug", "expected_code", "expected_message"),
-    (
-        (
-            "spanner-filleted",
-            "fillet-band-detected",
-            "section inset series fits a constant-radius circle model",
-        ),
-        (
-            "spanner-filleted-embossed",
-            "fillet-band-detected",
-            "section inset series fits a constant-radius circle model",
-        ),
-    ),
-)
-def test_general_fixtures_keep_calibrated_structured_rejection(
-    slug: str,
-    expected_code: str,
-    expected_message: str,
-    tmp_path: Path,
-) -> None:
+def test_embossed_fixture_keeps_measured_structured_rejection(tmp_path: Path) -> None:
     with pytest.raises(ReconstructionError) as excinfo:
         reconstruct_file(
-            _GENERAL_FIXTURES / slug / "source.stl",
-            tmp_path / slug,
+            _GENERAL_FIXTURES / "spanner-filleted-embossed" / "source.stl",
+            tmp_path / "spanner-filleted-embossed",
             units="mm",
         )
 
     error = excinfo.value
-    assert error.stage == "segmentation"
-    assert error.code == expected_code
-    assert str(error) == expected_message
-    assert error.measured["radiusMm"] == pytest.approx(1.5, abs=0.1)
-    rms_residual = error.measured["rmsResidualMm"]
-    assert isinstance(rms_residual, float)
-    assert rms_residual < 0.03
-    assert error.source_triangle_ids
+    assert error.stage == "prismatic-validation"
+    assert error.code == "geometric_validation_failure"
+    assert str(error).startswith("analytic extrusion exceeds source agreement gates:")
+    assert error.measured["p95DistanceMm"] == pytest.approx(0.0309455, abs=1e-6)
+    assert error.measured["maximumDistanceMm"] == pytest.approx(0.400067, abs=1e-6)
+    relative_volume = error.measured["relativeVolumeDelta"]
+    assert isinstance(relative_volume, float)
+    assert relative_volume > 0.003
 
 
 @pytest.mark.geometry
@@ -223,11 +203,7 @@ def test_sharp_spanner_reconstructs_as_spline_extrusion_and_polygon_cut(
     polygon = next(item for item in first.prismatic.polygon_hypotheses if item is not None)
     assert polygon.side_count == 6
     assert polygon.selected_circumdiameter_mm == 12.0
-    spline = next(
-        item
-        for item in first.prismatic.profiles[0]
-        if item.kind == "bspline"
-    )
+    spline = next(item for item in first.prismatic.profiles[0] if item.kind == "bspline")
     assert spline.rms_residual_mm < 0.03
     assert spline.maximum_residual_mm < 0.075
 

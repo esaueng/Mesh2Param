@@ -48,13 +48,21 @@ tolerance; a close tessellated result can never make an invalid solid acceptable
 ## Comparison evidence
 
 The reconstruction comparison records bidirectional/symmetric surface distance summaries (RMS,
-median, P95 and maximum where available), normal agreement, bounding-box, surface area, volume
+median, P95, P99, and maximum where available), normal agreement, bounding-box, surface area, volume
 difference, overlap, unmatched-source and excess-result evidence, per-patch residuals, and score.
 A residual heatmap GLB visualizes the spatial error without changing the source or CADGraph.
 
 Tolerance is stored in project units and passed explicitly to validation. Changing it updates the
 CADGraph project tolerance and recomputes pass/fail; it does not rewrite measured geometry or make a
 previous result disappear.
+
+The general-parametric path applies the same chain to each bounded candidate. A spline-aware sharp
+parent must compile before a constant-radius fillet candidate can reference its resolved semantic
+rim edges. The sharp parent is retained in `candidates.json` with its measured band mismatch; the
+filleted candidate is accepted only when P95 is at most `1.5t`, P99 at most `3t`, maximum distance
+at most `6t`, P95 normal error at most 3 degrees, and relative volume error at most 0.1 percent.
+Fillet candidates may introduce kernel-generated torus and B-spline faces, but the reimport audit
+still rejects unclassified surfaces and triangle-per-face output.
 
 ## Artifacts and reproducibility
 
