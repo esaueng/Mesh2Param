@@ -366,7 +366,9 @@ estimate within 0.02 mm of 1.5 and stable along the loop; on
 `spanner-sharp`, no fillet group is reported.
 
 **PR-G3b — Fillet feature emission and validation.**
-Allow-list: `engine/mesh2param/inference.py`, `reconstruction.py`,
+Allow-list: `engine/mesh2param/inference.py`, `reconstruction.py`, `prismatic.py`
+(only to route the same bounded G2d spline decomposition from a cyclic
+mid-thickness section whose tessellation splits analytic line spans),
 `compiler.py` (only if the semantic registry needs a selector extension),
 `packages/contracts` (only if 3a proves the registry insufficient), tests,
 `docs/fallbacks.md`, `docs/validation.md`.
