@@ -344,10 +344,10 @@ def test_analyzed_freeform_source_is_preflighted_but_faceted_mode_remains_availa
         },
     }
 
-    with pytest.raises(APIError, match=r"99\.0%") as error:
-        _operation_payload(project, "reconstruct", OperationRequest(), store)
-    assert error.value.code == "automatic_reconstruction_unsupported"
-    assert error.value.recommended_action is not None
+    # Freeform patches no longer pre-block the automatic path: the
+    # reconstruct job's candidate evaluation decides and fails closed.
+    freeform_payload = _operation_payload(project, "reconstruct", OperationRequest(), store)
+    assert freeform_payload["settings"] == {}
 
     payload = _operation_payload(
         project,
@@ -423,10 +423,10 @@ def test_analyzed_filleted_extrusion_can_enter_bounded_line_arc_solver(tmp_path:
     assert isinstance(state, dict)
     analysis = state["analysis"]
     assert isinstance(analysis, dict)
+    # A rejected analysis-time prismatic candidate no longer pre-blocks the
+    # queue: the reconstruct job's own candidate evaluation is the authority.
     analysis["prismaticCandidate"] = {"accepted": False, "profiles": []}
-    with pytest.raises(APIError) as rejected:
-        _operation_payload(project, "reconstruct", OperationRequest(), store)
-    assert rejected.value.code == "automatic_reconstruction_unsupported"
+    assert _operation_payload(project, "reconstruct", OperationRequest(), store)["settings"] == {}
 
     analysis["prismaticCandidate"] = {
         "accepted": True,
