@@ -13,6 +13,7 @@ the exact binaries and source it ships.
 | occt-wasm | 3.6.1 | TypeScript tooling MIT OR Apache-2.0; embedded OCCT WebAssembly remains LGPL-2.1-only | Browser-local B-Rep construction, STEP import/export, validation, and tessellation. [occt-wasm source](https://github.com/andymai/occt-wasm). |
 | CadQuery OCP bindings | 7.9.3.1.1 | Apache-2.0 for the bindings; bundled OCCT remains LGPL-2.1 with the exception | Python bindings distributed by [CadQuery/OCP](https://github.com/CadQuery/OCP/tree/7.9.3.1). |
 | CasADi | 3.7.2 | LGPL-3.0-or-later | Transitive dependency of CadQuery. [CasADi source](https://github.com/casadi/casadi/tree/3.7.2). Mesh2Param does not call it directly. |
+| libvips development bundle | libvips 8.17.3 in `@img/sharp-libvips-darwin-arm64` 1.2.4 | LGPL-3.0-or-later package declaration; bundled components retain their recorded licenses | Platform-constrained transitive dependency of the existing Wrangler/Miniflare development toolchain. [sharp-libvips source](https://github.com/lovell/sharp-libvips/tree/v1.2.4). It is not a Mesh2Param application runtime dependency. |
 | OpenCAE reference | commit `a8aba0048dd21565b5b76357cfd9be62917cf6f6c` | Apache-2.0 | Generic shell organization, design-token approach, control density, and accessibility conventions informed the distinct Mesh2Param UI. |
 
 The corresponding license texts are:
@@ -20,12 +21,15 @@ The corresponding license texts are:
 - Project and Apache-2.0 components: [`LICENSE`](LICENSE)
 - OCCT: [`licenses/OCCT-LGPL-2.1.txt`](licenses/OCCT-LGPL-2.1.txt) and
   [`licenses/OCCT-LGPL-EXCEPTION-1.0.txt`](licenses/OCCT-LGPL-EXCEPTION-1.0.txt)
-- CasADi: [`licenses/CASADI-LGPL-3.0-or-later.txt`](licenses/CASADI-LGPL-3.0-or-later.txt)
+- LGPL-3.0-or-later components (CasADi and the Wrangler libvips development
+  bundle):
+  [`licenses/CASADI-LGPL-3.0-or-later.txt`](licenses/CASADI-LGPL-3.0-or-later.txt)
 
-OCCT and CasADi are dynamically loaded native libraries in the Python environment. If you
-redistribute wheels, containers, installers, or another binary bundle, preserve these notices and
-license texts and review the applicable corresponding-source, relinking/replacement, reverse
-engineering, and modification requirements. Mesh2Param does not modify OCCT or CasADi.
+OCCT and CasADi are dynamically loaded native libraries in the Python environment. The libvips
+bundle is loaded only by platform-specific development tooling. If you redistribute wheels,
+containers, installers, development environments, or another binary bundle, preserve these notices
+and license texts and review the applicable corresponding-source, relinking/replacement, reverse
+engineering, and modification requirements. Mesh2Param does not modify these components.
 
 ## Direct dependency summary
 
@@ -76,6 +80,9 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | @babel/template | 7.29.7 | MIT |
 | javascript | @babel/traverse | 7.29.7 | MIT |
 | javascript | @babel/types | 7.29.7 | MIT |
+| javascript | @cloudflare/kv-asset-handler | 0.5.0 | MIT OR Apache-2.0 |
+| javascript | @cloudflare/unenv-preset | 2.16.1 | MIT OR Apache-2.0 |
+| javascript | @cspotcode/source-map-support | 0.8.1 | MIT |
 | javascript | @csstools/color-helpers | 5.1.0 | MIT-0 |
 | javascript | @csstools/css-calc | 2.1.4 | MIT |
 | javascript | @csstools/css-color-parser | 3.1.0 | MIT |
@@ -98,18 +105,25 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | @humanfs/types | 0.15.0 | Apache-2.0 |
 | javascript | @humanwhocodes/module-importer | 1.0.1 | Apache-2.0 |
 | javascript | @humanwhocodes/retry | 0.4.3 | Apache-2.0 |
+| javascript | @img/colour | 1.1.0 | MIT |
 | javascript | @jridgewell/gen-mapping | 0.3.13 | MIT |
 | javascript | @jridgewell/remapping | 2.3.5 | MIT |
 | javascript | @jridgewell/resolve-uri | 3.1.2 | MIT |
 | javascript | @jridgewell/sourcemap-codec | 1.5.5 | MIT |
 | javascript | @jridgewell/trace-mapping | 0.3.31 | MIT |
+| javascript | @jridgewell/trace-mapping | 0.3.9 | MIT |
 | javascript | @jsdevtools/ono | 7.1.3 | MIT |
 | javascript | @mediapipe/tasks-vision | 0.10.17 | Apache-2.0 |
 | javascript | @monogrid/gainmap-js | 3.4.0 | MIT |
 | javascript | @playwright/test | 1.61.1 | Apache-2.0 |
+| javascript | @poppinss/colors | 4.1.6 | MIT |
+| javascript | @poppinss/dumper | 0.6.5 | MIT |
+| javascript | @poppinss/exception | 1.2.3 | MIT |
 | javascript | @react-three/drei | 10.7.7 | MIT |
 | javascript | @react-three/fiber | 9.6.1 | MIT |
 | javascript | @rolldown/pluginutils | 1.0.0-rc.3 | MIT |
+| javascript | @sindresorhus/is | 7.2.0 | MIT |
+| javascript | @speed-highlight/core | 1.2.17 | CC0-1.0 |
 | javascript | @testing-library/dom | 10.4.1 | MIT |
 | javascript | @testing-library/jest-dom | 6.9.1 | MIT |
 | javascript | @testing-library/react | 16.3.2 | MIT |
@@ -127,6 +141,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | @types/json-schema | 7.0.15 | MIT |
 | javascript | @types/lodash | 4.17.24 | MIT |
 | javascript | @types/node | 22.20.1 | MIT |
+| javascript | @types/node | 26.1.1 | MIT |
 | javascript | @types/offscreencanvas | 2019.7.3 | MIT |
 | javascript | @types/react | 19.2.17 | MIT |
 | javascript | @types/react-dom | 19.2.3 | MIT |
@@ -173,6 +188,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | base64-js | 1.5.1 | MIT |
 | javascript | baseline-browser-mapping | 2.10.42 | Apache-2.0 |
 | javascript | bidi-js | 1.0.3 | MIT |
+| javascript | blake3-wasm | 2.1.5 | MIT |
 | javascript | brace-expansion | 1.1.16 | MIT |
 | javascript | brace-expansion | 5.0.7 | MIT |
 | javascript | browserslist | 4.28.5 | MIT |
@@ -191,6 +207,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | concat-map | 0.0.1 | MIT |
 | javascript | concurrently | 9.2.3 | MIT |
 | javascript | convert-source-map | 2.0.0 | MIT |
+| javascript | cookie | 1.1.1 | MIT |
 | javascript | cross-env | 7.0.3 | MIT |
 | javascript | cross-spawn | 7.0.6 | MIT |
 | javascript | css.escape | 1.5.1 | MIT |
@@ -203,6 +220,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | deep-is | 0.1.4 | MIT |
 | javascript | dequal | 2.0.3 | MIT |
 | javascript | detect-gpu | 5.0.70 | MIT |
+| javascript | detect-libc | 2.1.2 | Apache-2.0 |
 | javascript | dexie | 4.4.4 | Apache-2.0 |
 | javascript | dom-accessibility-api | 0.5.16 | MIT |
 | javascript | dom-accessibility-api | 0.6.3 | MIT |
@@ -210,6 +228,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | electron-to-chromium | 1.5.389 | ISC |
 | javascript | emoji-regex | 8.0.0 | MIT |
 | javascript | entities | 6.0.1 | BSD-2-Clause |
+| javascript | error-stack-parser-es | 1.0.5 | MIT |
 | javascript | es-module-lexer | 1.7.0 | MIT |
 | javascript | esbuild | 0.28.1 | MIT |
 | javascript | escalade | 3.2.0 | MIT |
@@ -277,6 +296,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | json-stable-stringify-without-jsonify | 1.0.1 | MIT |
 | javascript | json5 | 2.2.3 | MIT |
 | javascript | keyv | 4.5.4 | MIT |
+| javascript | kleur | 4.1.5 | MIT |
 | javascript | levn | 0.4.1 | MIT |
 | javascript | lie | 3.3.0 | MIT |
 | javascript | locate-path | 6.0.0 | MIT |
@@ -292,6 +312,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | meshline | 3.3.1 | MIT |
 | javascript | meshoptimizer | 0.22.0 | MIT |
 | javascript | min-indent | 1.0.1 | MIT |
+| javascript | miniflare | 4.20260708.1 | MIT |
 | javascript | minimatch | 10.2.5 | BlueOak-1.0.0 |
 | javascript | minimatch | 3.1.5 | ISC |
 | javascript | minimist | 1.2.8 | MIT |
@@ -308,6 +329,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | parse5 | 7.3.0 | MIT |
 | javascript | path-exists | 4.0.0 | MIT |
 | javascript | path-key | 3.1.1 | MIT |
+| javascript | path-to-regexp | 6.3.0 | MIT |
 | javascript | pathe | 2.0.3 | MIT |
 | javascript | pathval | 2.0.1 | MIT |
 | javascript | picocolors | 1.1.1 | ISC |
@@ -338,6 +360,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | scheduler | 0.27.0 | MIT |
 | javascript | semver | 6.3.1 | ISC |
 | javascript | semver | 7.8.5 | ISC |
+| javascript | sharp | 0.34.5 | Apache-2.0 |
 | javascript | shebang-command | 2.0.0 | MIT |
 | javascript | shebang-regex | 3.0.0 | MIT |
 | javascript | shell-quote | 1.8.4 | MIT |
@@ -352,6 +375,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | strip-indent | 3.0.0 | MIT |
 | javascript | strip-json-comments | 3.1.1 | MIT |
 | javascript | strip-literal | 3.1.0 | MIT |
+| javascript | supports-color | 10.2.2 | MIT |
 | javascript | supports-color | 7.2.0 | MIT |
 | javascript | supports-color | 8.1.1 | MIT |
 | javascript | suspend-react | 0.1.3 | MIT |
@@ -379,7 +403,10 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | type-check | 0.4.0 | MIT |
 | javascript | typescript | 5.9.3 | Apache-2.0 |
 | javascript | typescript-eslint | 8.63.0 | MIT |
+| javascript | undici | 7.28.0 | MIT |
 | javascript | undici-types | 6.21.0 | MIT |
+| javascript | undici-types | 8.3.0 | MIT |
+| javascript | unenv | 2.0.0-rc.24 | MIT |
 | javascript | update-browserslist-db | 1.2.3 | MIT |
 | javascript | uri-js | 4.4.1 | BSD-2-Clause |
 | javascript | use-sync-external-store | 1.6.0 | MIT |
@@ -397,6 +424,8 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | which | 2.0.2 | ISC |
 | javascript | why-is-node-running | 2.3.0 | MIT |
 | javascript | word-wrap | 1.2.5 | MIT |
+| javascript | workerd | 1.20260708.1 | Apache-2.0 |
+| javascript | wrangler | 4.110.0 | MIT OR Apache-2.0 |
 | javascript | wrap-ansi | 7.0.0 | MIT |
 | javascript | ws | 8.21.0 | MIT |
 | javascript | xml-name-validator | 5.0.0 | Apache-2.0 |
@@ -406,6 +435,8 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | yargs | 17.7.2 | MIT |
 | javascript | yargs-parser | 21.1.1 | ISC |
 | javascript | yocto-queue | 0.1.0 | MIT |
+| javascript | youch | 4.1.0-beta.10 | MIT |
+| javascript | youch-core | 0.3.3 | MIT |
 | javascript | zod | 4.4.3 | MIT |
 | javascript | zod-validation-error | 4.0.2 | MIT |
 | javascript | zustand | 4.5.7 | MIT |
