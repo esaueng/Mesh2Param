@@ -20,6 +20,12 @@ const WorkspaceController = lazy(async () => ({
   default: (await import("./workspace/WorkspaceController")).WorkspaceController,
 }));
 
+// Dev-only control gallery (U1 deliverable). The import.meta.env.DEV guard makes
+// the chunk unreachable in production builds, so Rollup drops it entirely.
+const Styleguide = import.meta.env.DEV
+  ? lazy(async () => ({ default: (await import("./styleguide/Styleguide")).Styleguide }))
+  : null;
+
 export default function App() {
   const [screen, setScreen] = useState<"start" | "workspace">("start");
   const [samples, setSamples] = useState<SampleDescriptor[]>([]);
@@ -123,6 +129,14 @@ export default function App() {
     }
   }
 
+  if (import.meta.env.DEV && window.location.pathname === "/styleguide" && Styleguide !== null) {
+    return (
+      <Suspense fallback={<main className="workspace-loading" role="status">Loading styleguide…</main>}>
+        <Styleguide />
+      </Suspense>
+    );
+  }
+
   if (screen === "workspace") {
     return (
       <Suspense fallback={<main className="workspace-loading" role="status">Loading CAD workspace…</main>}>
@@ -163,12 +177,18 @@ export default function App() {
                 ? "analyze"
                 : null;
             if (operation !== null) {
-              regenerationJob = (await apiClient.startOperation(
-                imported.id,
-                operation,
-                imported.revision,
-                operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
-              )).data;
+              try {
+                regenerationJob = (await apiClient.startOperation(
+                  imported.id,
+                  operation,
+                  imported.revision,
+                  operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
+                )).data;
+              } catch (cause) {
+                // The server project may no longer exist (e.g. a saved file shared after deletion).
+                // Open the workspace from the file alone so the source mesh is still available.
+                console.warn("Could not regenerate artifacts for imported project; opening file state.", cause);
+              }
             }
           }
           openWorkspace(
