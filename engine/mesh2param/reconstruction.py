@@ -19,29 +19,34 @@ from .comparison import (
     compare_mesh_to_shape,
     write_residual_heatmap_glb,
 )
+from .fillets import analyze_fillet_bands
 from .frame import CoordinateFrame, FrameInferenceError, infer_coordinate_frame
 from .inference import (
     CandidateEvaluation,
     CandidateSearchSettings,
     InferredHole,
+    build_filleted_prismatic_cadgraph,
     build_l_bracket_cadgraph,
     build_prismatic_cadgraph,
     compile_candidate,
     infer_through_holes,
     score_candidate,
     select_bounded_candidates,
+    select_prismatic_profile_edges,
 )
 from .ingest import IngestedMesh, MeshLimits, ingest_mesh
 from .prismatic import (
     ExtrusionCandidate,
     PrismaticDiagnostic,
     PrismaticSettings,
+    ProjectedLoop,
     detect_extrusion_candidate,
     validate_prismatic_candidate,
 )
 from .repair import RepairResult, RepairSettings, repair_mesh
 from .sections import (
     SectionExtractionError,
+    SectionStack,
     SectionStackSettings,
     extract_section_stack,
     write_section_debug_glb,
@@ -57,7 +62,7 @@ from .sketches import (
 )
 from .source import write_cadquery_source
 from .tessellation import Tessellation, export_glb, write_binary_stl, write_glb
-from .validation import StepValidation, export_step_validated
+from .validation import ParametricSurfacePolicy, StepValidation, export_step_validated
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +154,7 @@ class PrismaticReconstructionResult:
     repair: RepairResult
     segmentation: SegmentationResult
     prismatic: ExtrusionCandidate
+    candidates: tuple[CandidateEvaluation, ...]
     selected: CandidateEvaluation
     graph: CADGraph
     comparison: ComparisonReport
@@ -166,7 +172,7 @@ class PrismaticReconstructionResult:
             "repair": self.repair.to_dict(),
             "segmentation": self.segmentation.to_dict(),
             "prismaticReconstruction": self.prismatic.to_dict(),
-            "candidates": [self.selected.to_dict()],
+            "candidates": [candidate.to_dict() for candidate in self.candidates],
             "selectedCandidate": self.selected.label,
             "comparison": self.comparison.to_dict(),
             "stepValidation": self.step.to_dict(),
@@ -242,9 +248,14 @@ def _final_graph(
             - (relative_volume if relative_volume is not None else 1.0),
         ),
     }
+    tolerance = graph.project_tolerance.surface_deviation
     tolerance_satisfied = (
-        comparison.p95_distance_mm <= graph.project_tolerance.surface_deviation
-        and comparison.maximum_distance_mm <= graph.project_tolerance.surface_deviation
+        comparison.p95_distance_mm <= 1.5 * tolerance
+        and comparison.p99_distance_mm <= 3.0 * tolerance
+        and comparison.maximum_distance_mm <= 6.0 * tolerance
+        and comparison.p95_normal_angle_deg <= 3.0
+        and comparison.relative_volume_delta is not None
+        and comparison.relative_volume_delta <= 0.001
     )
     document["validation"] = {
         "status": "valid" if step.valid and tolerance_satisfied else "invalid",
@@ -294,6 +305,154 @@ def _manifest(output: Path, artifacts: dict[str, str]) -> dict[str, Any]:
     return result
 
 
+def _section_prismatic_candidate(
+    section_stack: SectionStack,
+    settings: PrismaticSettings,
+) -> ExtrusionCandidate:
+    """Convert the stationary mid-thickness section into bounded extrusion evidence."""
+
+    loops = tuple(
+        ProjectedLoop(
+            (),
+            tuple(loop.points_mm[:-1]),
+            section_stack.frame,
+            loop.signed_area_mm2,
+            loop.is_hole,
+        )
+        for loop in section_stack.reference_slice.loops
+    )
+    radius_fit = section_stack.radius_fit
+    residual_ratio = (
+        float(radius_fit.rms_residual_mm) / settings.arc_rms_tolerance_mm
+        if radius_fit.rms_residual_mm is not None
+        else 1.0
+    )
+    confidence = max(0.5, min(0.99, 1.0 - 0.1 * residual_ratio))
+    candidate = ExtrusionCandidate(
+        True,
+        section_stack.axis,
+        section_stack.primary_extent_mm,
+        ("section.lower-cap", "section.upper-cap"),
+        section_stack.cap_offsets_mm,
+        section_stack.frame,
+        loops,
+        side_normal_rms=None,
+        confidence=confidence,
+    )
+    return validate_prismatic_candidate(candidate, settings)
+
+
+def _complete_filleted_section_reconstruction(
+    *,
+    source: IngestedMesh,
+    repaired: RepairResult,
+    segmentation: SegmentationResult,
+    section_stack: SectionStack,
+    output: Path,
+    units: str,
+    settings: ReconstructionSettings,
+) -> PrismaticReconstructionResult:
+    """Evaluate the sharp parent, then emit one evidence-backed fillet feature."""
+
+    analysis = analyze_fillet_bands(repaired.mesh, section_stack=section_stack)
+    _write_json(output / "fillets.json", analysis.to_dict())
+    if analysis.diagnostics:
+        diagnostic = analysis.diagnostics[0]
+        raise ReconstructionError(
+            "fillet-routing",
+            diagnostic.code,
+            diagnostic.message,
+            measured=diagnostic.measured,
+            source_triangle_ids=diagnostic.source_triangle_ids,
+        )
+    if len(analysis.groups) != 1:
+        raise ReconstructionError(
+            "fillet-routing",
+            "unsupported-fillet-group-count",
+            "filleted prismatic reconstruction requires one radius group; "
+            f"found {len(analysis.groups)}",
+        )
+    candidate = _section_prismatic_candidate(section_stack, settings.prismatic)
+    if not candidate.accepted:
+        candidate_diagnostic = candidate.diagnostics[-1] if candidate.diagnostics else None
+        raise ReconstructionError(
+            "fillet-parent-profile",
+            (
+                candidate_diagnostic.code
+                if candidate_diagnostic is not None
+                else "invalid-sharp-parent-profile"
+            ),
+            (
+                candidate_diagnostic.message
+                if candidate_diagnostic is not None
+                else "mid-thickness section did not yield a bounded sharp parent profile"
+            ),
+        )
+
+    source_document = _source_document(source, units)
+    sharp = compile_candidate(
+        "analytic-prismatic-spline-sharp-parent",
+        build_prismatic_cadgraph(source=source_document, candidate=candidate),
+    )
+    if not sharp.valid or sharp.shape is None:
+        raise ReconstructionError(
+            "fillet-parent-compilation",
+            "invalid-sharp-parent-brep",
+            "the bounded sharp parent profile did not compile into a valid solid",
+        )
+    sharp_comparison = compare_mesh_to_shape(
+        repaired.mesh,
+        sharp.shape,
+        settings=settings.comparison,
+    )
+    score_candidate(sharp, sharp_comparison)
+    tolerance = sharp.graph.project_tolerance.surface_deviation
+    sharp_fails_band = (
+        sharp_comparison.p95_distance_mm > 1.5 * tolerance
+        or sharp_comparison.p99_distance_mm > 3.0 * tolerance
+        or sharp_comparison.maximum_distance_mm > 6.0 * tolerance
+        or sharp_comparison.p95_normal_angle_deg > 3.0
+        or sharp_comparison.relative_volume_delta is None
+        or sharp_comparison.relative_volume_delta > 0.001
+    )
+    if not sharp_fails_band:
+        raise ReconstructionError(
+            "fillet-candidate-search",
+            "ambiguous-fillet-improvement",
+            "the sharp parent already satisfies source agreement gates",
+        )
+    sharp.valid = False
+    sharp.rejection_reason = (
+        "measured fillet-band mismatch: "
+        f"p95={sharp_comparison.p95_distance_mm:.6g} mm, "
+        f"max={sharp_comparison.maximum_distance_mm:.6g} mm, "
+        f"p95Normal={sharp_comparison.p95_normal_angle_deg:.6g} deg, "
+        f"relativeVolume={sharp_comparison.relative_volume_delta}"
+    )
+
+    target_edges = select_prismatic_profile_edges(sharp.compilation, candidate.axis or ())
+    filleted_graph = build_filleted_prismatic_cadgraph(
+        source=source_document,
+        candidate=candidate,
+        fillet_group=analysis.groups[0],
+        target_edge_ids=target_edges,
+    )
+    filleted = compile_candidate("analytic-prismatic-spline-filleted", filleted_graph)
+    return _complete_prismatic_reconstruction(
+        source=source,
+        repaired=repaired,
+        segmentation=segmentation,
+        candidate=candidate,
+        output=output,
+        units=units,
+        settings=settings,
+        graph=filleted_graph,
+        selected=filleted,
+        candidate_label="analytic-prismatic-spline-filleted",
+        rejected_candidates=(sharp,),
+    )
+
+
 def _complete_prismatic_reconstruction(
     *,
     source: IngestedMesh,
@@ -303,20 +462,23 @@ def _complete_prismatic_reconstruction(
     output: Path,
     units: str,
     settings: ReconstructionSettings,
+    graph: CADGraph | None = None,
+    selected: CandidateEvaluation | None = None,
+    candidate_label: str | None = None,
+    rejected_candidates: tuple[CandidateEvaluation, ...] = (),
 ) -> PrismaticReconstructionResult:
     """Compile, compare, round-trip, and materialize one accepted extrusion."""
 
-    graph = build_prismatic_cadgraph(
-        source=_source_document(source, units),
-        candidate=candidate,
+    graph = graph or build_prismatic_cadgraph(
+        source=_source_document(source, units), candidate=candidate
     )
     spline_mode = any(
-        primitive.kind == "bspline"
-        for profile in candidate.profiles
-        for primitive in profile
+        primitive.kind == "bspline" for profile in candidate.profiles for primitive in profile
     )
-    candidate_label = "analytic-prismatic-spline" if spline_mode else "analytic-prismatic"
-    selected = compile_candidate(candidate_label, graph)
+    candidate_label = candidate_label or (
+        "analytic-prismatic-spline" if spline_mode else "analytic-prismatic"
+    )
+    selected = selected or compile_candidate(candidate_label, graph)
     if not selected.valid or selected.shape is None:
         details = (
             selected.compilation.errors[0].code
@@ -353,10 +515,34 @@ def _complete_prismatic_reconstruction(
                 f"max={comparison.maximum_distance_mm:g} mm, "
                 f"relativeVolume={comparison.relative_volume_delta}"
             ),
+            measured={
+                "p95DistanceMm": comparison.p95_distance_mm,
+                "p99DistanceMm": comparison.p99_distance_mm,
+                "maximumDistanceMm": comparison.maximum_distance_mm,
+                "p95NormalAngleDeg": comparison.p95_normal_angle_deg,
+                "relativeVolumeDelta": (
+                    comparison.relative_volume_delta
+                    if comparison.relative_volume_delta is not None
+                    else "unavailable"
+                ),
+            },
         )
     step_path = output / "model.step"
     try:
-        step = export_step_validated(selected.shape, step_path, units=units)
+        allowed_surfaces = ["plane", "cylinder", "cone"]
+        if spline_mode:
+            allowed_surfaces.append("surfaceOfExtrusion")
+        if any(feature.operation == "fillet" for feature in graph.features):
+            allowed_surfaces.extend(("torus", "bspline"))
+        step = export_step_validated(
+            selected.shape,
+            step_path,
+            units=units,
+            parametric_surface_policy=ParametricSurfacePolicy(
+                allowed_surface_types=tuple(allowed_surfaces),
+                source_triangle_count=len(source.mesh.faces),
+            ),
+        )
     except ValueError as exc:
         raise ReconstructionError(
             "prismatic-step",
@@ -367,11 +553,15 @@ def _complete_prismatic_reconstruction(
         dict.fromkeys(
             [warning.message for warning in source.diagnostics.warnings]
             + list(repaired.warnings)
-            + list(segmentation.warnings)
+            + [
+                warning
+                for warning in segmentation.warnings
+                if warning != "freeform remainder preserved; automatic feature inference is partial"
+            ]
             + list(comparison.warnings)
         )
     )
-    final_feature_id = "feature.hex-cut" if spline_mode else "feature.base"
+    final_feature_id = graph.features[-1].id
     final_graph = _final_graph(graph, comparison, step, final_feature_id, warnings)
     graph_path = output / "model.cadgraph.json"
     graph_path.write_bytes(canonical_json_bytes(final_graph))
@@ -394,7 +584,8 @@ def _complete_prismatic_reconstruction(
     )
     _write_json(output / "comparison.json", comparison.to_dict())
     _write_json(output / "prismatic.json", candidate.to_dict())
-    _write_json(output / "candidates.json", [selected.to_dict()])
+    candidates = (*rejected_candidates, selected)
+    _write_json(output / "candidates.json", [item.to_dict() for item in candidates])
     artifacts = {
         "analysis": str(output / "analysis.json"),
         "sourceGlb": str(output / "source.glb"),
@@ -415,6 +606,14 @@ def _complete_prismatic_reconstruction(
         "residualHeatmap": heatmap.path,
         "originalSource": str(output / f"source.original{source.metadata.extension}"),
     }
+    for name, filename in (
+        ("sections", "sections.json"),
+        ("sectionsGlb", "sections.glb"),
+        ("fillets", "fillets.json"),
+    ):
+        section_path = output / filename
+        if section_path.exists():
+            artifacts[name] = str(section_path)
     limitations = (
         "This recovers one prismatic feature sequence from bounded profile evidence, not the "
         "historical CAD tree.",
@@ -426,6 +625,7 @@ def _complete_prismatic_reconstruction(
         repaired,
         segmentation,
         candidate,
+        candidates,
         selected,
         final_graph,
         comparison,
@@ -543,8 +743,19 @@ def reconstruct_file(
                 diagnostic_by_code = {
                     diagnostic.code: diagnostic for diagnostic in section_stack.diagnostics
                 }
+                if "fillet-band-detected" in diagnostic_by_code:
+                    filleted_result = _complete_filleted_section_reconstruction(
+                        source=source,
+                        repaired=repaired,
+                        segmentation=segmentation,
+                        section_stack=section_stack,
+                        output=output,
+                        units=units,
+                        settings=settings,
+                    )
+                    _report(progress_callback, "finalizing artifacts", 99.0)
+                    return filleted_result
                 for code in (
-                    "fillet-band-detected",
                     "unsupported-blind-feature",
                     "unsupported-tapered-extrusion",
                 ):
