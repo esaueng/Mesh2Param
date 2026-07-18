@@ -48,6 +48,16 @@ PARAMETRIC_SURFACE_TYPES: tuple[str, ...] = (
     "offset",
     "other",
 )
+FREEFORM_STEP_SURFACE_TYPES: frozenset[str] = frozenset(
+    {
+        "bspline",
+        "bezier",
+        "surfaceOfExtrusion",
+        "surfaceOfRevolution",
+        "offset",
+        "other",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -388,13 +398,22 @@ def export_step_validated(
         require_tessellation=require_tessellation,
     )
     volume_delta = abs(source_validation.volume - reimport_validation.volume)
+    source_surface_counts = classify_parametric_face_surfaces(shape)
+    reimport_surface_counts = classify_parametric_face_surfaces(imported)
+    contains_freeform_surface = any(
+        source_surface_counts[surface_type] or reimport_surface_counts[surface_type]
+        for surface_type in FREEFORM_STEP_SURFACE_TYPES
+    )
+    relative_volume_tolerance = 5e-6 if contains_freeform_surface else 1e-6
     volume_tolerance = max(
         linear_resolution**3 * 10,
         # OCCT STEP translation approximates intersection p-curves: a few
         # parts in 10^7 for mutually intersecting analytic surfaces, and up to
         # a few parts in 10^6 where a trimming curve crosses a freeform
-        # B-spline face. Fail above five parts per million.
-        abs(source_validation.volume) * 5e-6,
+        # B-spline face. Keep analytic sample metadata byte-stable at one part
+        # per million and widen only when either exact shape contains a
+        # freeform surface.
+        abs(source_validation.volume) * relative_volume_tolerance,
         1e-12,
     )
     topology_counts_match = (
@@ -551,6 +570,7 @@ def classify_face_surfaces(value: cq.Shape | cq.Workplane) -> dict[str, int]:
 
 
 __all__ = [
+    "FREEFORM_STEP_SURFACE_TYPES",
     "PARAMETRIC_SURFACE_TYPES",
     "STEP_UNITS",
     "ParametricSurfaceAudit",
