@@ -77,9 +77,11 @@ export function CanvasLanding({
         </button>
 
         {visibleRecentProjects.length > 0 ? (
-          <div className="landing-recents">
-            <span className="landing-recents-label"><Clock size={13} /> Recent</span>
-            <ol className="landing-recents-list" aria-label="Recent projects">
+          <section className="landing-recents" aria-labelledby="recent-projects-heading">
+            <h2 id="recent-projects-heading" className="landing-recents-label">
+              <Clock size={13} /> Recent projects
+            </h2>
+            <ol className="landing-recents-list" aria-labelledby="recent-projects-heading">
               {visibleRecentProjects.map((project, index) => (
                 <li key={project.id}>
                   <button
@@ -96,6 +98,8 @@ export function CanvasLanding({
                         <span>{project.units}</span>
                         <span aria-hidden="true">·</span>
                         <time dateTime={project.updatedAt}>{formatRecentTimestamp(project.updatedAt)}</time>
+                        <span aria-hidden="true">·</span>
+                        <span>Revision {project.revision}</span>
                       </span>
                     </span>
                     <ChevronRight aria-hidden="true" size={15} />
@@ -103,7 +107,7 @@ export function CanvasLanding({
                 </li>
               ))}
             </ol>
-          </div>
+          </section>
         ) : null}
       </div>
 
