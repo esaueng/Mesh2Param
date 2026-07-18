@@ -10,6 +10,7 @@ paths.
 from __future__ import annotations
 
 import math
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field, replace
 from itertools import combinations
 from typing import Any, Literal
@@ -18,6 +19,14 @@ import numpy as np
 import trimesh
 from shapely.geometry import LinearRing, Point, Polygon
 
+from .profile_fitting import (
+    BSplineSegment,
+    NominalMeasurement,
+    NominalSnappingPolicy,
+    RegularPolygonHypothesis,
+    fit_bounded_bspline,
+    fit_regular_polygon,
+)
 from .segmentation import SurfacePatch
 
 
@@ -194,7 +203,7 @@ class CirclePrimitive(ProfilePrimitive):
         return self.start_tangent()
 
 
-type Primitive = LinePrimitive | ArcPrimitive | CirclePrimitive
+type Primitive = LinePrimitive | ArcPrimitive | CirclePrimitive | BSplineSegment
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +216,8 @@ class ExtrusionCandidate:
     frame: ProjectionFrame | None
     loops: tuple[ProjectedLoop, ...] = ()
     profiles: tuple[tuple[Primitive, ...], ...] = ()
+    polygon_hypotheses: tuple[RegularPolygonHypothesis | None, ...] = ()
+    distance_measurement: NominalMeasurement | None = None
     side_normal_rms: float | None = None
     confidence: float = 0.0
     diagnostics: tuple[PrismaticDiagnostic, ...] = ()
@@ -220,6 +231,20 @@ class ExtrusionCandidate:
             "capOffsetsMm": list(self.cap_offsets_mm) if self.cap_offsets_mm else None,
             "sideNormalRms": self.side_normal_rms,
             "confidence": self.confidence,
+            "candidateLabel": (
+                "analytic-prismatic-spline"
+                if any(
+                    isinstance(item, BSplineSegment)
+                    for profile in self.profiles
+                    for item in profile
+                )
+                else "analytic-prismatic"
+            ),
+            "distanceMeasurement": (
+                self.distance_measurement.to_dict()
+                if self.distance_measurement is not None
+                else None
+            ),
             "loops": [
                 {
                     "vertexIds": list(loop.vertex_ids),
@@ -252,13 +277,28 @@ class ExtrusionCandidate:
                                     "radiusMm": primitive.radius_mm,
                                 }
                                 if isinstance(primitive, CirclePrimitive)
-                                else {}
+                                else (
+                                    {
+                                        "degree": primitive.degree,
+                                        "controlPoints": [
+                                            list(point) for point in primitive.control_points
+                                        ],
+                                        "penalties": primitive.penalties.to_dict(),
+                                        "uncertainty": primitive.uncertainty.to_dict(),
+                                    }
+                                    if isinstance(primitive, BSplineSegment)
+                                    else {}
+                                )
                             )
                         ),
                     }
                     for primitive in profile
                 ]
                 for profile in self.profiles
+            ],
+            "polygonHypotheses": [
+                hypothesis.to_dict() if hypothesis is not None else None
+                for hypothesis in self.polygon_hypotheses
             ],
             "diagnostics": [diagnostic.to_dict() for diagnostic in self.diagnostics],
         }
@@ -804,6 +844,84 @@ def fit_closed_line_arc_chain(
     return _continuity(min(options, key=lambda option: option[:4])[-1])
 
 
+def _cyclic_interval(
+    points: np.ndarray,
+    start: tuple[float, float],
+    end: tuple[float, float],
+) -> np.ndarray:
+    start_index = int(np.argmin(np.linalg.norm(points - np.asarray(start), axis=1)))
+    end_index = int(np.argmin(np.linalg.norm(points - np.asarray(end), axis=1)))
+    if float(np.linalg.norm(points[start_index] - np.asarray(start))) > 1e-8 or float(
+        np.linalg.norm(points[end_index] - np.asarray(end))
+    ) > 1e-8:
+        raise PrismaticFitError(
+            "spline_endpoint_mismatch", "spline interval endpoints are absent from cap evidence"
+        )
+    if end_index >= start_index:
+        return points[start_index : end_index + 1]
+    return np.vstack((points[start_index:], points[: end_index + 1]))
+
+
+def _fit_spline_aware_outer(
+    loop: ProjectedLoop,
+    line_arc_chain: tuple[Primitive, ...],
+    settings: PrismaticSettings,
+) -> tuple[Primitive, ...]:
+    """Replace one contiguous freeform remainder with one bounded B-spline."""
+
+    line_indices = [
+        index
+        for index, primitive in enumerate(line_arc_chain)
+        if isinstance(primitive, LinePrimitive)
+    ]
+    broad_arc_indices = [
+        index
+        for index, primitive in enumerate(line_arc_chain)
+        if isinstance(primitive, ArcPrimitive) and abs(primitive.sweep_deg) >= 120.0
+    ]
+    if len(line_indices) != 2 or len(broad_arc_indices) != 1 or len(line_arc_chain) < 5:
+        raise PrismaticFitError(
+            "no_valid_spline_decomposition",
+            "profile does not contain two lines, one broad arc, and one spline remainder",
+        )
+    anchors = set((*line_indices, *broad_arc_indices))
+    remainder = [index for index in range(len(line_arc_chain)) if index not in anchors]
+    if not remainder:
+        raise PrismaticFitError(
+            "no_valid_spline_decomposition", "profile has no freeform remainder to fit"
+        )
+    count = len(line_arc_chain)
+    if any(
+        (remainder[index] + 1) % count != remainder[index + 1]
+        for index in range(len(remainder) - 1)
+    ):
+        raise PrismaticFitError(
+            "no_valid_spline_decomposition", "profile freeform remainder is not contiguous"
+        )
+    first = remainder[0]
+    last = remainder[-1]
+    interval = _cyclic_interval(
+        loop.array,
+        line_arc_chain[first].start,
+        line_arc_chain[last].end,
+    )
+    try:
+        spline = fit_bounded_bspline(
+            interval,
+            rms_tolerance_mm=settings.arc_rms_tolerance_mm * 1.2,
+            maximum_tolerance_mm=settings.arc_max_residual_tolerance_mm,
+        )
+    except ValueError as exc:
+        raise PrismaticFitError("no_valid_spline_decomposition", str(exc)) from exc
+    result: list[Primitive] = []
+    for index, primitive in enumerate(line_arc_chain):
+        if index == first:
+            result.append(spline)
+        elif index not in remainder:
+            result.append(primitive)
+    return _continuity(tuple(result))
+
+
 def _classify_projected_loops(loops: list[ProjectedLoop]) -> tuple[ProjectedLoop, ...]:
     if not loops:
         raise PrismaticFitError("invalid_boundary_topology", "cap has no boundary loops")
@@ -1057,7 +1175,24 @@ def validate_prismatic_candidate(
     if not candidate.accepted:
         return candidate
     try:
-        profiles = tuple(fit_closed_line_arc_chain(loop, settings) for loop in candidate.loops)
+        profiles_list: list[tuple[Primitive, ...]] = []
+        polygon_hypotheses: list[RegularPolygonHypothesis | None] = []
+        snapping = NominalSnappingPolicy()
+        for loop in candidate.loops:
+            profile = fit_closed_line_arc_chain(loop, settings)
+            polygon: RegularPolygonHypothesis | None = None
+            if loop.is_hole and all(isinstance(item, LinePrimitive) for item in profile):
+                vertices = np.asarray([item.start for item in profile], dtype=np.float64)
+                try:
+                    polygon = fit_regular_polygon(vertices, snapping=snapping)
+                except ValueError:
+                    polygon = None
+            elif not loop.is_hole:
+                with suppress(PrismaticFitError):
+                    profile = _fit_spline_aware_outer(loop, profile, settings)
+            profiles_list.append(profile)
+            polygon_hypotheses.append(polygon)
+        profiles = tuple(profiles_list)
     except PrismaticFitError as exc:
         return replace(
             candidate,
@@ -1073,11 +1208,21 @@ def validate_prismatic_candidate(
                 PrismaticDiagnostic("profile_not_closed", "one fitted profile is empty"),
             ),
         )
-    return replace(candidate, profiles=profiles)
+    if candidate.distance_mm is None:
+        raise AssertionError("accepted prismatic candidate has no extrusion distance")
+    distance_measurement = NominalSnappingPolicy().snap(candidate.distance_mm)
+    return replace(
+        candidate,
+        distance_mm=distance_measurement.selected_mm,
+        profiles=profiles,
+        polygon_hypotheses=tuple(polygon_hypotheses),
+        distance_measurement=distance_measurement,
+    )
 
 
 __all__ = [
     "ArcPrimitive",
+    "BSplineSegment",
     "CirclePrimitive",
     "ExtrusionCandidate",
     "LinePrimitive",
