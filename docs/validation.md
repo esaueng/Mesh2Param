@@ -64,6 +64,20 @@ at most `6t`, P95 normal error at most 3 degrees, and relative volume error at m
 Fillet candidates may introduce kernel-generated torus and B-spline faces, but the reimport audit
 still rejects unclassified surfaces and triangle-per-face output.
 
+Functional detail suppression never changes the preserved source mesh. Material beyond a primary
+cap plane is eligible only when it forms a bounded, closed, constant-depth footprint within the
+configured depth, cap-area, volume, region-count, and triangle-count limits. The
+`suppressed-regions.json` artifact records the support plane, complete boundary loop, source
+triangle IDs, exposed area, depth, and measured volume. Every vertex of every suppressed triangle
+must project inside that declared footprint.
+
+Validation then compares the result twice: unmasked against the complete source (so the omitted
+detail remains visible in metrics and the residual heatmap), and masked against a watertight
+functional reference that replaces exactly the declared detail with its support face. Only the
+masked metrics determine functional-mode acceptance; both reports are persisted together in
+`comparison.json`, and the CADGraph snapshot records `validationMode: functional` plus the same
+suppressed-region declarations.
+
 ## Artifacts and reproducibility
 
 Successful validation persists:

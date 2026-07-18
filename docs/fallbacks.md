@@ -63,6 +63,20 @@ Rejection does not relabel the hypothesis as analytic and does not block other s
 paths. If no analytic path succeeds, the explicit source-bound faceted operation below remains
 available; it is never presented as recovered parametric history.
 
+## Functional shallow-detail suppression
+
+Functional mode may suppress a shallow constant-depth emboss attached to a primary cap, but it
+does not erase or smooth the source evidence. Detection is limited to material beyond the fitted
+cap planes with one closed support loop and one depth. Default guards bound depth to 10 percent of
+body thickness, footprint to 15 percent of cap area, volume to 1 percent of source volume, eight
+regions, and 2,048 evidence triangles per region. Failed bounds or open, branching, varying-depth,
+or out-of-footprint evidence reject with a structured detail diagnostic.
+
+The functional reference removes only the recorded source triangles and closes the exact support
+loop. Both masked and complete-source comparisons are retained; the unmasked report and heatmap
+continue to show the omitted detail. This is an explicit equivalence policy, not recovery of the
+original boss feature. Full editable emboss recovery remains a separate opt-in milestone.
+
 ## Explicit faceted STEP fallback
 
 Freeform STL geometry can be converted without inventing analytic history through the Features
