@@ -10,7 +10,7 @@ import {
 } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
-  it("offers curved first with the faceted fallback as the labeled alternate", () => {
+  it("offers the parametric attempt first with curved as the labeled alternate", () => {
     const patches = [{
       id: "patch.freeform",
       type: "freeform",
@@ -53,22 +53,25 @@ describe("canvas pipeline actions", () => {
     } as unknown as WorkspaceViewModel;
 
     const action = nextAction(vm);
+    // Freeform meshes now attempt the automatic parametric path first (the
+    // engine evaluates spline-prismatic candidates and fails closed), with
+    // the curved plate path one click away as the alternate.
     expect(action).toMatchObject({
+      kind: "reconstruct",
+      label: "Reconstruct",
+      operation: "reconstruct",
+      disabled: false,
+    });
+    expect(action.settings).toBeUndefined();
+    expect(action.hint).toContain("approximate");
+    expect(action.alternate).toMatchObject({
       kind: "curved",
       label: "Generate curved STEP",
       operation: "reconstruct",
       settings: { mode: "curved" },
       disabled: false,
     });
-    expect(action.hint).toContain("approximate");
-    expect(action.hint).toContain("not recovered design history");
-    expect(action.alternate).toMatchObject({
-      kind: "faceted",
-      label: "Generate faceted STEP",
-      operation: "reconstruct",
-      settings: { mode: "faceted" },
-      disabled: false,
-    });
+    expect(action.alternate?.hint).toContain("not recovered design history");
   });
 
   it("reveals reconstructed CAD as a shaded solid instead of inherited mesh wireframe", () => {

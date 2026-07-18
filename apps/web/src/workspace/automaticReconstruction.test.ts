@@ -94,7 +94,7 @@ describe("automaticReconstructionCapability", () => {
     expect(capability.reason).toMatch(/surface analysis again/i);
   });
 
-  it("reports predominant freeform evidence and recommends the faceted fallback", () => {
+  it("supports freeform analysis as an approximate parametric attempt", () => {
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;
     document.analysis = {
@@ -113,14 +113,15 @@ describe("automaticReconstructionCapability", () => {
       locked: false,
     }];
     const capability = automaticReconstructionCapability(document);
-    expect(capability.supported).toBe(false);
-    expect(capability.reason).toContain("99.0%");
-    expect(capability.reason).toMatch(/faceted STEP fallback/i);
+    expect(capability.supported).toBe(true);
+    expect(capability.approximate).toBe(true);
+    expect(capability.reason).toBeUndefined();
   });
 
-  it("refuses freeform geometry even with opposing cap evidence", () => {
-    // Cap congruence alone does not guarantee the exact prismatic backend path
-    // succeeds; its mesh-agreement gates run only at reconstruct time.
+  it("marks freeform geometry with opposing caps as an approximate attempt", () => {
+    // The reconstruct job's candidate evaluation (spline-profile extrusions,
+    // fillet features) decides at run time; the capability no longer
+    // pre-blocks, and the pipeline keeps the curved path as the alternate.
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;
     document.analysis = {
@@ -132,16 +133,16 @@ describe("automaticReconstructionCapability", () => {
       ],
     };
     const capability = automaticReconstructionCapability(document);
-    expect(capability.supported).toBe(false);
-    expect(capability.reason).toMatch(/faceted STEP fallback/i);
+    expect(capability.supported).toBe(true);
+    expect(capability.approximate).toBe(true);
   });
 
-  it("refuses a gable-shaped analysis despite an accepted prismatic candidate", () => {
-    // samples/curved-benchmark/bspline-soft-gable-plate: 2 freeform roof patches +
-    // 5 planes with congruent pentagon end walls produce an accepted candidate at
-    // ~0.88 confidence, yet exact reconstruction fails its geometric gates and dies
-    // with the L-bracket freeform-remainder error. The capability must refuse so the
-    // pipeline offers the curved STEP branch instead.
+  it("supports a gable-shaped analysis as an approximate attempt", () => {
+    // samples/curved-benchmark/bspline-soft-gable-plate: 2 freeform roof
+    // patches + 5 planes. The engine's automatic path now evaluates
+    // spline-prismatic candidates and fails closed when a mesh is not
+    // extrusion-explainable; the capability reports supported+approximate
+    // and the curved plate path remains the pipeline alternate.
     const document = documentWith(structuredClone(baseGraphDocument) as unknown as CADGraph);
     document.cadgraph = null;
     document.analysis = {
@@ -162,8 +163,8 @@ describe("automaticReconstructionCapability", () => {
       },
     };
     const capability = automaticReconstructionCapability(document);
-    expect(capability.supported).toBe(false);
-    expect(capability.reason).toContain("2 non-plane/cylinder patches");
+    expect(capability.supported).toBe(true);
+    expect(capability.approximate).toBe(true);
   });
 
   it("requires complete persisted analysis settings before enabling inference", () => {
