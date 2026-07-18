@@ -351,7 +351,9 @@ stable.
 **PR-G2d — Spline-aware profile fitting and sharp-body candidate.**
 Allow-list: `engine/mesh2param/profile_fitting.py` (new), `prismatic.py`,
 `inference.py`, `reconstruction.py`, `tests/test_prismatic_reconstruction.py`,
-`tests/test_general_fixtures.py`.
+`tests/test_general_fixtures.py`, `tests/test_general_baseline.py` (only to
+replace the obsolete calibrated `spanner-sharp` rejection with G2d success
+expectations; filleted rejection calibration remains unchanged).
 
 - B-spline segment class with penalties and uncertainty records;
   regular-polygon inner-loop hypothesis; nominal snapping policy.
@@ -378,7 +380,9 @@ estimate within 0.02 mm of 1.5 and stable along the loop; on
 `spanner-sharp`, no fillet group is reported.
 
 **PR-G3b — Fillet feature emission and validation.**
-Allow-list: `engine/mesh2param/inference.py`, `reconstruction.py`,
+Allow-list: `engine/mesh2param/inference.py`, `reconstruction.py`, `prismatic.py`
+(only to route the same bounded G2d spline decomposition from a cyclic
+mid-thickness section whose tessellation splits analytic line spans),
 `compiler.py` (only if the semantic registry needs a selector extension),
 `packages/contracts` (only if 3a proves the registry insufficient), tests,
 `docs/fallbacks.md`, `docs/validation.md`.
@@ -405,6 +409,7 @@ gates; no triangle is discarded outside a declared region.
 
 **PR-G4b — Full-mode boss recovery and UI surfacing.**
 Allow-list: `engine/mesh2param/details.py`, `inference.py`,
+`reconstruction.py` (bounded functional/full mode routing only),
 `services/api` (bounded settings), `apps/web` (feature tree, suppressed-region
 overlay, reusing existing patches/residual GLB layers), tests, docs.
 
