@@ -424,11 +424,17 @@ def _fit_circle_radius(
     reference: SectionSlice,
     cap_offsets: tuple[float, float],
     settings: SectionStackSettings,
+    *,
+    cap_side: Literal["both", "lower", "upper"] = "both",
 ) -> CircleRadiusFit:
     reference_outer = reference.loops[0]
     distances: list[float] = []
     insets: list[float] = []
     for section in slices:
+        if cap_side == "lower" and section.normalized_height > 0.5:
+            continue
+        if cap_side == "upper" and section.normalized_height < 0.5:
+            continue
         outer = section.loops[0]
         current = outer.bounds_mm
         expected = reference_outer.bounds_mm
@@ -440,7 +446,13 @@ def _fit_circle_radius(
         )
         insets.append(max(0.0, float(np.median(np.asarray(support_insets)))))
         distances.append(
-            min(section.offset_mm - cap_offsets[0], cap_offsets[1] - section.offset_mm)
+            section.offset_mm - cap_offsets[0]
+            if cap_side == "lower"
+            else (
+                cap_offsets[1] - section.offset_mm
+                if cap_side == "upper"
+                else min(section.offset_mm - cap_offsets[0], cap_offsets[1] - section.offset_mm)
+            )
         )
     distance_array = np.asarray(distances, dtype=np.float64)
     inset_array = np.asarray(insets, dtype=np.float64)
@@ -469,6 +481,25 @@ def _fit_circle_radius(
         for distance, measured, model in zip(distance_array, inset_array, predicted, strict=True)
     )
     return CircleRadiusFit(accepted, radius, rms, maximum, maximum_inset, samples)
+
+
+def fit_section_circle_radius(
+    stack: SectionStack,
+    *,
+    cap_side: Literal["both", "lower", "upper"] = "both",
+    settings: SectionStackSettings | None = None,
+) -> CircleRadiusFit:
+    """Refit the section inset series globally or for one cap side."""
+
+    settings = settings or SectionStackSettings(section_count=len(stack.slices))
+    settings.validate()
+    return _fit_circle_radius(
+        stack.slices,
+        stack.slices[stack.reference_slice_index],
+        stack.cap_offsets_mm,
+        settings,
+        cap_side=cap_side,
+    )
 
 
 def _taper_evidence(
@@ -697,5 +728,6 @@ __all__ = [
     "SectionStackSettings",
     "estimate_section_axis",
     "extract_section_stack",
+    "fit_section_circle_radius",
     "write_section_debug_glb",
 ]
