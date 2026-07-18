@@ -11,6 +11,7 @@ import pytest
 import trimesh
 from mesh2param_api.jobs.handlers import (
     JobFailure,
+    _automatic_detail_mode,
     _faceted_sewing_tolerance,
     _reconstruction_project_settings,
     _reconstruction_segmentation_settings,
@@ -117,7 +118,13 @@ def test_analyze_handler_applies_segmentation_settings_and_writes_viewer_glbs(
         "smoothAngleDeg": 27.5,
         "planarFitToleranceMm": 0.125,
         "cylinderFitToleranceMm": 0.125,
+        "sphereFitToleranceMm": 0.01,
+        "coneFitToleranceMm": 0.01,
+        "torusFitToleranceMm": 0.01,
         "minimumCylinderCoverageDeg": 300.0,
+        "minimumRevolutionCoverageDeg": 300.0,
+        "minimumConeHalfAngleDeg": 5.0,
+        "maximumConeHalfAngleDeg": 85.0,
         "maximumCylinderAxisNormalComponent": 0.05,
         "minimumFacetedCylinderSideCount": 8,
         "maximumFacetedCylinderSagittaMm": 0.1,
@@ -567,6 +574,59 @@ def test_reconstruct_handler_passes_persisted_segmentation_to_engine(
     assert segmentation.stable_id_resolution_mm == 1e-5
 
 
+def test_automatic_detail_mode_is_bounded_and_defaults_to_functional() -> None:
+    assert _automatic_detail_mode({"settings": {}}) == "functional"
+    assert _automatic_detail_mode({"settings": {"detailMode": "full"}}) == "full"
+
+    with pytest.raises(JobFailure) as invalid_mode:
+        _automatic_detail_mode({"settings": {"detailMode": "everything"}})
+    assert invalid_mode.value.code == "invalid_detail_mode"
+
+    with pytest.raises(JobFailure) as unsupported:
+        _automatic_detail_mode({"settings": {"detailMode": "full", "depth": 0.4}})
+    assert unsupported.value.code == "invalid_reconstruction_settings"
+
+    with pytest.raises(JobFailure) as invalid_reconstruction:
+        _automatic_detail_mode({"settings": {"mode": "guess"}})
+    assert invalid_reconstruction.value.code == "invalid_reconstruction_mode"
+
+
+def test_reconstruct_handler_routes_full_detail_mode_to_engine(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.stl"
+    source.write_bytes(ASCII_SQUARE_STL)
+    captured: dict[str, object] = {}
+
+    def reconstruct_file(
+        _source: Path,
+        _workdir: Path,
+        *,
+        units: str,
+        settings: Any,
+        progress_callback: Any,
+    ) -> object:
+        del units, progress_callback
+        captured["detail_mode"] = settings.detail_mode
+        raise mesh2param.ReconstructionError(
+            "detail-recovery", "captured-detail-mode", "stop after capturing mode"
+        )
+
+    monkeypatch.setattr(mesh2param, "reconstruct_file", reconstruct_file)
+    payload = {
+        "sourcePath": str(source),
+        "units": "mm",
+        "settings": {"detailMode": "full"},
+    }
+
+    with pytest.raises(JobFailure) as failure:
+        run_handler("reconstruct", payload, tmp_path, _progress)
+
+    assert failure.value.code == "captured-detail-mode"
+    assert captured["detail_mode"] == "full"
+
+
 def test_reconstruction_persists_selectable_candidate_histories_without_losing_settings() -> None:
     candidate = {
         "label": "measured",
@@ -578,7 +638,11 @@ def test_reconstruction_persists_selectable_candidate_histories_without_losing_s
         "kernel": {"success": True},
         "comparison": {"p95DistanceMm": 0.01},
     }
-    result = {"candidates": [candidate], "selectedCandidate": "measured"}
+    result = {
+        "candidates": [candidate],
+        "selectedCandidate": "measured",
+        "detailMode": "full",
+    }
     settings = _reconstruction_project_settings(
         {"projectState": {"settings": {"surfaceTolerance": 0.1}}}, result
     )
@@ -587,6 +651,7 @@ def test_reconstruction_persists_selectable_candidate_histories_without_losing_s
         "surfaceTolerance": 0.1,
         "candidateHistories": [candidate],
         "selectedCandidate": "measured",
+        "detailMode": "full",
     }
     candidate["label"] = "mutated"
     assert settings["candidateHistories"][0]["label"] == "measured"

@@ -1,0 +1,30 @@
+{
+  "category": "negative",
+  "description": "Two disconnected closed bodies in one STL file.",
+  "directory": "multi-body-boxes",
+  "expectation": "multi-body",
+  "groundTruth": null,
+  "mesh": {
+    "bodyCount": 2,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "multi-body-boxes",
+  "stl": {
+    "byteSize": 1284,
+    "path": "source.stl",
+    "sha256": "16b4ba6aaf988c66d03d701d090db38dae4f7728a83c602c4e89fa3b9a850af5",
+    "triangleCount": 24,
+    "vertexCount": 16
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Two disjoint boxes",
+  "units": "mm"
+}

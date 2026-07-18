@@ -58,6 +58,7 @@ const supportedFeatures: Record<string, unknown>[] = [
   { ...common, operation: "chamfer", targetEdges: ["feature.base.edge.1"], width: 1 },
   { ...common, operation: "fillet", targetEdges: ["feature.base.edge.1"], radius: 1 },
   { ...common, operation: "importedFaceted", booleanMode: "additive", sourceArtifactId: "artifact.mesh", meshSha256: "0".repeat(64), intent: "fallback" },
+  { ...common, operation: "reconstructedSurfaceNetwork", sourceArtifactId: "artifact.network", artifactSha256: "0".repeat(64) },
 ];
 
 describe("CADGraph contracts", () => {
@@ -65,7 +66,7 @@ describe("CADGraph contracts", () => {
     const document = await fixture();
     assertCADGraph(document);
     const kinds = new Set(document.sketches[0]?.entities.map((entity) => entity.kind));
-    expect(kinds).toEqual(new Set(["point", "constructionPoint", "line", "constructionLine", "polyline", "rectangle", "circle", "circularArc", "closedProfile", "constructionAxis"]));
+    expect(kinds).toEqual(new Set(["point", "constructionPoint", "line", "constructionLine", "polyline", "rectangle", "circle", "circularArc", "bspline", "closedProfile", "constructionAxis"]));
   });
 
   it("validates the generated bracket's explicit nullable fields", async () => {
@@ -98,6 +99,45 @@ describe("CADGraph contracts", () => {
     const snapshot = structuredClone(legacy);
     expect(migrateCADGraph(legacy).schemaVersion).toBe("1.0.0");
     expect(legacy).toEqual(snapshot);
+  });
+
+  it("migrates a bounded legacy B-spline entity with safe base defaults", async () => {
+    const legacy = await fixture();
+    legacy.schemaVersion = "0.1.0";
+    const sketch = (legacy.sketches as Array<Record<string, unknown>>)[0];
+    const entity = (sketch?.entities as Array<Record<string, unknown>>).find(
+      (item) => item.kind === "bspline",
+    );
+    expect(entity).toBeDefined();
+    entity!.type = entity!.kind;
+    delete entity!.kind;
+    for (const key of ["construction", "sourceEvidence", "confidence", "locked", "suppressed"]) {
+      delete entity![key];
+    }
+    const migrated = migrateCADGraph(legacy);
+    const bspline = migrated.sketches[0]?.entities.find((item) => item.kind === "bspline");
+    expect(bspline).toMatchObject({
+      construction: false,
+      degree: 3,
+      clamped: true,
+      rational: false,
+      periodic: false,
+    });
+  });
+
+  it("rejects a degree-three B-spline with fewer than four control points", async () => {
+    const document = await fixture();
+    const sketch = (document.sketches as Array<Record<string, unknown>>)[0];
+    const entity = (sketch?.entities as Array<Record<string, unknown>>).find(
+      (item) => item.kind === "bspline",
+    );
+    expect(entity).toBeDefined();
+    entity!.controlPoints = (entity!.controlPoints as unknown[]).slice(0, 3);
+    const result = validateCADGraph(document);
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "minItems",
+    }));
   });
 
   it("pins generated output to the schema bytes", async () => {

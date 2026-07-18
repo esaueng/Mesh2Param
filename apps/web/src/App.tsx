@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { apiClient } from "./api/client";
 import { normalizeApiError } from "./api/errors";
+import { ErrorToast } from "./components/ErrorToast";
 import { workspaceRepository } from "./persistence/repository";
 import { loadAppPreferences } from "./persistence/appPreferences";
 import { CanvasLanding } from "./canvas/CanvasLanding";
@@ -19,6 +20,12 @@ const WorkspaceController = lazy(async () => ({
   default: (await import("./workspace/WorkspaceController")).WorkspaceController,
 }));
 
+// Dev-only control gallery (U1 deliverable). The import.meta.env.DEV guard makes
+// the chunk unreachable in production builds, so Rollup drops it entirely.
+const Styleguide = import.meta.env.DEV
+  ? lazy(async () => ({ default: (await import("./styleguide/Styleguide")).Styleguide }))
+  : null;
+
 export default function App() {
   const [screen, setScreen] = useState<"start" | "workspace">("start");
   const [samples, setSamples] = useState<SampleDescriptor[]>([]);
@@ -28,6 +35,7 @@ export default function App() {
   const [initialUpload, setInitialUpload] = useState<{ file: File; units: Units; scale: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dismissError = useCallback(() => setError(null), []);
 
   useEffect(() => {
     const activeProjectId = sessionStorage.getItem("mesh2param-active-project");
@@ -121,6 +129,14 @@ export default function App() {
     }
   }
 
+  if (import.meta.env.DEV && window.location.pathname === "/styleguide" && Styleguide !== null) {
+    return (
+      <Suspense fallback={<main className="workspace-loading" role="status">Loading styleguide…</main>}>
+        <Styleguide />
+      </Suspense>
+    );
+  }
+
   if (screen === "workspace") {
     return (
       <Suspense fallback={<main className="workspace-loading" role="status">Loading CAD workspace…</main>}>
@@ -140,60 +156,68 @@ export default function App() {
   }
 
   return (
-    <CanvasLanding
-      samples={samples}
-      recentProjects={recentProjects}
-      readiness={readiness}
-      busy={busy}
-      error={error}
-      onOpenMesh={(file) => void withBusy(async () => {
-        const result = await apiClient.createProject(deriveProjectName(file.name), "mm");
-        openWorkspace(result.data, null, null, { file, units: "mm", scale: 1 });
-      })}
-      onOpenProjectFile={(file) => void withBusy(async () => {
-        const parsed = await workspaceRepository.importProjectFileBlob(file);
-        const imported = { ...parsed.file.project, state: parsed.file.working };
-        let regenerationJob: Job | null = null;
-        if (parsed.file.artifactManifest.length > 0) {
-          const operation = imported.state.cadgraph !== null
-            ? "rebuild"
-            : imported.state.source?.format === "stl"
-              ? "analyze"
-              : null;
-          if (operation !== null) {
-            regenerationJob = (await apiClient.startOperation(
-              imported.id,
-              operation,
-              imported.revision,
-              operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
-            )).data;
+    <>
+      <CanvasLanding
+        samples={samples}
+        recentProjects={recentProjects}
+        readiness={readiness}
+        busy={busy}
+        onOpenMesh={(file) => void withBusy(async () => {
+          const result = await apiClient.createProject(deriveProjectName(file.name), "mm");
+          openWorkspace(result.data, null, null, { file, units: "mm", scale: 1 });
+        })}
+        onOpenProjectFile={(file) => void withBusy(async () => {
+          const parsed = await workspaceRepository.importProjectFileBlob(file);
+          const imported = { ...parsed.file.project, state: parsed.file.working };
+          let regenerationJob: Job | null = null;
+          if (parsed.file.artifactManifest.length > 0) {
+            const operation = imported.state.cadgraph !== null
+              ? "rebuild"
+              : imported.state.source?.format === "stl"
+                ? "analyze"
+                : null;
+            if (operation !== null) {
+              try {
+                regenerationJob = (await apiClient.startOperation(
+                  imported.id,
+                  operation,
+                  imported.revision,
+                  operation === "analyze" ? { settings: { importedProjectPreview: true } } : {},
+                )).data;
+              } catch (cause) {
+                // The server project may no longer exist (e.g. a saved file shared after deletion).
+                // Open the workspace from the file alone so the source mesh is still available.
+                console.warn("Could not regenerate artifacts for imported project; opening file state.", cause);
+              }
+            }
           }
-        }
-        openWorkspace(
-          imported,
-          regenerationJob,
-          parsed.file.ui,
-        );
-      })}
-      onOpenRecent={(projectId) => void withBusy(async () => {
-        try {
-          const result = await apiClient.getProject(projectId);
-          openWorkspace(result.data);
-        } catch (cause) {
-          const stored = await workspaceRepository.getWorkspace(projectId);
-          if (stored === null) throw cause;
-          await apiClient.listArtifacts(projectId).catch(() => undefined);
-          hydrateStoredWorkspace(stored);
-          sessionStorage.setItem("mesh2param-active-project", projectId);
-          setInitialJob(null);
-          setScreen("workspace");
-        }
-      })}
-      onOpenSample={(sampleId) => void withBusy(async () => {
-        const result = await apiClient.openSample(sampleId);
-        openWorkspace(result.data.project, result.data.job);
-      })}
-    />
+          openWorkspace(
+            imported,
+            regenerationJob,
+            parsed.file.ui,
+          );
+        })}
+        onOpenRecent={(projectId) => void withBusy(async () => {
+          try {
+            const result = await apiClient.getProject(projectId);
+            openWorkspace(result.data);
+          } catch (cause) {
+            const stored = await workspaceRepository.getWorkspace(projectId);
+            if (stored === null) throw cause;
+            await apiClient.listArtifacts(projectId).catch(() => undefined);
+            hydrateStoredWorkspace(stored);
+            sessionStorage.setItem("mesh2param-active-project", projectId);
+            setInitialJob(null);
+            setScreen("workspace");
+          }
+        })}
+        onOpenSample={(sampleId) => void withBusy(async () => {
+          const result = await apiClient.openSample(sampleId);
+          openWorkspace(result.data.project, result.data.job);
+        })}
+      />
+      {error === null ? null : <ErrorToast message={error} onDismiss={dismissError} />}
+    </>
   );
 }
 

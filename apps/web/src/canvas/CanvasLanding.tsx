@@ -1,17 +1,22 @@
 import { useRef } from "react";
-import { ChevronRight, Clock, FileBox, FolderOpen, LoaderCircle, Sparkles } from "lucide-react";
+import { ChevronRight, Clock, FolderOpen, LoaderCircle, Sparkles } from "lucide-react";
 import { Mesh2ParamLogoMark, MeshTransitionHero } from "../start/Mesh2ParamLogoMark";
 import type { ProjectDetail, Readiness, SampleDescriptor } from "../state/types";
 import "./canvas.css";
 
 const SUPPORTED_SAMPLE_ID = "l-bracket-with-holes";
+const RECENT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 export interface CanvasLandingProps {
   samples: SampleDescriptor[];
   recentProjects: ProjectDetail[];
   readiness: Readiness | null;
   busy: boolean;
-  error: string | null;
   onOpenMesh(file: File): void;
   onOpenSample(sampleId: string): void;
   onOpenProjectFile(file: File): void;
@@ -23,7 +28,6 @@ export function CanvasLanding({
   recentProjects,
   readiness,
   busy,
-  error,
   onOpenMesh,
   onOpenSample,
   onOpenProjectFile,
@@ -36,6 +40,10 @@ export function CanvasLanding({
     samples.find((item) => item.id === SUPPORTED_SAMPLE_ID) ??
     samples.find((item) => item.automaticReconstructionSupported) ??
     samples[0];
+  const visibleRecentProjects = recentProjects
+    .slice()
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, 6);
 
   return (
     <main className="canvas-landing" data-testid="start-screen">
@@ -68,29 +76,37 @@ export function CanvasLanding({
           Open a saved project (.mesh2param.json)
         </button>
 
-        {recentProjects.length > 0 ? (
+        {visibleRecentProjects.length > 0 ? (
           <section className="landing-recents" aria-labelledby="recent-projects-heading">
-            <h2 id="recent-projects-heading" className="landing-recents-label"><Clock size={13} /> Recent projects</h2>
-            <ul className="landing-recents-list" aria-labelledby="recent-projects-heading">
-              {recentProjects.slice(0, 6).map((project) => (
+            <h2 id="recent-projects-heading" className="landing-recents-label">
+              <Clock size={13} /> Recent projects
+            </h2>
+            <ol className="landing-recents-list" aria-labelledby="recent-projects-heading">
+              {visibleRecentProjects.map((project, index) => (
                 <li key={project.id}>
-                  <button disabled={busy} onClick={() => onOpenRecent(project.id)} title={`Open ${project.name}`}>
-                    <span className="landing-recent-icon" aria-hidden><FileBox size={17} /></span>
+                  <button
+                    disabled={busy}
+                    onClick={() => onOpenRecent(project.id)}
+                    title={`Open ${project.name}`}
+                  >
+                    <span className="landing-recent-index" aria-hidden="true">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                     <span className="landing-recent-copy">
-                      <strong>{project.name}</strong>
-                      <span>
-                        <time dateTime={project.updatedAt}>Updated {formatRecentDate(project.updatedAt)}</time>
-                        {" · "}
-                        {project.units.toUpperCase()}
-                        {" · "}
-                        Revision {project.revision}
+                      <span className="landing-recent-name">{project.name}</span>
+                      <span className="landing-recent-meta">
+                        <span>{project.units}</span>
+                        <span aria-hidden="true">·</span>
+                        <time dateTime={project.updatedAt}>{formatRecentTimestamp(project.updatedAt)}</time>
+                        <span aria-hidden="true">·</span>
+                        <span>Revision {project.revision}</span>
                       </span>
                     </span>
-                    <ChevronRight className="landing-recent-chevron" size={17} aria-hidden />
+                    <ChevronRight aria-hidden="true" size={15} />
                   </button>
                 </li>
               ))}
-            </ul>
+            </ol>
           </section>
         ) : null}
       </div>
@@ -101,8 +117,6 @@ export function CanvasLanding({
         </span>
         <span className="landing-backend">OCCT backend</span>
       </footer>
-
-      {error !== null ? <div className="global-error" role="alert">{error}</div> : null}
 
       <input
         ref={meshRef}
@@ -132,12 +146,7 @@ export function CanvasLanding({
   );
 }
 
-function formatRecentDate(timestamp: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+function formatRecentTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? "Update time unavailable" : RECENT_DATE_FORMATTER.format(date);
 }

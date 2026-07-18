@@ -1,0 +1,52 @@
+{
+  "category": "positive",
+  "description": "The slab with a vertical 8 mm-radius through hole, adding a cylindrical face and an interior trimming loop on the B-spline face.",
+  "directory": "wavy-slab-hole",
+  "expectation": "closed-manifold",
+  "groundTruth": {
+    "area": 23782.812637492614,
+    "boundingBox": [
+      -1.6977881691293943,
+      -1.6977881691293943,
+      -34.07838051434388,
+      81.6977881691294,
+      81.69778816913201,
+      7.528490099098615
+    ],
+    "edgeCount": 17,
+    "faceCount": 7,
+    "faceSurfaces": {
+      "bspline": 2,
+      "cone": 0,
+      "cylinder": 1,
+      "other": 4,
+      "plane": 0,
+      "sphere": 0,
+      "torus": 0
+    },
+    "volume": 185968.1435818771
+  },
+  "mesh": {
+    "bodyCount": 1,
+    "watertight": true,
+    "windingConsistent": true
+  },
+  "noise": {
+    "amplitude": 0.0,
+    "seed": 0
+  },
+  "slug": "wavy-slab-hole",
+  "stl": {
+    "byteSize": 25584,
+    "path": "source.stl",
+    "sha256": "556c407aa954b92422e5fefaf65c47233fa171f807f51a04a8030f0895bd0909",
+    "triangleCount": 510,
+    "vertexCount": 255
+  },
+  "tessellation": {
+    "angularTolerance": 0.3,
+    "linearTolerance": 0.2
+  },
+  "title": "Wavy slab with a through hole",
+  "units": "mm"
+}

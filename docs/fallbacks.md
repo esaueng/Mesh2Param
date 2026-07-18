@@ -49,11 +49,39 @@ and circular arcs and extrudes one analytic face. This supports one exterior loo
 holes on an arbitrary sketch plane; line/arc profiles may include tangent transitions even when the
 side wall was segmented as one smooth `freeform` region.
 
-The path currently rejects tapered or twisted sweeps, inconsistent caps, branching/open boundaries,
-splines, arbitrary freeform surfaces, multiple disjoint exterior profiles, and geometry outside its
-residual and scale limits. Rejection does not relabel the hypothesis as analytic and does not block
-other supported inference paths. If no analytic path succeeds, the explicit source-bound faceted
-operation below remains available; it is never presented as recovered parametric history.
+The bounded general-parametric extension admits one clamped cubic B-spline with at most eight
+control points when two dominant lines and one broad circular arc anchor the remaining exterior
+profile. It may also recover one regular-polygon through cut and one loop-global constant-radius
+fillet group covering the lower and upper exterior rims. The sharp parent is compiled first; fillet
+targets come from resolved semantic edge records, excluding side seams by their direction relative
+to the extrusion axis. The polygon cut follows the fillet when its rim remains sharp in the source.
+
+The path still rejects tapered or twisted sweeps, inconsistent caps, branching/open boundaries,
+multiple or unbounded splines, arbitrary freeform surfaces, multiple disjoint exterior profiles,
+variable-radius or ambiguously grouped fillets, and geometry outside its residual and scale limits.
+Rejection does not relabel the hypothesis as analytic and does not block other supported inference
+paths. If no analytic path succeeds, the explicit source-bound faceted operation below remains
+available; it is never presented as recovered parametric history.
+
+## Functional shallow-detail suppression
+
+Functional mode may suppress a shallow constant-depth emboss attached to a primary cap, but it
+does not erase or smooth the source evidence. Detection is limited to material beyond the fitted
+cap planes with one closed support loop and one depth. Default guards bound depth to 10 percent of
+body thickness, footprint to 15 percent of cap area, volume to 1 percent of source volume, eight
+regions, and 2,048 evidence triangles per region. Failed bounds or open, branching, varying-depth,
+or out-of-footprint evidence reject with a structured detail diagnostic.
+
+The functional reference removes only the recorded source triangles and closes the exact support
+loop. Both masked and complete-source comparisons are retained; the unmasked report and heatmap
+continue to show the omitted detail. This is an explicit equivalence policy, not recovery of the
+original boss feature.
+
+Full mode is an explicit native-service alternative for regions that pass those same guards. It
+reuses the ordered support loop as a sketch, preserves its measured support plane and outward cap
+normal, and appends a blind additive extrusion after the existing fillet and polygon-cut sequence.
+It does not infer arbitrary pockets, engraving, patterns, or historical design intent. The
+browser-local solver rejects this setting rather than silently returning functional geometry.
 
 ## Explicit faceted STEP fallback
 

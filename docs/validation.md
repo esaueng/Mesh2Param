@@ -48,13 +48,43 @@ tolerance; a close tessellated result can never make an invalid solid acceptable
 ## Comparison evidence
 
 The reconstruction comparison records bidirectional/symmetric surface distance summaries (RMS,
-median, P95 and maximum where available), normal agreement, bounding-box, surface area, volume
+median, P95, P99, and maximum where available), normal agreement, bounding-box, surface area, volume
 difference, overlap, unmatched-source and excess-result evidence, per-patch residuals, and score.
 A residual heatmap GLB visualizes the spatial error without changing the source or CADGraph.
 
 Tolerance is stored in project units and passed explicitly to validation. Changing it updates the
 CADGraph project tolerance and recomputes pass/fail; it does not rewrite measured geometry or make a
 previous result disappear.
+
+The general-parametric path applies the same chain to each bounded candidate. A spline-aware sharp
+parent must compile before a constant-radius fillet candidate can reference its resolved semantic
+rim edges. The sharp parent is retained in `candidates.json` with its measured band mismatch; the
+filleted candidate is accepted only when P95 is at most `1.5t`, P99 at most `3t`, maximum distance
+at most `6t`, P95 normal error at most 3 degrees, and relative volume error at most 0.1 percent.
+Fillet candidates may introduce kernel-generated torus and B-spline faces, but the reimport audit
+still rejects unclassified surfaces and triangle-per-face output.
+
+Functional detail suppression never changes the preserved source mesh. Material beyond a primary
+cap plane is eligible only when it forms a bounded, closed, constant-depth footprint within the
+configured depth, cap-area, volume, region-count, and triangle-count limits. The
+`suppressed-regions.json` artifact records the support plane, complete boundary loop, source
+triangle IDs, exposed area, depth, and measured volume. Every vertex of every suppressed triangle
+must project inside that declared footprint.
+
+Validation then compares the result twice: unmasked against the complete source (so the omitted
+detail remains visible in metrics and the residual heatmap), and masked against a watertight
+functional reference that replaces exactly the declared detail with its support face. Only the
+masked metrics determine functional-mode acceptance; both reports are persisted together in
+`comparison.json`, and the CADGraph snapshot records `validationMode: functional` plus the same
+suppressed-region declarations.
+
+Full detail mode is opt-in. It uses the same accepted region declaration as an editable closed
+sketch on the measured support plane, then compiles a blind additive extrusion along the outward
+cap normal. Validation is unmasked against the complete source because the detail is present in the
+result. The `detail-regions.json` artifact and CADGraph `detailRecovery` extension preserve the
+measured footprint, depth, volume, support plane, and source triangle IDs. A recovered detail must
+pass the same P95/P99/maximum/normal/volume gates and the independent STEP reimport audit; kernel
+validity alone is insufficient.
 
 ## Artifacts and reproducibility
 
