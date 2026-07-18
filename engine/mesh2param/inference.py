@@ -14,7 +14,7 @@ from mesh2param_contracts import CADGraph
 
 from .compiler import CompilationResult, compile_cadgraph
 from .frame import CoordinateFrame
-from .prismatic import ArcPrimitive, CirclePrimitive, ExtrusionCandidate
+from .prismatic import ArcPrimitive, BSplineSegment, CirclePrimitive, ExtrusionCandidate
 from .segmentation import SurfacePatch
 from .sketches import InferredProfile
 
@@ -422,7 +422,7 @@ def build_prismatic_cadgraph(
     candidate: ExtrusionCandidate,
     deterministic_seed: int = 0x4D325006,
 ) -> CADGraph:
-    """Build one editable mixed line/arc sketch and one extrusion feature."""
+    """Build an editable extrusion, with an explicit polygon cut when recovered."""
 
     if (
         not candidate.accepted
@@ -435,10 +435,24 @@ def build_prismatic_cadgraph(
         raise ValueError("prismatic CADGraph requires a fully validated extrusion candidate")
     frame = candidate.frame
     evidence_id = "evidence.prismatic-profile"
+    spline_mode = any(
+        isinstance(primitive, BSplineSegment)
+        for profile in candidate.profiles
+        for primitive in profile
+    )
+    polygon_hypotheses = [
+        item for item in candidate.polygon_hypotheses if item is not None
+    ]
+    polygon = polygon_hypotheses[0] if polygon_hypotheses else None
+    if spline_mode and (len(candidate.profiles) != 2 or len(polygon_hypotheses) != 1):
+        raise ValueError(
+            "spline-prismatic CADGraph requires exactly one regular-polygon cut hypothesis"
+        )
     entities: list[dict[str, Any]] = []
     loop_ids: list[list[str]] = []
     primitive_index = 0
-    for profile in candidate.profiles:
+    base_profiles = candidate.profiles[:1] if spline_mode else candidate.profiles
+    for profile in base_profiles:
         identifiers: list[str] = []
         for primitive in profile:
             primitive_index += 1
@@ -479,6 +493,20 @@ def build_prismatic_cadgraph(
                         "clockwise": primitive.clockwise,
                     }
                 )
+            elif isinstance(primitive, BSplineSegment):
+                entities.append(
+                    {
+                        **common,
+                        "kind": "bspline",
+                        "degree": primitive.degree,
+                        "controlPoints": [
+                            _vector2(point) for point in primitive.control_points
+                        ],
+                        "clamped": True,
+                        "rational": False,
+                        "periodic": False,
+                    }
+                )
             else:
                 entities.append(
                     {
@@ -506,6 +534,167 @@ def build_prismatic_cadgraph(
     source_sha = str(source["sha256"])
     origin = frame.origin
     axis = candidate.axis
+    sketches: list[dict[str, Any]] = [
+        {
+            "id": "sketch.base",
+            "name": (
+                "Recovered spline-aware profile"
+                if spline_mode
+                else "Recovered line and arc profile"
+            ),
+            "plane": {
+                "origin": _vector3(origin),
+                "normal": _vector3(axis),
+                "xAxis": _vector3(frame.u),
+            },
+            "entities": entities,
+            "constraints": [],
+            "profiles": [
+                {
+                    "id": "sketch.base.profile",
+                    "name": "Recovered closed profile",
+                    "outerLoop": loop_ids[0],
+                    "innerLoops": [] if spline_mode else loop_ids[1:],
+                    "orientation": "counterclockwise",
+                    "closed": True,
+                    "sourceEvidence": [evidence_id],
+                    "confidence": float(candidate.confidence),
+                    "locked": False,
+                }
+            ],
+            "sourceEvidence": [evidence_id],
+            "confidence": float(candidate.confidence),
+            "userLocks": [],
+            "overrides": [],
+            "suppressed": False,
+        }
+    ]
+    features: list[dict[str, Any]] = [
+        {
+            "id": "feature.base",
+            "name": "Recovered analytic extrusion",
+            "operation": "extrusion",
+            "booleanMode": "base",
+            "order": 0,
+            "dependencies": [],
+            "suppressed": False,
+            "sourceEvidence": [evidence_id],
+            "confidence": float(candidate.confidence),
+            "userLocks": [],
+            "overrides": [],
+            "semanticOutputs": ["feature.base.result"],
+            "sketchId": "sketch.base",
+            "profileIds": ["sketch.base.profile"],
+            "direction": _vector3(axis),
+            "extent": "blind",
+            "distance": float(candidate.distance_mm),
+        }
+    ]
+    semantic_topology: list[dict[str, Any]] = [
+        {
+            "id": "feature.base.result",
+            "kind": "solid",
+            "producerFeatureId": "feature.base",
+            "role": "intermediateSolid" if spline_mode else "resultSolid",
+            "generatedFrom": ["sketch.base.profile"],
+            "status": "unresolved",
+        }
+    ]
+    if spline_mode and polygon is not None:
+        cut_ids = [f"sketch.hex-cut.entity.{index + 1:03d}" for index in range(polygon.side_count)]
+        cut_entities: list[dict[str, Any]] = []
+        for index, (start, end) in enumerate(
+            zip(polygon.points, (*polygon.points[1:], polygon.points[0]), strict=True)
+        ):
+            cut_entities.append(
+                {
+                    "id": cut_ids[index],
+                    "kind": "line",
+                    "construction": False,
+                    "start": _vector2(start),
+                    "end": _vector2(end),
+                    "sourceEvidence": [evidence_id],
+                    "confidence": float(candidate.confidence),
+                    "locked": False,
+                    "suppressed": False,
+                }
+            )
+        cut_entities.append(
+            {
+                "id": "sketch.hex-cut.closed-profile",
+                "kind": "closedProfile",
+                "construction": False,
+                "outerLoop": cut_ids,
+                "innerLoops": [],
+                "orientation": "clockwise" if polygon.clockwise else "counterclockwise",
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "locked": False,
+                "suppressed": False,
+            }
+        )
+        sketches.append(
+            {
+                "id": "sketch.hex-cut",
+                "name": f"Recovered regular {polygon.side_count}-sided cut",
+                "plane": {
+                    "origin": _vector3(origin),
+                    "normal": _vector3(axis),
+                    "xAxis": _vector3(frame.u),
+                },
+                "entities": cut_entities,
+                "constraints": [],
+                "profiles": [
+                    {
+                        "id": "sketch.hex-cut.profile",
+                        "name": "Recovered regular polygon",
+                        "outerLoop": cut_ids,
+                        "innerLoops": [],
+                        "orientation": "clockwise" if polygon.clockwise else "counterclockwise",
+                        "closed": True,
+                        "sourceEvidence": [evidence_id],
+                        "confidence": float(candidate.confidence),
+                        "locked": False,
+                    }
+                ],
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "suppressed": False,
+            }
+        )
+        features.append(
+            {
+                "id": "feature.hex-cut",
+                "name": f"Recovered {polygon.side_count}-sided through cut",
+                "operation": "extrusion",
+                "booleanMode": "subtractive",
+                "order": 1,
+                "dependencies": ["feature.base"],
+                "suppressed": False,
+                "sourceEvidence": [evidence_id],
+                "confidence": float(candidate.confidence),
+                "userLocks": [],
+                "overrides": [],
+                "semanticOutputs": ["feature.hex-cut.result"],
+                "sketchId": "sketch.hex-cut",
+                "profileIds": ["sketch.hex-cut.profile"],
+                "direction": _vector3(axis),
+                "extent": "throughAll",
+                "distance": None,
+            }
+        )
+        semantic_topology.append(
+            {
+                "id": "feature.hex-cut.result",
+                "kind": "solid",
+                "producerFeatureId": "feature.hex-cut",
+                "role": "resultSolid",
+                "generatedFrom": ["sketch.hex-cut.profile"],
+                "status": "unresolved",
+            }
+        )
     document: dict[str, Any] = {
         "schemaVersion": "1.0.0",
         "id": "reconstruction.prismatic",
@@ -530,72 +719,13 @@ def build_prismatic_cadgraph(
             "evidenceIds": [evidence_id],
         },
         "projectTolerance": {
-            "surfaceDeviation": 0.1,
+            "surfaceDeviation": 0.05,
             "angularDeviationDeg": 1.0,
             "linearResolution": 0.001,
         },
-        "sketches": [
-            {
-                "id": "sketch.base",
-                "name": "Recovered line and arc profile",
-                "plane": {
-                    "origin": _vector3(origin),
-                    "normal": _vector3(axis),
-                    "xAxis": _vector3(frame.u),
-                },
-                "entities": entities,
-                "constraints": [],
-                "profiles": [
-                    {
-                        "id": "sketch.base.profile",
-                        "name": "Recovered closed profile",
-                        "outerLoop": loop_ids[0],
-                        "innerLoops": loop_ids[1:],
-                        "orientation": "counterclockwise",
-                        "closed": True,
-                        "sourceEvidence": [evidence_id],
-                        "confidence": float(candidate.confidence),
-                        "locked": False,
-                    }
-                ],
-                "sourceEvidence": [evidence_id],
-                "confidence": float(candidate.confidence),
-                "userLocks": [],
-                "overrides": [],
-                "suppressed": False,
-            }
-        ],
-        "features": [
-            {
-                "id": "feature.base",
-                "name": "Recovered analytic extrusion",
-                "operation": "extrusion",
-                "booleanMode": "base",
-                "order": 0,
-                "dependencies": [],
-                "suppressed": False,
-                "sourceEvidence": [evidence_id],
-                "confidence": float(candidate.confidence),
-                "userLocks": [],
-                "overrides": [],
-                "semanticOutputs": ["feature.base.result"],
-                "sketchId": "sketch.base",
-                "profileIds": ["sketch.base.profile"],
-                "direction": _vector3(axis),
-                "extent": "blind",
-                "distance": float(candidate.distance_mm),
-            }
-        ],
-        "semanticTopology": [
-            {
-                "id": "feature.base.result",
-                "kind": "solid",
-                "producerFeatureId": "feature.base",
-                "role": "resultSolid",
-                "generatedFrom": ["sketch.base.profile"],
-                "status": "unresolved",
-            }
-        ],
+        "sketches": sketches,
+        "features": features,
+        "semanticTopology": semantic_topology,
         "sourceEvidence": [
             {
                 "id": evidence_id,
@@ -626,7 +756,7 @@ def build_prismatic_cadgraph(
             "wallClockSeconds": 120.0,
             "maxRebuilds": 8,
             "minScoreImprovement": 0.0001,
-            "nominalSnappingEnabled": False,
+            "nominalSnappingEnabled": True,
             "nominalSnapTolerance": 0.05,
             "scoreWeights": {
                 "rmsDistance": 1.0,
@@ -676,12 +806,22 @@ def build_prismatic_cadgraph(
             "versionId": "version.reconstruction.prismatic.1",
             "createdAt": "1970-01-01T00:00:00Z",
             "createdBy": "mesh2param-reconstruction",
-            "message": "Analytic line/arc profile reconstructed from extrusion evidence.",
+            "message": "Analytic prismatic profile reconstructed from extrusion evidence.",
         },
         "extensions": {
             "mesh2param.dev/prismaticReconstruction": {
-                "scope": "validated linear extrusion of line/circular-arc profiles",
+                "scope": (
+                    "validated linear extrusion with one bounded B-spline and polygon cut"
+                    if spline_mode
+                    else "validated linear extrusion of line/circular-arc profiles"
+                ),
                 "capPatchIds": list(candidate.cap_patch_ids),
+                "distanceMeasurement": (
+                    candidate.distance_measurement.to_dict()
+                    if candidate.distance_measurement is not None
+                    else None
+                ),
+                "polygonHypothesis": polygon.to_dict() if polygon is not None else None,
             }
         },
     }

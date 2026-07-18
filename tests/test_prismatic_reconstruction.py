@@ -27,6 +27,12 @@ from mesh2param.prismatic import (
     project_loop_to_plane,
     validate_prismatic_candidate,
 )
+from mesh2param.profile_fitting import (
+    BSplineSegment,
+    NominalSnappingPolicy,
+    fit_bounded_bspline,
+    fit_regular_polygon,
+)
 from mesh2param.reconstruction import (
     PrismaticReconstructionResult,
     ReconstructionSettings,
@@ -162,6 +168,35 @@ def test_closed_cyclic_segmentation_and_exact_endpoint_continuity() -> None:
     for primitive, following in zip(chain, (*chain[1:], chain[0]), strict=True):
         assert primitive.end == following.start
         assert primitive.tangent_to_next_deg is not None
+
+
+def test_bounded_bspline_and_regular_polygon_record_fit_decisions() -> None:
+    controls = np.asarray(((0.0, 0.0), (2.0, 5.0), (7.0, 4.0), (9.0, 0.0)))
+    parameters = np.linspace(0.0, 1.0, 41)
+    one_minus = 1.0 - parameters
+    points = (
+        one_minus[:, None] ** 3 * controls[0]
+        + 3.0 * one_minus[:, None] ** 2 * parameters[:, None] * controls[1]
+        + 3.0 * one_minus[:, None] * parameters[:, None] ** 2 * controls[2]
+        + parameters[:, None] ** 3 * controls[3]
+    )
+    spline = fit_bounded_bspline(points, maximum_iterations=40)
+    assert isinstance(spline, BSplineSegment)
+    assert spline.degree == 3
+    assert len(spline.control_points) == 4
+    assert spline.rms_residual_mm < 0.005
+    assert spline.maximum_residual_mm < 0.015
+    assert spline.penalties.total >= spline.penalties.residual
+    assert spline.uncertainty.sample_count == len(points)
+
+    angles = np.linspace(0.0, -2.0 * math.pi, 7)[:-1]
+    hexagon = np.column_stack((3.0 + 6.0004 * np.cos(angles), -2.0 + 6.0004 * np.sin(angles)))
+    polygon = fit_regular_polygon(hexagon, snapping=NominalSnappingPolicy())
+    assert polygon.side_count == 6
+    assert polygon.clockwise
+    assert polygon.measured_circumdiameter_mm == pytest.approx(12.0008)
+    assert polygon.selected_circumdiameter_mm == 12.0
+    assert polygon.nominal.accepted
 
 
 def test_loop_matching_accepts_cyclic_shift_and_reversed_winding() -> None:

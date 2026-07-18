@@ -161,7 +161,7 @@ class PrismaticReconstructionResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "status": "valid",
-            "scope": "validated analytic linear extrusion with line/circular-arc profile",
+            "scope": "validated analytic linear extrusion with bounded sketch entities",
             "source": self.source.to_dict(),
             "repair": self.repair.to_dict(),
             "segmentation": self.segmentation.to_dict(),
@@ -310,7 +310,13 @@ def _complete_prismatic_reconstruction(
         source=_source_document(source, units),
         candidate=candidate,
     )
-    selected = compile_candidate("analytic-prismatic", graph)
+    spline_mode = any(
+        primitive.kind == "bspline"
+        for profile in candidate.profiles
+        for primitive in profile
+    )
+    candidate_label = "analytic-prismatic-spline" if spline_mode else "analytic-prismatic"
+    selected = compile_candidate(candidate_label, graph)
     if not selected.valid or selected.shape is None:
         details = (
             selected.compilation.errors[0].code
@@ -320,7 +326,7 @@ def _complete_prismatic_reconstruction(
         raise ReconstructionError(
             "prismatic-compilation",
             "invalid_compiled_brep",
-            f"analytic extrusion was rejected by OpenCascade: {details}",
+            f"{candidate_label} was rejected by OpenCascade: {details}",
         )
     comparison = compare_mesh_to_shape(
         repaired.mesh,
@@ -331,10 +337,12 @@ def _complete_prismatic_reconstruction(
     score_candidate(selected, comparison)
     tolerance = graph.project_tolerance.surface_deviation
     if (
-        comparison.p95_distance_mm > tolerance
-        or comparison.maximum_distance_mm > tolerance
+        comparison.p95_distance_mm > 1.5 * tolerance
+        or comparison.p99_distance_mm > 3.0 * tolerance
+        or comparison.maximum_distance_mm > 6.0 * tolerance
+        or comparison.p95_normal_angle_deg > 3.0
         or comparison.relative_volume_delta is None
-        or comparison.relative_volume_delta > 0.01
+        or comparison.relative_volume_delta > 0.001
     ):
         raise ReconstructionError(
             "prismatic-validation",
@@ -363,7 +371,8 @@ def _complete_prismatic_reconstruction(
             + list(comparison.warnings)
         )
     )
-    final_graph = _final_graph(graph, comparison, step, "feature.base", warnings)
+    final_feature_id = "feature.hex-cut" if spline_mode else "feature.base"
+    final_graph = _final_graph(graph, comparison, step, final_feature_id, warnings)
     graph_path = output / "model.cadgraph.json"
     graph_path.write_bytes(canonical_json_bytes(final_graph))
     source_path_output = output / "model.cq.py"
@@ -407,9 +416,9 @@ def _complete_prismatic_reconstruction(
         "originalSource": str(output / f"source.original{source.metadata.extension}"),
     }
     limitations = (
-        "This recovers one extrusion from a line/circular-arc profile, not the historical "
-        "CAD tree.",
-        "Non-prismatic, tapered, twisted, spline, and inconsistent-cap geometry is rejected.",
+        "This recovers one prismatic feature sequence from bounded profile evidence, not the "
+        "historical CAD tree.",
+        "Non-prismatic, tapered, twisted, multi-spline, and inconsistent-cap geometry is rejected.",
         "Full-cylinder patch recognition remains a separate high-coverage inference path.",
     )
     result = PrismaticReconstructionResult(
