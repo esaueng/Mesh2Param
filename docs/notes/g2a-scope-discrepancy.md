@@ -44,3 +44,32 @@ only plane and full-cylinder patches".
 
 No source mesh, fixture manifest, sample artifact, generated contract source,
 or runtime dependency was changed while recording this proposal.
+
+## Follow-up after the plan amendment
+
+Commit `35baf26` resolved the original conflicts by adding `package.json` to
+the G2a allow-list, treating P99 as regression coverage, and defining the
+surface audit against measured OCCT types. The focused G2a implementation then
+passed its eight tests, typecheck, and lint, and `pnpm general:baseline`
+successfully recorded all three faceted conversions.
+
+The required full gate stopped on two pre-existing repository inconsistencies:
+
+1. `pnpm licenses:check` rejects
+   `@img/sharp-libvips-darwin-arm64@1.2.4` as `LGPL-3.0-or-later` and reports a
+   stale `THIRD_PARTY_NOTICES.md`. The unchanged dependency path is
+   `wrangler@4.110.0` -> `miniflare` -> `sharp@0.34.5` -> the platform libvips
+   package. G2a added no dependency or lockfile change.
+2. `pnpm samples:check` reports the manifest and metadata files for all ten
+   generated samples as changed. A direct diff shows geometry and artifact
+   hashes are identical; only STEP `volumeTolerance` changes. For the
+   rectangular-block sample it moves from `0.0144` to `0.072` because commit
+   `b780b54` raised the current validation tolerance from one to five parts per
+   million without regenerating the committed sample metadata.
+
+License policy/notices and `samples/generated/` are outside the G2a allow-list,
+and the task explicitly prohibits changing existing sample artifacts. G2a
+therefore stops without weakening either gate. The prerequisites need separate
+review: either select a Wrangler dependency set that passes the existing
+license policy or explicitly review the LGPL package, and reconcile the
+committed sample tolerance with the current five-ppm validation contract.
