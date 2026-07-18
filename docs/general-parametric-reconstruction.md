@@ -351,7 +351,9 @@ stable.
 **PR-G2d — Spline-aware profile fitting and sharp-body candidate.**
 Allow-list: `engine/mesh2param/profile_fitting.py` (new), `prismatic.py`,
 `inference.py`, `reconstruction.py`, `tests/test_prismatic_reconstruction.py`,
-`tests/test_general_fixtures.py`.
+`tests/test_general_fixtures.py`, `tests/test_general_baseline.py` (only to
+replace the obsolete calibrated `spanner-sharp` rejection with G2d success
+expectations; filleted rejection calibration remains unchanged).
 
 - B-spline segment class with penalties and uncertainty records;
   regular-polygon inner-loop hypothesis; nominal snapping policy.
