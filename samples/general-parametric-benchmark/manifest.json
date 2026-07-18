@@ -1,0 +1,618 @@
+{
+  "fixtures": [
+    {
+      "category": "positive",
+      "description": "A line, circular-arc, and B-spline profile extruded 8 mm, with 1.5 mm outer top/bottom fillets and one hexagonal through-cut.",
+      "directory": "spanner-filleted",
+      "expectation": "closed-manifold",
+      "family": "general-parametric",
+      "featureTree": {
+        "features": [
+          {
+            "closed": true,
+            "entities": [
+              {
+                "end": [
+                  25.0,
+                  -10.0
+                ],
+                "id": "profile-line-0",
+                "start": [
+                  -35.0,
+                  -10.0
+                ],
+                "type": "line"
+              },
+              {
+                "end": [
+                  25.0,
+                  10.0
+                ],
+                "id": "profile-arc-0",
+                "start": [
+                  25.0,
+                  -10.0
+                ],
+                "through": [
+                  35.0,
+                  0.0
+                ],
+                "type": "threePointArc"
+              },
+              {
+                "end": [
+                  -35.0,
+                  10.0
+                ],
+                "id": "profile-line-1",
+                "start": [
+                  25.0,
+                  10.0
+                ],
+                "type": "line"
+              },
+              {
+                "endTangents": [
+                  [
+                    -1.0,
+                    0.0
+                  ],
+                  [
+                    1.0,
+                    0.0
+                  ]
+                ],
+                "id": "profile-bspline-0",
+                "interpolationPoints": [
+                  [
+                    -42.0,
+                    9.0
+                  ],
+                  [
+                    -48.0,
+                    5.0
+                  ],
+                  [
+                    -50.0,
+                    0.0
+                  ],
+                  [
+                    -48.0,
+                    -5.0
+                  ],
+                  [
+                    -42.0,
+                    -9.0
+                  ],
+                  [
+                    -35.0,
+                    -10.0
+                  ]
+                ],
+                "periodic": false,
+                "scaleTangents": true,
+                "start": [
+                  -35.0,
+                  10.0
+                ],
+                "type": "bsplineInterpolation"
+              }
+            ],
+            "id": "profile",
+            "plane": "XY",
+            "type": "sketchProfile"
+          },
+          {
+            "depth": 8.0,
+            "direction": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "id": "extrude",
+            "inputFeatureId": "profile",
+            "type": "extrude"
+          },
+          {
+            "edgeSelection": {
+              "cadquerySelector": ">Z or <Z",
+              "deterministicOrder": "centerZXYThenLength",
+              "kind": "outerTopAndBottomLoops"
+            },
+            "id": "outer-fillets",
+            "inputFeatureId": "extrude",
+            "radius": 1.5,
+            "type": "fillet"
+          },
+          {
+            "direction": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "extent": "throughAll",
+            "id": "hex-cut",
+            "inputFeatureId": "outer-fillets",
+            "profile": {
+              "center": [
+                25.0,
+                0.0
+              ],
+              "circumdiameter": 12.0,
+              "circumscribed": false,
+              "firstVertexDirection": [
+                1.0,
+                0.0
+              ],
+              "plane": "topFace",
+              "sideCount": 6,
+              "type": "regularPolygon"
+            },
+            "type": "cutExtrude"
+          }
+        ],
+        "modelingSystem": {
+          "library": "cadquery",
+          "version": "2.8.0"
+        },
+        "schema": "mesh2param/general-parametric-fixture/1",
+        "units": "mm"
+      },
+      "groundTruth": {
+        "area": 4572.7856892739255,
+        "boundingBox": [
+          -50.18749176398587,
+          -10.187491763985859,
+          -0.14289999626332817,
+          35.00142441699956,
+          10.187491763985859,
+          8.142899996263328
+        ],
+        "edgeCount": 46,
+        "faceCount": 20,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 5,
+          "other": 1,
+          "plane": 10,
+          "sphere": 0,
+          "torus": 2
+        },
+        "volume": 11829.885580569577
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "slug": "spanner-filleted",
+      "stl": {
+        "byteSize": 292984,
+        "path": "source.stl",
+        "sha256": "3afb3b3236b43a6f785b29720e00d23f9def5cc8cca9605db3fb054d231183df",
+        "triangleCount": 5858,
+        "vertexCount": 2929
+      },
+      "tessellation": {
+        "angularTolerance": 0.18,
+        "linearTolerance": 0.005
+      },
+      "title": "Filleted ring spanner",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "The same line, circular-arc, and B-spline profile and hexagonal through-cut, with the top and bottom fillet feature omitted.",
+      "directory": "spanner-sharp",
+      "expectation": "closed-manifold",
+      "family": "general-parametric",
+      "featureTree": {
+        "features": [
+          {
+            "closed": true,
+            "entities": [
+              {
+                "end": [
+                  25.0,
+                  -10.0
+                ],
+                "id": "profile-line-0",
+                "start": [
+                  -35.0,
+                  -10.0
+                ],
+                "type": "line"
+              },
+              {
+                "end": [
+                  25.0,
+                  10.0
+                ],
+                "id": "profile-arc-0",
+                "start": [
+                  25.0,
+                  -10.0
+                ],
+                "through": [
+                  35.0,
+                  0.0
+                ],
+                "type": "threePointArc"
+              },
+              {
+                "end": [
+                  -35.0,
+                  10.0
+                ],
+                "id": "profile-line-1",
+                "start": [
+                  25.0,
+                  10.0
+                ],
+                "type": "line"
+              },
+              {
+                "endTangents": [
+                  [
+                    -1.0,
+                    0.0
+                  ],
+                  [
+                    1.0,
+                    0.0
+                  ]
+                ],
+                "id": "profile-bspline-0",
+                "interpolationPoints": [
+                  [
+                    -42.0,
+                    9.0
+                  ],
+                  [
+                    -48.0,
+                    5.0
+                  ],
+                  [
+                    -50.0,
+                    0.0
+                  ],
+                  [
+                    -48.0,
+                    -5.0
+                  ],
+                  [
+                    -42.0,
+                    -9.0
+                  ],
+                  [
+                    -35.0,
+                    -10.0
+                  ]
+                ],
+                "periodic": false,
+                "scaleTangents": true,
+                "start": [
+                  -35.0,
+                  10.0
+                ],
+                "type": "bsplineInterpolation"
+              }
+            ],
+            "id": "profile",
+            "plane": "XY",
+            "type": "sketchProfile"
+          },
+          {
+            "depth": 8.0,
+            "direction": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "id": "extrude",
+            "inputFeatureId": "profile",
+            "type": "extrude"
+          },
+          {
+            "direction": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "extent": "throughAll",
+            "id": "hex-cut",
+            "inputFeatureId": "extrude",
+            "profile": {
+              "center": [
+                25.0,
+                0.0
+              ],
+              "circumdiameter": 12.0,
+              "circumscribed": false,
+              "firstVertexDirection": [
+                1.0,
+                0.0
+              ],
+              "plane": "topFace",
+              "sideCount": 6,
+              "type": "regularPolygon"
+            },
+            "type": "cutExtrude"
+          }
+        ],
+        "modelingSystem": {
+          "library": "cadquery",
+          "version": "2.8.0"
+        },
+        "schema": "mesh2param/general-parametric-fixture/1",
+        "units": "mm"
+      },
+      "groundTruth": {
+        "area": 4821.0181759328425,
+        "boundingBox": [
+          -50.370700901933084,
+          -10.370700901933077,
+          -0.3707009019330773,
+          35.0000001,
+          10.370700901933077,
+          8.370700901933077
+        ],
+        "edgeCount": 30,
+        "faceCount": 12,
+        "faceSurfaces": {
+          "bspline": 0,
+          "cone": 0,
+          "cylinder": 1,
+          "other": 1,
+          "plane": 10,
+          "sphere": 0,
+          "torus": 0
+        },
+        "volume": 12012.900951666285
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "slug": "spanner-sharp",
+      "stl": {
+        "byteSize": 25484,
+        "path": "source.stl",
+        "sha256": "bc0e8d2c7fed94e24b612a92c0843aec2497e290342f2731a4b2112fc7a34531",
+        "triangleCount": 508,
+        "vertexCount": 254
+      },
+      "tessellation": {
+        "angularTolerance": 0.18,
+        "linearTolerance": 0.005
+      },
+      "title": "Sharp ring spanner",
+      "units": "mm"
+    },
+    {
+      "category": "positive",
+      "description": "The filleted spanner with an additional 18 x 6 x 0.4 mm rectangular boss on the top handle face.",
+      "directory": "spanner-filleted-embossed",
+      "expectation": "closed-manifold",
+      "family": "general-parametric",
+      "featureTree": {
+        "features": [
+          {
+            "closed": true,
+            "entities": [
+              {
+                "end": [
+                  25.0,
+                  -10.0
+                ],
+                "id": "profile-line-0",
+                "start": [
+                  -35.0,
+                  -10.0
+                ],
+                "type": "line"
+              },
+              {
+                "end": [
+                  25.0,
+                  10.0
+                ],
+                "id": "profile-arc-0",
+                "start": [
+                  25.0,
+                  -10.0
+                ],
+                "through": [
+                  35.0,
+                  0.0
+                ],
+                "type": "threePointArc"
+              },
+              {
+                "end": [
+                  -35.0,
+                  10.0
+                ],
+                "id": "profile-line-1",
+                "start": [
+                  25.0,
+                  10.0
+                ],
+                "type": "line"
+              },
+              {
+                "endTangents": [
+                  [
+                    -1.0,
+                    0.0
+                  ],
+                  [
+                    1.0,
+                    0.0
+                  ]
+                ],
+                "id": "profile-bspline-0",
+                "interpolationPoints": [
+                  [
+                    -42.0,
+                    9.0
+                  ],
+                  [
+                    -48.0,
+                    5.0
+                  ],
+                  [
+                    -50.0,
+                    0.0
+                  ],
+                  [
+                    -48.0,
+                    -5.0
+                  ],
+                  [
+                    -42.0,
+                    -9.0
+                  ],
+                  [
+                    -35.0,
+                    -10.0
+                  ]
+                ],
+                "periodic": false,
+                "scaleTangents": true,
+                "start": [
+                  -35.0,
+                  10.0
+                ],
+                "type": "bsplineInterpolation"
+              }
+            ],
+            "id": "profile",
+            "plane": "XY",
+            "type": "sketchProfile"
+          },
+          {
+            "depth": 8.0,
+            "direction": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "id": "extrude",
+            "inputFeatureId": "profile",
+            "type": "extrude"
+          },
+          {
+            "edgeSelection": {
+              "cadquerySelector": ">Z or <Z",
+              "deterministicOrder": "centerZXYThenLength",
+              "kind": "outerTopAndBottomLoops"
+            },
+            "id": "outer-fillets",
+            "inputFeatureId": "extrude",
+            "radius": 1.5,
+            "type": "fillet"
+          },
+          {
+            "direction": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "extent": "throughAll",
+            "id": "hex-cut",
+            "inputFeatureId": "outer-fillets",
+            "profile": {
+              "center": [
+                25.0,
+                0.0
+              ],
+              "circumdiameter": 12.0,
+              "circumscribed": false,
+              "firstVertexDirection": [
+                1.0,
+                0.0
+              ],
+              "plane": "topFace",
+              "sideCount": 6,
+              "type": "regularPolygon"
+            },
+            "type": "cutExtrude"
+          },
+          {
+            "depth": 0.4,
+            "direction": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "id": "emboss",
+            "inputFeatureId": "hex-cut",
+            "profile": {
+              "center": [
+                -5.0,
+                0.0
+              ],
+              "height": 6.0,
+              "plane": "topFace",
+              "type": "centeredRectangle",
+              "width": 18.0
+            },
+            "type": "bossExtrude"
+          }
+        ],
+        "modelingSystem": {
+          "library": "cadquery",
+          "version": "2.8.0"
+        },
+        "schema": "mesh2param/general-parametric-fixture/1",
+        "units": "mm"
+      },
+      "groundTruth": {
+        "area": 4591.985689273924,
+        "boundingBox": [
+          -50.18749176398587,
+          -10.187491763985859,
+          -0.14289999626332817,
+          35.00142441699956,
+          10.187491763985859,
+          8.400000100000002
+        ],
+        "edgeCount": 58,
+        "faceCount": 25,
+        "faceSurfaces": {
+          "bspline": 2,
+          "cone": 0,
+          "cylinder": 5,
+          "other": 1,
+          "plane": 15,
+          "sphere": 0,
+          "torus": 2
+        },
+        "volume": 11873.061213084307
+      },
+      "mesh": {
+        "bodyCount": 1,
+        "watertight": true,
+        "windingConsistent": true
+      },
+      "slug": "spanner-filleted-embossed",
+      "stl": {
+        "byteSize": 293784,
+        "path": "source.stl",
+        "sha256": "22bbf9a5cff903e414f329d6a26ddb9d3465b7bccb28793ee4768aedb0f9dc5c",
+        "triangleCount": 5874,
+        "vertexCount": 2937
+      },
+      "tessellation": {
+        "angularTolerance": 0.18,
+        "linearTolerance": 0.005
+      },
+      "title": "Filleted ring spanner with shallow boss",
+      "units": "mm"
+    }
+  ],
+  "schema": "mesh2param/general-parametric-fixture/1"
+}

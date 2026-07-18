@@ -582,6 +582,15 @@ an evidence line (face inventory and measured maximum deviation), and the
 status chip distinguishes "Approximate curved B-Rep" from
 "Faceted (non-parametric)" through validation.
 
+The browser-local OCCT WebAssembly path also handles a bounded subset without
+the native API: watertight, axis-aligned layered solids are sliced into closed
+profiles and rebuilt as smooth lofts or representative swept profiles. Hole
+tracks require evidence in multiple slices; isolated shallow details are not
+invented. Export succeeds only after STEP reimport, solid validation, a curved
+surface inventory, an 8% volume gate, and a bounds-delta gate. The saved
+project records the reconstruction mode and quantitative approximation
+evidence.
+
 #### Per-patch user controls (implemented)
 
 The command panel gains a patch section after analysis: per-patch lock and
@@ -690,7 +699,7 @@ The user controls for split/merge, crease classification, and patch locking
 are implemented (see the per-patch controls and crease-classification
 sections above). Spherical caps, conical bosses, and torus beads are now
 assembled into the shell (see the analytic sections below); shared network
-edges for analytic faces and extraordinary vertices remain open.
+edges for analytic faces remain open.
 
 #### Analytic caps (implemented)
 

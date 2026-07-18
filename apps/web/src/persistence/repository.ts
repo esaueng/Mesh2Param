@@ -303,9 +303,9 @@ export class WorkspaceRepository {
       activeVersionId: working.currentVersionId,
       syncState: "clean",
     };
-    const document: DocumentRecord = {
-      projectId: project.id,
-      document: structuredClone(working),
+      const document: DocumentRecord = {
+        projectId: project.id,
+        document: structuredClone(working),
       updatedAt: now,
       baseVersionId: project.basedOnVersionId,
       localRevision: 0,
