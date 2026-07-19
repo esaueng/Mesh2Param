@@ -46,6 +46,8 @@ it("reconstructs the sharp, filleted, and embossed spanner fixtures as parametri
       expect(result.valid, fixture.slug).toBe(true);
       expect(result.solid, fixture.slug).toBe(true);
       expect(result.stepReimportValid, fixture.slug).toBe(true);
+      expect(result.parametricReconstruction.acceptance, fixture.slug).toBe("strict");
+      expect(result.parametricReconstruction.toleranceSatisfied, fixture.slug).toBe(true);
       expect(result.featureCount, fixture.slug).toBe(fixture.featureCount);
       expect(result.topologyCounts?.face, fixture.slug).toBe(fixture.faceCount);
       expect(validateCADGraph(result.graph), fixture.slug).toMatchObject({ valid: true });

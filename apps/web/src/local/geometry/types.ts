@@ -84,10 +84,13 @@ export interface BrowserComparisonReport {
 export interface BrowserParametricEvidence {
   family: "general-parametric-prismatic";
   detailMode: "functional" | "full";
+  acceptance: "strict" | "functional-approximation";
+  toleranceSatisfied: boolean;
   featureSequence: string[];
   axis: [number, number, number];
   thickness: number;
   filletRadius: number | null;
+  chamferWidth: number | null;
   surfaceCounts: Record<string, number>;
   comparison: BrowserComparisonReport;
   diagnostics: BrowserReconstructionError[];

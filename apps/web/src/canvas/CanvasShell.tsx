@@ -443,6 +443,9 @@ function fileMeta(vm: WorkspaceViewModel): string {
 
 export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  if (isValidated(state) && state.validation?.toleranceSatisfied === false) {
+    return { label: "Validated · functional approximation", tone: "warn" };
+  }
   if (vm.artifacts.some((artifact) => (
     artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
   ))) return { label: "Faceted STEP", tone: "warn" };

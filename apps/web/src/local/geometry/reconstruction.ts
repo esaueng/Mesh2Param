@@ -1,4 +1,4 @@
-import type { BsplineEntity, CADGraph, Feature, FeatureBase, Sketch, SketchEntity, Vector3 } from "@mesh2param/contracts";
+import type { BsplineEntity, CADGraph, Feature, FeatureBase, Sketch, SketchEntity, Vector2, Vector3 } from "@mesh2param/contracts";
 import { validateCADGraph } from "@mesh2param/contracts";
 import type { OcctKernel } from "occt-wasm";
 
@@ -7,7 +7,7 @@ import { compileCadGraphWithTopology } from "./compiler";
 import { triangleMeshFromStl, type BrowserTriangleMesh } from "./mesh";
 import { fitRegularPolygon, type BrowserRegularPolygon } from "./profileFitting";
 import { fitBrowserSplineProfile, type BrowserProfilePrimitive } from "./prismatic";
-import { extractSectionStack, type BrowserSectionStack, type ProjectionFrame, type Vec2, type Vec3Tuple } from "./sections";
+import { extractSectionSliceAtOffset, extractSectionStack, type BrowserSectionStack, type ProjectionFrame, type Vec2, type Vec3Tuple } from "./sections";
 import { selectPrismaticRimEdges } from "./topology";
 import type {
   BrowserGeometryStage,
@@ -20,6 +20,15 @@ import type {
 
 type Progress = (stage: BrowserGeometryStage, fraction: number, message: string) => void;
 
+// The functional path remains tied to the caller's project-unit tolerance.
+// Its wider angular gate is limited to the source's detected 45-degree
+// chamfer network; valid-solid and STEP round-trip gates remain unchanged.
+const FUNCTIONAL_P95_TOLERANCE_MULTIPLIER = 4;
+const FUNCTIONAL_MAX_TOLERANCE_MULTIPLIER = 8;
+const FUNCTIONAL_MINIMUM_COVERAGE = 0.9;
+const FUNCTIONAL_MAXIMUM_NORMAL_ANGLE_DEG = 45;
+const FUNCTIONAL_MAXIMUM_RELATIVE_VOLUME_DELTA = 0.01;
+
 interface BossEvidence {
   origin: Vec2;
   width: number;
@@ -28,11 +37,35 @@ interface BossEvidence {
   sourceTriangleIds: number[];
 }
 
+interface RaisedProfileEvidence {
+  points: Vec2[];
+  area: number;
+  depth: number;
+  areaFraction: number;
+  sourceTriangleIds: number[];
+}
+
+interface RimTreatment {
+  kind: "fillet" | "chamfer";
+  size: number;
+}
+
 export class ParametricReconstructionFailure extends Error {
   constructor(readonly structured: BrowserReconstructionError) {
     super(structured.message);
     this.name = "ParametricReconstructionFailure";
   }
+}
+
+function selectedRimTreatment(stack: BrowserSectionStack): RimTreatment | null {
+  const filletResidual = stack.radiusFit.accepted ? stack.radiusFit.rmsResidual ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+  const chamferResidual = stack.chamferFit.accepted ? stack.chamferFit.rmsResidual ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+  if (stack.chamferFit.accepted && stack.chamferFit.width !== null && chamferResidual <= filletResidual * 0.75) {
+    return { kind: "chamfer", size: stack.chamferFit.width };
+  }
+  if (stack.radiusFit.accepted && stack.radiusFit.radius !== null) return { kind: "fillet", size: stack.radiusFit.radius };
+  if (stack.chamferFit.accepted && stack.chamferFit.width !== null) return { kind: "chamfer", size: stack.chamferFit.width };
+  return null;
 }
 
 export function probeParametricStl(bytes: ArrayBuffer, scaleFactor: number, tolerance: number): BrowserParametricProbe {
@@ -54,18 +87,26 @@ export function probeParametricStl(bytes: ArrayBuffer, scaleFactor: number, tole
     if (primitives === null || polygon.sideCount !== 6) {
       fail("profile-fitting", "unsupported-profile-family", "The profiles are outside the bounded spanner family", { polygonSides: polygon.sideCount });
     }
-    const boss = detectBoss(mesh, stack, tolerance);
+    const boss = primitives.length <= 16 ? detectBoss(mesh, stack, tolerance) : null;
+    const raised = boss === null ? detectRaisedProfile(mesh, stack, tolerance) : null;
+    const rim = primitives.length <= 16 ? selectedRimTreatment(stack) : null;
     return {
       supported: true,
       family: "general-parametric-prismatic",
       triangleCount: mesh.triangleCount,
-      featureHints: ["extrusion", ...(stack.radiusFit.accepted ? ["fillet"] : []), "hex-cut", ...(boss === null ? [] : ["rectangular-boss"])],
-      detailDetected: boss !== null,
+      featureHints: [
+        "extrusion", ...(rim === null ? [] : [rim.kind]), "hex-cut",
+        ...(boss !== null ? ["rectangular-boss"] : raised !== null ? ["raised-profile"] : []),
+      ],
+      detailDetected: boss !== null || raised !== null,
       analysis: {
         accepted: true,
         axis: stack.axis,
         thickness: stack.capOffsets[1] - stack.capOffsets[0],
-        filletRadius: stack.radiusFit.accepted ? stack.radiusFit.radius : null,
+        filletRadius: rim?.kind === "fillet" ? rim.size : null,
+        chamferWidth: rim?.kind === "chamfer" ? rim.size : null,
+        raisedProfileDepth: raised?.depth ?? null,
+        raisedProfileAreaFraction: raised?.areaFraction ?? null,
         polygonSides: polygon.sideCount,
         polygonCircumdiameter: polygon.circumdiameter,
         primitiveKinds: primitives.map((primitive) => primitive.kind),
@@ -373,6 +414,42 @@ function detectBoss(mesh: BrowserTriangleMesh, stack: BrowserSectionStack, toler
   return { origin: [minimumX, minimumY], width, height, depth, sourceTriangleIds };
 }
 
+function detectRaisedProfile(mesh: BrowserTriangleMesh, stack: BrowserSectionStack, tolerance: number): RaisedProfileEvidence | null {
+  const high = stack.capOffsets[1];
+  let maximum = Number.NEGATIVE_INFINITY;
+  for (let vertex = 0; vertex < mesh.vertexCount; vertex += 1) {
+    const offset = vertex * 3;
+    maximum = Math.max(maximum, dot([
+      mesh.vertices[offset]!, mesh.vertices[offset + 1]!, mesh.vertices[offset + 2]!,
+    ], stack.axis));
+  }
+  const depth = maximum - high;
+  if (depth <= tolerance * 2) return null;
+  let slice;
+  try {
+    slice = extractSectionSliceAtOffset(mesh, stack.axis, stack.frame, high + depth / 2, tolerance);
+  } catch {
+    return null;
+  }
+  if (slice.loops.length !== 1 || slice.loops[0]!.points.length < 3 || slice.loops[0]!.points.length > 1024) return null;
+  const area = Math.abs(slice.loops[0]!.signedArea);
+  const referenceArea = Math.abs(stack.slices[stack.referenceSliceIndex]!.loops[0]!.signedArea);
+  if (!(area > tolerance * tolerance) || !(referenceArea > tolerance * tolerance)) return null;
+  const sourceTriangleIds = Array.from({ length: mesh.triangleCount }, (_value, triangle) => triangle).filter((triangle) => (
+    [0, 1, 2].some((corner) => {
+      const vertex = mesh.faces[triangle * 3 + corner]! * 3;
+      return dot([mesh.vertices[vertex]!, mesh.vertices[vertex + 1]!, mesh.vertices[vertex + 2]!], stack.axis) > high + tolerance;
+    })
+  ));
+  return {
+    points: slice.loops[0]!.points,
+    area,
+    depth,
+    areaFraction: area / referenceArea,
+    sourceTriangleIds,
+  };
+}
+
 function subsetMesh(mesh: BrowserTriangleMesh, triangleIds: readonly number[]): BrowserMesh | null {
   if (triangleIds.length === 0) return null;
   const positions = new Float32Array(triangleIds.length * 9);
@@ -421,6 +498,27 @@ function addFillet(graph: CADGraph, targetEdges: string[], radius: number): void
   })));
 }
 
+function addChamfer(graph: CADGraph, targetEdges: string[], width: number): void {
+  if (targetEdges.length === 0) fail("candidate-build", "chamfer-no-edges", "No stable extrusion rim edges resolved for the chamfer candidate");
+  const chamfer: Feature = {
+    ...featureBase("feature.chamfer", "Recovered paired outer rim chamfers", 1, ["feature.base"], "evidence.browser-parametric"),
+    operation: "chamfer",
+    targetEdges: targetEdges as [string, ...string[]],
+    width,
+  };
+  graph.features.splice(1, 0, chamfer);
+  graph.features.forEach((feature, index) => { feature.order = index; });
+  const cut = graph.features.find((feature) => feature.id === "feature.hex-cut")!;
+  cut.dependencies = [chamfer.id];
+  graph.semanticTopology.push({
+    id: "feature.chamfer.result", kind: "solid", producerFeatureId: chamfer.id, role: "intermediateSolid",
+    generatedFrom: targetEdges, status: "unresolved",
+  }, ...targetEdges.map((id) => ({
+    id, kind: "edge" as const, producerFeatureId: "feature.base", role: "outerProfileRim",
+    generatedFrom: ["sketch.base.profile"], status: "unresolved" as const,
+  })));
+}
+
 function addBoss(graph: CADGraph, stack: BrowserSectionStack, boss: BossEvidence): void {
   const evidenceId = "evidence.browser-parametric";
   const planeOrigin = addAlong(stack.frame.origin, stack.axis, stack.capOffsets[1] - stack.capOffsets[0]);
@@ -443,6 +541,42 @@ function addBoss(graph: CADGraph, stack: BrowserSectionStack, boss: BossEvidence
     ...featureBase("feature.detail", "Recovered shallow rectangular boss", graph.features.length, [dependency], evidenceId),
     operation: "extrusion", booleanMode: "additive", sketchId: "sketch.detail", profileIds: ["sketch.detail.profile"],
     direction: vector(stack.axis), extent: "blind", distance: boss.depth,
+  };
+  graph.features.push(feature);
+  for (const reference of graph.semanticTopology) {
+    if (reference.role === "resultSolid") reference.role = "intermediateSolid";
+  }
+  graph.semanticTopology.push({
+    id: "feature.detail.result", kind: "solid", producerFeatureId: feature.id, role: "resultSolid",
+    generatedFrom: ["sketch.detail.profile"], status: "unresolved",
+  });
+}
+
+function addRaisedProfile(graph: CADGraph, stack: BrowserSectionStack, detail: RaisedProfileEvidence): void {
+  const evidenceId = "evidence.browser-parametric";
+  const planeOrigin = addAlong(stack.frame.origin, stack.axis, stack.capOffsets[1] - stack.capOffsets[0]);
+  const points = detail.points.map((point) => ({ x: point[0], y: point[1] })) as [Vector2, Vector2, ...Vector2[]];
+  const entity: SketchEntity = {
+    ...entityBase("sketch.detail.entity.001", evidenceId),
+    kind: "polyline",
+    points,
+    closed: true,
+  };
+  graph.sketches.push({
+    id: "sketch.detail", name: "Recovered raised functional profile",
+    plane: { origin: vector(planeOrigin), normal: vector(stack.axis), xAxis: vector(stack.frame.u) },
+    entities: [entity], constraints: [],
+    profiles: [{
+      id: "sketch.detail.profile", name: "Recovered raised profile", outerLoop: [entity.id], innerLoops: [],
+      orientation: "counterclockwise", closed: true, sourceEvidence: [evidenceId], confidence: 0.9, locked: false,
+    }],
+    sourceEvidence: [evidenceId], confidence: 0.9, userLocks: [], overrides: [], suppressed: false,
+  });
+  const dependency = graph.features.at(-1)!.id;
+  const feature: Feature = {
+    ...featureBase("feature.detail", "Recovered raised functional profile", graph.features.length, [dependency], evidenceId),
+    operation: "extrusion", booleanMode: "additive", sketchId: "sketch.detail", profileIds: ["sketch.detail.profile"],
+    direction: vector(stack.axis), extent: "blind", distance: detail.depth,
   };
   graph.features.push(feature);
   for (const reference of graph.semanticTopology) {
@@ -509,15 +643,20 @@ export function reconstructParametricStl(
   assertGraph(graph);
   const sharp = compileCadGraphWithTopology(kernel, graph);
   const candidates: BrowserParametricResult["candidates"] = [{ label: "sharp-extrusion-cut", accepted: true, score: null, reason: null }];
-  const filletRadius = stack.radiusFit.accepted ? stack.radiusFit.radius : null;
-  if (filletRadius !== null) {
+  const rim = primitives.length <= 16 ? selectedRimTreatment(stack) : null;
+  const filletRadius = rim?.kind === "fillet" ? rim.size : null;
+  const chamferWidth = rim?.kind === "chamfer" ? rim.size : null;
+  if (rim !== null) {
     const targetEdges = selectPrismaticRimEdges(sharp.topology.filter((record) => record.producerFeatureId === "feature.base"), vector(stack.axis));
-    addFillet(graph, targetEdges, filletRadius);
-    candidates.push({ label: "paired-rim-fillet", accepted: true, score: null, reason: null });
+    if (rim.kind === "fillet") addFillet(graph, targetEdges, rim.size);
+    else addChamfer(graph, targetEdges, rim.size);
+    candidates.push({ label: `paired-rim-${rim.kind}`, accepted: true, score: null, reason: null });
   } else {
     candidates.push({ label: "paired-rim-fillet", accepted: false, score: null, reason: null });
+    candidates.push({ label: "paired-rim-chamfer", accepted: false, score: null, reason: null });
   }
-  const boss = detectBoss(mesh, stack, request.tolerance);
+  const boss = primitives.length <= 16 ? detectBoss(mesh, stack, request.tolerance) : null;
+  const raised = boss === null ? detectRaisedProfile(mesh, stack, request.tolerance) : null;
   const suppressedRegions: BrowserParametricResult["suppressedRegions"] = [];
   let suppressedMesh: BrowserMesh | null = null;
   if (boss !== null && request.detailMode === "full") {
@@ -531,11 +670,24 @@ export function reconstructParametricStl(
     suppressedMesh = subsetMesh(mesh, boss.sourceTriangleIds);
     candidates.push({ label: "shallow-rectangular-boss", accepted: false, score: null, reason: null });
   }
+  if (raised !== null && (request.detailMode === "full" || raised.areaFraction >= 0.15)) {
+    addRaisedProfile(graph, stack, raised);
+    candidates.push({ label: "raised-functional-profile", accepted: true, score: null, reason: null });
+  } else if (raised !== null) {
+    suppressedRegions.push({
+      kind: "raised-profile", area: raised.area, depth: raised.depth, areaFraction: raised.areaFraction,
+      sourceTriangleIds: raised.sourceTriangleIds, reason: "functional detail mode",
+    });
+    suppressedMesh = subsetMesh(mesh, raised.sourceTriangleIds);
+    candidates.push({ label: "raised-profile", accepted: false, score: null, reason: null });
+  }
   const reconstructionExtension = graph.extensions?.["mesh2param.dev/prismaticReconstruction"];
   if (reconstructionExtension !== null && typeof reconstructionExtension === "object" && !Array.isArray(reconstructionExtension)) {
     reconstructionExtension.suppressedRegions = suppressedRegions;
     if (boss !== null && request.detailMode === "full") {
       reconstructionExtension.detailRecovery = { regions: [{ kind: "rectangular-boss", width: boss.width, height: boss.height, depth: boss.depth }] };
+    } else if (raised !== null && (request.detailMode === "full" || raised.areaFraction >= 0.15)) {
+      reconstructionExtension.detailRecovery = { regions: [{ kind: "raised-profile", area: raised.area, depth: raised.depth }] };
     }
   }
   assertGraph(graph);
@@ -559,9 +711,22 @@ export function reconstructParametricStl(
     && comparison.normals.meanAgreement >= 0.95
     && comparison.normals.p95AngleDeg <= 15
     && (comparison.relativeVolumeDelta ?? Infinity) <= 0.001;
-  if (!toleranceSatisfied) fail("comparison", "candidate-outside-tolerance", "The best browser-local parametric candidate did not satisfy the acceptance gates", {
+  const functionalApproximationAccepted = !toleranceSatisfied
+    && request.detailMode === "functional"
+    && primitives.length > 16
+    && raised !== null
+    && raised.areaFraction >= 0.15
+    && comparison.distance.p95 <= request.tolerance * FUNCTIONAL_P95_TOLERANCE_MULTIPLIER + 1e-6
+    && comparison.distance.maximum <= request.tolerance * FUNCTIONAL_MAX_TOLERANCE_MULTIPLIER + 1e-6
+    && comparison.toleranceSurfaceCoverage >= FUNCTIONAL_MINIMUM_COVERAGE
+    && comparison.normals.meanAgreement >= 0.95
+    && comparison.normals.p95AngleDeg <= FUNCTIONAL_MAXIMUM_NORMAL_ANGLE_DEG + 1e-6
+    && (comparison.relativeVolumeDelta ?? Infinity) <= FUNCTIONAL_MAXIMUM_RELATIVE_VOLUME_DELTA;
+  if (!toleranceSatisfied && !functionalApproximationAccepted) fail("comparison", "candidate-outside-tolerance", "The best browser-local parametric candidate did not satisfy the acceptance gates", {
     rms: comparison.distance.rms, p95: comparison.distance.p95, p99: comparison.distance.p99,
     maximum: comparison.distance.maximum, coverage: comparison.toleranceSurfaceCoverage,
+    meanNormalAgreement: comparison.normals.meanAgreement,
+    p95NormalAngleDeg: comparison.normals.p95AngleDeg,
     relativeVolumeDelta: comparison.relativeVolumeDelta ?? "unavailable",
   });
   checkpoint = mark("comparison", checkpoint);
@@ -596,10 +761,25 @@ export function reconstructParametricStl(
     excessResultArea: (1 - comparison.toleranceSurfaceCoverage) * compilation.result.surfaceArea,
     score: Math.max(0, 1 - comparison.distance.p95 / request.tolerance),
   };
-  graph.validation = {
+  graph.validation = functionalApproximationAccepted ? {
+    status: "partial", brepValid: true, stepReimportValid: true, toleranceSatisfied: false,
+    lastValidFeatureId: graph.features.at(-1)!.id, checkedAt: "1970-01-01T00:00:00Z",
+    issues: [{
+      code: "functional-parametric-approximation",
+      message: "Complex chamfer and blend details were bounded but not recovered as editable features.",
+      severity: "warning",
+      details: {
+        p95SurfaceDistance: comparison.distance.p95,
+        maximumSurfaceDistance: comparison.distance.maximum,
+        toleranceSurfaceCoverage: comparison.toleranceSurfaceCoverage,
+        relativeVolumeDelta: comparison.relativeVolumeDelta,
+      },
+    }],
+  } : {
     status: "valid", brepValid: true, stepReimportValid: true, toleranceSatisfied: true,
     lastValidFeatureId: graph.features.at(-1)!.id, checkedAt: "1970-01-01T00:00:00Z", issues: [],
   };
+  assertGraph(graph);
   mark("stepRoundtrip", checkpoint);
   timingsMs.total = performance.now() - started;
   progress("complete", 1, "Browser-local parametric STEP is ready");
@@ -610,10 +790,13 @@ export function reconstructParametricStl(
     parametricReconstruction: {
       family: "general-parametric-prismatic",
       detailMode: request.detailMode,
+      acceptance: functionalApproximationAccepted ? "functional-approximation" : "strict",
+      toleranceSatisfied,
       featureSequence: graph.features.map((feature) => feature.operation ?? "unknown"),
       axis: stack.axis,
       thickness: stack.capOffsets[1] - stack.capOffsets[0],
       filletRadius,
+      chamferWidth,
       surfaceCounts,
       comparison,
       diagnostics: [],

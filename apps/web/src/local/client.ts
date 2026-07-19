@@ -436,14 +436,23 @@ export class BrowserApiClient {
           ]),
         ];
         const artifacts = await Promise.all(artifactPromises);
+        const functionalApproximation = parametric.parametricReconstruction.acceptance === "functional-approximation";
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
         next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
         next.state.validation = {
-          status: "valid", brepValid: true, stepReimportValid: true, toleranceSatisfied: true,
-          issues: [],
+          status: functionalApproximation ? "valid-with-warnings" : "valid",
+          brepValid: true,
+          stepReimportValid: true,
+          toleranceSatisfied: parametric.parametricReconstruction.toleranceSatisfied,
+          issues: functionalApproximation ? [{
+            code: "functional-parametric-approximation",
+            severity: "warning",
+            message: "The STEP is a valid functional reconstruction; complex chamfer and blend details remain approximate.",
+            comparison: parametric.parametricReconstruction.comparison as unknown as JsonObject,
+          }] : [],
           compilation: {
             kernel: "OCCT WebAssembly",
-            mode: "browser-local-parametric",
+            mode: functionalApproximation ? "browser-local-parametric-functional" : "browser-local-parametric",
             featureCount: parametric.featureCount,
             surfaceCounts: parametric.surfaceCounts ?? {},
             comparison: parametric.parametricReconstruction.comparison as unknown as JsonObject,
@@ -465,8 +474,9 @@ export class BrowserApiClient {
         return {
           operation,
           revision: saved.revision,
-          mode: "browser-local-parametric",
-          exactParametric: true,
+          mode: functionalApproximation ? "browser-local-parametric-functional" : "browser-local-parametric",
+          exactParametric: !functionalApproximation,
+          approximate: functionalApproximation,
           detailMode,
           stepReimportValid: true,
         };
