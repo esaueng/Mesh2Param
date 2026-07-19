@@ -35,6 +35,14 @@ export interface BrowserRadiusFit {
   maximumInset: number;
 }
 
+export interface BrowserChamferFit {
+  accepted: boolean;
+  width: number | null;
+  rmsResidual: number | null;
+  maximumResidual: number | null;
+  maximumInset: number;
+}
+
 export interface BrowserSectionStack {
   axis: Vec3Tuple;
   frame: ProjectionFrame;
@@ -42,6 +50,7 @@ export interface BrowserSectionStack {
   slices: BrowserSectionSlice[];
   referenceSliceIndex: number;
   radiusFit: BrowserRadiusFit;
+  chamferFit: BrowserChamferFit;
   blindFeatureDetected: boolean;
   taperedExtrusionDetected: boolean;
   maximumSupportChange: number;
@@ -81,11 +90,46 @@ export function estimateSectionAxis(mesh: BrowserTriangleMesh): Vec3Tuple {
   for (let candidate = 1; candidate < 3; candidate += 1) {
     if (decomposition.realEigenvalues[candidate]! > decomposition.realEigenvalues[index]!) index = candidate;
   }
-  return canonicalAxis([
+  const principal = canonicalAxis([
     decomposition.eigenvectorMatrix.get(0, index),
     decomposition.eigenvectorMatrix.get(1, index),
     decomposition.eigenvectorMatrix.get(2, index),
   ]);
+  // The normal-moment eigenvector is a stable coarse axis, but small embossed
+  // details can tilt it enough that a large planar cap is split into many
+  // artificial offset levels. Refine it from the area-weighted cap-normal
+  // cluster. Sign-align opposite caps before averaging so arbitrary model
+  // orientation is preserved and paired caps reinforce one another.
+  const capCosine = Math.cos(5 * Math.PI / 180);
+  let capAnchor: Vec3Tuple | null = null;
+  let capAnchorArea = 0;
+  for (let face = 0; face < mesh.triangleCount; face += 1) {
+    const normal: Vec3Tuple = [
+      mesh.faceNormals[face * 3]!, mesh.faceNormals[face * 3 + 1]!, mesh.faceNormals[face * 3 + 2]!,
+    ];
+    if (Math.abs(dot(normal, principal)) < capCosine || mesh.faceAreas[face]! <= capAnchorArea) continue;
+    const sign = dot(normal, principal) < 0 ? -1 : 1;
+    capAnchor = [sign * normal[0], sign * normal[1], sign * normal[2]];
+    capAnchorArea = mesh.faceAreas[face]!;
+  }
+  if (capAnchor === null) return principal;
+  const refined: Vec3Tuple = [0, 0, 0];
+  let refinedArea = 0;
+  const clusterCosine = Math.cos(0.1 * Math.PI / 180);
+  for (let face = 0; face < mesh.triangleCount; face += 1) {
+    const normal: Vec3Tuple = [
+      mesh.faceNormals[face * 3]!, mesh.faceNormals[face * 3 + 1]!, mesh.faceNormals[face * 3 + 2]!,
+    ];
+    const alignment = dot(normal, capAnchor);
+    if (Math.abs(alignment) < clusterCosine) continue;
+    const sign = alignment < 0 ? -1 : 1;
+    const area = mesh.faceAreas[face]!;
+    refined[0] += sign * area * normal[0];
+    refined[1] += sign * area * normal[1];
+    refined[2] += sign * area * normal[2];
+    refinedArea += area;
+  }
+  return refinedArea > 1e-15 ? canonicalAxis(refined) : principal;
 }
 
 function projectionFrame(axisValue: Vec3Tuple, origin: Vec3Tuple): ProjectionFrame {
@@ -194,7 +238,19 @@ function pointKey(point: Vec3Tuple, tolerance: number): string {
   return `${Math.round(point[0] / tolerance)}:${Math.round(point[1] / tolerance)}:${Math.round(point[2] / tolerance)}`;
 }
 
-function assembleLoops(segments: Segment[], tolerance: number): Array<{ points: Vec3Tuple[]; triangles: number[] }> {
+function assembleLoops(segmentValues: Segment[], tolerance: number): Array<{ points: Vec3Tuple[]; triangles: number[] }> {
+  // Booleaned or highly tessellated solids can contain coincident section
+  // segments from paired triangles. They are identical geometric evidence,
+  // but retaining both creates artificial degree-four vertices in the loop
+  // graph. Collapse them by their quantized undirected endpoints.
+  const uniqueSegments = new Map<string, Segment>();
+  for (const segment of segmentValues) {
+    const start = pointKey(segment.start, tolerance);
+    const end = pointKey(segment.end, tolerance);
+    const key = start < end ? `${start}|${end}` : `${end}|${start}`;
+    if (!uniqueSegments.has(key)) uniqueSegments.set(key, segment);
+  }
+  const segments = [...uniqueSegments.values()];
   const adjacency = new Map<string, number[]>();
   for (let index = 0; index < segments.length; index += 1) {
     for (const point of [segments[index]!.start, segments[index]!.end]) {
@@ -289,6 +345,31 @@ function canonicalLoop(pointsValue: Vec2[], clockwise: boolean): BrowserSectionL
   };
 }
 
+export function extractSectionSliceAtOffset(
+  mesh: BrowserTriangleMesh,
+  axis: Vec3Tuple,
+  frame: ProjectionFrame,
+  offset: number,
+  tolerance: number,
+): BrowserSectionSlice {
+  const sectionEpsilon = Math.max(tolerance * 1e-5, 1e-9);
+  const joinTolerance = Math.max(tolerance * 1e-4, 1e-8);
+  const segments = sectionSegments(mesh, axis, offset, sectionEpsilon);
+  const assembled = assembleLoops(segments, joinTolerance);
+  const projected = assembled.map((loop) => ({
+    points: loop.points.map((point) => project(frame, point)),
+    triangles: loop.triangles,
+  })).sort((left, right) => Math.abs(signedArea(right.points)) - Math.abs(signedArea(left.points)));
+  if (projected.length === 0 || projected.length > 64) throw new Error("Section has an unsupported loop count");
+  return {
+    index: 0,
+    offset,
+    normalizedHeight: 0,
+    loops: projected.map((loop, loopIndex) => canonicalLoop(loop.points, loopIndex > 0)),
+    sourceTriangleIds: [...new Set(assembled.flatMap((loop) => loop.triangles))].sort((left, right) => left - right),
+  };
+}
+
 function circleInset(distance: number, radius: number): number {
   if (distance >= radius) return 0;
   return radius - Math.sqrt(Math.max(0, radius * radius - (radius - Math.min(distance, radius)) ** 2));
@@ -309,7 +390,11 @@ function goldenSectionMinimum(objective: (value: number) => number, lowerValue: 
   return (lower + upper) / 2;
 }
 
-function fitRadius(slices: BrowserSectionSlice[], reference: BrowserSectionSlice, caps: [number, number], tolerance: number): BrowserRadiusFit {
+function measureSectionInsets(
+  slices: BrowserSectionSlice[],
+  reference: BrowserSectionSlice,
+  caps: [number, number],
+): { distances: number[]; insets: number[] } {
   const distances: number[] = [];
   const insets: number[] = [];
   for (const slice of slices) {
@@ -319,6 +404,11 @@ function fitRadius(slices: BrowserSectionSlice[], reference: BrowserSectionSlice
     insets.push(Math.max(0, (supportInsets[1]! + supportInsets[2]!) / 2));
     distances.push(Math.min(slice.offset - caps[0], caps[1] - slice.offset));
   }
+  return { distances, insets };
+}
+
+function fitRadius(slices: BrowserSectionSlice[], reference: BrowserSectionSlice, caps: [number, number], tolerance: number): BrowserRadiusFit {
+  const { distances, insets } = measureSectionInsets(slices, reference, caps);
   const maximumInset = Math.max(...insets);
   const minimumRadius = Math.max(tolerance * 2, 1e-4);
   const maximumRadius = (caps[1] - caps[0]) * 0.45;
@@ -339,6 +429,28 @@ function fitRadius(slices: BrowserSectionSlice[], reference: BrowserSectionSlice
   };
 }
 
+function fitChamfer(slices: BrowserSectionSlice[], reference: BrowserSectionSlice, caps: [number, number], tolerance: number): BrowserChamferFit {
+  const { distances, insets } = measureSectionInsets(slices, reference, caps);
+  const maximumInset = Math.max(...insets);
+  const minimumWidth = Math.max(tolerance * 2, 1e-4);
+  const maximumWidth = (caps[1] - caps[0]) * 0.45;
+  if (maximumWidth <= minimumWidth) return { accepted: false, width: null, rmsResidual: null, maximumResidual: null, maximumInset };
+  const width = goldenSectionMinimum((candidate) => {
+    const squared = distances.map((distance, index) => (Math.max(0, candidate - distance) - insets[index]!) ** 2);
+    return squared.reduce((sum, value) => sum + value, 0) / squared.length;
+  }, minimumWidth, maximumWidth);
+  const residuals = distances.map((distance, index) => Math.abs(Math.max(0, width - distance) - insets[index]!));
+  const rmsResidual = Math.sqrt(residuals.reduce((sum, value) => sum + value * value, 0) / residuals.length);
+  const maximumResidual = Math.max(...residuals);
+  return {
+    accepted: maximumInset >= Math.max(tolerance * 1.6, 1e-4) && rmsResidual <= tolerance * 0.6 && maximumResidual <= tolerance * 1.6,
+    width,
+    rmsResidual,
+    maximumResidual,
+    maximumInset,
+  };
+}
+
 export function extractSectionStack(mesh: BrowserTriangleMesh, tolerance: number, sectionCount = 32): BrowserSectionStack {
   if (!Number.isFinite(tolerance) || tolerance <= 0) throw new Error("Section tolerance must be finite and positive");
   const axis = estimateSectionAxis(mesh);
@@ -347,41 +459,52 @@ export function extractSectionStack(mesh: BrowserTriangleMesh, tolerance: number
   const extent = capOffsets[1] - capOffsets[0];
   const slices: BrowserSectionSlice[] = [];
   const sectionEpsilon = Math.max(tolerance * 1e-5, 1e-9);
-  // Shared STL edges produce the same intersection analytically. Keep the
-  // weld scale well below both the project tolerance and the tessellation
-  // chord length so nearby samples on a curved edge are never collapsed.
-  const joinTolerance = Math.max(tolerance * 1e-4, 1e-8);
   for (let index = 0; index < sectionCount; index += 1) {
-    const normalizedHeight = (index + 1) / (sectionCount + 1);
-    const offset = capOffsets[0] + normalizedHeight * extent;
-    const segments = sectionSegments(mesh, axis, offset, sectionEpsilon);
-    let assembled: Array<{ points: Vec3Tuple[]; triangles: number[] }>;
-    try {
-      assembled = assembleLoops(segments, joinTolerance);
-    } catch (cause) {
-      throw new Error(`Section ${index} at offset ${offset}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    const targetNormalizedHeight = (index + 1) / (sectionCount + 1);
+    const targetOffset = capOffsets[0] + targetNormalizedHeight * extent;
+    // A nominal section can land exactly on a tessellation ring or high-valence
+    // vertex, producing a degree-four intersection graph even for a watertight
+    // solid. Retry at deterministic sub-tolerance offsets; this changes neither
+    // the inferred units nor the feature scale, but avoids a combinatorial
+    // artifact of the source triangulation.
+    const jitter = Math.max(tolerance * 1e-3, 1e-7);
+    const candidateOffsets = [targetOffset, targetOffset + jitter, targetOffset - jitter, targetOffset + 2 * jitter, targetOffset - 2 * jitter]
+      .filter((candidate) => candidate > capOffsets[0] + sectionEpsilon && candidate < capOffsets[1] - sectionEpsilon);
+    let selected: BrowserSectionSlice | null = null;
+    let selectedOffset = targetOffset;
+    let lastError: unknown = null;
+    for (const candidateOffset of candidateOffsets) {
+      try {
+        selected = extractSectionSliceAtOffset(mesh, axis, frame, candidateOffset, tolerance);
+        selectedOffset = candidateOffset;
+        break;
+      } catch (cause) {
+        lastError = cause;
+      }
     }
-    const projected = assembled.map((loop) => ({
-      points: loop.points.map((point) => project(frame, point)),
-      triangles: loop.triangles,
-    })).sort((left, right) => Math.abs(signedArea(right.points)) - Math.abs(signedArea(left.points)));
-    if (projected.length === 0 || projected.length > 16) throw new Error(`Section ${index} has an unsupported loop count`);
-    const loops = projected.map((loop, loopIndex) => canonicalLoop(loop.points, loopIndex > 0));
+    if (selected === null) {
+      throw new Error(`Section ${index} at offset ${targetOffset}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+    }
     slices.push({
       index,
-      offset,
-      normalizedHeight,
-      loops,
-      sourceTriangleIds: [...new Set(assembled.flatMap((loop) => loop.triangles))].sort((a, b) => a - b),
+      offset: selectedOffset,
+      normalizedHeight: (selectedOffset - capOffsets[0]) / extent,
+      loops: selected.loops,
+      sourceTriangleIds: selected.sourceTriangleIds,
     });
   }
-  const middle = slices.filter((slice) => slice.normalizedHeight >= 0.4 && slice.normalizedHeight <= 0.6);
+  const countFrequency = new Map<number, number>();
+  for (const slice of slices) countFrequency.set(slice.loops.length, (countFrequency.get(slice.loops.length) ?? 0) + 1);
+  const dominantLoopCount = [...countFrequency.entries()].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]![0];
+  const stableSlices = slices.filter((slice) => slice.loops.length === dominantLoopCount);
+  const middle = stableSlices.filter((slice) => slice.normalizedHeight >= 0.4 && slice.normalizedHeight <= 0.6);
   const reference = middle.reduce((best, slice) => Math.abs(slice.loops[0]!.signedArea) > Math.abs(best.loops[0]!.signedArea) ? slice : best);
-  const loopCounts = new Set(slices.map((slice) => slice.loops.length));
-  const radiusFit = fitRadius(slices, reference, capOffsets, tolerance);
-  const supports = slices.map((slice) => slice.loops[0]!.bounds);
+  const radiusFit = fitRadius(stableSlices, reference, capOffsets, tolerance);
+  const chamferFit = fitChamfer(stableSlices, reference, capOffsets, tolerance);
+  const supportSlices = stableSlices.filter((slice) => slice.normalizedHeight >= 0.15 && slice.normalizedHeight <= 0.85);
+  const supports = supportSlices.map((slice) => slice.loops[0]!.bounds);
   const supportChanges = supports.slice(1).map((bounds) => Math.max(
-    ...bounds.map((value, axisIndex) => Math.abs(value - supports[0]![axisIndex]!)),
+    ...bounds.map((value, axisIndex) => Math.abs(value - reference.loops[0]!.bounds[axisIndex]!)),
   )).sort((left, right) => left - right);
   // A section exactly through a triangulation vertex can contain a local
   // combinatorial outlier. Taper is a persistent stack property, so use the
@@ -394,8 +517,9 @@ export function extractSectionStack(mesh: BrowserTriangleMesh, tolerance: number
     slices,
     referenceSliceIndex: reference.index,
     radiusFit,
-    blindFeatureDetected: loopCounts.size > 1,
-    taperedExtrusionDetected: !radiusFit.accepted && totalSupportChange > tolerance * 2,
+    chamferFit,
+    blindFeatureDetected: stableSlices.length / slices.length < 0.8,
+    taperedExtrusionDetected: !radiusFit.accepted && !chamferFit.accepted && totalSupportChange > tolerance * 2,
     maximumSupportChange: totalSupportChange,
   };
 }

@@ -1,6 +1,6 @@
 /* global self, caches, URL, fetch, Response */
 
-const CACHE_NAME = "mesh2param-browser-runtime-v1";
+const CACHE_NAME = "mesh2param-browser-runtime-v2";
 const APP_SHELL = ["/"];
 
 self.addEventListener("install", (event) => {
@@ -31,10 +31,10 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(caches.match("/").then((cached) => cached || fetch(request).then(async (response) => {
+    event.respondWith(fetch(request).then(async (response) => {
       if (response.ok) (await caches.open(CACHE_NAME)).put("/", response.clone());
       return response;
-    })).catch(() => Response.error()));
+    }).catch(async () => (await caches.match("/")) || Response.error()));
     return;
   }
 

@@ -489,7 +489,12 @@ export function fitBrowserSplineProfile(points: Vec2[]): BrowserProfilePrimitive
     .map((primitive, index) => ({ primitive, index }))
     .filter((item): item is { primitive: LinePrimitive; index: number } => item.primitive.kind === "line")
     .sort((left, right) => distance(right.primitive.start, right.primitive.end) - distance(left.primitive.start, left.primitive.end));
-  if (broadArcs.length !== 1 || lines.length < 2) return null;
+  const boundedAnalyticFallback = (): BrowserProfilePrimitive[] | null => (
+    analytic.length <= 64 && lines.length >= 2 && analytic.some((primitive) => primitive.kind === "arc")
+      ? analytic
+      : null
+  );
+  if (broadArcs.length !== 1 || lines.length < 2) return boundedAnalyticFallback();
   const anchorIndexes = new Set([broadArcs[0]!.index, lines[0]!.index, lines[1]!.index]);
   let anchorStart = -1;
   for (let index = 0; index < analytic.length; index += 1) {
@@ -498,7 +503,7 @@ export function fitBrowserSplineProfile(points: Vec2[]): BrowserProfilePrimitive
       break;
     }
   }
-  if (anchorStart < 0) return null;
+  if (anchorStart < 0) return boundedAnalyticFallback();
   const anchors = [0, 1, 2].map((offset) => analytic[(anchorStart + offset) % analytic.length]!);
   const splinePoints = cyclicPoints(points, anchors[2]!.end, anchors[0]!.start);
   const spline = fitBoundedBSpline(splinePoints, ARC_RMS_TOLERANCE * 1.2, ARC_MAX_TOLERANCE);

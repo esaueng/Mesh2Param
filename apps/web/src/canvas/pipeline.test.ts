@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ArtifactDescriptor, ProjectWorkingDocument } from "../state/types";
 import type { WorkspaceViewModel } from "../workspace/types";
+import { conversionStatus } from "./CanvasShell";
 import {
   analysisRerunAction,
   availableModes,
@@ -124,6 +125,23 @@ describe("canvas pipeline actions", () => {
     ] as ArtifactDescriptor[];
 
     expect(availableModes(artifacts)).toContainEqual({ mode: "residual", label: "Suppressed" });
+  });
+
+  it("labels a reimported functional STEP as an approximation", () => {
+    const vm = completedWorkspace({
+      cadgraph: { features: [{ operation: "extrusion" }] },
+      validation: {
+        status: "valid-with-warnings",
+        brepValid: true,
+        stepReimportValid: true,
+        toleranceSatisfied: false,
+      },
+    });
+
+    expect(conversionStatus(vm)).toEqual({
+      label: "Validated · functional approximation",
+      tone: "warn",
+    });
   });
 
   it("regenerates a completed parametric STEP through the validated exporter", () => {
