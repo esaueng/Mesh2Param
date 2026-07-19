@@ -13,6 +13,7 @@ import { OcctKernel, type ShapeHandle, type Vec3 } from "occt-wasm";
 import type { BrowserCadResult } from "./types";
 import { reconstructLayeredCurvedShape } from "./layered";
 import { analyzeStl } from "./stl";
+import { BrowserTopologyRegistry, type BrowserTopologyRecord } from "./topology";
 
 interface ProducedFeature {
   tool: ShapeHandle;
@@ -98,6 +99,29 @@ function entityEdges(kernel: OcctKernel, sketch: Sketch, entity: SketchEntity): 
         circlePoint(sketch.plane, entity.center, entity.radius, end),
       )];
     }
+    case "bspline": {
+      const poles = entity.controlPoints.flatMap((point) => {
+        const world = pointOnPlane(sketch.plane, point);
+        return [world.x, world.y, world.z];
+      });
+      const interiorCount = entity.controlPoints.length - entity.degree - 1;
+      const knots = [0, ...Array.from(
+        { length: interiorCount },
+        (_value, index) => (index + 1) / (interiorCount + 1),
+      ), 1];
+      const multiplicities = [entity.degree + 1, ...Array.from({ length: interiorCount }, () => 1), entity.degree + 1];
+      const edge = kernel.makeBSplineEdge(
+        poles,
+        Array.from({ length: entity.controlPoints.length }, () => 1),
+        knots,
+        multiplicities,
+        entity.degree,
+        false,
+      );
+      if (kernel.curveType(edge) !== "bspline") throw new Error(`B-spline ${entity.id} did not retain B-spline kernel geometry`);
+      if (!(kernel.curveLength(edge) > 1e-12)) throw new Error(`B-spline ${entity.id} has degenerate length`);
+      return [edge];
+    }
     default:
       return [];
   }
@@ -160,6 +184,7 @@ function buildFeature(
   feature: Feature,
   current: ShapeHandle | null,
   produced: Map<string, ProducedFeature>,
+  topology: BrowserTopologyRegistry,
 ): ProducedFeature {
   switch (feature.operation) {
     case "extrusion": {
@@ -232,9 +257,18 @@ function buildFeature(
       const copies = source.map((item) => kernel.mirror(item.tool, feature.plane.origin, unit(feature.plane.normal)));
       return { tool: copies.length === 1 ? copies[0]! : kernel.fuseAll(copies), mode: source[0]!.mode };
     }
-    case "fillet":
-    case "chamfer":
-      throw new Error(`${feature.operation} needs resolved semantic edge references and is not available in browser-local mode yet`);
+    case "fillet": {
+      if (current === null) throw new Error("A fillet requires an existing solid");
+      const edges = feature.targetEdges.map((id) => topology.requireEdge(id, current));
+      const faceHashes = kernel.getSubShapes(current, "face").map((face) => kernel.hashCode(face, 0x3fffffff));
+      return { tool: kernel.filletWithHistory(current, edges, feature.radius, faceHashes, 0x3fffffff).result, mode: "base" };
+    }
+    case "chamfer": {
+      if (current === null) throw new Error("A chamfer requires an existing solid");
+      const edges = feature.targetEdges.map((id) => topology.requireEdge(id, current));
+      const faceHashes = kernel.getSubShapes(current, "face").map((face) => kernel.hashCode(face, 0x3fffffff));
+      return { tool: kernel.chamferWithHistory(current, edges, feature.width, faceHashes, 0x3fffffff).result, mode: "base" };
+    }
     case "importedFaceted":
       throw new Error("Imported faceted features must be reconstructed from the source mesh before browser-local rebuild");
     default:
@@ -242,17 +276,47 @@ function buildFeature(
   }
 }
 
-export function compileCadGraph(kernel: OcctKernel, graph: CADGraph): BrowserCadResult {
+function validateFeatureResult(kernel: OcctKernel, shape: ShapeHandle, linearResolution: number, featureId: string): void {
+  if (!kernel.isValid(shape)) throw new Error(`Feature ${featureId} produced an invalid B-Rep`);
+  const solids = kernel.getSubShapes(shape, "solid");
+  if (solids.length !== 1) throw new Error(`Feature ${featureId} produced ${solids.length} solids; expected one`);
+  const volume = kernel.getVolume(shape);
+  const minimum = Math.max(linearResolution ** 3, 1e-15);
+  if (!Number.isFinite(volume) || volume <= minimum) {
+    throw new Error(`Feature ${featureId} produced volume ${volume}; expected more than ${minimum}`);
+  }
+  const bounds = kernel.getBoundingBox(shape, false);
+  if (![bounds.xmin, bounds.ymin, bounds.zmin, bounds.xmax, bounds.ymax, bounds.zmax].every(Number.isFinite)) {
+    throw new Error(`Feature ${featureId} produced non-finite bounds`);
+  }
+}
+
+export interface BrowserCadCompilation {
+  result: BrowserCadResult;
+  topology: BrowserTopologyRecord[];
+}
+
+export function compileCadGraphWithTopology(kernel: OcctKernel, graph: CADGraph): BrowserCadCompilation {
   let current: ShapeHandle | null = null;
   const produced = new Map<string, ProducedFeature>();
+  const topology = new BrowserTopologyRegistry(kernel, Math.max(graph.projectTolerance.linearResolution, 1e-9));
   const features = [...graph.features].filter((feature) => !feature.suppressed).sort((a, b) => a.order - b.order);
   for (const feature of features) {
-    const result = buildFeature(kernel, graph, feature, current, produced);
+    const result = buildFeature(kernel, graph, feature, current, produced, topology);
     produced.set(feature.id, result);
     current = applyBoolean(kernel, current, result);
+    validateFeatureResult(kernel, current, graph.projectTolerance.linearResolution, feature.id);
+    topology.registerFeatureEdges(feature.id, current);
   }
   if (current === null) throw new Error("The CADGraph has no active features");
-  return shapeResult(kernel, current, features.length, graph.projectTolerance.surfaceDeviation, graph.projectTolerance.angularDeviationDeg * Math.PI / 180);
+  return {
+    result: shapeResult(kernel, current, features.length, graph.projectTolerance.surfaceDeviation, graph.projectTolerance.angularDeviationDeg * Math.PI / 180),
+    topology: features.flatMap((feature) => topology.recordsForFeature(feature.id)),
+  };
+}
+
+export function compileCadGraph(kernel: OcctKernel, graph: CADGraph): BrowserCadResult {
+  return compileCadGraphWithTopology(kernel, graph).result;
 }
 
 function shapeResult(
@@ -278,6 +342,29 @@ function shapeResult(
     angularDeflection,
   });
   const bbox = meshProxy === undefined ? kernel.getBoundingBox(current, true) : null;
+  const surfaceCounts: Record<string, number> = {};
+  for (const face of kernel.getSubShapes(current, "face")) {
+    const kind = kernel.surfaceType(face);
+    surfaceCounts[kind] = (surfaceCounts[kind] ?? 0) + 1;
+  }
+  const topologyCounts = Object.fromEntries(
+    (["vertex", "edge", "wire", "face", "shell", "solid"] as const).map((kind) => [kind, kernel.getSubShapes(current, kind).length]),
+  );
+  const reimportSurfaceCounts: Record<string, number> = {};
+  if (reimported !== null) {
+    for (const face of kernel.getSubShapes(reimported, "face")) {
+      const kind = kernel.surfaceType(face);
+      reimportSurfaceCounts[kind] = (reimportSurfaceCounts[kind] ?? 0) + 1;
+    }
+  }
+  const reimportTopologyCounts = reimported === null ? {} : Object.fromEntries(
+    (["vertex", "edge", "wire", "face", "shell", "solid"] as const).map((kind) => [kind, kernel.getSubShapes(reimported, kind).length]),
+  );
+  const sourceVolume = Math.abs(kernel.getVolume(current));
+  const reimportVolume = reimported === null ? null : Math.abs(kernel.getVolume(reimported));
+  const stepReimportRelativeVolumeDelta = reimportVolume === null || sourceVolume <= 1e-15
+    ? null
+    : Math.abs(reimportVolume - sourceVolume) / sourceVolume;
   return {
     step,
     mesh,
@@ -290,6 +377,11 @@ function shapeResult(
     surfaceArea: meshProxy?.surfaceArea ?? kernel.getSurfaceArea(current),
     bounds: meshProxy?.bounds ?? [[bbox!.xmin, bbox!.ymin, bbox!.zmin], [bbox!.xmax, bbox!.ymax, bbox!.zmax]],
     featureCount,
+    surfaceCounts,
+    topologyCounts,
+    reimportSurfaceCounts,
+    reimportTopologyCounts,
+    stepReimportRelativeVolumeDelta,
     ...(meshProxy?.diagnostics === undefined ? {} : { diagnostics: meshProxy.diagnostics }),
   };
 }

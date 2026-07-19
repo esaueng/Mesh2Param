@@ -1,11 +1,12 @@
 import type { CADGraph, Units } from "@mesh2param/contracts";
 
 import type { SourceAssetDescriptor } from "../../state/types";
+import { fitBoundedBSpline, type BrowserBSplinePrimitive } from "./profileFitting";
+import type { Vec2 } from "./sections";
 
-type Vec2 = [number, number];
 type Vec3 = [number, number, number];
 
-interface LinePrimitive {
+export interface LinePrimitive {
   kind: "line";
   start: Vec2;
   end: Vec2;
@@ -13,7 +14,7 @@ interface LinePrimitive {
   maximum: number;
 }
 
-interface ArcPrimitive {
+export interface ArcPrimitive {
   kind: "arc";
   start: Vec2;
   end: Vec2;
@@ -24,7 +25,7 @@ interface ArcPrimitive {
   maximum: number;
 }
 
-interface CirclePrimitive {
+export interface CirclePrimitive {
   kind: "circle";
   start: Vec2;
   end: Vec2;
@@ -34,7 +35,8 @@ interface CirclePrimitive {
   maximum: number;
 }
 
-type Primitive = LinePrimitive | ArcPrimitive | CirclePrimitive;
+type AnalyticPrimitive = LinePrimitive | ArcPrimitive | CirclePrimitive;
+export type BrowserProfilePrimitive = AnalyticPrimitive | BrowserBSplinePrimitive;
 
 interface AxisCandidate {
   axisIndex: 0 | 1 | 2;
@@ -42,7 +44,7 @@ interface AxisCandidate {
   maximum: number;
   capArea: number;
   loops: Vec2[][];
-  profiles: Primitive[][];
+  profiles: AnalyticPrimitive[][];
 }
 
 export interface BrowserPrismaticReconstruction {
@@ -374,19 +376,19 @@ function circlePrimitive(points: readonly Vec2[]): CirclePrimitive | null {
   return { kind: "circle", start, end: start, center, radius, rms, maximum };
 }
 
-function primitiveCost(primitive: Primitive): number {
+function primitiveCost(primitive: AnalyticPrimitive): number {
   const arc = primitive.kind !== "line";
   return primitive.rms / (arc ? ARC_RMS_TOLERANCE : LINE_RMS_TOLERANCE)
     + 0.25 * primitive.maximum / (arc ? ARC_MAX_TOLERANCE : LINE_MAX_TOLERANCE)
     + 1.5 + 0.25 + (arc ? 0.05 : 0);
 }
 
-function openChain(points: readonly Vec2[]): { cost: number; chain: Primitive[] } | null {
+function openChain(points: readonly Vec2[]): { cost: number; chain: AnalyticPrimitive[] } | null {
   const count = points.length;
   const costs = Array<number>(count).fill(Infinity);
   const primitiveCounts = Array<number>(count).fill(Number.MAX_SAFE_INTEGER);
   const previous = Array<number>(count).fill(-1);
-  const selected = Array<Primitive | null>(count).fill(null);
+  const selected = Array<AnalyticPrimitive | null>(count).fill(null);
   costs[0] = 0;
   primitiveCounts[0] = 0;
   for (let end = 1; end < count; end += 1) {
@@ -407,7 +409,7 @@ function openChain(points: readonly Vec2[]): { cost: number; chain: Primitive[] 
     }
   }
   if (!Number.isFinite(costs.at(-1)!)) return null;
-  const chain: Primitive[] = [];
+  const chain: AnalyticPrimitive[] = [];
   let index = count - 1;
   while (index > 0) {
     const primitive = selected[index];
@@ -422,7 +424,7 @@ function openChain(points: readonly Vec2[]): { cost: number; chain: Primitive[] 
   return { cost: costs.at(-1)!, chain };
 }
 
-function fitProfile(points: Vec2[]): Primitive[] {
+function fitProfile(points: Vec2[]): AnalyticPrimitive[] {
   if (points.length < 3 || points.length > MAXIMUM_PROFILE_VERTICES) throw new Error("profile vertex count is outside the analytic solver limit");
   const circle = circlePrimitive(points);
   if (circle !== null) return [circle];
@@ -448,6 +450,62 @@ function fitProfile(points: Vec2[]): Primitive[] {
   if (options.length === 0) throw new Error("no line/circular-arc profile satisfies the analytic tolerances");
   options.sort((left, right) => left.cost - right.cost || left.chain.length - right.chain.length);
   return options[0]!.chain;
+}
+
+function cyclicPoints(points: readonly Vec2[], start: Vec2, end: Vec2): Vec2[] {
+  const nearest = (target: Vec2): number => points.reduce((selected, point, index) => (
+    distance(point, target) < distance(points[selected]!, target) ? index : selected
+  ), 0);
+  const startIndex = nearest(start);
+  const endIndex = nearest(end);
+  const result: Vec2[] = [points[startIndex]!];
+  let index = startIndex;
+  while (index !== endIndex) {
+    index = (index + 1) % points.length;
+    result.push(points[index]!);
+    if (result.length > points.length + 1) throw new Error("profile interval did not close");
+  }
+  result[0] = start;
+  result[result.length - 1] = end;
+  return result;
+}
+
+/**
+ * Fits the bounded spanner outline used by the browser-native G2 path:
+ * two stable straight edges, one broad circular arc, and one bounded cubic
+ * B-spline for the asymmetric jaw. The analytic anchors must be consecutive;
+ * otherwise this returns null instead of inventing an unsupported profile.
+ */
+export function fitBrowserSplineProfile(points: Vec2[]): BrowserProfilePrimitive[] | null {
+  const analytic = fitProfile(points);
+  if (analytic.length < 4) return null;
+  const broadArcs = analytic
+    .map((primitive, index) => ({ primitive, index }))
+    .filter((item): item is { primitive: ArcPrimitive; index: number } => (
+      item.primitive.kind === "arc" && Math.abs(item.primitive.sweepDeg) >= 120
+    ))
+    .sort((left, right) => Math.abs(right.primitive.sweepDeg) - Math.abs(left.primitive.sweepDeg));
+  const lines = analytic
+    .map((primitive, index) => ({ primitive, index }))
+    .filter((item): item is { primitive: LinePrimitive; index: number } => item.primitive.kind === "line")
+    .sort((left, right) => distance(right.primitive.start, right.primitive.end) - distance(left.primitive.start, left.primitive.end));
+  if (broadArcs.length !== 1 || lines.length < 2) return null;
+  const anchorIndexes = new Set([broadArcs[0]!.index, lines[0]!.index, lines[1]!.index]);
+  let anchorStart = -1;
+  for (let index = 0; index < analytic.length; index += 1) {
+    if ([0, 1, 2].every((offset) => anchorIndexes.has((index + offset) % analytic.length))) {
+      anchorStart = index;
+      break;
+    }
+  }
+  if (anchorStart < 0) return null;
+  const anchors = [0, 1, 2].map((offset) => analytic[(anchorStart + offset) % analytic.length]!);
+  const splinePoints = cyclicPoints(points, anchors[2]!.end, anchors[0]!.start);
+  const spline = fitBoundedBSpline(splinePoints, ARC_RMS_TOLERANCE * 1.2, ARC_MAX_TOLERANCE);
+  if (spline === null) return null;
+  spline.start = anchors[2]!.end;
+  spline.end = anchors[0]!.start;
+  return [...anchors, spline];
 }
 
 function axisVector(axisIndex: 0 | 1 | 2): Vec3 {
@@ -507,15 +565,20 @@ function pointOrigin(axisIndex: 0 | 1 | 2, offset: number): Vec3 {
   return axisIndex === 0 ? [offset, 0, 0] : axisIndex === 1 ? [0, offset, 0] : [0, 0, offset];
 }
 
-function primitiveAnalysis(primitive: Primitive): Record<string, unknown> {
+export function primitiveAnalysis(primitive: BrowserProfilePrimitive): Record<string, unknown> {
   return {
     kind: primitive.kind,
     start: primitive.start,
     end: primitive.end,
     rmsResidualMm: primitive.rms,
     maxResidualMm: primitive.maximum,
-    ...(primitive.kind === "line" ? {} : { center: primitive.center, radiusMm: primitive.radius }),
+    ...(primitive.kind === "arc" || primitive.kind === "circle" ? { center: primitive.center, radiusMm: primitive.radius } : {}),
     ...(primitive.kind === "arc" ? { sweepDeg: primitive.sweepDeg } : {}),
+    ...(primitive.kind === "bspline" ? {
+      degree: primitive.degree,
+      controlPoints: primitive.controlPoints,
+      condition: primitive.condition,
+    } : {}),
   };
 }
 
@@ -557,7 +620,7 @@ export function inferBrowserPrismaticCadGraph(
         entities.push({ ...common, kind: "line", start: { x: primitive.start[0], y: primitive.start[1] }, end: { x: primitive.end[0], y: primitive.end[1] } });
       } else if (primitive.kind === "circle") {
         entities.push({ ...common, kind: "circle", center: { x: primitive.center[0], y: primitive.center[1] }, radius: primitive.radius });
-      } else {
+      } else if (primitive.kind === "arc") {
         const startAngleDeg = Math.atan2(primitive.start[1] - primitive.center[1], primitive.start[0] - primitive.center[0]) * 180 / Math.PI;
         entities.push({
           ...common, kind: "circularArc", center: { x: primitive.center[0], y: primitive.center[1] }, radius: primitive.radius,

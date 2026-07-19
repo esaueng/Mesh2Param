@@ -24,19 +24,26 @@ build through Workers Static Assets with SPA fallback routing. The production UI
 
 - IndexedDB is the project, revision, source, version, and artifact store.
 - A dedicated browser Web Worker loads `occt-wasm` and compiles supported CADGraph operations.
+- The bounded parametric path performs mesh normalization, section extraction, SVD-based B-spline
+  fitting, semantic edge resolution, fillet/detail reconstruction, bidirectional BVH comparison,
+  STEP export, and STEP reimport entirely inside that Web Worker.
 - Exact validation checks the OCCT B-Rep, exports STEP, reimports it, and checks the result.
 - Bundled samples and their source/reference artifacts are static same-origin assets.
 - Generated STEP/GLB/CADGraph artifacts are Blob URLs and survive reload through IndexedDB.
 
 Cloudflare does not execute the 22 MB WASM module in a request handler; it only serves it to the
-browser. This keeps Worker CPU/memory limits out of geometry execution and keeps every static asset
-under Cloudflare's 25 MiB per-file limit. The document CSP remains free of `unsafe-eval`.
+browser. This keeps Worker CPU/memory limits out of geometry execution. `pnpm cf:assets` fails the
+build if any generated asset exceeds Cloudflare's 25 MiB per-file limit. The document CSP remains
+free of `unsafe-eval`.
 Emscripten Embind requires dynamic invoker generation, so that permission is narrowly overridden
 only on the hashed `geometry.worker-*` response.
 
-The Python service is not bundled into the Worker. Native automatic mesh inference, full repair and
-segmentation, process isolation, and shared multi-user persistence still require the self-hosted
-FastAPI/CadQuery/OCCT topology below. Browser-local mode fails clearly for those unsupported paths.
+The Python service is not bundled into the Worker. The proven general-parametric spanner family no
+longer needs it: browser-local mode supports the sharp, filleted, and filleted-plus-shallow-boss
+fixtures, including functional suppression and full detail recovery. Arbitrary topology, full
+repair and segmentation, process isolation, and shared multi-user persistence still require the
+self-hosted FastAPI/CadQuery/OCCT topology below. Browser-local mode fails at a named evidence stage
+for unsupported paths instead of exporting a faceted result as parametric.
 
 Install and validate the deployment without publishing it:
 
@@ -99,6 +106,11 @@ Browser-local data is isolated to a browser profile and is not shared across dev
 server-connected deployment with a trusted authentication gateway such as Cloudflare Access, and
 prevent the API origin from being used as an unauthenticated bypass. The optional backend must
 remain paired with exactly one external geometry worker and their shared persistent volume.
+
+The production build registers a same-origin service worker. After the app shell and geometry
+worker have been used once, their hashed JavaScript, WASM, fonts, and sample assets are cached for a
+later offline session. Source meshes and generated STEP/GLB/CADGraph artifacts remain in IndexedDB;
+the service worker never caches `/api/*`. Clearing site data removes both caches and local projects.
 
 ## Compose quickstart
 

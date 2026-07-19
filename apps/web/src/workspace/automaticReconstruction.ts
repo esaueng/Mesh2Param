@@ -61,6 +61,18 @@ export function automaticReconstructionCapability(
         reason: "Run surface analysis again because its persisted patch evidence is incomplete.",
       };
     }
+    const browserParametric = isRecord(analysis.browserParametricCandidate) ? analysis.browserParametricCandidate : null;
+    if (browserParametric?.accepted === true) return { supported: true };
+    if (browserParametric?.accepted === false) {
+      const diagnostics = Array.isArray(browserParametric.diagnostics) ? browserParametric.diagnostics : [];
+      const first = diagnostics.find(isRecord);
+      return {
+        supported: false,
+        reason: typeof first?.message === "string"
+          ? `Browser-local parametric inference refused this mesh: ${first.message}`
+          : "Browser-local parametric inference did not find a supported feature family.",
+      };
+    }
     // An accepted analysis-time prismatic candidate is deliberately NOT trusted here:
     // its acceptance gates (cap congruence, side-normal RMS) are far looser than the
     // reconstruct-time mesh-agreement gates, so with freeform patches present the exact

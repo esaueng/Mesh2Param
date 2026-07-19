@@ -10,6 +10,38 @@ import {
 } from "./pipeline";
 
 describe("canvas pipeline actions", () => {
+  it("offers exact browser-local reconstruction when the bounded probe accepts the mesh", () => {
+    const patches = [{ id: "patch.source", type: "freeform", areaMm2: 100, triangleCount: 508, confidence: 1, locked: false }];
+    const state = {
+      units: "mm",
+      source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
+      analysis: {
+        settings: {
+          smoothAngleDeg: 12, planarFitToleranceMm: 0.005, cylinderFitToleranceMm: 0.01,
+          minimumCylinderCoverageDeg: 300, maximumCylinderAxisNormalComponent: 0.05,
+          minimumPatchAreaMm2: 1e-8, stableIdResolutionMm: 1e-5,
+        },
+        patches,
+        browserParametricCandidate: { accepted: true, family: "general-parametric-prismatic" },
+      },
+      patches,
+      cadgraph: null,
+      validation: null,
+      artifacts: [],
+      settings: {},
+    } as unknown as ProjectWorkingDocument;
+    const vm = {
+      project: { units: "mm", state }, activeJob: null, artifacts: [], workerReady: true, serverWritable: true,
+    } as unknown as WorkspaceViewModel;
+
+    expect(nextAction(vm)).toMatchObject({
+      kind: "reconstruct",
+      operation: "reconstruct",
+      label: "Reconstruct",
+      disabled: false,
+    });
+  });
+
   it("offers curved first with the faceted fallback as the labeled alternate", () => {
     const patches = [{
       id: "patch.freeform",

@@ -376,6 +376,7 @@ export interface Readiness {
   database: boolean;
   storage: boolean;
   supervisor: boolean;
+  executionMode?: "browser-local" | "server";
 }
 
 export type WorkflowStep = "import" | "repair" | "surfaces" | "features" | "refine" | "validate" | "export";

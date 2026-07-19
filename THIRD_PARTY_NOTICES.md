@@ -277,6 +277,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | import-fresh | 3.3.1 | MIT |
 | javascript | imurmurhash | 0.1.4 | MIT |
 | javascript | indent-string | 4.0.0 | MIT |
+| javascript | is-any-array | 3.0.0 | MIT |
 | javascript | is-extglob | 2.1.1 | MIT |
 | javascript | is-fullwidth-code-point | 3.0.0 | MIT |
 | javascript | is-glob | 4.0.3 | MIT |
@@ -316,6 +317,10 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | minimatch | 10.2.5 | BlueOak-1.0.0 |
 | javascript | minimatch | 3.1.5 | ISC |
 | javascript | minimist | 1.2.8 | MIT |
+| javascript | ml-array-max | 2.0.0 | MIT |
+| javascript | ml-array-min | 2.0.0 | MIT |
+| javascript | ml-array-rescale | 2.0.0 | MIT |
+| javascript | ml-matrix | 6.14.0 | MIT |
 | javascript | ms | 2.1.3 | MIT |
 | javascript | nanoid | 3.3.15 | MIT |
 | javascript | natural-compare | 1.4.0 | MIT |
@@ -382,6 +387,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | symbol-tree | 3.2.4 | MIT |
 | javascript | three | 0.180.0 | MIT |
 | javascript | three-mesh-bvh | 0.8.3 | MIT |
+| javascript | three-mesh-bvh | 0.9.11 | MIT |
 | javascript | three-stdlib | 2.36.1 | MIT |
 | javascript | tinybench | 2.9.0 | MIT |
 | javascript | tinyexec | 0.3.2 | MIT |

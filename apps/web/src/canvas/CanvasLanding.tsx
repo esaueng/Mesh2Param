@@ -36,6 +36,7 @@ export function CanvasLanding({
   const meshRef = useRef<HTMLInputElement>(null);
   const projectRef = useRef<HTMLInputElement>(null);
   const ready = readiness?.status === "ready";
+  const browserLocal = readiness?.executionMode === "browser-local";
   const sample =
     samples.find((item) => item.id === SUPPORTED_SAMPLE_ID) ??
     samples.find((item) => item.automaticReconstructionSupported) ??
@@ -115,7 +116,9 @@ export function CanvasLanding({
         <span className={`landing-worker ${ready ? "up" : "down"}`}>
           <span className="dot" /> Worker {ready ? "ready" : readiness === null ? "connecting…" : "unavailable"}
         </span>
-        <span className="landing-backend">OCCT backend</span>
+        <span className="landing-backend">
+          {browserLocal ? "Local OCCT-WASM · files stay in this browser" : "OCCT backend"}
+        </span>
       </footer>
 
       <input

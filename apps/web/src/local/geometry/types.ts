@@ -1,4 +1,4 @@
-import type { CADGraph } from "@mesh2param/contracts";
+import type { CADGraph, JsonValue, Units } from "@mesh2param/contracts";
 
 export interface BrowserMesh {
   positions: Float32Array;
@@ -32,6 +32,11 @@ export interface BrowserCadResult {
   surfaceArea: number;
   bounds: [[number, number, number], [number, number, number]];
   featureCount: number;
+  surfaceCounts?: Record<string, number>;
+  topologyCounts?: Record<string, number>;
+  reimportSurfaceCounts?: Record<string, number>;
+  reimportTopologyCounts?: Record<string, number>;
+  stepReimportRelativeVolumeDelta?: number | null;
   diagnostics?: BrowserMeshDiagnostics;
   curvedReconstruction?: {
     scope: "axis-aligned layered approximate curved B-Rep";
@@ -47,6 +52,69 @@ export interface BrowserCadResult {
     maximumBoundsDelta: number;
     faceSurfaces: Record<string, number>;
   };
+}
+
+export type BrowserGeometryStage =
+  | "ingest"
+  | "sections"
+  | "profile-fitting"
+  | "candidate-build"
+  | "occt-compile"
+  | "comparison"
+  | "step-roundtrip"
+  | "complete";
+
+export interface BrowserReconstructionError {
+  stage: BrowserGeometryStage;
+  code: string;
+  message: string;
+  measured: Record<string, number | string>;
+  sourceTriangleIds: number[];
+}
+
+export interface BrowserComparisonReport {
+  sampleCountEachDirection: number;
+  distance: { rms: number; median: number; p95: number; p99: number; maximum: number };
+  normals: { meanAgreement: number; p95AngleDeg: number };
+  relativeVolumeDelta: number | null;
+  tolerance: number;
+  toleranceSurfaceCoverage: number;
+}
+
+export interface BrowserParametricEvidence {
+  family: "general-parametric-prismatic";
+  detailMode: "functional" | "full";
+  featureSequence: string[];
+  axis: [number, number, number];
+  thickness: number;
+  filletRadius: number | null;
+  surfaceCounts: Record<string, number>;
+  comparison: BrowserComparisonReport;
+  diagnostics: BrowserReconstructionError[];
+  timingsMs: Record<string, number>;
+}
+
+export interface BrowserParametricResult extends BrowserCadResult {
+  graph: CADGraph;
+  parametricReconstruction: BrowserParametricEvidence;
+  candidates: Array<{
+    label: string;
+    accepted: boolean;
+    score: number | null;
+    reason: BrowserReconstructionError | null;
+  }>;
+  suppressedRegions: Array<Record<string, JsonValue>>;
+  suppressedMesh: BrowserMesh | null;
+}
+
+export interface BrowserParametricProbe {
+  supported: boolean;
+  family: "general-parametric-prismatic";
+  triangleCount: number;
+  featureHints: string[];
+  detailDetected: boolean;
+  analysis: Record<string, unknown>;
+  error: BrowserReconstructionError | null;
 }
 
 export interface GeometryRequest {
@@ -71,8 +139,36 @@ export interface CurvedStlGeometryRequest {
   tolerance: number;
 }
 
-export type BrowserGeometryRequest = GeometryRequest | StlGeometryRequest | CurvedStlGeometryRequest;
+export interface ParametricStlGeometryRequest {
+  id: string;
+  operation: "parametric-stl";
+  bytes: ArrayBuffer;
+  source: {
+    sha256: string;
+    originalFileName: string;
+    byteSize: number;
+    declaredUnits: Units;
+    scaleFactor: number;
+  };
+  units: Units;
+  tolerance: number;
+  detailMode: "functional" | "full";
+  deterministicSeed: number;
+}
+
+export interface ParametricProbeGeometryRequest {
+  id: string;
+  operation: "parametric-probe";
+  bytes: ArrayBuffer;
+  scaleFactor: number;
+  tolerance: number;
+}
+
+export type BrowserGeometryRequest = GeometryRequest | StlGeometryRequest | CurvedStlGeometryRequest | ParametricStlGeometryRequest | ParametricProbeGeometryRequest;
+
+export type BrowserGeometryResult = BrowserCadResult | BrowserParametricProbe;
 
 export type GeometryResponse =
-  | { id: string; ok: true; result: BrowserCadResult }
-  | { id: string; ok: false; error: string };
+  | { id: string; ok: true; result: BrowserGeometryResult }
+  | { id: string; ok: false; error: string; structuredError?: BrowserReconstructionError }
+  | { id: string; progress: true; stage: BrowserGeometryStage; fraction: number; message: string };

@@ -49,6 +49,48 @@ test("opens persisted geometry and rebuilds an exact CADGraph in browser WASM", 
   await expect(page.getByRole("region", { name: "3D CAD viewer" })).not.toContainText("Viewer could not load geometry");
 });
 
+test("reconstructs a spline spanner to parametric STEP locally and reloads offline", async ({ page, context }) => {
+  const response = await page.goto("/");
+  expect(response?.headers()["cross-origin-opener-policy"]).toBe("same-origin");
+  expect(response?.headers()["cross-origin-embedder-policy"]).toBe("require-corp");
+  await expect(page.getByText("Local OCCT-WASM · files stay in this browser")).toBeVisible();
+
+  await page.locator('input[type="file"]').first().setInputFiles(
+    resolve(process.cwd(), "../../samples/general-parametric-benchmark/spanner-filleted/source.stl"),
+  );
+  await expect(page.getByRole("button", { name: "Analyze mesh" })).toBeVisible();
+  await page.getByRole("button", { name: "Analyze mesh" }).click();
+  await expect(page.getByRole("button", { name: "Reconstruct", exact: true })).toBeVisible({ timeout: 120_000 });
+  await page.getByRole("button", { name: "Reconstruct", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download STEP" })).toBeVisible({ timeout: 180_000 });
+
+  const artifactNames = await page.evaluate(async () => {
+    const request = window.indexedDB.open("mesh2param-workspace");
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = database.transaction("blobs", "readonly");
+    const records = await new Promise<Array<{ originalFileName?: string }>>((resolve, reject) => {
+      const getAll = transaction.objectStore("blobs").getAll();
+      getAll.onsuccess = () => resolve(getAll.result as Array<{ originalFileName?: string }>);
+      getAll.onerror = () => reject(getAll.error);
+    });
+    database.close();
+    return records.flatMap((record) => record.originalFileName === undefined ? [] : [record.originalFileName]);
+  });
+  expect(artifactNames).toEqual(expect.arrayContaining([
+    "model.step", "model.cadgraph.json", "comparison.json", "surface-audit.json",
+  ]));
+
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Download STEP" })).toBeVisible({ timeout: 90_000 });
+  await expect(page.locator(".global-error")).toHaveCount(0);
+  await context.setOffline(false);
+});
+
 test("analyzes an uploaded STL and exports a browser-local faceted STEP", async ({ page }) => {
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(
