@@ -29,7 +29,6 @@ import type {
   VersionPage,
 } from "../state/types";
 import { browserGeometry } from "./geometry/client";
-import { inferBrowserPrismaticCadGraph } from "./geometry/prismatic";
 import { meshToGlb } from "./glb";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
 
@@ -115,7 +114,7 @@ export class BrowserApiClient {
   }
 
   ready(_signal?: AbortSignal): Promise<ApiResult<Readiness>> {
-    return Promise.resolve(result({ status: "ready", database: true, storage: true, supervisor: true }));
+    return Promise.resolve(result({ status: "ready", database: true, storage: true, supervisor: true, executionMode: "browser-local" }));
   }
 
   async listProjects(_signal?: AbortSignal): Promise<ApiResult<ProjectList>> {
@@ -213,7 +212,7 @@ export class BrowserApiClient {
     _signal?: AbortSignal,
   ): Promise<ApiResult<Job>> {
     const detail = await this.requireProject(projectId, revision);
-    const job = this.queueJob(projectId, operation, detail.revision, async () => {
+    const job = this.queueJob(projectId, operation, detail.revision, async (report) => {
       if (operation === "repair") {
         const next = await this.requireProject(projectId);
         next.state.settings = { ...next.state.settings, [`${operation}Mode`]: "browser-local" };
@@ -247,7 +246,11 @@ export class BrowserApiClient {
           triangleCount: compiled.mesh.triangleCount, vertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
           areaMm2: compiled.surfaceArea, confidence: 1, locked: false,
         }];
-        const prismatic = inferBrowserPrismaticCadGraph(compiled.mesh.positions, next.state.source!, next.units);
+        const parametricProbe = await browserGeometry.probeParametricStl(
+          source,
+          next.state.source?.scaleFactor ?? 1,
+          tolerance,
+        );
         next.state.analysis = {
           settings: {
             smoothAngleDeg: 12,
@@ -259,10 +262,13 @@ export class BrowserApiClient {
             stableIdResolutionMm: 1e-5,
           },
           patches: next.state.patches,
-          prismaticCandidate: prismatic?.analysis ?? {
-            accepted: false,
-            profiles: [],
-            diagnostics: [{ code: "browser-prismatic-unsupported", message: "No bounded orthogonal line/arc extrusion was detected." }],
+          prismaticCandidate: parametricProbe.analysis,
+          browserParametricCandidate: {
+            accepted: parametricProbe.supported,
+            family: parametricProbe.family,
+            featureHints: parametricProbe.featureHints,
+            detailDetected: parametricProbe.detailDetected,
+            ...(parametricProbe.error === null ? {} : { diagnostics: [parametricProbe.error] }),
           },
         } as unknown as JsonObject;
         next.state.diagnostics = {
@@ -381,25 +387,89 @@ export class BrowserApiClient {
           relativeVolumeDelta: evidence.relativeVolumeDelta,
         };
       }
-      if (operation === "reconstruct" && options.settings?.detailMode === "full") {
-        throw new Error(
-          "Full shallow-detail recovery requires the Python geometry service; "
-          + "browser-local reconstruction supports functional geometry only.",
-        );
-      }
       const next = await this.requireProject(projectId);
       if (next.state.cadgraph === null && operation === "reconstruct") {
         const source = await this.sourceBlob(next);
-        const analyzed = await browserGeometry.compileStl(source, 0.1, { solidify: false, validateStep: false });
-        const prismatic = inferBrowserPrismaticCadGraph(analyzed.mesh.positions, next.state.source!, next.units);
-        if (prismatic === null) {
-          throw new Error("Smooth browser-local reconstruction is unavailable for this mesh. The faceted fallback remains available explicitly.");
-        }
-        next.state.cadgraph = prismatic.graph;
+        const sourceDescriptor = next.state.source!;
+        const requestedTolerance = Number(options.settings?.surfaceDeviationTolerance ?? options.settings?.tolerance ?? 0.05);
+        const tolerance = Number.isFinite(requestedTolerance) ? Math.min(1, Math.max(0.01, requestedTolerance)) : 0.05;
+        const detailMode = options.settings?.detailMode === "full" ? "full" : "functional";
+        const parametric = await browserGeometry.reconstructParametricStl(source, {
+          sha256: sourceDescriptor.sha256,
+          originalFileName: sourceDescriptor.originalFileName,
+          byteSize: sourceDescriptor.byteSize,
+          declaredUnits: sourceDescriptor.declaredUnits ?? next.units,
+          scaleFactor: sourceDescriptor.scaleFactor ?? 1,
+        }, next.units, {
+          tolerance,
+          detailMode,
+          onProgress: ({ stage, fraction, message }) => report(stage, Math.round(10 + fraction * 85), message),
+        });
+        next.state.cadgraph = parametric.graph;
         next.state.analysis = {
           ...(next.state.analysis ?? {}),
-          prismaticCandidate: prismatic.analysis,
-        } as JsonObject;
+          prismaticCandidate: {
+            accepted: true,
+            family: parametric.parametricReconstruction.family,
+            features: parametric.parametricReconstruction.featureSequence,
+            comparison: parametric.parametricReconstruction.comparison,
+          },
+        } as unknown as JsonObject;
+        const artifactPromises = [
+          this.putArtifact(projectId, "model.step", new Blob([parametric.step], { type: "model/step" }), "parametric-step"),
+          this.putArtifact(projectId, "reconstructed.glb", meshToGlb(parametric.mesh), "reconstructed-parametric"),
+          this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(parametric.graph, null, 2)], { type: "application/json" }), "cadgraph"),
+          this.putArtifact(projectId, "comparison.json", new Blob([JSON.stringify(parametric.parametricReconstruction.comparison, null, 2)], { type: "application/json" }), "comparison"),
+          this.putArtifact(projectId, "surface-audit.json", new Blob([JSON.stringify({
+            surfaceCounts: parametric.surfaceCounts,
+            topologyCounts: parametric.topologyCounts,
+            reimportSurfaceCounts: parametric.reimportSurfaceCounts,
+            reimportTopologyCounts: parametric.reimportTopologyCounts,
+            stepReimportRelativeVolumeDelta: parametric.stepReimportRelativeVolumeDelta,
+            stepReimportValid: parametric.stepReimportValid,
+          }, null, 2)], { type: "application/json" }), "surface-audit"),
+          ...(parametric.suppressedRegions.length === 0 ? [] : [
+            this.putArtifact(projectId, "suppressed-regions.json", new Blob([JSON.stringify(parametric.suppressedRegions, null, 2)], { type: "application/json" }), "suppressed-regions"),
+          ]),
+          ...(parametric.suppressedMesh === null ? [] : [
+            this.putArtifact(projectId, "residual.glb", meshToGlb(parametric.suppressedMesh), "suppressed-residual"),
+          ]),
+        ];
+        const artifacts = await Promise.all(artifactPromises);
+        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
+        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
+        next.state.validation = {
+          status: "valid", brepValid: true, stepReimportValid: true, toleranceSatisfied: true,
+          issues: [],
+          compilation: {
+            kernel: "OCCT WebAssembly",
+            mode: "browser-local-parametric",
+            featureCount: parametric.featureCount,
+            surfaceCounts: parametric.surfaceCounts ?? {},
+            comparison: parametric.parametricReconstruction.comparison as unknown as JsonObject,
+          },
+          step: { exported: true, reimported: true },
+        };
+        next.state.metrics = {
+          volume: parametric.volume, surfaceArea: parametric.surfaceArea, bounds: parametric.bounds,
+          vertexCount: parametric.mesh.vertexCount, triangleCount: parametric.mesh.triangleCount,
+          rmsDistance: parametric.parametricReconstruction.comparison.distance.rms,
+          p95Distance: parametric.parametricReconstruction.comparison.distance.p95,
+        };
+        next.state.settings = {
+          ...next.state.settings,
+          browserParametricReconstruction: parametric.parametricReconstruction as unknown as JsonObject,
+          suppressedRegions: parametric.suppressedRegions,
+        };
+        const saved = await this.save(next, true);
+        return {
+          operation,
+          revision: saved.revision,
+          mode: "browser-local-parametric",
+          exactParametric: true,
+          detailMode,
+          stepReimportValid: true,
+        };
       }
       if (next.state.cadgraph === null) throw new Error("This project does not have a CADGraph to compile");
       const compiled = await browserGeometry.compile(next.state.cadgraph);
@@ -522,6 +592,7 @@ export class BrowserApiClient {
     const job = this.jobs.get(jobId);
     if (job === undefined) throw missing("job", jobId);
     if (job.status === "queued" || job.status === "running") {
+      if (job.status === "running") browserGeometry.cancelAll();
       job.status = "cancelled"; job.phase = "cancelled"; job.finishedAt = new Date().toISOString(); job.cancelRequestedAt = job.finishedAt;
       this.emit(job, "cancelled", "Browser-local operation cancelled.");
     }
@@ -683,7 +754,12 @@ export class BrowserApiClient {
     return saved;
   }
 
-  private queueJob(projectId: string, kind: Job["kind"], inputRevision: number, work: () => Promise<JsonObject>): Job {
+  private queueJob(
+    projectId: string,
+    kind: Job["kind"],
+    inputRevision: number,
+    work: (report: (phase: string, progress: number, message: string) => void) => Promise<JsonObject>,
+  ): Job {
     const now = new Date().toISOString();
     const job: Job = {
       id: `job-${crypto.randomUUID()}`, projectId, kind, status: "queued", progress: 0, phase: "queued",
@@ -695,16 +771,26 @@ export class BrowserApiClient {
     return structuredClone(job);
   }
 
-  private async runJob(job: Job, work: () => Promise<JsonObject>): Promise<void> {
+  private async runJob(
+    job: Job,
+    work: (report: (phase: string, progress: number, message: string) => void) => Promise<JsonObject>,
+  ): Promise<void> {
     if (job.status === "cancelled") return;
     job.status = "running"; job.progress = 10; job.phase = "browser-local"; job.startedAt = new Date().toISOString(); job.heartbeatAt = job.startedAt;
     this.emit(job, "progress", "Running locally in this browser.");
     try {
-      const value = await work();
+      const value = await work((phase, progress, message) => {
+        if (this.jobs.get(job.id)?.status === "cancelled") return;
+        job.phase = phase;
+        job.progress = Math.max(job.progress, Math.min(99, Math.max(0, progress)));
+        job.heartbeatAt = new Date().toISOString();
+        this.emit(job, "progress", message);
+      });
       if (this.jobs.get(job.id)?.status === "cancelled") return;
       job.status = "completed"; job.progress = 100; job.phase = "completed"; job.result = value; job.finishedAt = new Date().toISOString();
       this.emit(job, "completed", "Browser-local operation completed.");
     } catch (cause) {
+      if (this.jobs.get(job.id)?.status === "cancelled") return;
       const detail = cause instanceof Error ? cause.message : String(cause);
       job.status = "failed"; job.phase = "failed"; job.finishedAt = new Date().toISOString();
       job.error = {

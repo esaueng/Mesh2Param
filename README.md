@@ -264,7 +264,12 @@ pnpm cf:deploy
 
 Cloudflare serves the built SPA and OCCT WebAssembly as Workers Static Assets. With
 `MESH2PARAM_API_ORIGIN` empty, bundled samples, local projects, CADGraph rebuilds, and the bounded
-browser conversion path remain self-contained in the browser. Set `MESH2PARAM_API_ORIGIN` to the
+browser conversion path remain self-contained in the browser. That path now reconstructs the
+general-parametric spanner family as an editable line/arc/B-spline extrusion, regular-polygon cut,
+paired rim fillet, and optional shallow rectangular boss; it exports and reimports STEP in
+OCCT-WASM without uploading the source. See
+[browser-local parametric reconstruction](docs/browser-local-parametric.md) for its exact scope and
+acceptance gates. Set `MESH2PARAM_API_ORIGIN` to the
 public HTTPS origin of a separately hosted FastAPI/native-OCCT service to proxy `/api`, `/health`,
 `/ready`, `/docs`, and `/openapi.json` for native reconstruction.
 
