@@ -10,6 +10,8 @@ export interface AutomaticReconstructionCapability {
   supported: boolean;
   sampleId?: string;
   reason?: string;
+  /** Freeform patches present: the recovered model is approximate where freeform. */
+  approximate?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, JsonValue> {
@@ -73,26 +75,16 @@ export function automaticReconstructionCapability(
           : "Browser-local parametric inference did not find a supported feature family.",
       };
     }
-    // An accepted analysis-time prismatic candidate is deliberately NOT trusted here:
-    // its acceptance gates (cap congruence, side-normal RMS) are far looser than the
-    // reconstruct-time mesh-agreement gates, so with freeform patches present the exact
-    // backend path can still fail (e.g. a softly curved gable roof between congruent
-    // caps). Refusing keeps the pipeline on the curved/faceted branches instead of
-    // offering a primary action that is doomed to a hard backend error.
-    const unsupported = patches.filter((patch) => patch.type !== "plane" && patch.type !== "cylinder");
-    if (unsupported.length > 0) {
-      let unsupportedArea = 0;
-      let totalArea = 0;
-      for (const patch of patches) {
-        const area = typeof patch.areaMm2 === "number" && Number.isFinite(patch.areaMm2) && patch.areaMm2 > 0 ? patch.areaMm2 : 0;
-        totalArea += area;
-        if (patch.type !== "plane" && patch.type !== "cylinder") unsupportedArea += area;
-      }
-      const coverage = totalArea > 0 ? ` covering ${(unsupportedArea / totalArea * 100).toFixed(1)}% of the surface` : "";
-      return {
-        supported: false,
-        reason: `Automatic parametric inference is unavailable because analysis found ${unsupported.length} non-plane/cylinder patches${coverage}. Use the explicit faceted STEP fallback for this geometry.`,
-      };
+    // Freeform patches no longer force a refusal: the reconstruct job's
+    // candidate evaluation (curvature sub-segmentation, spline-profile
+    // extrusions, fillet features, detail recovery) handles filleted
+    // spanner-class parts, and it fails closed with a recommended action
+    // when a mesh is not extrusion-explainable. The pipeline surfaces the
+    // curved plate path as the standing alternate so a failed automatic
+    // attempt costs one click, not a dead end.
+    const freeform = patches.filter((patch) => patch.type !== "plane" && patch.type !== "cylinder");
+    if (freeform.length > 0) {
+      return { supported: true, approximate: true };
     }
     return { supported: true };
   }
