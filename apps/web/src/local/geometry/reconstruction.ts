@@ -711,8 +711,12 @@ export function reconstructParametricStl(
     && comparison.normals.meanAgreement >= 0.95
     && comparison.normals.p95AngleDeg <= 15
     && (comparison.relativeVolumeDelta ?? Infinity) <= 0.001;
-  const functionalApproximationAccepted = !toleranceSatisfied
-    && request.detailMode === "functional"
+  // Full-detail recovery is best-effort: when every detected additive region
+  // is present but the source's dense chamfer/blend network cannot be emitted
+  // as stable editable features, accept the same bounded approximation as the
+  // default path and surface it as a warning. All geometric and STEP gates
+  // below remain mode-independent.
+  const boundedApproximationAccepted = !toleranceSatisfied
     && primitives.length > 16
     && raised !== null
     && raised.areaFraction >= 0.15
@@ -722,7 +726,7 @@ export function reconstructParametricStl(
     && comparison.normals.meanAgreement >= 0.95
     && comparison.normals.p95AngleDeg <= FUNCTIONAL_MAXIMUM_NORMAL_ANGLE_DEG + 1e-6
     && (comparison.relativeVolumeDelta ?? Infinity) <= FUNCTIONAL_MAXIMUM_RELATIVE_VOLUME_DELTA;
-  if (!toleranceSatisfied && !functionalApproximationAccepted) fail("comparison", "candidate-outside-tolerance", "The best browser-local parametric candidate did not satisfy the acceptance gates", {
+  if (!toleranceSatisfied && !boundedApproximationAccepted) fail("comparison", "candidate-outside-tolerance", "The best browser-local parametric candidate did not satisfy the acceptance gates", {
     rms: comparison.distance.rms, p95: comparison.distance.p95, p99: comparison.distance.p99,
     maximum: comparison.distance.maximum, coverage: comparison.toleranceSurfaceCoverage,
     meanNormalAgreement: comparison.normals.meanAgreement,
@@ -761,7 +765,7 @@ export function reconstructParametricStl(
     excessResultArea: (1 - comparison.toleranceSurfaceCoverage) * compilation.result.surfaceArea,
     score: Math.max(0, 1 - comparison.distance.p95 / request.tolerance),
   };
-  graph.validation = functionalApproximationAccepted ? {
+  graph.validation = boundedApproximationAccepted ? {
     status: "partial", brepValid: true, stepReimportValid: true, toleranceSatisfied: false,
     lastValidFeatureId: graph.features.at(-1)!.id, checkedAt: "1970-01-01T00:00:00Z",
     issues: [{
@@ -790,7 +794,7 @@ export function reconstructParametricStl(
     parametricReconstruction: {
       family: "general-parametric-prismatic",
       detailMode: request.detailMode,
-      acceptance: functionalApproximationAccepted ? "functional-approximation" : "strict",
+      acceptance: boundedApproximationAccepted ? "functional-approximation" : "strict",
       toleranceSatisfied,
       featureSequence: graph.features.map((feature) => feature.operation ?? "unknown"),
       axis: stack.axis,
