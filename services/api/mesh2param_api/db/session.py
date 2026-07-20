@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine, event, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import Settings
-from .models import Base
 
 
 class Database:
@@ -33,7 +35,18 @@ class Database:
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
 
     def migrate(self) -> None:
-        Base.metadata.create_all(self.engine)
+        configuration = Config()
+        configuration.set_main_option(
+            "script_location",
+            str(Path(__file__).resolve().parents[1] / "migrations"),
+        )
+        configuration.attributes["connection"] = self.engine
+        table_names = set(inspect(self.engine).get_table_names())
+        if table_names and "alembic_version" not in table_names:
+            # Releases before Alembic already match the frozen baseline. Stamp
+            # that revision, then apply every explicit migration after it.
+            command.stamp(configuration, "0001_initial")
+        command.upgrade(configuration, "head")
 
     def ready(self) -> bool:
         try:

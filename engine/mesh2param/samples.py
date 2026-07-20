@@ -976,10 +976,11 @@ def generate_sample(spec: SampleSpec, output_root: str | Path) -> GeneratedSampl
 
     from .source import write_cadquery_source
     from .tessellation import (
-        export_glb,
         tessellate_shape,
         transform_tessellation,
         write_binary_stl,
+        write_glb,
+        write_obj,
     )
     from .validation import export_step_validated
 
@@ -1029,9 +1030,26 @@ def generate_sample(spec: SampleSpec, output_root: str | Path) -> GeneratedSampl
         linear_tolerance=0.025,
         angular_tolerance=0.10,
     )
-    glb = export_glb(
+    model_tessellation = tessellate_shape(
         baseline_shape,
+        linear_tolerance=0.10,
+        angular_tolerance=0.20,
+    )
+    glb = write_glb(
+        model_tessellation,
         destination / "model.glb",
+        linear_tolerance=0.10,
+        angular_tolerance=0.20,
+    )
+    model_stl = write_binary_stl(
+        model_tessellation,
+        destination / "model.stl",
+        linear_tolerance=0.10,
+        angular_tolerance=0.20,
+    )
+    model_obj = write_obj(
+        model_tessellation,
+        destination / "model.obj",
         linear_tolerance=0.10,
         angular_tolerance=0.20,
     )
@@ -1093,6 +1111,8 @@ def generate_sample(spec: SampleSpec, output_root: str | Path) -> GeneratedSampl
             "low": _artifact_summary(low),
             "random": _artifact_summary(random_mesh),
             "glb": _artifact_summary(glb),
+            "stl": _artifact_summary(model_stl),
+            "obj": _artifact_summary(model_obj),
         },
         "step": {
             "sha256": step.sha256,

@@ -70,7 +70,13 @@ from .sketches import (
     infer_l_profile,
 )
 from .source import write_cadquery_source
-from .tessellation import Tessellation, export_glb, write_binary_stl, write_glb
+from .tessellation import (
+    Tessellation,
+    tessellate_shape,
+    write_binary_stl,
+    write_glb,
+    write_obj,
+)
 from .validation import ParametricSurfacePolicy, StepValidation, export_step_validated
 
 
@@ -674,8 +680,13 @@ def _complete_prismatic_reconstruction(
     graph_path.write_bytes(canonical_json_bytes(final_graph))
     source_path_output = output / "model.cq.py"
     write_cadquery_source(final_graph, source_path_output)
+    result_mesh = tessellate_shape(selected.shape)
     result_glb = output / "model.glb"
-    export_glb(selected.shape, result_glb)
+    result_stl = output / "model.stl"
+    result_obj = output / "model.obj"
+    write_glb(result_mesh, result_glb)
+    write_binary_stl(result_mesh, result_stl)
+    write_obj(result_mesh, result_obj)
     heatmap_path = output / "residual-heatmap.glb"
     heatmap = write_residual_heatmap_glb(
         repaired.mesh,
@@ -724,6 +735,8 @@ def _complete_prismatic_reconstruction(
         "cadquerySource": str(source_path_output),
         "step": str(step_path),
         "modelGlb": str(result_glb),
+        "modelStl": str(result_stl),
+        "modelObj": str(result_obj),
         "comparison": str(output / "comparison.json"),
         "residualHeatmap": heatmap.path,
         "originalSource": str(output / f"source.original{source.metadata.extension}"),
@@ -1004,8 +1017,13 @@ def reconstruct_file(
         graph_path.write_bytes(canonical_json_bytes(graph))
         source_path_output = output / "model.cq.py"
         write_cadquery_source(graph, source_path_output)
+        result_mesh = tessellate_shape(selected.shape)
         result_glb = output / "model.glb"
-        export_glb(selected.shape, result_glb)
+        result_stl = output / "model.stl"
+        result_obj = output / "model.obj"
+        write_glb(result_mesh, result_glb)
+        write_binary_stl(result_mesh, result_stl)
+        write_obj(result_mesh, result_obj)
         heatmap_path = output / "residual-heatmap.glb"
         heatmap = write_residual_heatmap_glb(
             repaired.mesh,
@@ -1037,6 +1055,8 @@ def reconstruct_file(
             "cadquerySource": str(source_path_output),
             "step": str(step_path),
             "modelGlb": str(result_glb),
+            "modelStl": str(result_stl),
+            "modelObj": str(result_obj),
             "comparison": str(output / "comparison.json"),
             "residualHeatmap": heatmap.path,
             "originalSource": str(original_path),

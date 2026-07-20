@@ -27,6 +27,12 @@ Geometry routes return `202` and a durable job. Poll `GET /api/jobs/{jobId}`, re
 `GET /api/jobs/{jobId}/events` as Server-Sent Events, and send `Last-Event-ID` to resume. Cancellation
 uses `POST /api/jobs/{jobId}/cancel`. Progress is emitted only at real operation boundaries.
 
+When `MESH2PARAM_API_TOKEN` is set, every `/api` request must send
+`Authorization: Bearer <token>`. Health and readiness remain public for infrastructure probes. The
+web client keeps the token in session storage only and prompts again in a new browser session.
+List routes accept bounded `limit` and `offset` query parameters and return `total`, `limit`,
+`offset`, and `hasMore` alongside `items`.
+
 ## Routes
 
 ```text
@@ -43,9 +49,11 @@ POST /api/projects/{id}/versions/{versionId}/restore
 DELETE /api/projects/{id}/versions/{versionId}
 GET /api/projects/{id}/artifacts
 GET /api/projects/{id}/artifacts/{name}
+GET /api/jobs?projectId={id}&status={status}&limit={n}&offset={n}
 GET /api/jobs/{jobId}
 GET /api/jobs/{jobId}/events
 POST /api/jobs/{jobId}/cancel
+DELETE /api/jobs/{jobId}
 GET /api/samples
 POST /api/samples/{sampleId}/open
 GET /health                              GET /ready
@@ -89,7 +97,8 @@ unsupported topology fails closed with a stable error code recommending the face
 Settings use the `MESH2PARAM_` prefix. Supported local settings include `DATABASE_URL` (SQLite),
 `STORAGE_PATH`, `PUBLIC_URL`, `API_URL`, `MAX_UPLOAD_MB`, `MAX_TRIANGLES`, `MAX_VERTICES`,
 `MAX_ABS_COORDINATE`, `JOB_TIMEOUT_SECONDS`, `WORKER_COUNT`, `WORKER_MEMORY_MB`, `RETENTION_DAYS`,
-`CORS_ORIGINS`, `ALLOWED_HOSTS`, and `LOG_LEVEL`. `S3_ENDPOINT`, `S3_BUCKET`, and `QUEUE_URL` are
+`CORS_ORIGINS`, `ALLOWED_HOSTS`, `API_TOKEN`, `GARBAGE_COLLECTION_INTERVAL_SECONDS`,
+`GARBAGE_COLLECTION_BATCH_SIZE`, and `LOG_LEVEL`. `S3_ENDPOINT`, `S3_BUCKET`, and `QUEUE_URL` are
 reserved configuration interfaces; M3 intentionally continues to use local filesystem CAS and its
 SQLite-backed queue rather than claiming those future backends are active.
 
@@ -98,6 +107,7 @@ SQLite-backed queue rather than claiming those future backends are active.
 Artifact sets are immutable snapshots and carry forward unchanged prior outputs by content hash.
 The completed conversion/export contains `model.step`, `model.cadgraph.json`, `model.cq.py`,
 `source.glb`, `repaired.glb`, `analysis-proxy.glb`, `patches.glb`, `reconstructed.glb`,
+`reconstructed.stl`, `reconstructed.obj`,
 `residual.glb`, `analysis.json`, `metrics.json`, `manifest.json`, `project.mesh2param.json`, and
 `mesh2param-export.zip`. The manifest records artifact sizes and SHA-256 values, project/source and
 version identity, units, engine/schema/dependency versions, settings, validation, and timestamp.

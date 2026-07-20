@@ -6,6 +6,7 @@ import {
   FileArchive,
   FolderOpen,
   Focus,
+  Keyboard,
   Layers,
   LoaderCircle,
   Moon,
@@ -19,6 +20,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { apiClient } from "../api/client";
+import { apiFetch } from "../api/auth";
 import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type { ViewerMode } from "../state/types";
@@ -27,8 +29,9 @@ import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
 import { DebugConsole } from "./DebugConsole";
-import { stepDownloadName } from "./downloadFilename";
+import { artifactDownloadName, stepDownloadName } from "./downloadFilename";
 import { EditableProjectName } from "./EditableProjectName";
+import { ShortcutHelp } from "./ShortcutHelp";
 import { ViewSettings } from "./ViewSettings";
 import {
   analysisRerunAction,
@@ -48,9 +51,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const theme = useWorkspaceSelector((state) => state.shell.theme);
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedKey = `mesh2param-revealed-${vm.project.id}`;
-  const [revealed, setRevealed] = useState(() => sessionStorage.getItem(revealedKey) === "1");
+  const revealed = sessionStorage.getItem(revealedKey) === "1";
   const [consoleOpen, setConsoleOpen] = useState(false);
-  const [recoverFullDetails, setRecoverFullDetails] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [recoverFullDetailsProject, setRecoverFullDetailsProject] = useState<string | null>(null);
+  const recoverFullDetails = recoverFullDetailsProject === vm.project.id;
   const logs = useDebugLog();
   const issueCount = logs.filter((entry) => entry.level === "error" || entry.level === "warn").length;
 
@@ -73,10 +78,14 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   useEffect(() => {
     debugLog.debug("pipeline", `Stage: ${action.label}${action.disabled ? " (unavailable)" : ""}`);
   }, [action.label, action.disabled]);
-  useEffect(() => setRecoverFullDetails(false), [vm.project.id]);
   useEffect(() => {
     if (action.disabled && action.reason) debugLog.warn("pipeline", `${action.label} unavailable`, action.reason);
   }, [action.disabled, action.reason, action.label]);
+  useEffect(() => {
+    const open = () => setShortcutsOpen(true);
+    window.addEventListener("mesh2param:shortcut-help", open);
+    return () => window.removeEventListener("mesh2param:shortcut-help", open);
+  }, []);
 
   // Reveal the clean reconstructed result the first time it becomes available.
   // Persist the "already revealed" flag per project in sessionStorage so a reload
@@ -85,7 +94,6 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
     const names = new Set(vm.artifacts.map((artifact) => artifact.name));
     if (revealed || !names.has("reconstructed.glb")) return;
     sessionStorage.setItem(revealedKey, "1");
-    setRevealed(true);
     const store = workspaceStore.getState();
     debugLog.debug("view", "Showing reconstructed result as shaded analytic CAD");
     store.setViewerPreferences(reconstructedRevealPreferences());
@@ -96,14 +104,16 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const openFilePicker = () => fileRef.current?.click();
 
-  const downloadStep = useCallback(async () => {
-    const step = stepArtifact(vm.artifacts);
-    if (step === undefined) return;
-    const filename = stepDownloadName(vm.project.name, step.name);
+  const downloadArtifact = useCallback(async (artifactName: string) => {
+    const artifact = vm.artifacts.find((candidate) => candidate.name === artifactName);
+    if (artifact === undefined) return;
+    const filename = artifactName === stepArtifact(vm.artifacts)?.name
+      ? stepDownloadName(vm.project.name, artifact.name)
+      : artifactDownloadName(vm.project.name, artifact.name);
     // Fetch as a blob so our project-derived filename wins over the server's
     // Content-Disposition (which names every export "model.step").
     try {
-      const response = await fetch(apiClient.artifactUrl(vm.project.id, step.name, step.sha256));
+      const response = await apiFetch(apiClient.artifactUrl(vm.project.id, artifact.name, artifact.sha256));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -114,11 +124,16 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(objectUrl);
-      debugLog.info("export", `Downloaded ${filename}`, { bytes: blob.size, artifact: step.name });
+      debugLog.info("export", `Downloaded ${filename}`, { bytes: blob.size, artifact: artifact.name });
     } catch (cause) {
       debugLog.error("export", `Download failed: ${filename}`, cause);
     }
   }, [vm.artifacts, vm.project.id, vm.project.name]);
+
+  const downloadStep = useCallback(async () => {
+    const step = stepArtifact(vm.artifacts);
+    if (step !== undefined) await downloadArtifact(step.name);
+  }, [downloadArtifact, vm.artifacts]);
 
   const onPrimary = () => {
     if (action.kind === "open") openFilePicker();
@@ -155,6 +170,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             <CadViewport
               chrome="minimal"
               projectId={vm.project.id}
+              units={vm.project.units}
               artifacts={vm.artifacts}
               preferences={viewer}
               theme={theme}
@@ -210,6 +226,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         </header>
 
         {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
+        {shortcutsOpen ? <ShortcutHelp onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
 
       <nav className="canvas-panel" aria-label="Conversion commands">
@@ -260,6 +277,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               <TerminalSquare size={16} />
               Console
               {issueCount > 0 ? <span className="panel-count">{issueCount > 99 ? "99+" : issueCount}</span> : null}
+            </button>
+            <button className="panel-btn" onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts">
+              <Keyboard size={16} />
+              Shortcuts
             </button>
           </div>
           <ViewSettings
@@ -329,7 +350,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 <button
                   className={`panel-btn ${recoverFullDetails ? "active" : ""}`}
                   aria-pressed={recoverFullDetails}
-                  onClick={() => setRecoverFullDetails((value) => !value)}
+                  onClick={() => setRecoverFullDetailsProject((projectId) => (
+                    projectId === vm.project.id ? null : vm.project.id
+                  ))}
                   title="Recover qualifying cap-attached loops as editable shallow features"
                 >
                   <Layers size={14} />
@@ -401,6 +424,20 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               ) : null}
             </>
           )}
+          {action.kind === "download" ? (
+            <div className="panel-export-formats" aria-label="Mesh export formats">
+              {(["glb", "stl", "obj"] as const).map((format) => {
+                const name = `reconstructed.${format}`;
+                if (!vm.artifacts.some((artifact) => artifact.name === name)) return null;
+                return (
+                  <button key={format} className="panel-btn" onClick={() => void downloadArtifact(name)}>
+                    <Download size={15} />
+                    Download {format.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </section>
       </nav>
 

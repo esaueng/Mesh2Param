@@ -125,14 +125,22 @@ class Repository:
             )
         return self.get_project(project_id)
 
-    def list_projects(self) -> list[dict[str, Any]]:
+    def list_projects(self, *, limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
         with self.sessions() as session:
-            rows = session.execute(
+            statement = (
                 select(Project, ProjectState)
                 .join(ProjectState, ProjectState.project_id == Project.id)
                 .order_by(Project.updated_at.desc(), Project.id)
-            ).all()
+                .offset(offset)
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = session.execute(statement).all()
             return [self._project_dict(project, state) for project, state in rows]
+
+    def count_projects(self) -> int:
+        with self.sessions() as session:
+            return int(session.scalar(select(func.count()).select_from(Project)) or 0)
 
     def get_project(self, project_id: str) -> dict[str, Any]:
         with self.sessions() as session:
@@ -936,6 +944,43 @@ class Repository:
                 raise NotFoundError("job not found")
             return self._job_dict(job)
 
+    def list_jobs(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        project_id: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self.sessions() as session:
+            statement = select(Job)
+            if project_id is not None:
+                statement = statement.where(Job.project_id == project_id)
+            if status is not None:
+                statement = statement.where(Job.status == status)
+            rows = session.scalars(
+                statement.order_by(Job.created_at.desc(), Job.id).offset(offset).limit(limit)
+            ).all()
+            return [self._job_dict(job) for job in rows]
+
+    def count_jobs(self, *, project_id: str | None = None, status: str | None = None) -> int:
+        with self.sessions() as session:
+            statement = select(func.count()).select_from(Job)
+            if project_id is not None:
+                statement = statement.where(Job.project_id == project_id)
+            if status is not None:
+                statement = statement.where(Job.status == status)
+            return int(session.scalar(statement) or 0)
+
+    def delete_terminal_job(self, job_id: str) -> None:
+        with self.sessions.begin() as session:
+            job = session.get(Job, job_id)
+            if job is None:
+                raise NotFoundError("job not found")
+            if job.status not in TERMINAL_JOB_STATUSES:
+                raise ActiveJobConflictError("active jobs cannot be deleted")
+            session.delete(job)
+
     def events_after(self, job_id: str, cursor: int) -> tuple[list[dict[str, Any]], bool]:
         with self.sessions() as session:
             job = session.get(Job, job_id)
@@ -957,6 +1002,7 @@ class Repository:
         with self.sessions.begin() as session:
             jobs = session.scalars(select(Job).where(Job.status == JobStatus.RUNNING.value)).all()
             for job in jobs:
+                abandoned_attempt_id = job.current_attempt_id
                 attempt = (
                     session.get(JobAttempt, job.current_attempt_id)
                     if job.current_attempt_id is not None
@@ -966,28 +1012,45 @@ class Repository:
                     attempt.status = JobStatus.FAILED.value
                     attempt.failure_code = "worker_abandoned"
                     attempt.finished_at = now
-                job.status = JobStatus.FAILED.value
-                job.phase = "failed"
-                job.finished_at = now
-                job.error_code = "worker_abandoned"
-                job.error_summary = "Worker ownership was lost during service restart"
-                job.error_detail = "The prior API process no longer owns this worker attempt."
-                job.error_recoverable = True
-                job.recommended_action = "Retry the operation."
+                retry = job.attempt_count < job.max_attempts and job.cancel_requested_at is None
+                if retry:
+                    job.status = JobStatus.QUEUED.value
+                    job.phase = "queued"
+                    job.progress = 0.0
+                    job.current_attempt_id = None
+                    job.started_at = None
+                    job.heartbeat_at = None
+                    job.available_at = now
+                    job.error_code = None
+                    job.error_summary = None
+                    job.error_detail = None
+                    job.error_recoverable = None
+                    job.recommended_action = None
+                else:
+                    job.status = JobStatus.FAILED.value
+                    job.phase = "failed"
+                    job.finished_at = now
+                    job.error_code = "worker_abandoned"
+                    job.error_summary = "Worker ownership was lost during service restart"
+                    job.error_detail = "The prior API process no longer owns this worker attempt."
+                    job.error_recoverable = True
+                    job.recommended_action = "Retry the operation."
                 self._event(
                     session,
                     job,
-                    job.current_attempt_id,
-                    "failed",
-                    phase="failed",
+                    abandoned_attempt_id,
+                    "retry_scheduled" if retry else "failed",
+                    phase=job.phase,
                     progress=job.progress,
-                    level="error",
-                    message=job.error_summary,
+                    level="warning" if retry else "error",
+                    message=("Service restarted; retry scheduled" if retry else job.error_summary),
                     code="worker_abandoned",
                     data={
-                        "status": "failed",
+                        "status": job.status,
                         "detail": job.error_detail,
                         "recoverable": True,
+                        "attempt": job.attempt_count,
+                        "maxAttempts": job.max_attempts,
                     },
                 )
             return len(jobs)
@@ -1033,16 +1096,31 @@ class Repository:
             state.updated_at = utc_now()
         return self.get_version(project_id, version_id)
 
-    def list_versions(self, project_id: str) -> list[dict[str, Any]]:
+    def list_versions(
+        self, project_id: str, *, limit: int | None = None, offset: int = 0
+    ) -> list[dict[str, Any]]:
         with self.sessions() as session:
             if session.get(Project, project_id) is None:
                 raise NotFoundError("project not found")
-            rows = session.scalars(
+            statement = (
                 select(Version)
                 .where(Version.project_id == project_id)
                 .order_by(Version.created_at.desc(), Version.id)
-            ).all()
+                .offset(offset)
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = session.scalars(statement).all()
             return [self._version_dict(row) for row in rows]
+
+    def count_versions(self, project_id: str) -> int:
+        with self.sessions() as session:
+            if session.get(Project, project_id) is None:
+                raise NotFoundError("project not found")
+            statement = (
+                select(func.count()).select_from(Version).where(Version.project_id == project_id)
+            )
+            return int(session.scalar(statement) or 0)
 
     def get_version(self, project_id: str, version_id: str) -> dict[str, Any]:
         with self.sessions() as session:
@@ -1095,20 +1173,37 @@ class Repository:
             session.delete(version)
 
     # Artifacts.
-    def list_artifacts(self, project_id: str) -> list[dict[str, Any]]:
+    def list_artifacts(
+        self, project_id: str, *, limit: int | None = None, offset: int = 0
+    ) -> list[dict[str, Any]]:
         revision, document = self.get_state(project_id)
         del revision
         artifact_set_id = document.get("artifactSetId")
         if not isinstance(artifact_set_id, str):
             return []
         with self.sessions() as session:
-            rows = session.execute(
+            statement = (
                 select(Artifact, ArtifactBlob)
                 .join(ArtifactBlob, ArtifactBlob.sha256 == Artifact.blob_sha256)
                 .where(Artifact.artifact_set_id == artifact_set_id)
                 .order_by(Artifact.logical_name)
-            ).all()
+                .offset(offset)
+            )
+            if limit is not None:
+                statement = statement.limit(limit)
+            rows = session.execute(statement).all()
             return [self._artifact_dict(artifact, blob) for artifact, blob in rows]
+
+    def count_artifacts(self, project_id: str) -> int:
+        _, document = self.get_state(project_id)
+        artifact_set_id = document.get("artifactSetId")
+        if not isinstance(artifact_set_id, str):
+            return 0
+        with self.sessions() as session:
+            statement = select(func.count()).select_from(Artifact).where(
+                Artifact.artifact_set_id == artifact_set_id
+            )
+            return int(session.scalar(statement) or 0)
 
     def get_artifact(self, project_id: str, logical_name: str) -> dict[str, Any]:
         revision, document = self.get_state(project_id)
@@ -1129,8 +1224,8 @@ class Repository:
                 raise NotFoundError("artifact not found")
             return self._artifact_dict(row[0], row[1])
 
-    def delete_orphan_blobs_before(self, cutoff: datetime) -> list[str]:
-        """Drop old blob metadata only when no source or artifact row references it."""
+    def orphan_blob_candidates_before(self, cutoff: datetime, *, limit: int = 500) -> list[str]:
+        """Return old unreferenced metadata without deleting it."""
 
         source_reference = select(SourceAsset.id).where(
             SourceAsset.blob_sha256 == ArtifactBlob.sha256
@@ -1138,18 +1233,54 @@ class Repository:
         artifact_reference = select(Artifact.id).where(
             Artifact.blob_sha256 == ArtifactBlob.sha256
         ).exists()
-        with self.sessions.begin() as session:
+        with self.sessions() as session:
             blobs = session.scalars(
                 select(ArtifactBlob).where(
                     ArtifactBlob.created_at < cutoff,
                     ~source_reference,
                     ~artifact_reference,
-                )
+                ).order_by(ArtifactBlob.created_at, ArtifactBlob.sha256).limit(limit)
             ).all()
-            digests = [blob.sha256 for blob in blobs]
-            for blob in blobs:
-                session.delete(blob)
-            return digests
+            return [blob.sha256 for blob in blobs]
+
+    def delete_orphan_blob_metadata(self, digest: str) -> bool:
+        source_reference = select(SourceAsset.id).where(
+            SourceAsset.blob_sha256 == ArtifactBlob.sha256
+        ).exists()
+        artifact_reference = select(Artifact.id).where(
+            Artifact.blob_sha256 == ArtifactBlob.sha256
+        ).exists()
+        with self.sessions.begin() as session:
+            blob = session.scalar(
+                select(ArtifactBlob).where(
+                    ArtifactBlob.sha256 == digest,
+                    ~source_reference,
+                    ~artifact_reference,
+                )
+            )
+            if blob is None:
+                return False
+            session.delete(blob)
+            return True
+
+    def known_blob_digests(self) -> set[str]:
+        with self.sessions() as session:
+            return set(session.scalars(select(ArtifactBlob.sha256)).all())
+
+    def active_workdir_tokens(self) -> set[str]:
+        with self.sessions() as session:
+            statement = (
+                select(JobAttempt.workdir_token)
+                .join(Job, Job.current_attempt_id == JobAttempt.id)
+                .where(Job.status == JobStatus.RUNNING.value)
+            )
+            return set(session.scalars(statement).all())
+
+    def delete_orphan_blobs_before(self, cutoff: datetime) -> list[str]:
+        """Compatibility helper; prefer file-first garbage collection."""
+
+        digests = self.orphan_blob_candidates_before(cutoff, limit=10_000)
+        return [digest for digest in digests if self.delete_orphan_blob_metadata(digest)]
 
     def record_audit(
         self,

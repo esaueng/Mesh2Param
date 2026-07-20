@@ -1,6 +1,7 @@
 import type { Job, JobConnectionState, JobEvent, JobEventType, JobStatus } from "../state/types";
 import { apiClient } from "./client";
 import { ApiError, normalizeApiError } from "./errors";
+import { apiFetch } from "./auth";
 
 const EVENT_TYPES: readonly JobEventType[] = [
   "progress",
@@ -110,7 +111,84 @@ export function parseJobEvent(value: string | unknown, expectedJobId?: string): 
 }
 
 function defaultEventSourceFactory(url: string): EventSourceLike {
-  return new EventSource(url);
+  return new FetchEventSource(url);
+}
+
+class FetchEventSource implements EventSourceLike {
+  readyState = 0;
+  onopen: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  private readonly listeners = new Map<string, Set<EventListener>>();
+  private readonly controller = new AbortController();
+
+  constructor(private readonly url: string) {
+    void this.connect();
+  }
+
+  addEventListener(type: string, listener: EventListener): void {
+    const listeners = this.listeners.get(type) ?? new Set<EventListener>();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  close(): void {
+    this.readyState = 2;
+    this.controller.abort();
+  }
+
+  private dispatch(type: string, data: string): void {
+    const event = new MessageEvent(type, { data });
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
+  }
+
+  private async connect(): Promise<void> {
+    try {
+      const response = await apiFetch(this.url, {
+        headers: { Accept: "text/event-stream" },
+        signal: this.controller.signal,
+      });
+      if (!response.ok || response.body === null) throw new Error(`SSE request failed (${response.status})`);
+      this.readyState = 1;
+      this.onopen?.(new Event("open"));
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (this.readyState !== 2) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, "\n");
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          this.acceptBlock(block);
+          boundary = buffer.indexOf("\n\n");
+        }
+        if (done) break;
+      }
+      if (this.readyState !== 2) {
+        this.readyState = 2;
+        this.onerror?.(new Event("error"));
+      }
+    } catch (cause) {
+      if (this.controller.signal.aborted) return;
+      this.readyState = 2;
+      this.onerror?.(new ErrorEvent("error", { error: cause }));
+    }
+  }
+
+  private acceptBlock(block: string): void {
+    let type = "message";
+    const data: string[] = [];
+    for (const line of block.split("\n")) {
+      if (!line || line.startsWith(":")) continue;
+      const separator = line.indexOf(":");
+      const field = separator < 0 ? line : line.slice(0, separator);
+      const value = separator < 0 ? "" : line.slice(separator + 1).replace(/^ /, "");
+      if (field === "event") type = value;
+      else if (field === "data") data.push(value);
+    }
+    if (data.length > 0) this.dispatch(type, data.join("\n"));
+  }
 }
 
 function isTerminal(job: Job): boolean {

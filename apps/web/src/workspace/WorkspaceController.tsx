@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CADGraph } from "@mesh2param/contracts";
 import { apiClient } from "../api/client";
+import { apiFetch } from "../api/auth";
 import { normalizeApiError } from "../api/errors";
 import { watchJob } from "../api/jobs";
 import { saveProjectFile } from "../persistence/projectFile";
@@ -23,6 +24,7 @@ import { CanvasShell } from "../canvas/CanvasShell";
 import { ErrorToast } from "../components/ErrorToast";
 import { debugLog } from "../canvas/debugLog";
 import type { WorkspaceActions, WorkspaceViewModel } from "./types";
+import { shortcutForEvent } from "./shortcuts";
 
 const COMPLETION_STEP: Partial<Record<JobKind, WorkflowStep>> = {
   upload: "import",
@@ -522,7 +524,7 @@ async function cacheRemoteSource(project: ProjectDetail) {
   const descriptor = project.state.artifacts.find((artifact) =>
     artifact.sha256 === source.sha256 || artifact.name === source.originalFileName);
   if (descriptor === undefined) return;
-  const response = await fetch(apiClient.artifactUrl(project.id, descriptor.name, descriptor.sha256));
+  const response = await apiFetch(apiClient.artifactUrl(project.id, descriptor.name, descriptor.sha256));
   if (!response.ok) return;
   await workspaceRepository.putBlob({
     projectId: project.id,
@@ -540,32 +542,18 @@ function useWorkspaceShortcuts(actions: WorkspaceActions) {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target;
       const state = workspaceStore.getState();
-      const modifier = event.metaKey || event.ctrlKey;
-      if (modifier && event.key.toLowerCase() === "s") { event.preventDefault(); void actions.saveProject(); return; }
-      if (modifier && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) actions.redo();
-        else actions.undo();
-        return;
-      }
+      const shortcut = shortcutForEvent(event, state.shell.singleKeyShortcuts);
+      if (shortcut === null) return;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
-      if (!state.shell.singleKeyShortcuts || modifier || event.altKey) return;
-      const steps: WorkflowStep[] = ["import", "repair", "surfaces", "features", "refine", "validate", "export"];
-      const numeric = Number(event.key);
-      if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 7) actions.setStep(steps[numeric - 1]!);
-      else if (event.key.toLowerCase() === "n") {
-        const index = steps.indexOf(state.workflow.active);
-        if (index < steps.length - 1) actions.setStep(steps[index + 1]!);
-      }
-      else if (event.key.toLowerCase() === "b") {
-        const index = steps.indexOf(state.workflow.active);
-        if (index > 0) actions.setStep(steps[index - 1]!);
-      }
-      else if (event.key.toLowerCase() === "h") window.dispatchEvent(new Event("mesh2param:fit-view"));
-      else if (event.key.toLowerCase() === "a") void actions.run("analyze");
-      else if (event.key.toLowerCase() === "r") void actions.run("reconstruct");
-      else if (event.key.toLowerCase() === "e") actions.setStep("export");
-      else if (event.key === "Escape") {
+      event.preventDefault();
+      if (shortcut.command === "save") void actions.saveProject();
+      else if (shortcut.command === "undo") actions.undo();
+      else if (shortcut.command === "redo") actions.redo();
+      else if (shortcut.command === "fit-view") window.dispatchEvent(new Event("mesh2param:fit-view"));
+      else if (shortcut.command === "analyze") void actions.run("analyze");
+      else if (shortcut.command === "reconstruct") void actions.run("reconstruct");
+      else if (shortcut.command === "show-help") window.dispatchEvent(new Event("mesh2param:shortcut-help"));
+      else if (shortcut.command === "clear-selection") {
         state.clearSelection();
         state.setShellState({ inspectorExpanded: false, activeDialog: null });
       }

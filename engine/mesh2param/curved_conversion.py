@@ -40,7 +40,11 @@ from .ingest import IngestedMesh, MeshLimits, ingest_mesh
 from .repair import RepairResult, repair_mesh
 from .source import write_cadquery_source
 from .step_audit import StepAudit, audit_step_file
-from .tessellation import Tessellation, tessellate_shape, write_glb
+from .tessellation import Tessellation, tessellate_shape, write_binary_stl, write_glb, write_obj
+from .tolerances import (
+    CURVED_RESULT_ANGULAR_TESSELLATION_RAD,
+    CURVED_RESULT_LINEAR_TESSELLATION_MM,
+)
 from .units import millimeters_to_project_units, project_units_to_millimeters
 from .validation import StepValidation, export_step_validated
 
@@ -484,8 +488,14 @@ def create_curved_conversion(
             "; ".join(audit.errors),
         )
 
-    tessellation = tessellate_shape(shape, linear_tolerance=0.002, angular_tolerance=0.2)
+    tessellation = tessellate_shape(
+        shape,
+        linear_tolerance=CURVED_RESULT_LINEAR_TESSELLATION_MM,
+        angular_tolerance=CURVED_RESULT_ANGULAR_TESSELLATION_RAD,
+    )
     write_glb(tessellation, output / "reconstructed.glb")
+    write_binary_stl(tessellation, output / "reconstructed.stl")
+    write_obj(tessellation, output / "reconstructed.obj")
 
     graph = _validated_graph(graph, step, reconstruction)
     graph_path = output / "model.cadgraph.json"
@@ -530,6 +540,8 @@ def create_curved_conversion(
         "cadquerySource": str(output / "model.cq.py"),
         "step": str(output / "model.step"),
         "modelGlb": str(output / "reconstructed.glb"),
+        "modelStl": str(output / "reconstructed.stl"),
+        "modelObj": str(output / "reconstructed.obj"),
         "validation": str(output / "validation.json"),
         "curvedReconstruction": str(output / "curved-reconstruction.json"),
     }

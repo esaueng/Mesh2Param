@@ -331,9 +331,15 @@ export interface JobViewState {
   lastEventAt: IsoTimestamp | null;
 }
 
-export interface ProjectList {
-  items: ProjectDetail[];
+export interface PageMetadata {
   total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface ProjectList extends PageMetadata {
+  items: ProjectDetail[];
 }
 
 export interface PatchPage {
@@ -341,14 +347,16 @@ export interface PatchPage {
   total: number;
 }
 
-export interface ArtifactPage {
+export interface ArtifactPage extends PageMetadata {
   items: ArtifactDescriptor[];
-  total: number;
 }
 
-export interface VersionPage {
+export interface VersionPage extends PageMetadata {
   items: ProjectVersionSnapshot[];
-  total: number;
+}
+
+export interface JobPage extends PageMetadata {
+  items: Job[];
 }
 
 export interface SampleDescriptor {

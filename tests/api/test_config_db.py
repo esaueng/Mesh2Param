@@ -10,11 +10,13 @@ from mesh2param.samples import sample_graph
 from mesh2param_api.api.core import APIError
 from mesh2param_api.api.routes.operations import _operation_payload
 from mesh2param_api.config import Settings
-from mesh2param_api.db import Database, JobStatus, Repository
-from mesh2param_api.db.models import utc_now
+from mesh2param_api.db import Base, Database, JobStatus, Repository
+from mesh2param_api.db.models import ArtifactBlob, utc_now
 from mesh2param_api.logging_config import JsonFormatter
+from mesh2param_api.maintenance import StorageGarbageCollector
 from mesh2param_api.schemas import OperationRequest
 from mesh2param_api.storage import LocalCAS
+from sqlalchemy import inspect, text
 
 
 def test_settings_do_not_auto_load_container_dotenv(
@@ -166,6 +168,35 @@ def test_production_configuration_fails_closed(
         Settings(**database_values)  # type: ignore[arg-type]
 
 
+def test_migration_creates_and_stamps_new_and_pre_alembic_databases(tmp_path: Path) -> None:
+    fresh = Database(Settings(environment="test", data_dir=tmp_path / "fresh", _env_file=None))  # type: ignore[call-arg]
+    try:
+        fresh.migrate()
+        fresh.migrate()
+        assert "alembic_version" in inspect(fresh.engine).get_table_names()
+        with fresh.engine.connect() as connection:
+            revision = connection.execute(text("SELECT version_num FROM alembic_version"))
+            assert revision.scalar_one() == "0002_list_indexes"
+        assert "ix_jobs_project_status_created" in {
+            index["name"] for index in inspect(fresh.engine).get_indexes("jobs")
+        }
+    finally:
+        fresh.dispose()
+
+    legacy = Database(Settings(environment="test", data_dir=tmp_path / "legacy", _env_file=None))  # type: ignore[call-arg]
+    try:
+        Base.metadata.create_all(legacy.engine)
+        legacy.migrate()
+        with legacy.engine.connect() as connection:
+            revision = connection.execute(text("SELECT version_num FROM alembic_version"))
+            assert revision.scalar_one() == "0002_list_indexes"
+        assert "ix_projects_updated_id" in {
+            index["name"] for index in inspect(legacy.engine).get_indexes("projects")
+        }
+    finally:
+        legacy.dispose()
+
+
 def test_repository_revision_queue_attempt_and_durable_events(tmp_path: Path) -> None:
     settings = Settings(  # type: ignore[call-arg]
         environment="test", data_dir=tmp_path, _env_file=None
@@ -228,6 +259,72 @@ def test_repository_revision_queue_attempt_and_durable_events(tmp_path: Path) ->
         recovered = repo.get_job(abandoned["id"])
         assert recovered["status"] == "failed"
         assert recovered["error"]["code"] == "worker_abandoned"
+
+        retryable = repo.create_job(
+            project["id"],
+            updated["revision"],
+            "test_hang",
+            {"inputHash": "e" * 64, "settings": {}},
+            timeout_seconds=2,
+            max_attempts=2,
+        )
+        retryable_claim = repo.claim_one()
+        assert retryable_claim is not None and retryable_claim["id"] == retryable["id"]
+        assert repo.recover_abandoned() == 1
+        requeued = repo.get_job(retryable["id"])
+        assert requeued["status"] == "queued"
+        assert requeued["attempt"] == 1
+        second_claim = repo.claim_one()
+        assert second_claim is not None and second_claim["attempt_count"] == 2
+    finally:
+        database.dispose()
+
+
+def test_garbage_collection_reconciles_blobs_and_owned_temporary_paths(tmp_path: Path) -> None:
+    settings = Settings(environment="test", data_dir=tmp_path, _env_file=None)  # type: ignore[call-arg]
+    database = Database(settings)
+    database.migrate()
+    repository = Repository(database)
+    storage = LocalCAS(settings.storage_root)
+    try:
+        orphan = storage.put_bytes(b"metadata orphan")
+        with database.sessions.begin() as session:
+            session.add(ArtifactBlob(
+                sha256=orphan.sha256,
+                byte_size=orphan.byte_size,
+                media_type="application/octet-stream",
+                storage_key=str(orphan.path.relative_to(storage.root)),
+            ))
+        unknown = storage.put_bytes(b"filesystem orphan")
+
+        project = repository.create_project("GC active job", "mm")
+        job = repository.create_job(
+            project["id"], project["revision"], "gc-test", {"settings": {}},
+            timeout_seconds=2,
+        )
+        claim = repository.claim_one()
+        assert claim is not None and claim["id"] == job["id"]
+        active_directory = settings.jobs_root / f"{claim['workdirToken']}-active"
+        active_directory.mkdir(parents=True)
+        abandoned_directory = settings.jobs_root / "abandoned-old"
+        abandoned_directory.mkdir()
+        settings.upload_staging_root.mkdir(parents=True)
+        abandoned_upload = settings.upload_staging_root / "upload-abandoned.part"
+        abandoned_upload.write_bytes(b"partial")
+
+        result = StorageGarbageCollector(repository, storage, settings).run_once(
+            cutoff=utc_now() + timedelta(seconds=1)
+        )
+
+        assert result.metadata_blobs == 1
+        assert result.filesystem_blobs == 1
+        assert result.job_directories == 1
+        assert result.upload_files == 1
+        assert not storage.contains(orphan.sha256)
+        assert not storage.contains(unknown.sha256)
+        assert active_directory.is_dir()
+        assert not abandoned_directory.exists()
+        assert not abandoned_upload.exists()
     finally:
         database.dispose()
 

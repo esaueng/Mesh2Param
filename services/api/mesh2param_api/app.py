@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import os
 import tempfile
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from datetime import timedelta
 from html import escape
 from pathlib import Path
 
@@ -33,7 +33,6 @@ from .api.routes import (
 )
 from .config import Settings
 from .db import Database, Repository
-from .db.models import utc_now
 from .db.repository import (
     ActiveJobConflictError,
     NotFoundError,
@@ -42,6 +41,7 @@ from .db.repository import (
 from .jobs import JobSupervisor
 from .jobs.lock import WorkerInstanceLock
 from .logging_config import configure_service_logging
+from .maintenance import StorageGarbageCollector, garbage_collection_loop
 from .schemas import ErrorEnvelope
 from .security import (
     SecurityPolicyError,
@@ -68,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         worker_lock: WorkerInstanceLock | None = None
         supervisor_started = False
+        garbage_stop = asyncio.Event()
+        garbage_task: asyncio.Task[None] | None = None
         try:
             database.migrate()
             config.jobs_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -76,19 +78,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 os.close(descriptor)
             Path(probe_name).unlink(missing_ok=True)
             app.state.storage_ready = True
-            cutoff = utc_now() - timedelta(days=config.artifact_retention_days)
-            orphan_digests = await asyncio.to_thread(
-                repository.delete_orphan_blobs_before, cutoff
+            collector = StorageGarbageCollector(repository, storage, config)
+            await asyncio.to_thread(collector.run_once)
+            garbage_task = asyncio.create_task(
+                garbage_collection_loop(collector, garbage_stop),
+                name="mesh2param-garbage-collector",
             )
-            for digest in orphan_digests:
-                try:
-                    await asyncio.to_thread(storage.delete_blob, digest)
-                except Exception:
-                    LOGGER.exception("orphan_blob_cleanup_failed")
-            if orphan_digests:
-                LOGGER.info(
-                    "orphan_blob_cleanup_complete", extra={"count": len(orphan_digests)}
-                )
             if config.job_runner_mode == "embedded":
                 worker_lock = WorkerInstanceLock(config.worker_lock_path)
                 worker_lock.__enter__()
@@ -96,6 +91,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 supervisor_started = True
             yield
         finally:
+            garbage_stop.set()
+            if garbage_task is not None:
+                await garbage_task
             try:
                 if supervisor_started:
                     await supervisor.stop()
@@ -136,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[
+            "Authorization",
             "Content-Type",
             "If-Match",
             "Last-Event-ID",
@@ -190,6 +189,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         try:
             require_allowed_host(request.headers.get("host"), config.allowed_hosts)
+            if (
+                config.api_token_value is not None
+                and request.method != "OPTIONS"
+                and request.url.path.startswith("/api/")
+            ):
+                authorization = request.headers.get("authorization", "")
+                scheme, _, candidate_token = authorization.partition(" ")
+                authenticated = (
+                    scheme.casefold() == "bearer"
+                    and bool(candidate_token)
+                    and hmac.compare_digest(candidate_token, config.api_token_value)
+                )
+                if not authenticated:
+                    raise APIError(
+                        401,
+                        "authentication_required",
+                        "API authentication is required",
+                        "Send the configured API token as a Bearer credential.",
+                        recoverable=True,
+                        recommended_action="Enter the API token and retry.",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
             origin = request.headers.get("origin")
             if (
                 request.method in MUTATING_METHODS
@@ -200,6 +221,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "origin_not_allowed", "request origin is not allowed"
                 )
             response = await call_next(request)
+        except APIError as exc:
+            response = error_response(request, exc)
         except SecurityPolicyError as exc:
             response = error_response(
                 request,

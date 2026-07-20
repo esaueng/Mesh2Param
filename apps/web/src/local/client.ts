@@ -16,6 +16,7 @@ import type {
   ArtifactPage,
   Job,
   JobEvent,
+  JobPage,
   JsonObject,
   PatchClassification,
   PatchPage,
@@ -29,7 +30,9 @@ import type {
   VersionPage,
 } from "../state/types";
 import { browserGeometry } from "./geometry/client";
+import type { BrowserMesh } from "./geometry/types";
 import { meshToGlb } from "./glb";
+import { meshToBinaryStl, meshToObj } from "./meshExports";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
 
 type Operation = "repair" | "analyze" | "reconstruct" | "rebuild" | "validate" | "export";
@@ -117,10 +120,13 @@ export class BrowserApiClient {
     return Promise.resolve(result({ status: "ready", database: true, storage: true, supervisor: true, executionMode: "browser-local" }));
   }
 
-  async listProjects(_signal?: AbortSignal): Promise<ApiResult<ProjectList>> {
+  async listProjects(_signal?: AbortSignal, page: { limit?: number; offset?: number } = {}): Promise<ApiResult<ProjectList>> {
     const records = await workspaceDb.projects.orderBy("updatedAt").reverse().toArray();
-    const items = (await Promise.all(records.map((record) => this.detail(record.id)))).filter((item): item is ProjectDetail => item !== null);
-    return result({ items, total: items.length });
+    const all = (await Promise.all(records.map((record) => this.detail(record.id)))).filter((item): item is ProjectDetail => item !== null);
+    const limit = page.limit ?? 100;
+    const offset = page.offset ?? 0;
+    const items = all.slice(offset, offset + limit);
+    return result({ items, total: all.length, limit, offset, hasMore: offset + items.length < all.length });
   }
 
   async createProject(name = "Untitled project", units: Units = "mm", _signal?: AbortSignal): Promise<ApiResult<ProjectDetail>> {
@@ -146,6 +152,9 @@ export class BrowserApiClient {
   async getProject(projectId: string, _signal?: AbortSignal): Promise<ApiResult<ProjectDetail>> {
     const detail = await this.detail(projectId);
     if (detail === null) throw missing("project", projectId);
+    // Blob URLs are process-local and intentionally are not persisted. Rebuild
+    // the URL cache whenever a project is reopened.
+    await this.cacheProjectArtifactUrls(projectId);
     return result(detail, detail.revision);
   }
 
@@ -311,7 +320,7 @@ export class BrowserApiClient {
         }
         const artifacts = await Promise.all([
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "faceted-step"),
-          this.putArtifact(projectId, "reconstructed.glb", meshToGlb(compiled.mesh), "preserved-source-proxy"),
+          ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "preserved-source-proxy"),
         ]);
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
         next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
@@ -337,7 +346,7 @@ export class BrowserApiClient {
         }
         const artifacts = await Promise.all([
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "curved-step"),
-          this.putArtifact(projectId, "reconstructed.glb", meshToGlb(compiled.mesh), "reconstructed-curved"),
+          ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "reconstructed-curved"),
         ]);
         next.state.cadgraph = null;
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
@@ -417,7 +426,7 @@ export class BrowserApiClient {
         } as unknown as JsonObject;
         const artifactPromises = [
           this.putArtifact(projectId, "model.step", new Blob([parametric.step], { type: "model/step" }), "parametric-step"),
-          this.putArtifact(projectId, "reconstructed.glb", meshToGlb(parametric.mesh), "reconstructed-parametric"),
+          ...this.resultMeshArtifactWrites(projectId, parametric.mesh, "reconstructed-parametric"),
           this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(parametric.graph, null, 2)], { type: "application/json" }), "cadgraph"),
           this.putArtifact(projectId, "comparison.json", new Blob([JSON.stringify(parametric.parametricReconstruction.comparison, null, 2)], { type: "application/json" }), "comparison"),
           this.putArtifact(projectId, "surface-audit.json", new Blob([JSON.stringify({
@@ -484,10 +493,9 @@ export class BrowserApiClient {
       if (next.state.cadgraph === null) throw new Error("This project does not have a CADGraph to compile");
       const compiled = await browserGeometry.compile(next.state.cadgraph);
       const step = new Blob([compiled.step], { type: "model/step" });
-      const glb = meshToGlb(compiled.mesh);
       const artifacts = await Promise.all([
         this.putArtifact(projectId, "model.step", step, "step"),
-        this.putArtifact(projectId, "reconstructed.glb", glb, "reconstructed"),
+        ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "reconstructed"),
         this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(next.state.cadgraph, null, 2)], { type: "application/json" }), "cadgraph"),
       ]);
       next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
@@ -511,7 +519,7 @@ export class BrowserApiClient {
         ...next.state.cadgraph,
         engineVersions: {
           ...next.state.cadgraph.engineVersions,
-          dependencies: { ...next.state.cadgraph.engineVersions.dependencies, "occt-wasm": "3.6.1" },
+          dependencies: { ...next.state.cadgraph.engineVersions.dependencies, "occt-wasm": "3.7.0" },
         },
         validation: {
           ...next.state.cadgraph.validation,
@@ -598,6 +606,42 @@ export class BrowserApiClient {
     return Promise.resolve(result(structuredClone(job)));
   }
 
+  async listJobs(
+    filters: { projectId?: string; status?: Job["status"]; limit?: number; offset?: number } = {},
+    _signal?: AbortSignal,
+  ): Promise<ApiResult<JobPage>> {
+    const all = [...this.jobs.values()]
+      .filter((job) => filters.projectId === undefined || job.projectId === filters.projectId)
+      .filter((job) => filters.status === undefined || job.status === filters.status)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
+    const limit = filters.limit ?? 100;
+    const offset = filters.offset ?? 0;
+    const items = all.slice(offset, offset + limit).map((job) => structuredClone(job));
+    return result({ items, total: all.length, limit, offset, hasMore: offset + items.length < all.length });
+  }
+
+  async deleteJob(jobId: string, _signal?: AbortSignal): Promise<ApiResult<void>> {
+    const job = this.jobs.get(jobId);
+    if (job === undefined) throw missing("job", jobId);
+    if (job.status === "queued" || job.status === "running") {
+      throw new ApiError({
+        status: 409,
+        code: "active_job",
+        summary: "Active job cannot be deleted",
+        detail: "Cancel the job and wait for it to become terminal before deleting it.",
+        phase: job.phase,
+        projectId: job.projectId,
+        jobId,
+        recoverable: true,
+        recommendedAction: "Cancel the job first.",
+        requestId: crypto.randomUUID(),
+      });
+    }
+    this.jobs.delete(jobId);
+    this.lastEvents.delete(jobId);
+    return result(undefined);
+  }
+
   async cancelJob(jobId: string, _signal?: AbortSignal): Promise<ApiResult<Job>> {
     const job = this.jobs.get(jobId);
     if (job === undefined) throw missing("job", jobId);
@@ -617,10 +661,13 @@ export class BrowserApiClient {
     return () => { set.delete(listener); if (set.size === 0) this.listeners.delete(jobId); };
   }
 
-  async listVersions(projectId: string, _signal?: AbortSignal): Promise<ApiResult<VersionPage>> {
+  async listVersions(projectId: string, _signal?: AbortSignal, page: { limit?: number; offset?: number } = {}): Promise<ApiResult<VersionPage>> {
     await this.requireProject(projectId);
-    const items = (await workspaceDb.versions.where("projectId").equals(projectId).sortBy("createdAt")).map((record) => record.snapshot);
-    return result({ items, total: items.length });
+    const all = (await workspaceDb.versions.where("projectId").equals(projectId).sortBy("createdAt")).map((record) => record.snapshot).reverse();
+    const limit = page.limit ?? 100;
+    const offset = page.offset ?? 0;
+    const items = all.slice(offset, offset + limit);
+    return result({ items, total: all.length, limit, offset, hasMore: offset + items.length < all.length });
   }
 
   async createVersion(projectId: string, revision: number | string, label: string, _signal?: AbortSignal): Promise<ApiResult<ProjectVersionSnapshot>> {
@@ -629,7 +676,7 @@ export class BrowserApiClient {
       id: `version-${crypto.randomUUID()}`, projectId, parentId: detail.state.currentVersionId, label: label || "Snapshot",
       state: structuredClone(detail.state), sourceSha256: detail.state.source?.sha256 ?? null,
       validationStatus: detail.state.validation?.status ?? "not-run", metrics: detail.state.metrics,
-      artifactSetId: detail.state.artifactSetId, engineVersion: "browser-local/1", dependencyVersions: { occtWasm: "3.6.1" },
+      artifactSetId: detail.state.artifactSetId, engineVersion: "browser-local/1", dependencyVersions: { occtWasm: "3.7.0" },
       createdAt: new Date().toISOString(),
     };
     await workspaceDb.versions.put({ projectId, versionId: snapshot.id, parentVersionId: snapshot.parentId, createdAt: snapshot.createdAt, snapshot });
@@ -659,11 +706,13 @@ export class BrowserApiClient {
     return result(undefined);
   }
 
-  async listArtifacts(projectId: string, _signal?: AbortSignal): Promise<ApiResult<ArtifactPage>> {
+  async listArtifacts(projectId: string, _signal?: AbortSignal, page: { limit?: number; offset?: number } = {}): Promise<ApiResult<ArtifactPage>> {
     const detail = await this.requireProject(projectId);
-    const records = await workspaceDb.blobs.where("projectId").equals(projectId).filter((record) => record.kind.startsWith("artifact:")).toArray();
-    for (const record of records) this.cacheArtifactUrl(projectId, record.originalFileName ?? record.kind.slice(9), record.sha256, record.blob);
-    return result({ items: detail.state.artifacts, total: detail.state.artifacts.length }, detail.revision);
+    await this.cacheProjectArtifactUrls(projectId);
+    const limit = page.limit ?? 100;
+    const offset = page.offset ?? 0;
+    const items = detail.state.artifacts.slice(offset, offset + limit);
+    return result({ items, total: detail.state.artifacts.length, limit, offset, hasMore: offset + items.length < detail.state.artifacts.length }, detail.revision);
   }
 
   artifactUrl(projectId: string, name: string, sha256?: string): string {
@@ -687,12 +736,19 @@ export class BrowserApiClient {
     const saved = await this.save(detail, true);
     const job = this.queueJob(saved.id, "sample_open", saved.revision, async () => {
       const next = await this.requireProject(saved.id);
-      const [glb, step, source] = await Promise.all([
+      const [glb, stl, obj, step, source] = await Promise.all([
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.glb"), "model/gltf-binary"),
+        blobFromUrl(browserSampleAssetUrl(sampleId, "model.stl"), "model/stl"),
+        blobFromUrl(browserSampleAssetUrl(sampleId, "model.obj"), "model/obj"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.step"), "model/step"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "source-random.stl"), "model/stl"),
       ]);
       const sourceSha = await sha256Hex(await readBlobBytes(source));
+      const sourcePreview = await browserGeometry.compileStl(
+        source,
+        Math.max(0.01, sample.graph.projectTolerance.surfaceDeviation),
+        { solidify: false, validateStep: false },
+      );
       next.state.source = {
         id: `source-${sourceSha.slice(0, 16)}`, originalFileName: `${sampleId}.stl`, format: "stl", encoding: "binary",
         sha256: sourceSha, byteSize: source.size, declaredUnits: sample.graph.units, unitsConfirmed: true, scaleFactor: 1, state: "bundled-local",
@@ -702,7 +758,10 @@ export class BrowserApiClient {
         mediaType: source.type, originalFileName: `${sampleId}.stl`, blob: source, createdAt: new Date().toISOString(),
       });
       const artifacts = await Promise.all([
+        this.putArtifact(saved.id, "source.glb", meshToGlb(sourcePreview.mesh), "source"),
         this.putArtifact(saved.id, "reconstructed.glb", glb, "reconstructed"),
+        this.putArtifact(saved.id, "reconstructed.stl", stl, "reconstructed"),
+        this.putArtifact(saved.id, "reconstructed.obj", obj, "reconstructed"),
         this.putArtifact(saved.id, "model.step", step, "step"),
         this.putArtifact(saved.id, "model.cadgraph.json", new Blob([JSON.stringify(sample.graph, null, 2)], { type: "application/json" }), "cadgraph"),
       ]);
@@ -715,6 +774,22 @@ export class BrowserApiClient {
       return { revision: final.revision, sampleId, exactReferenceGeometry: true };
     });
     return result({ project: saved, job }, saved.revision);
+  }
+
+  private async cacheProjectArtifactUrls(projectId: string): Promise<void> {
+    const records = await workspaceDb.blobs
+      .where("projectId")
+      .equals(projectId)
+      .filter((record) => record.kind.startsWith("artifact:"))
+      .toArray();
+    for (const record of records) {
+      this.cacheArtifactUrl(
+        projectId,
+        record.originalFileName ?? record.kind.slice(9),
+        record.sha256,
+        record.blob,
+      );
+    }
   }
 
   private async detail(projectId: string): Promise<ProjectDetail | null> {
@@ -821,6 +896,18 @@ export class BrowserApiClient {
     };
     this.lastEvents.set(job.id, event);
     for (const listener of this.listeners.get(job.id) ?? []) listener(structuredClone(event));
+  }
+
+  private resultMeshArtifactWrites(
+    projectId: string,
+    mesh: BrowserMesh,
+    kind: string,
+  ): Array<Promise<ArtifactDescriptor>> {
+    return [
+      this.putArtifact(projectId, "reconstructed.glb", meshToGlb(mesh), kind),
+      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(mesh), kind),
+      this.putArtifact(projectId, "reconstructed.obj", meshToObj(mesh), kind),
+    ];
   }
 
   private async putArtifact(projectId: string, name: string, blob: Blob, kind: string): Promise<ArtifactDescriptor> {

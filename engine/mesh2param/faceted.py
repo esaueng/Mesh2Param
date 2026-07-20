@@ -19,7 +19,7 @@ from .compiler import CompilationResult, compile_cadgraph
 from .ingest import IngestedMesh, MeshLimits, ingest_mesh
 from .repair import RepairResult, repair_mesh
 from .source import write_cadquery_source
-from .tessellation import Tessellation, write_binary_stl, write_glb
+from .tessellation import Tessellation, write_binary_stl, write_glb, write_obj
 from .units import (
     DEFAULT_FACETED_SEWING_TOLERANCE_MM,
     MAXIMUM_FACETED_SEWING_TOLERANCE_MM,
@@ -428,13 +428,17 @@ def create_faceted_fallback(
     repair = repair_mesh(source, limits=mesh_limits or MeshLimits())
     _write_json(output / "analysis.json", source.to_dict())
     _write_json(output / "repair.json", repair.to_dict())
-    write_glb(_mesh_tessellation(source.mesh), output / "source.glb")
-    write_binary_stl(_mesh_tessellation(repair.mesh), output / "repaired.stl")
-    write_glb(_mesh_tessellation(repair.mesh), output / "repaired.glb")
+    source_mesh = _mesh_tessellation(source.mesh)
+    repaired_mesh = _mesh_tessellation(repair.mesh)
+    write_glb(source_mesh, output / "source.glb")
+    write_binary_stl(repaired_mesh, output / "repaired.stl")
+    write_glb(repaired_mesh, output / "repaired.glb")
     # The faceted OCCT result is intentionally not re-tessellated for this large-model fallback.
     # Keep the conventional artifact name for viewer compatibility, but make its content and
     # metadata explicitly a preserved-source proxy.
-    write_glb(_mesh_tessellation(source.mesh), output / "reconstructed.glb")
+    write_glb(source_mesh, output / "reconstructed.glb")
+    write_binary_stl(source_mesh, output / "reconstructed.stl")
+    write_obj(source_mesh, output / "reconstructed.obj")
 
     graph = _build_graph(
         source,
@@ -504,6 +508,8 @@ def create_faceted_fallback(
         "cadquerySource": str(output / "model.cq.py"),
         "step": str(output / "model.step"),
         "modelGlb": str(output / "reconstructed.glb"),
+        "modelStl": str(output / "reconstructed.stl"),
+        "modelObj": str(output / "reconstructed.obj"),
         "validation": str(output / "validation.json"),
     }
     result = FacetedFallbackResult(

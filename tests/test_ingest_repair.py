@@ -277,6 +277,43 @@ def test_disabled_repair_operations_are_records_and_do_not_modify_geometry() -> 
     assert not hasattr(settings, "decimation")
 
 
+@pytest.mark.parametrize(
+    ("field_name", "operation_name"),
+    [
+        ("merge_duplicate_vertices", "merge_duplicate_vertices"),
+        ("remove_degenerate_faces", "remove_degenerate_faces"),
+        ("remove_duplicate_faces", "remove_duplicate_faces"),
+        ("remove_unreferenced_vertices", "remove_unreferenced_vertices"),
+        ("orient_winding", "orient_winding"),
+        ("repair_normals", "repair_normals"),
+        ("keep_largest_component", "keep_largest_component"),
+        ("drop_tiny_components", "drop_tiny_components"),
+        ("fill_small_holes", "fill_small_holes"),
+    ],
+)
+def test_each_repair_operation_can_be_enabled_independently(
+    field_name: str,
+    operation_name: str,
+) -> None:
+    disabled = replace(
+        DEFAULT_REPAIR_SETTINGS,
+        merge_duplicate_vertices=False,
+        remove_degenerate_faces=False,
+        remove_duplicate_faces=False,
+        remove_unreferenced_vertices=False,
+        orient_winding=False,
+        repair_normals=False,
+        keep_largest_component=False,
+        drop_tiny_components=False,
+        fill_small_holes=False,
+    )
+    settings = replace(disabled, **{field_name: True})
+
+    result = repair_mesh(_damaged_mesh(), settings)
+
+    assert [record.operation for record in result.operations if record.enabled] == [operation_name]
+
+
 def test_component_filters_are_opt_in_and_record_dropped_bodies() -> None:
     large = trimesh.creation.box(extents=(2.0, 2.0, 2.0))
     tiny = trimesh.creation.box(extents=(0.1, 0.1, 0.1))

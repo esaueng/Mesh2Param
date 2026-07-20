@@ -13,10 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify
+  quality:
+    name: Quality (${{ matrix.task }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [static, frontend, backend, browser]
     env:
       CI: "1"
       UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
@@ -75,30 +79,57 @@ jobs:
         run: uv sync --frozen --extra dev
 
       - name: Install Chromium
+        if: matrix.task == 'browser'
         run: pnpm --filter @mesh2param/web exec playwright install --with-deps chromium
 
-      - name: Run parity verification
-        run: pnpm verify
+      - name: Run type, lint, build, sample, license, and Cloudflare checks
+        if: matrix.task == 'static'
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm build
+          pnpm samples:check
+          pnpm licenses:check
+          pnpm cf:check
 
-      - name: Validate Cloudflare Worker bundle
-        run: pnpm cf:check
+      - name: Run frontend tests with coverage
+        if: matrix.task == 'frontend'
+        run: |
+          pnpm --filter @mesh2param/contracts test
+          pnpm --filter @mesh2param/ui test
+          pnpm --filter @mesh2param/web exec vitest run --coverage
+
+      - name: Run backend tests with coverage
+        if: matrix.task == 'backend'
+        run: >-
+          uv run --frozen --extra dev pytest
+          --cov=engine/mesh2param
+          --cov=services/api/mesh2param_api
+          --cov-report=term-missing
+          --cov-report=xml:coverage-backend.xml
+
+      - name: Run browser acceptance
+        if: matrix.task == 'browser'
+        run: pnpm test:e2e
 
       - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: verification-evidence-${{ github.run_id }}
+          name: verification-evidence-${{ matrix.task }}-${{ github.run_id }}
           if-no-files-found: ignore
           retention-days: 7
           path: |
             playwright-report
             test-results
+            apps/web/coverage
+            coverage-backend.xml
             artifacts/acceptance
             artifacts/geometry-acceptance
 
   containers:
     name: Containers
-    needs: verify
+    needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:

@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { apiClient } from "./api/client";
 import { normalizeApiError } from "./api/errors";
 import { ErrorToast } from "./components/ErrorToast";
+import { ApiTokenDialog } from "./components/ApiTokenDialog";
 import { workspaceRepository } from "./persistence/repository";
 import { loadAppPreferences } from "./persistence/appPreferences";
 import { CanvasLanding } from "./canvas/CanvasLanding";
@@ -35,6 +36,7 @@ export default function App() {
   const [initialUpload, setInitialUpload] = useState<{ file: File; units: Units; scale: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const dismissError = useCallback(() => setError(null), []);
 
   useEffect(() => {
@@ -52,6 +54,11 @@ export default function App() {
   }, []);
 
   useEffect(() => workspaceRepository.attachVisibilityFlush(document), []);
+  useEffect(() => {
+    const requireAuth = () => setAuthRequired(true);
+    window.addEventListener("mesh2param:api-auth-required", requireAuth);
+    return () => window.removeEventListener("mesh2param:api-auth-required", requireAuth);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -139,6 +146,7 @@ export default function App() {
 
   if (screen === "workspace") {
     return (
+      <>
       <Suspense fallback={<main className="workspace-loading" role="status">Loading CAD workspace…</main>}>
         <WorkspaceController
           workerReady={readiness?.status === "ready"}
@@ -152,6 +160,8 @@ export default function App() {
           }}
         />
       </Suspense>
+      {authRequired ? <ApiTokenDialog onClose={() => setAuthRequired(false)} /> : null}
+      </>
     );
   }
 
@@ -217,6 +227,7 @@ export default function App() {
         })}
       />
       {error === null ? null : <ErrorToast message={error} onDismiss={dismissError} />}
+      {authRequired ? <ApiTokenDialog onClose={() => setAuthRequired(false)} /> : null}
     </>
   );
 }

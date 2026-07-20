@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from ...db import Repository
@@ -15,10 +15,16 @@ router = APIRouter(prefix="/api/projects/{project_id}/versions", tags=["versions
 def list_versions(
     request: Request,
     project_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     repo: Repository = Depends(repository),
 ) -> JSONResponse:
-    versions = repo.list_versions(project_id)
-    return success(request, {"items": versions, "total": len(versions)})
+    versions = repo.list_versions(project_id, limit=limit, offset=offset)
+    total = repo.count_versions(project_id)
+    return success(request, {
+        "items": versions, "total": total, "limit": limit, "offset": offset,
+        "hasMore": offset + len(versions) < total,
+    })
 
 
 @router.post("", status_code=201, response_model=VersionEnvelope)
