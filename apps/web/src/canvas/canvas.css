@@ -63,7 +63,6 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-count{min-width:16px;margin-left:auto;padding:1px 4px;border-radius:var(--radius-pill);background:var(--color-warning);color:var(--color-warning-contrast);font:700 9px/1.4 var(--font-mono);font-variant-numeric:tabular-nums;text-align:center}
 .panel-view-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-view-grid .panel-btn{padding:0 9px}
-.panel-view-grid .panel-btn:last-child{grid-column:1/-1}
 .panel-export-formats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.panel-export-formats .panel-btn{justify-content:center;padding-inline:6px}
 
 .shortcut-backdrop{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--color-bg) 72%,transparent);backdrop-filter:blur(6px)}
