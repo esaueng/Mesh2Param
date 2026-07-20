@@ -425,17 +425,27 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </>
           )}
           {action.kind === "download" ? (
-            <div className="panel-export-formats" aria-label="Mesh export formats">
-              {(["glb", "stl", "obj"] as const).map((format) => {
-                const name = `reconstructed.${format}`;
-                if (!vm.artifacts.some((artifact) => artifact.name === name)) return null;
-                return (
-                  <button key={format} className="panel-btn" onClick={() => void downloadArtifact(name)}>
-                    <Download size={15} />
-                    Download {format.toUpperCase()}
-                  </button>
-                );
-              })}
+            <div className="panel-export-group">
+              <span className="panel-export-label">Mesh downloads</span>
+              <div className="panel-export-formats" role="group" aria-label="Mesh export formats">
+                {(["glb", "stl", "obj"] as const).map((format) => {
+                  const name = `reconstructed.${format}`;
+                  const label = `Download ${format.toUpperCase()}`;
+                  if (!vm.artifacts.some((artifact) => artifact.name === name)) return null;
+                  return (
+                    <button
+                      key={format}
+                      className="panel-btn"
+                      aria-label={label}
+                      title={label}
+                      onClick={() => void downloadArtifact(name)}
+                    >
+                      <Download size={14} />
+                      <span>{format.toUpperCase()}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </section>
