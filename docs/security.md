@@ -82,9 +82,12 @@ the exact public origin and `MESH2PARAM_ALLOWED_HOSTS` must include its hostname
 
 ## Authentication and tenancy limitations
 
-Mesh2Param does not implement users, sessions, roles, quotas, per-project authorization, tenant
-separation, or a secrets store. A reverse proxy or identity-aware gateway must authenticate every
-remote request before it reaches the web service. Because the backend has no user identity, a shared
+Mesh2Param supports an optional shared `MESH2PARAM_API_TOKEN` bearer token for all `/api` routes,
+including artifact downloads and SSE job streams. This is a coarse deployment boundary, not user
+authentication: Mesh2Param does not implement users, sessions, roles, quotas, per-project
+authorization, tenant separation, or a secrets store. A reverse proxy or identity-aware gateway
+should still authenticate every remote request before it reaches the web service. Because the
+backend has no user identity, a shared
 instance grants every authenticated upstream principal the same application-level access; use a
 separate deployment/data volume per trust domain unless an external policy can enforce isolation.
 

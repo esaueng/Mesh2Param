@@ -690,7 +690,7 @@ export function inferBrowserPrismaticCadGraph(
     },
     engineVersions: {
       mesh2param: "0.1.0", contracts: "1.0.0", cadBackend: "OCCT", cadQuery: "browser-local",
-      ocp: "occt-wasm-3.6.1", dependencies: { "occt-wasm": "3.6.1" },
+      ocp: "occt-wasm-3.7.0", dependencies: { "occt-wasm": "3.7.0" },
     },
     deterministicSeed: 0x4d325006,
     fitMetrics: {

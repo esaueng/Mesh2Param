@@ -6,6 +6,8 @@ import hashlib
 import json
 import math
 import struct
+import weakref
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -14,6 +16,14 @@ from typing import Any
 import cadquery as cq
 from OCP.BRepTools import BRepTools
 
+from .tolerances import (
+    DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    DEFAULT_TESSELLATION_COORDINATE_RESOLUTION_MM,
+    DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    DEGENERATE_NORMAL_MAGNITUDE_EPSILON,
+    MINIMUM_OCCT_TESSELLATION_TOLERANCE,
+    TESSELLATION_VALIDATION_LINEAR_TOLERANCE_MM,
+)
 from .validation import as_shape, validate_shape
 
 Vertex = tuple[float, float, float]
@@ -46,6 +56,63 @@ class MeshArtifact:
         return asdict(self)
 
 
+@dataclass(slots=True)
+class _CachedTessellation:
+    shape: weakref.ReferenceType[cq.Shape]
+    mesh: Tessellation
+
+
+class TessellationCache:
+    """Bounded cache for explicitly immutable shape instances.
+
+    The key includes object identity and every tessellation tolerance. Callers
+    must not reuse a cache after mutating a CadQuery/OCP shape in place.
+    Weak references prevent the cache from extending shape lifetimes and guard
+    against Python object-id reuse.
+    """
+
+    def __init__(self, *, max_entries: int = 32) -> None:
+        if not isinstance(max_entries, int) or isinstance(max_entries, bool) or max_entries < 1:
+            raise ValueError("tessellation cache max_entries must be a positive integer")
+        self.max_entries = max_entries
+        self._entries: OrderedDict[tuple[int, float, float], _CachedTessellation] = OrderedDict()
+
+    def get(
+        self,
+        shape: cq.Shape,
+        linear_tolerance: float,
+        angular_tolerance: float,
+    ) -> Tessellation | None:
+        key = (id(shape), linear_tolerance, angular_tolerance)
+        cached = self._entries.get(key)
+        if cached is None:
+            return None
+        if cached.shape() is not shape:
+            self._entries.pop(key, None)
+            return None
+        self._entries.move_to_end(key)
+        return cached.mesh
+
+    def put(
+        self,
+        shape: cq.Shape,
+        linear_tolerance: float,
+        angular_tolerance: float,
+        mesh: Tessellation,
+    ) -> None:
+        key = (id(shape), linear_tolerance, angular_tolerance)
+        self._entries[key] = _CachedTessellation(weakref.ref(shape), mesh)
+        self._entries.move_to_end(key)
+        while len(self._entries) > self.max_entries:
+            self._entries.popitem(last=False)
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+
 def _normal(
     a: tuple[float, float, float],
     b: tuple[float, float, float],
@@ -59,7 +126,7 @@ def _normal(
         ab[0] * ac[1] - ab[1] * ac[0],
     )
     magnitude = math.sqrt(sum(item * item for item in raw))
-    if magnitude <= 1e-30:
+    if magnitude <= DEGENERATE_NORMAL_MAGNITUDE_EPSILON:
         return (0.0, 0.0, 0.0)
     return tuple(item / magnitude for item in raw)  # type: ignore[return-value]
 
@@ -67,15 +134,26 @@ def _normal(
 def tessellate_shape(
     value: cq.Shape | cq.Workplane,
     *,
-    linear_tolerance: float = 0.1,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    cache: TessellationCache | None = None,
 ) -> Tessellation:
     """Tessellate once and calculate stable area-weighted vertex normals."""
 
     shape = as_shape(value)
+    linear_tolerance = float(linear_tolerance)
+    angular_tolerance = float(angular_tolerance)
+    if not math.isfinite(linear_tolerance) or linear_tolerance <= 0:
+        raise ValueError("linear tessellation tolerance must be finite and positive")
+    if not math.isfinite(angular_tolerance) or angular_tolerance <= 0:
+        raise ValueError("angular tessellation tolerance must be finite and positive")
+    if cache is not None:
+        cached = cache.get(shape, linear_tolerance, angular_tolerance)
+        if cached is not None:
+            return cached
     validation = validate_shape(
         shape,
-        min(linear_tolerance, 1e-3),
+        min(linear_tolerance, TESSELLATION_VALIDATION_LINEAR_TOLERANCE_MM),
         angular_tolerance,
         require_tessellation=False,
     )
@@ -86,23 +164,26 @@ def tessellate_shape(
     # deflection and remains independent of export order.
     BRepTools.Clean_s(shape.wrapped)
     raw_vertices, raw_triangles = shape.tessellate(
-        max(float(linear_tolerance), 1e-6),
-        max(float(angular_tolerance), 1e-6),
+        max(linear_tolerance, MINIMUM_OCCT_TESSELLATION_TOLERANCE),
+        max(angular_tolerance, MINIMUM_OCCT_TESSELLATION_TOLERANCE),
     )
     vertices = tuple((float(item.x), float(item.y), float(item.z)) for item in raw_vertices)
     triangles = tuple((int(item[0]), int(item[1]), int(item[2])) for item in raw_triangles)
-    return canonicalize_tessellation(Tessellation(vertices, triangles, ()))
+    mesh = canonicalize_tessellation(Tessellation(vertices, triangles, ()))
+    if cache is not None:
+        cache.put(shape, linear_tolerance, angular_tolerance, mesh)
+    return mesh
 
 
 def canonicalize_tessellation(
     mesh: Tessellation,
     *,
-    coordinate_resolution: float = 1e-6,
+    coordinate_resolution: float = DEFAULT_TESSELLATION_COORDINATE_RESOLUTION_MM,
 ) -> Tessellation:
     """Canonicalize coordinates and triangle order while preserving winding."""
 
-    if coordinate_resolution <= 0:
-        raise ValueError("coordinate resolution must be positive")
+    if not math.isfinite(coordinate_resolution) or coordinate_resolution <= 0:
+        raise ValueError("coordinate resolution must be finite and positive")
 
     def quantize(vertex: Vertex) -> Vertex:
         result: list[float] = []
@@ -110,7 +191,11 @@ def canonicalize_tessellation(
             if not math.isfinite(value):
                 raise ValueError("tessellation contains a non-finite coordinate")
             rounded = round(value / coordinate_resolution) * coordinate_resolution
-            result.append(0.0 if rounded == 0 else float(rounded))
+            result.append(
+                0.0
+                if abs(rounded) <= coordinate_resolution * 0.5
+                else float(rounded)
+            )
         return (result[0], result[1], result[2])
 
     rounded_vertices = tuple(quantize(vertex) for vertex in mesh.vertices)
@@ -169,7 +254,7 @@ def canonicalize_tessellation(
     normals: list[tuple[float, float, float]] = []
     for raw in accumulators:
         magnitude = math.sqrt(sum(item * item for item in raw))
-        if magnitude <= 1e-30:
+        if magnitude <= DEGENERATE_NORMAL_MAGNITUDE_EPSILON:
             normals.append((0.0, 0.0, 0.0))
         else:
             normals.append((raw[0] / magnitude, raw[1] / magnitude, raw[2] / magnitude))
@@ -180,7 +265,7 @@ def transform_tessellation(
     mesh: Tessellation,
     transform: Callable[[Vertex], Vertex],
     *,
-    coordinate_resolution: float = 1e-6,
+    coordinate_resolution: float = DEFAULT_TESSELLATION_COORDINATE_RESOLUTION_MM,
 ) -> Tessellation:
     """Transform an existing mesh and recanonicalize it for direct artifact export."""
 
@@ -218,8 +303,8 @@ def write_binary_stl(
     mesh: Tessellation,
     path: str | Path,
     *,
-    linear_tolerance: float = 0.1,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
 ) -> MeshArtifact:
     """Write an already tessellated mesh as canonical byte-stable binary STL."""
 
@@ -247,8 +332,9 @@ def export_binary_stl(
     value: cq.Shape | cq.Workplane,
     path: str | Path,
     *,
-    linear_tolerance: float = 0.1,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    cache: TessellationCache | None = None,
 ) -> MeshArtifact:
     """Tessellate once and write canonical byte-stable binary STL."""
 
@@ -256,8 +342,69 @@ def export_binary_stl(
         value,
         linear_tolerance=linear_tolerance,
         angular_tolerance=angular_tolerance,
+        cache=cache,
     )
     return write_binary_stl(
+        mesh,
+        path,
+        linear_tolerance=linear_tolerance,
+        angular_tolerance=angular_tolerance,
+    )
+
+
+def _obj_float(value: float) -> str:
+    # Adding positive zero normalizes negative zero without an exact floating-point comparison.
+    return format(value + 0.0, ".17g")
+
+
+def write_obj(
+    mesh: Tessellation,
+    path: str | Path,
+    *,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+) -> MeshArtifact:
+    """Write an already tessellated mesh as canonical byte-stable OBJ."""
+
+    destination = Path(path)
+    if destination.suffix.lower() != ".obj":
+        raise ValueError("OBJ output must use a .obj extension")
+    mesh = canonicalize_tessellation(mesh)
+    lines = ["# Mesh2Param deterministic OBJ", "o Mesh2Param_result"]
+    lines.extend("v " + " ".join(_obj_float(value) for value in vertex) for vertex in mesh.vertices)
+    lines.extend("vn " + " ".join(_obj_float(value) for value in normal) for normal in mesh.normals)
+    lines.extend(
+        "f " + " ".join(f"{index + 1}//{index + 1}" for index in triangle)
+        for triangle in mesh.triangles
+    )
+    payload = ("\n".join(lines) + "\n").encode("ascii")
+    return _write_artifact(
+        destination,
+        payload,
+        "obj",
+        mesh,
+        linear_tolerance,
+        angular_tolerance,
+    )
+
+
+def export_obj(
+    value: cq.Shape | cq.Workplane,
+    path: str | Path,
+    *,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    cache: TessellationCache | None = None,
+) -> MeshArtifact:
+    """Tessellate once and write a deterministic OBJ artifact."""
+
+    mesh = tessellate_shape(
+        value,
+        linear_tolerance=linear_tolerance,
+        angular_tolerance=angular_tolerance,
+        cache=cache,
+    )
+    return write_obj(
         mesh,
         path,
         linear_tolerance=linear_tolerance,
@@ -274,8 +421,8 @@ def write_glb(
     mesh: Tessellation,
     path: str | Path,
     *,
-    linear_tolerance: float = 0.1,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
 ) -> MeshArtifact:
     """Write an already tessellated mesh as minimal deterministic glTF 2.0."""
 
@@ -376,8 +523,9 @@ def export_glb(
     value: cq.Shape | cq.Workplane,
     path: str | Path,
     *,
-    linear_tolerance: float = 0.1,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    cache: TessellationCache | None = None,
 ) -> MeshArtifact:
     """Tessellate once and write a deterministic GLB artifact."""
 
@@ -385,6 +533,7 @@ def export_glb(
         value,
         linear_tolerance=linear_tolerance,
         angular_tolerance=angular_tolerance,
+        cache=cache,
     )
     return write_glb(
         mesh,
@@ -397,11 +546,14 @@ def export_glb(
 __all__ = [
     "MeshArtifact",
     "Tessellation",
+    "TessellationCache",
     "canonicalize_tessellation",
     "export_binary_stl",
     "export_glb",
+    "export_obj",
     "tessellate_shape",
     "transform_tessellation",
     "write_binary_stl",
     "write_glb",
+    "write_obj",
 ]

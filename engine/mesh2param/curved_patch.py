@@ -1059,6 +1059,14 @@ def _segment_with_overrides(
     return segmentation, set()
 
 
+def _closed_loop_perimeter(vertices: np.ndarray, loop: np.ndarray) -> float:
+    """Return the 3-D perimeter of a closed indexed loop."""
+
+    points = vertices[loop]
+    closed = np.vstack([points, points[:1]])
+    return float(np.linalg.norm(np.diff(closed, axis=0), axis=1).sum())
+
+
 def _plate_context(
     mesh: trimesh.Trimesh,
     settings: CurvedPatchSettings,
@@ -1089,12 +1097,10 @@ def _plate_context(
     # other closed loop is an interior hole matched to an analytic patch.
     mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
 
-    def perimeter(loop: np.ndarray) -> float:
-        points = mesh_vertices[loop]
-        return float(np.linalg.norm(np.diff(np.vstack([points, points[:1]]), axis=0), axis=1).sum())
-
     loops_global = [np.asarray(loop.vertex_ids, dtype=np.int64) for loop in freeform.boundary_loops]
-    outer_index = int(np.argmax([perimeter(loop) for loop in loops_global]))
+    outer_index = int(
+        np.argmax([_closed_loop_perimeter(mesh_vertices, loop) for loop in loops_global])
+    )
     loop_global = loops_global[outer_index]
     hole_loops = [loop for index, loop in enumerate(loops_global) if index != outer_index]
     openings = _plate_openings(segmentation.patches, freeform, hole_loops, mesh_vertices)
@@ -2169,16 +2175,14 @@ def _crease_context(
     mesh_vertices = np.asarray(mesh.vertices, dtype=np.float64)
     mesh_faces = np.asarray(mesh.faces, dtype=np.int64)
 
-    def perimeter(loop: np.ndarray) -> float:
-        points = mesh_vertices[loop]
-        return float(np.linalg.norm(np.diff(np.vstack([points, points[:1]]), axis=0), axis=1).sum())
-
     outer_loops: list[np.ndarray] = []
     interior_loops: list[np.ndarray] = []
     interior_regions: list[SurfacePatch] = []
     for region in regions:
         loops = [np.asarray(loop.vertex_ids, dtype=np.int64) for loop in region.boundary_loops]
-        outer_index = int(np.argmax([perimeter(loop) for loop in loops]))
+        outer_index = int(
+            np.argmax([_closed_loop_perimeter(mesh_vertices, loop) for loop in loops])
+        )
         outer_loops.append(loops[outer_index])
         for index, loop in enumerate(loops):
             if index != outer_index:

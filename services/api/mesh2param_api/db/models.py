@@ -62,6 +62,9 @@ class Project(Base):
     )
 
 
+Index("ix_projects_updated_id", Project.updated_at, Project.id)
+
+
 class ProjectState(Base):
     __tablename__ = "project_states"
 
@@ -144,6 +147,9 @@ class Version(Base):
     )
 
 
+Index("ix_versions_project_created_id", Version.project_id, Version.created_at, Version.id)
+
+
 class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
@@ -206,6 +212,8 @@ Index(
         Job.mutates_project.is_(True), Job.status.in_(("queued", "running"))
     ),
 )
+Index("ix_jobs_created_id", Job.created_at, Job.id)
+Index("ix_jobs_project_status_created", Job.project_id, Job.status, Job.created_at)
 
 
 class JobAttempt(Base):

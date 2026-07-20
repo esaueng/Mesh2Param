@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...db import Repository
@@ -19,10 +19,16 @@ router = APIRouter(prefix="/api/projects/{project_id}/artifacts", tags=["artifac
 def list_artifacts(
     request: Request,
     project_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     repo: Repository = Depends(repository),
 ) -> JSONResponse:
-    artifacts = repo.list_artifacts(project_id)
-    return success(request, {"items": artifacts, "total": len(artifacts)})
+    artifacts = repo.list_artifacts(project_id, limit=limit, offset=offset)
+    total = repo.count_artifacts(project_id)
+    return success(request, {
+        "items": artifacts, "total": total, "limit": limit, "offset": offset,
+        "hasMore": offset + len(artifacts) < total,
+    })
 
 
 @router.get("/{name}")

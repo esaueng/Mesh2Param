@@ -61,7 +61,8 @@ The current web app uses a canvas-first workflow:
 4. Follow the guided conversion action. Supported geometry uses parametric reconstruction;
    otherwise the app offers approximate curved STEP first and a clearly labeled faceted fallback.
 5. Inspect the ordered feature tree and detail diagnostics. Compare Source, Result, overlay, and
-   residual/suppressed views, then download STEP or save the working project.
+   residual/suppressed views, use movable section planes and distance/angle/radius measurements,
+   then download STEP, GLB, STL, or OBJ or save the working project.
 
 Projects, versions, jobs, display preferences, and artifact descriptors survive reloads. Browser
 mode uses IndexedDB as its local authority; server mode mirrors the workspace while enforcing
@@ -82,7 +83,7 @@ flowchart TD
   DB --> GW["Spawn-isolated geometry worker"]
   GW --> ENG["Mesh2Param engine"]
   ENG --> OCCT["CadQuery + native OCCT"]
-  WASM --> OUT["CADGraph, STEP, GLB, and evidence"]
+  WASM --> OUT["CADGraph, STEP, GLB/STL/OBJ, and evidence"]
   OCCT --> OUT
 ```
 
@@ -219,7 +220,8 @@ Depending on the conversion path, an artifact set can include:
 ```text
 model.cadgraph.json       model.cq.py              model.step
 source.glb                repaired.glb             analysis-proxy.glb
-patches.glb               reconstructed.glb        residual.glb
+patches.glb               reconstructed.glb        reconstructed.stl
+reconstructed.obj         residual.glb
 analysis.json             metrics.json             validation.json
 suppressed-regions.json   detail-regions.json      candidates.json
 curved-plate.json         manifest.json            mesh2param-export.zip

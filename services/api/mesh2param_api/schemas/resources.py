@@ -22,6 +22,9 @@ class ProjectResource(StrictAPIModel):
 class ProjectList(StrictAPIModel):
     items: list[ProjectResource]
     total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class JobErrorResource(StrictAPIModel):
@@ -53,6 +56,14 @@ class JobResource(StrictAPIModel):
     error: JobErrorResource | None
     result: dict[str, JsonValue] | None
     events_url: str
+
+
+class JobList(StrictAPIModel):
+    items: list[JobResource]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class SourceResource(StrictAPIModel):
@@ -89,6 +100,9 @@ class ArtifactResource(StrictAPIModel):
 class ArtifactList(StrictAPIModel):
     items: list[ArtifactResource]
     total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class VersionResource(StrictAPIModel):
@@ -109,6 +123,9 @@ class VersionResource(StrictAPIModel):
 class VersionList(StrictAPIModel):
     items: list[VersionResource]
     total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class PatchResource(StrictAPIModel):
@@ -135,6 +152,7 @@ class PatchList(StrictAPIModel):
 ProjectEnvelope = SuccessEnvelope[ProjectResource]
 ProjectListEnvelope = SuccessEnvelope[ProjectList]
 JobEnvelope = SuccessEnvelope[JobResource]
+JobListEnvelope = SuccessEnvelope[JobList]
 UploadEnvelope = SuccessEnvelope[UploadAccepted]
 ArtifactListEnvelope = SuccessEnvelope[ArtifactList]
 VersionEnvelope = SuccessEnvelope[VersionResource]
@@ -147,6 +165,7 @@ __all__ = [
     "ArtifactListEnvelope",
     "ArtifactResource",
     "JobEnvelope",
+    "JobListEnvelope",
     "JobResource",
     "PatchEnvelope",
     "PatchListEnvelope",

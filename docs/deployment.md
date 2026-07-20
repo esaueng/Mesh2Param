@@ -13,9 +13,9 @@ flowchart LR
   WORKER["Geometry worker\nno network"] --> VOL
 ```
 
-Mesh2Param itself has no login or tenant authorization. The gateway shown above is mandatory for
-remote access. For local-only use, Compose publishes the web service on loopback and no gateway is
-required.
+Mesh2Param has no user login or tenant authorization. It does provide an optional shared bearer
+token for `/api`; the gateway shown above remains mandatory for multi-user remote access. For
+local-only use, Compose publishes the web service on loopback and no gateway is required.
 
 ## Cloudflare Worker frontend
 
@@ -175,12 +175,15 @@ The `.env.example` file documents the supported bounds. Important operator setti
 | `MESH2PARAM_API_URL` | `http://api:8000` | Internal proxy target, not the public API URL |
 | `MESH2PARAM_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Exact accepted HTTP hostnames |
 | `MESH2PARAM_CORS_ORIGINS` | Both local loopback origins on port `8080` | Exact allowed browser mutation origins |
+| `MESH2PARAM_API_TOKEN` | empty | Optional shared bearer token for every `/api` request; inject as a secret |
 | `MESH2PARAM_MAX_UPLOAD_MB` | `100` | nginx and API upload cap |
 | `MESH2PARAM_MAX_TRIANGLES` | `2000000` | Parsed-mesh triangle cap |
 | `MESH2PARAM_MAX_VERTICES` | `6000000` | Parsed-mesh vertex cap |
 | `MESH2PARAM_JOB_TIMEOUT_SECONDS` | `900` | Geometry job wall-clock limit |
 | `MESH2PARAM_WORKER_MEMORY_MB` | `1024` | Worker child address-space target on supported Linux hosts |
-| `MESH2PARAM_RETENTION_DAYS` | `30` | Minimum age before unreferenced blob cleanup at startup |
+| `MESH2PARAM_RETENTION_DAYS` | `30` | Minimum age before unreferenced blob and owned temporary-path cleanup |
+| `MESH2PARAM_GARBAGE_COLLECTION_INTERVAL_SECONDS` | `3600` | Periodic storage reconciliation interval |
+| `MESH2PARAM_GARBAGE_COLLECTION_BATCH_SIZE` | `500` | Maximum metadata or filesystem candidates reconciled per pass |
 
 Compose-only `COMPOSE_API_CPUS`, `COMPOSE_API_MEMORY`, `COMPOSE_WORKER_CPUS`,
 `COMPOSE_WORKER_MEMORY`, `COMPOSE_WEB_CPUS`, `COMPOSE_WEB_MEMORY`, `COMPOSE_WEB_PORT`, and
@@ -188,6 +191,11 @@ Compose-only `COMPOSE_API_CPUS`, `COMPOSE_API_MEMORY`, `COMPOSE_WORKER_CPUS`,
 `MESH2PARAM_*` settings.
 When changing `COMPOSE_WEB_PORT`, set `MESH2PARAM_PUBLIC_URL` and
 `MESH2PARAM_CORS_ORIGINS` to the same browser-visible port; mismatched origins fail closed.
+
+Database schema changes are applied through versioned Alembic migrations at startup. Pre-Alembic
+databases are stamped at the frozen initial schema before later migrations run. Storage GC runs at
+startup and periodically; it deletes orphan files before metadata, reconciles unknown CAS files,
+and sweeps only Mesh2Param-owned stale job/upload paths.
 
 Production settings reject unknown `MESH2PARAM_*` names and unsupported S3, Redis, PostgreSQL,
 multi-worker SQLite, relative-path, symlink-path, wildcard host/origin, and debug configurations.

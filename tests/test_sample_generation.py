@@ -16,6 +16,8 @@ EXPECTED_FILES = {
     "model.cadgraph.json",
     "model.cq.py",
     "model.glb",
+    "model.obj",
+    "model.stl",
     "model.step",
     "source-high.stl",
     "source-low.stl",

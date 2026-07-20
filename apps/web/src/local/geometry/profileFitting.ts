@@ -106,10 +106,9 @@ function fitOne(points: readonly Vec2[], count: number, degree: number): Browser
   const parameters = [0];
   for (const chord of chordLengths) parameters.push(parameters.at(-1)! + chord / total);
   let controls: Vec2[] = [];
-  let condition = Number.POSITIVE_INFINITY;
   let previousRms = Number.POSITIVE_INFINITY;
   for (let iteration = 0; iteration < 50; iteration += 1) {
-    ({ controls, condition } = fitControls(points, parameters, count, degree));
+    controls = fitControls(points, parameters, count, degree).controls;
     const previous = [...parameters];
     for (let index = 1; index < points.length - 1; index += 1) {
       const lower = previous[index - 1]! + 1e-12;
@@ -125,7 +124,8 @@ function fitOne(points: readonly Vec2[], count: number, degree: number): Browser
     if (iteration >= 15 && Math.abs(previousRms - rms) <= 1e-10) break;
     previousRms = rms;
   }
-  ({ controls, condition } = fitControls(points, parameters, count, degree));
+  const finalFit = fitControls(points, parameters, count, degree);
+  controls = finalFit.controls;
   const residuals = points.map((point, index) => Math.sqrt(squaredDistance(evaluateBSpline(controls, degree, parameters[index]!), point)));
   return {
     kind: "bspline",
@@ -135,7 +135,7 @@ function fitOne(points: readonly Vec2[], count: number, degree: number): Browser
     controlPoints: controls,
     rms: Math.sqrt(residuals.reduce((sum, value) => sum + value * value, 0) / residuals.length),
     maximum: Math.max(...residuals),
-    condition,
+    condition: finalFit.condition,
   };
 }
 

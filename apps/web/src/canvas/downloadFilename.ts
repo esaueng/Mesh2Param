@@ -31,3 +31,19 @@ export function stepDownloadName(
     .trim();
   return `${base || "model"}-${suffix}${extension}`;
 }
+
+export function artifactDownloadName(
+  projectName: string,
+  artifactName: string,
+  suffix = randomDownloadSuffix(),
+): string {
+  if (!/^[a-z0-9]{5}$/.test(suffix)) {
+    throw new TypeError("download suffix must be exactly five lowercase letters or digits");
+  }
+  const extension = /\.[a-z0-9]+$/i.exec(artifactName)?.[0].toLowerCase() ?? "";
+  const base = projectName
+    .replace(/\.[^./\\]+$/, "")
+    .replace(/[/\\?%*:|"<>]/g, "-")
+    .trim();
+  return `${base || "model"}-${suffix}${extension}`;
+}

@@ -3,6 +3,7 @@ import type { CADGraph, Units } from "@mesh2param/contracts";
 import type {
   ArtifactPage,
   Job,
+  JobPage,
   JsonObject,
   PatchClassification,
   PatchPage,
@@ -18,6 +19,7 @@ import type {
 } from "../state/types";
 import { BrowserApiClient } from "../local/client";
 import { apiErrorFromResponse, normalizeApiError } from "./errors";
+import { apiAuthorizationHeaders } from "./auth";
 
 export interface ApiResult<T> {
   data: T;
@@ -28,6 +30,20 @@ export interface ApiResult<T> {
 export interface ApiClientOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
+}
+
+export interface PageRequest {
+  limit?: number;
+  offset?: number;
+}
+
+function pageQuery(page: PageRequest = {}, extra: Record<string, string | undefined> = {}): string {
+  const query = new URLSearchParams();
+  if (page.limit !== undefined) query.set("limit", String(page.limit));
+  if (page.offset !== undefined) query.set("offset", String(page.offset));
+  for (const [key, value] of Object.entries(extra)) if (value !== undefined) query.set(key, value);
+  const encoded = query.toString();
+  return encoded ? `?${encoded}` : "";
 }
 
 type ApiRequestInit = Omit<RequestInit, "signal"> & {
@@ -165,10 +181,13 @@ export class ApiClient {
       const { signal, ...requestOptions } = init;
       const requestInit: RequestInit = {
         ...requestOptions,
-        headers: { Accept: "application/json", ...init.headers },
+        headers: { Accept: "application/json", ...apiAuthorizationHeaders(), ...init.headers },
       };
       if (signal !== undefined) requestInit.signal = signal;
       const response = await this.fetcher(`${this.baseUrl}${path}`, requestInit);
+      if (response.status === 401 && typeof window !== "undefined") {
+        window.dispatchEvent(new Event("mesh2param:api-auth-required"));
+      }
       if (!response.ok && !acceptedStatuses.includes(response.status)) throw await apiErrorFromResponse(response);
       if (response.status === 204) {
         return { data: undefined as T, requestId: response.headers.get("X-Request-ID") ?? "", revision: null };
@@ -195,8 +214,8 @@ export class ApiClient {
     return this.request("/ready", { signal }, [503]);
   }
 
-  listProjects(signal?: AbortSignal): Promise<ApiResult<ProjectList>> {
-    return this.request("/api/projects", { signal });
+  listProjects(signal?: AbortSignal, page?: PageRequest): Promise<ApiResult<ProjectList>> {
+    return this.request(`/api/projects${pageQuery(page)}`, { signal });
   }
 
   createProject(name = "Untitled project", units: Units = "mm", signal?: AbortSignal): Promise<ApiResult<ProjectDetail>> {
@@ -351,12 +370,26 @@ export class ApiClient {
     return this.request(`/api/jobs/${encodeURIComponent(jobId)}`, { signal });
   }
 
+  listJobs(
+    filters: PageRequest & { projectId?: string; status?: Job["status"] } = {},
+    signal?: AbortSignal,
+  ): Promise<ApiResult<JobPage>> {
+    return this.request(`/api/jobs${pageQuery(filters, {
+      projectId: filters.projectId,
+      status: filters.status,
+    })}`, { signal });
+  }
+
+  deleteJob(jobId: string, signal?: AbortSignal): Promise<ApiResult<void>> {
+    return this.request(`/api/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE", signal });
+  }
+
   cancelJob(jobId: string, signal?: AbortSignal): Promise<ApiResult<Job>> {
     return this.request(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST", signal });
   }
 
-  listVersions(projectId: string, signal?: AbortSignal): Promise<ApiResult<VersionPage>> {
-    return this.request(`/api/projects/${encodeURIComponent(projectId)}/versions`, { signal });
+  listVersions(projectId: string, signal?: AbortSignal, page?: PageRequest): Promise<ApiResult<VersionPage>> {
+    return this.request(`/api/projects/${encodeURIComponent(projectId)}/versions${pageQuery(page)}`, { signal });
   }
 
   createVersion(
@@ -400,8 +433,8 @@ export class ApiClient {
     );
   }
 
-  listArtifacts(projectId: string, signal?: AbortSignal): Promise<ApiResult<ArtifactPage>> {
-    return this.request(`/api/projects/${encodeURIComponent(projectId)}/artifacts`, { signal });
+  listArtifacts(projectId: string, signal?: AbortSignal, page?: PageRequest): Promise<ApiResult<ArtifactPage>> {
+    return this.request(`/api/projects/${encodeURIComponent(projectId)}/artifacts${pageQuery(page)}`, { signal });
   }
 
   artifactUrl(projectId: string, name: string, sha256?: string): string {

@@ -113,6 +113,9 @@ export function ArtifactLayer({
   onMeasurePoint,
 }: ArtifactLayerProps) {
   const gltf = useGLTF(url) as GLTF;
+  useEffect(() => () => {
+    useGLTF.clear(url);
+  }, [url]);
   const palette = viewerPalette(theme);
   const object = useMemo(() => {
     const clone = gltf.scene.clone(true);

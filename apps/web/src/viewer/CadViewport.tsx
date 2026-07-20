@@ -16,12 +16,15 @@ import {
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { apiClient } from "../api/client";
+import { apiFetch } from "../api/auth";
 import { debugLog } from "../canvas/debugLog";
-import type { ArtifactDescriptor, ViewerMode, ViewerPreferences } from "../state/types";
+import type { ArtifactDescriptor, Units, ViewerMode, ViewerPreferences } from "../state/types";
 import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
 import { OrientationGizmoCanvas, type GizmoViewRequest } from "./OrientationGizmo";
 import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
+import { measurementLabel, requiredMeasurementPoints, type MeasurementMode, type Point3 } from "./measurements";
+import { sectionPlaneForBounds } from "./sectionPlane";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
 import "./viewer.css";
 
@@ -46,6 +49,7 @@ export function viewerDpr(denseMesh: boolean): number {
 
 interface CadViewportProps {
   projectId: string;
+  units: Units;
   artifacts: ArtifactDescriptor[];
   preferences: ViewerPreferences;
   theme: ViewerTheme;
@@ -60,6 +64,7 @@ interface CadViewportProps {
 
 export function CadViewport({
   projectId,
+  units,
   artifacts,
   preferences,
   theme,
@@ -70,11 +75,15 @@ export function CadViewport({
   onSelectPatch,
   chrome = "full",
 }: CadViewportProps) {
-  const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+  const [boundsState, setBoundsState] = useState<{ artifactKey: string; box: THREE.Box3 } | null>(null);
   const [command, setCommand] = useState<CameraCommand>({ fitRevision: 0, viewRevision: 0, preset: "iso", direction: null });
-  const [selection, setSelection] = useState<SelectionRange[]>([]);
+  const [selectionState, setSelectionState] = useState<{ sha256: string; ranges: SelectionRange[] } | null>(null);
   const [sectionEnabled, setSectionEnabled] = useState(false);
-  const [measurementEnabled, setMeasurementEnabled] = useState(false);
+  const [sectionDirection, setSectionDirection] = useState<"x" | "y" | "z" | "view">("z");
+  const [viewSectionNormal, setViewSectionNormal] = useState(() => new THREE.Vector3(0, 0, -1));
+  const [sectionPosition, setSectionPosition] = useState(0);
+  const [sectionFlipped, setSectionFlipped] = useState(false);
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode | null>(null);
   const [measurementPoints, setMeasurementPoints] = useState<THREE.Vector3[]>([]);
   const [scaleBar, setScaleBar] = useState<ScaleBarSpec | null>(null);
   const [contextLost, setContextLost] = useState(false);
@@ -110,12 +119,9 @@ export function CadViewport({
   }, [artifactMap, onPreferences, preferences.mode]);
 
   useEffect(() => {
-    if (selectionArtifact === undefined) {
-      setSelection([]);
-      return;
-    }
+    if (selectionArtifact === undefined) return;
     const controller = new AbortController();
-    void fetch(apiClient.artifactUrl(projectId, selectionArtifact.name, selectionArtifact.sha256), {
+    void apiFetch(apiClient.artifactUrl(projectId, selectionArtifact.name, selectionArtifact.sha256), {
       signal: controller.signal,
     })
       .then((response) => {
@@ -125,25 +131,45 @@ export function CadViewport({
       .then((data: unknown) => {
         if (!isSelectionMap(data)) return;
         const patchGlb = artifactMap.get("patches.glb");
-        setSelection(patchGlb !== undefined && data.artifact.sha256 === patchGlb.sha256 ? data.ranges : []);
+        setSelectionState({
+          sha256: selectionArtifact.sha256,
+          ranges: patchGlb !== undefined && data.artifact.sha256 === patchGlb.sha256 ? data.ranges : [],
+        });
       })
-      .catch(() => setSelection([]));
+      .catch(() => setSelectionState({ sha256: selectionArtifact.sha256, ranges: [] }));
     return () => controller.abort();
   }, [artifactMap, projectId, selectionArtifact]);
 
   const layers = layersForMode(preferences, artifactMap);
   const artifactKey = layers.map((layer) => layer.artifact.sha256).join("|") || projectId;
-  // Reset bounds synchronously when the displayed artifacts change; an effect would let
-  // CameraRig pair the new key with the previous artifact's stale box and skip the auto-fit.
-  const boundsKeyRef = useRef(artifactKey);
-  if (boundsKeyRef.current !== artifactKey) {
-    boundsKeyRef.current = artifactKey;
-    setBounds(null);
-  }
-  const sectionZ = sectionEnabled && bounds !== null ? bounds.getCenter(new THREE.Vector3()).z : null;
-  const sectionPlane = useMemo(() => sectionZ === null
+  const bounds = boundsState?.artifactKey === artifactKey ? boundsState.box : null;
+  const selection = selectionArtifact !== undefined
+    && selectionState?.sha256 === selectionArtifact.sha256
+    ? selectionState.ranges
+    : [];
+  const sectionNormal = useMemo(() => {
+    const normal = sectionDirection === "view"
+      ? viewSectionNormal.clone()
+      : new THREE.Vector3(
+        sectionDirection === "x" ? -1 : 0,
+        sectionDirection === "y" ? -1 : 0,
+        sectionDirection === "z" ? -1 : 0,
+      );
+    return sectionFlipped ? normal.multiplyScalar(-1) : normal;
+  }, [sectionDirection, sectionFlipped, viewSectionNormal]);
+  const sectionPlane = useMemo(
+    () => sectionEnabled && bounds !== null
+      ? sectionPlaneForBounds(bounds, sectionNormal, sectionPosition)
+      : null,
+    [bounds, sectionEnabled, sectionNormal, sectionPosition],
+  );
+  const measurementText = useMemo(() => measurementMode === null
     ? null
-    : new THREE.Plane(new THREE.Vector3(0, 0, -1), sectionZ), [sectionZ]);
+    : measurementLabel(
+      measurementMode,
+      measurementPoints.map((point): Point3 => [point.x, point.y, point.z]),
+      units,
+    ), [measurementMode, measurementPoints, units]);
   const onScaleChange = useCallback((pxPerUnit: number) => {
     const next = scaleBarForPixelsPerUnit(pxPerUnit);
     if (next === null) return;
@@ -152,11 +178,14 @@ export function CadViewport({
       : next);
   }, []);
   const onBounds = useCallback((box: THREE.Box3) => {
-    setBounds((current) => {
-      const next = current?.clone().union(box) ?? box.clone();
-      return current !== null && current.min.equals(next.min) && current.max.equals(next.max) ? current : next;
+    setBoundsState((current) => {
+      const currentBox = current?.artifactKey === artifactKey ? current.box : null;
+      const next = currentBox?.clone().union(box) ?? box.clone();
+      return currentBox !== null && currentBox.min.equals(next.min) && currentBox.max.equals(next.max)
+        ? current
+        : { artifactKey, box: next };
     });
-  }, []);
+  }, [artifactKey]);
   useEffect(() => {
     const fit = () => setCommand((current) => ({ ...current, fitRevision: current.fitRevision + 1 }));
     const view = (event: Event) => {
@@ -188,6 +217,16 @@ export function CadViewport({
       : view === "z" ? [0, 0, 1]
       : [1, 1, 1];
     setCommand((current) => ({ ...current, direction, viewRevision: current.viewRevision + 1 }));
+  }
+
+  function captureViewSectionNormal() {
+    const camera = viewerCamera.current;
+    if (camera !== null) setViewSectionNormal(camera.getWorldDirection(new THREE.Vector3()).normalize());
+  }
+
+  function setMeasureMode(mode: MeasurementMode | null) {
+    setMeasurementMode(mode);
+    setMeasurementPoints([]);
   }
 
   return (
@@ -240,15 +279,6 @@ export function CadViewport({
             <option value="left">Left</option><option value="right">Right</option><option value="top">Top</option><option value="bottom">Bottom</option>
           </select>
         </label>
-        <button aria-pressed={sectionEnabled} onClick={() => setSectionEnabled((enabled) => !enabled)} title="Clip at the model mid-plane"><Slice /><span>Section</span></button>
-        <button
-          aria-pressed={measurementEnabled}
-          onClick={() => {
-            setMeasurementEnabled((enabled) => !enabled);
-            setMeasurementPoints([]);
-          }}
-          title="Pick two points on the model to create a dimension annotation"
-        ><Ruler /><span>Measure</span></button>
         <button
           onClick={() => document.fullscreenElement
             ? void document.exitFullscreen()
@@ -283,6 +313,69 @@ export function CadViewport({
       </div>
       ) : null}
 
+      <div className={`viewport-cad-tools viewport-cad-tools-${chrome}`} aria-label="Section and measurement tools">
+        <div className="viewport-tool-row">
+          <button
+            aria-pressed={sectionEnabled}
+            onClick={() => setSectionEnabled((enabled) => !enabled)}
+            title="Clip the model with a movable plane"
+          ><Slice /><span>Section</span></button>
+          <button
+            aria-pressed={measurementMode !== null}
+            onClick={() => setMeasureMode(measurementMode === null ? "distance" : null)}
+            title="Measure distance, angle, or radius from picked points"
+          ><Ruler /><span>Measure</span></button>
+        </div>
+        {sectionEnabled ? (
+          <div className="viewport-tool-options" data-testid="section-controls">
+            <label>Normal
+              <select
+                aria-label="Section plane normal"
+                value={sectionDirection}
+                onChange={(event) => {
+                  const direction = event.currentTarget.value as "x" | "y" | "z" | "view";
+                  setSectionDirection(direction);
+                  if (direction === "view") captureViewSectionNormal();
+                }}
+              >
+                <option value="x">X</option><option value="y">Y</option><option value="z">Z</option>
+                <option value="view">Current view</option>
+              </select>
+            </label>
+            <label>Position
+              <input
+                aria-label="Section plane position"
+                type="range"
+                min="-1"
+                max="1"
+                step="0.01"
+                value={sectionPosition}
+                onChange={(event) => setSectionPosition(Number(event.currentTarget.value))}
+              />
+            </label>
+            <button onClick={() => setSectionFlipped((flipped) => !flipped)}>Flip</button>
+            {sectionDirection === "view" ? <button onClick={captureViewSectionNormal}>Use view</button> : null}
+          </div>
+        ) : null}
+        {measurementMode !== null ? (
+          <div className="viewport-tool-options" data-testid="measurement-controls">
+            <label>Type
+              <select
+                aria-label="Measurement type"
+                value={measurementMode}
+                onChange={(event) => setMeasureMode(event.currentTarget.value as MeasurementMode)}
+              >
+                <option value="distance">Distance</option>
+                <option value="angle">Angle</option>
+                <option value="radius">Radius (3 points)</option>
+              </select>
+            </label>
+            <span>{measurementPoints.length}/{requiredMeasurementPoints(measurementMode)} points</span>
+            <button onClick={() => setMeasurementPoints([])}>Clear</button>
+          </div>
+        ) : null}
+      </div>
+
       <ViewerErrorBoundary resetKey={artifactKey}>
         <Canvas
           key={`webgl-${rendererRevision}`}
@@ -299,7 +392,7 @@ export function CadViewport({
           <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
           <axesHelper args={[35]} />
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
-          <ViewerCameraReference target={viewerCamera} />
+          <ViewerCameraReference targetRef={viewerCamera} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
             {layers.map((layer) => (
@@ -316,22 +409,48 @@ export function CadViewport({
                 selectionRanges={layer.mode === "patches" ? selection : []}
                 selectedPatchId={selectedPatchId}
                 sectionPlane={sectionPlane}
-                measurementEnabled={measurementEnabled}
+                measurementEnabled={measurementMode !== null}
                 onBounds={onBounds}
-                onMeasurePoint={(point) => setMeasurementPoints((current) => current.length >= 2 ? [point] : [...current, point])}
+                onMeasurePoint={(point) => setMeasurementPoints((current) => {
+                  if (measurementMode === null) return current;
+                  const required = requiredMeasurementPoints(measurementMode);
+                  return current.length >= required ? [point] : [...current, point];
+                })}
                 {...(layer.mode === "patches" ? { onSelectPatch } : {})}
               />
             ))}
             {measurementPoints.map((point, index) => (
               <mesh key={`${index}-${point.x}-${point.y}-${point.z}`} position={point}>
-                <sphereGeometry args={[0.8, 16, 12]} /><meshBasicMaterial color="#f59e0b" depthTest={false} />
+                <sphereGeometry args={[0.8, 16, 12]} /><meshBasicMaterial color={palette.highlight} depthTest={false} />
               </mesh>
             ))}
-            {measurementPoints.length === 2 ? (
+            {measurementMode === "distance" && measurementPoints.length === 2 ? (
               <>
-                <Line points={measurementPoints} color="#f59e0b" lineWidth={2} depthTest={false} />
+                <Line points={measurementPoints} color={palette.highlight} lineWidth={2} depthTest={false} />
                 <Html position={measurementPoints[0]!.clone().lerp(measurementPoints[1]!, 0.5)} center className="dimension-label">
-                  {measurementPoints[0]!.distanceTo(measurementPoints[1]!).toFixed(3)} mm
+                  {measurementText}
+                </Html>
+              </>
+            ) : null}
+            {measurementMode !== null && measurementMode !== "distance" && measurementPoints.length === 3 ? (
+              <>
+                <Line
+                  points={measurementMode === "angle"
+                    ? [measurementPoints[0]!, measurementPoints[1]!, measurementPoints[2]!]
+                    : [...measurementPoints, measurementPoints[0]!]}
+                  color={palette.highlight}
+                  lineWidth={2}
+                  depthTest={false}
+                />
+                <Html
+                  position={measurementPoints.reduce(
+                    (total, point) => total.add(point),
+                    new THREE.Vector3(),
+                  ).multiplyScalar(1 / 3)}
+                  center
+                  className="dimension-label"
+                >
+                  {measurementText}
                 </Html>
               </>
             ) : null}
@@ -354,7 +473,7 @@ export function CadViewport({
         <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
       {scaleBar === null ? null : (
-        <div className="scale-bar" aria-hidden="true"><span style={{ width: scaleBar.width }} />{scaleBar.value} mm</div>
+        <div className="scale-bar" aria-hidden="true"><span style={{ width: scaleBar.width }} />{scaleBar.value} {units}</div>
       )}
       {selectedPatchId === null ? null : (
         <div className="selection-chip">Selected patch <strong>{selectedPatchId}</strong></div>
@@ -363,14 +482,14 @@ export function CadViewport({
   );
 }
 
-function ViewerCameraReference({ target }: { target: MutableRefObject<THREE.Camera | null> }) {
+function ViewerCameraReference({ targetRef }: { targetRef: MutableRefObject<THREE.Camera | null> }) {
   const { camera } = useThree();
   useEffect(() => {
-    target.current = camera;
+    targetRef.current = camera;
     return () => {
-      if (target.current === camera) target.current = null;
+      if (targetRef.current === camera) targetRef.current = null;
     };
-  }, [camera, target]);
+  }, [camera, targetRef]);
   return null;
 }
 

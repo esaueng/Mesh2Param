@@ -12,6 +12,7 @@ from .domain import (
 from .resources import (
     ArtifactListEnvelope,
     JobEnvelope,
+    JobListEnvelope,
     PatchEnvelope,
     PatchListEnvelope,
     ProjectEnvelope,
@@ -27,6 +28,7 @@ __all__ = [
     "ErrorBody",
     "ErrorEnvelope",
     "JobEnvelope",
+    "JobListEnvelope",
     "Meta",
     "OperationRequest",
     "PatchEnvelope",

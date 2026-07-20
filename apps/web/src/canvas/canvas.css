@@ -64,6 +64,32 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-view-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-view-grid .panel-btn{padding:0 9px}
 .panel-view-grid .panel-btn:last-child{grid-column:1/-1}
+.panel-export-formats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.panel-export-formats .panel-btn{justify-content:center;padding-inline:6px}
+
+.shortcut-backdrop{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--color-bg) 72%,transparent);backdrop-filter:blur(6px)}
+.shortcut-dialog{width:min(620px,100%);max-height:min(760px,calc(100dvh - 40px));overflow:auto;border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);color:var(--color-text)}
+.shortcut-dialog>header{position:sticky;top:0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid var(--color-border);background:var(--color-overlay-bg)}
+.shortcut-dialog>header p{margin:0 0 3px;color:var(--color-accent);font:600 var(--fs-mini) var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.shortcut-dialog h2{margin:0;font:600 var(--fs-lg) var(--font-ui)}
+.shortcut-dialog>header button{display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-muted)}
+.shortcut-dialog>header button:hover{background:var(--color-hover);color:var(--color-text)}
+.shortcut-dialog dl{display:grid;grid-template-columns:1fr 1fr;margin:0;padding:8px 20px 16px}
+.shortcut-dialog dl>div{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;border-bottom:1px solid var(--color-border);font:var(--fs-sm) var(--font-ui)}
+.shortcut-dialog dl>div:nth-child(odd){margin-right:16px}
+.shortcut-dialog dt{color:var(--color-muted)}
+.shortcut-dialog dd{margin:0}
+.shortcut-dialog kbd{display:inline-flex;min-height:24px;align-items:center;padding:2px 7px;border:1px solid var(--color-border-strong);border-bottom-width:2px;border-radius:var(--radius-sm);background:var(--color-surface-2);color:var(--color-text);font:600 var(--fs-mini) var(--font-mono);white-space:nowrap}
+.shortcut-note{margin:0;padding:0 20px 18px;color:var(--color-subtle);font:var(--fs-mini) var(--font-ui)}
+.api-token-backdrop{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--color-bg) 78%,transparent);backdrop-filter:blur(6px)}
+.api-token-dialog{width:min(420px,100%);display:grid;gap:12px;padding:22px;border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);color:var(--color-text)}
+.api-token-dialog>p{margin:0;color:var(--color-accent);font:600 var(--fs-mini) var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.api-token-dialog>h2{margin:0;font:600 var(--fs-lg) var(--font-ui)}
+.api-token-dialog>label{color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui)}
+.api-token-dialog>input{height:40px;padding:0 11px;border:1px solid var(--color-border-strong);border-radius:var(--radius-md);background:var(--color-bg);color:var(--color-text);font:var(--fs-sm) var(--font-mono)}
+.api-token-dialog>small{color:var(--color-subtle);font:var(--fs-mini) var(--font-ui)}
+.api-token-dialog>div{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.api-token-dialog button{height:36px;padding:0 14px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-text)}
+.api-token-dialog button[type=submit]{border-color:var(--color-accent-strong-border);background:var(--color-accent-strong);color:var(--color-accent-contrast)}
 .panel-modes{display:grid;gap:4px}
 .panel-modes button{display:flex;align-items:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui);transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .panel-modes button:hover{color:var(--color-text);background:var(--color-hover)}
@@ -221,4 +247,6 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .landing-recents-list button{min-height:52px}
   .dc-actions button{height:44px;padding:0 12px}
   .dc-actions .dc-close{width:44px}
+  .shortcut-dialog dl{grid-template-columns:1fr}
+  .shortcut-dialog dl>div:nth-child(odd){margin-right:0}
 }

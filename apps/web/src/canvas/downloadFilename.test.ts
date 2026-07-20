@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stepDownloadName, suffixFromBytes } from "./downloadFilename";
+import { artifactDownloadName, stepDownloadName, suffixFromBytes } from "./downloadFilename";
 
 describe("STEP download filenames", () => {
   it("appends an exact five-character suffix after the latest project name", () => {
@@ -17,5 +17,10 @@ describe("STEP download filenames", () => {
   it("rejects malformed supplied suffixes", () => {
     expect(() => stepDownloadName("model", "model.step", "ABC12")).toThrow(/exactly five/);
     expect(() => stepDownloadName("model", "model.step", "abcd")).toThrow(/exactly five/);
+  });
+
+  it("preserves non-STEP artifact extensions", () => {
+    expect(artifactDownloadName("Bracket.step", "reconstructed.glb", "g1b2c"))
+      .toBe("Bracket-g1b2c.glb");
   });
 });

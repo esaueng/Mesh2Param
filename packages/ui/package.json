@@ -19,12 +19,12 @@
     "react": ">=18"
   },
   "dependencies": {
-    "lucide-react": "^0.544.0"
+    "lucide-react": "^1.25.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.16",
     "react": "^19.1.1",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }

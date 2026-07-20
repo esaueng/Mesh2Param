@@ -4,16 +4,37 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...config import Settings
 from ...db import Repository
-from ...schemas import JobEnvelope
+from ...db.models import JobStatus
+from ...schemas import JobEnvelope, JobListEnvelope
 from ..core import APIError, request_id, success
 from ..dependencies import repository, settings
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+@router.get("", response_model=JobListEnvelope)
+def list_jobs(
+    request: Request,
+    project_id: str | None = Query(default=None, alias="projectId"),
+    status: JobStatus | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    repo: Repository = Depends(repository),
+) -> JSONResponse:
+    status_value = status.value if status is not None else None
+    jobs = repo.list_jobs(
+        project_id=project_id, status=status_value, limit=limit, offset=offset
+    )
+    total = repo.count_jobs(project_id=project_id, status=status_value)
+    return success(request, {
+        "items": jobs, "total": total, "limit": limit, "offset": offset,
+        "hasMore": offset + len(jobs) < total,
+    })
 
 
 @router.get("/{job_id}", response_model=JobEnvelope)
@@ -40,6 +61,17 @@ def cancel_job(
         job_id=job_id,
     )
     return success(request, job, status_code=202 if job["status"] == "running" else 200)
+
+
+@router.delete("/{job_id}", status_code=204)
+def delete_job(
+    request: Request,
+    job_id: str,
+    repo: Repository = Depends(repository),
+) -> Response:
+    repo.record_audit(request_id(request), "job.delete", "success", job_id=job_id)
+    repo.delete_terminal_job(job_id)
+    return Response(status_code=204)
 
 
 @router.get("/{job_id}/events")

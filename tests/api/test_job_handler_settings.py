@@ -345,14 +345,17 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
     def write_cadquery_source(_graph: Any, destination: Path) -> None:
         destination.write_text("# generated\n", encoding="utf-8")
 
-    def export_glb(_shape: object, destination: Path) -> object:
-        destination.write_bytes(b"glTF\x02\x00\x00\x00")
-        return object()
+    def tessellate_shape(_shape: object) -> mesh2param.Tessellation:
+        return mesh2param.Tessellation(
+            vertices=((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+            triangles=((0, 1, 2),),
+            normals=(),
+        )
 
     monkeypatch.setattr(mesh2param, "compile_cadgraph", compile_cadgraph)
     monkeypatch.setattr(mesh2param, "export_step_validated", export_step_validated)
     monkeypatch.setattr(mesh2param, "write_cadquery_source", write_cadquery_source)
-    monkeypatch.setattr(mesh2param, "export_glb", export_glb)
+    monkeypatch.setattr(mesh2param, "tessellate_shape", tessellate_shape)
 
     output = run_handler(
         "validate",

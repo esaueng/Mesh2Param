@@ -12,6 +12,8 @@ from typing import Any, cast
 import pytest
 from fastapi.testclient import TestClient
 from mesh2param_api import Settings, create_app
+from mesh2param_api.db import JobStatus
+from pydantic import SecretStr
 
 
 def binary_triangle_stl() -> bytes:
@@ -76,6 +78,90 @@ def current_project(client: TestClient, project_id: str) -> tuple[dict[str, Any]
     response = client.get(f"/api/projects/{project_id}")
     assert response.status_code == 200, response.text
     return response.json()["data"], response.headers["etag"]
+
+
+def test_bounded_project_and_job_listings_and_terminal_job_reaping(client: TestClient) -> None:
+    projects = [create_project(client, f"Page {index}")[0] for index in range(3)]
+    first_page = client.get("/api/projects?limit=2&offset=0")
+    assert first_page.status_code == 200
+    page = first_page.json()["data"]
+    assert page["total"] == 3
+    assert page["limit"] == 2
+    assert page["offset"] == 0
+    assert page["hasMore"] is True
+    assert len(page["items"]) == 2
+
+    second_page = client.get("/api/projects?limit=2&offset=2").json()["data"]
+    assert second_page["hasMore"] is False
+    assert len(second_page["items"]) == 1
+    assert {item["id"] for item in page["items"]}.isdisjoint(
+        {item["id"] for item in second_page["items"]}
+    )
+
+    repo = cast(Any, client.app).state.repository
+    project = projects[0]
+    job = repo.create_job(
+        project["id"],
+        project["revision"],
+        "history-test",
+        {"inputHash": "c" * 64, "settings": {}},
+        timeout_seconds=2,
+        mutates_project=False,
+    )
+    assert repo.terminalize_job(
+        job["id"],
+        None,
+        None,
+        status=JobStatus.CANCELLED,
+        code="test_complete",
+        summary="complete",
+        detail="terminal history fixture",
+        phase="cancelled",
+        recoverable=False,
+        recommended_action=None,
+    )
+    listing = client.get(f"/api/jobs?projectId={project['id']}&status=cancelled&limit=1")
+    assert listing.status_code == 200
+    assert listing.json()["data"]["items"][0]["id"] == job["id"]
+    assert client.delete(f"/api/jobs/{job['id']}").status_code == 204
+    assert client.get(f"/api/jobs/{job['id']}").status_code == 404
+
+
+def test_optional_bearer_auth_protects_api_without_blocking_health(tmp_path: Path) -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        environment="test",
+        data_dir=tmp_path,
+        api_token=SecretStr("correct-horse-battery-staple"),
+        _env_file=None,
+    )
+    with TestClient(create_app(settings)) as protected:
+        assert protected.get("/health").status_code == 200
+        assert protected.get("/ready").status_code == 200
+        rejected = protected.get("/api/projects")
+        assert rejected.status_code == 401
+        assert rejected.headers["www-authenticate"] == "Bearer"
+        assert rejected.json()["error"]["code"] == "authentication_required"
+        assert rejected.headers["x-content-type-options"] == "nosniff"
+        assert protected.get(
+            "/api/projects",
+            headers={"Authorization": "Bearer wrong-token"},
+        ).status_code == 401
+        accepted = protected.get(
+            "/api/projects",
+            headers={"Authorization": "Bearer correct-horse-battery-staple"},
+        )
+        assert accepted.status_code == 200
+
+        preflight = protected.options(
+            "/api/projects",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "Authorization",
+            },
+        )
+        assert preflight.status_code == 200
+        assert "authorization" in preflight.headers["access-control-allow-headers"].lower()
 
 
 def test_sample_catalog_uses_generated_metadata_and_safe_thumbnails(

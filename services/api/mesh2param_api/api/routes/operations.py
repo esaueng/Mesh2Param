@@ -502,7 +502,7 @@ async def upload_source(
                 project_id=project_id,
             )
 
-    staging_root = config.resolved_data_dir / "upload-staging"
+    staging_root = config.upload_staging_root
     staging_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor, staging_name = tempfile.mkstemp(prefix="upload-", suffix=".part", dir=staging_root)
     staging_path = Path(staging_name)

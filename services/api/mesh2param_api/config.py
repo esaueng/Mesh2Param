@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .security.http import (
@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     sse_keepalive_seconds: float = Field(default=15.0, ge=1, le=60)
     max_job_events: int = Field(default=20_000, ge=100, le=1_000_000)
     retention_days: int = Field(default=30, ge=1, le=3650)
+    garbage_collection_interval_seconds: float = Field(default=3600, ge=10, le=86400)
+    garbage_collection_batch_size: int = Field(default=500, ge=1, le=10000)
+    api_token: SecretStr | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     debug: bool = False
 
@@ -117,6 +120,7 @@ class Settings(BaseSettings):
         "s3_bucket",
         "queue_url",
         "public_url",
+        "api_token",
         mode="before",
     )
     @classmethod
@@ -255,6 +259,10 @@ class Settings(BaseSettings):
         return self.resolved_data_dir / "jobs"
 
     @cached_property
+    def upload_staging_root(self) -> Path:
+        return self.resolved_data_dir / "upload-staging"
+
+    @cached_property
     def worker_heartbeat_path(self) -> Path:
         return self.resolved_data_dir / "worker-heartbeat.json"
 
@@ -277,6 +285,10 @@ class Settings(BaseSettings):
     @property
     def artifact_retention_days(self) -> int:
         return self.retention_days
+
+    @property
+    def api_token_value(self) -> str | None:
+        return self.api_token.get_secret_value() if self.api_token is not None else None
 
 
 __all__ = ["Settings"]

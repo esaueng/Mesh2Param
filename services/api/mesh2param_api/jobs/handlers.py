@@ -868,6 +868,8 @@ def _curved_reconstruct(
         "cadquerySource": ("model.cq.py", "text/x-python", "cadquery-source"),
         "step": ("model.step", "model/step", "step"),
         "modelGlb": ("reconstructed.glb", "model/gltf-binary", "reconstructed-mesh"),
+        "modelStl": ("reconstructed.stl", "model/stl", "reconstructed-mesh"),
+        "modelObj": ("reconstructed.obj", "model/obj", "reconstructed-mesh"),
         "validation": ("validation.json", "application/json", "validation"),
         "curvedReconstruction": (
             "curved-reconstruction.json",
@@ -999,6 +1001,8 @@ def _faceted_reconstruct(
             "model/gltf-binary",
             "preserved-source-proxy",
         ),
+        "modelStl": ("reconstructed.stl", "model/stl", "preserved-source-proxy"),
+        "modelObj": ("reconstructed.obj", "model/obj", "preserved-source-proxy"),
         "validation": ("validation.json", "application/json", "validation"),
         "facetedFallback": (
             "faceted-fallback.json",
@@ -1101,6 +1105,8 @@ def _reconstruct(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
         "cadquerySource": ("model.cq.py", "text/x-python", "cadquery-source"),
         "step": ("model.step", "model/step", "step"),
         "modelGlb": ("reconstructed.glb", "model/gltf-binary", "reconstructed"),
+        "modelStl": ("reconstructed.stl", "model/stl", "reconstructed"),
+        "modelObj": ("reconstructed.obj", "model/obj", "reconstructed"),
         "comparison": ("metrics.json", "application/json", "metrics"),
         "residualHeatmap": ("residual.glb", "model/gltf-binary", "residual"),
         "suppressedRegions": (
@@ -1146,12 +1152,12 @@ def _graph_build(
 ) -> HandlerOutput:
     from mesh2param import (
         compile_cadgraph,
-        export_glb,
         export_step_validated,
         ingest_mesh,
+        tessellate_shape,
         write_cadquery_source,
     )
-    from mesh2param.tessellation import write_glb
+    from mesh2param.tessellation import write_binary_stl, write_glb, write_obj
     from mesh2param_contracts import CADGraph, canonical_json
     from mesh2param_contracts.models import ImportedFacetedFeature
 
@@ -1276,9 +1282,12 @@ def _graph_build(
         shutil.copyfile(_source_path(payload), workdir / "source.original.stl")
     if faceted_base:
         faceted_source = ingest_mesh(_source_path(payload), limits=_mesh_limits(payload))
-        write_glb(_mesh_tessellation(faceted_source.mesh), workdir / "reconstructed.glb")
+        result_mesh = _mesh_tessellation(faceted_source.mesh)
     else:
-        export_glb(shape, workdir / "reconstructed.glb")
+        result_mesh = tessellate_shape(shape)
+    write_glb(result_mesh, workdir / "reconstructed.glb")
+    write_binary_stl(result_mesh, workdir / "reconstructed.stl")
+    write_obj(result_mesh, workdir / "reconstructed.obj")
     validation = {
         "status": validation_status,
         "brepValid": step.source.valid,
@@ -1309,6 +1318,18 @@ def _graph_build(
             "reconstructed.glb",
             "reconstructed.glb",
             "model/gltf-binary",
+            "preserved-source-proxy" if faceted_base else "reconstructed",
+        ),
+        ArtifactOutput(
+            "reconstructed.stl",
+            "reconstructed.stl",
+            "model/stl",
+            "preserved-source-proxy" if faceted_base else "reconstructed",
+        ),
+        ArtifactOutput(
+            "reconstructed.obj",
+            "reconstructed.obj",
+            "model/obj",
             "preserved-source-proxy" if faceted_base else "reconstructed",
         ),
         ArtifactOutput("validation.json", "validation.json", "application/json", "validation"),
@@ -1492,6 +1513,8 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
         ),
         ArtifactOutput("model.cq.py", f"{slug}/model.cq.py", "text/x-python", "cadquery-source"),
         ArtifactOutput("reconstructed.glb", f"{slug}/model.glb", "model/gltf-binary", "model"),
+        ArtifactOutput("reconstructed.stl", f"{slug}/model.stl", "model/stl", "model"),
+        ArtifactOutput("reconstructed.obj", f"{slug}/model.obj", "model/obj", "model"),
         ArtifactOutput("manifest.json", f"{slug}/manifest.json", "application/json", "manifest"),
         ArtifactOutput("metadata.json", f"{slug}/metadata.json", "application/json", "metadata"),
     )

@@ -355,6 +355,31 @@ class LocalCAS:
         finally:
             os.close(directory_descriptor)
 
+    def iter_blobs(self) -> Iterator[tuple[str, float]]:
+        """Yield canonical digest and mtime without following filesystem links."""
+
+        try:
+            shards = sorted(self._digest_root.iterdir())
+        except FileNotFoundError:
+            return
+        for shard in shards:
+            try:
+                shard_status = shard.lstat()
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(shard_status.st_mode) or len(shard.name) != 2:
+                continue
+            for candidate in sorted(shard.iterdir()):
+                digest = shard.name + candidate.name
+                if not _SHA256.fullmatch(digest):
+                    continue
+                try:
+                    candidate_status = candidate.lstat()
+                except FileNotFoundError:
+                    continue
+                if stat.S_ISREG(candidate_status.st_mode):
+                    yield digest, candidate_status.st_mtime
+
 
 __all__ = [
     "LocalCAS",

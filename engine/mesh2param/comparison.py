@@ -15,7 +15,11 @@ import cadquery as cq
 import numpy as np
 import trimesh
 
-from .tessellation import Tessellation, tessellate_shape
+from .tessellation import Tessellation, TessellationCache, tessellate_shape
+from .tolerances import (
+    DEFAULT_COMPARISON_ANGULAR_TESSELLATION_RAD,
+    DEFAULT_COMPARISON_LINEAR_TESSELLATION_MM,
+)
 from .validation import import_step_shape, validate_shape
 
 _closest_point_naive: Callable[
@@ -28,8 +32,8 @@ class ComparisonSettings:
     sample_count_each_direction: int = 1000
     deterministic_seed: int = 0x4D325006
     tolerance_mm: float = 0.1
-    linear_tessellation_mm: float = 0.025
-    angular_tessellation_rad: float = 0.1
+    linear_tessellation_mm: float = DEFAULT_COMPARISON_LINEAR_TESSELLATION_MM
+    angular_tessellation_rad: float = DEFAULT_COMPARISON_ANGULAR_TESSELLATION_RAD
     query_chunk_size: int = 80
 
     def validate(self) -> None:
@@ -166,9 +170,10 @@ def _require_mesh(mesh: trimesh.Trimesh, label: str) -> None:
 def mesh_from_shape(
     shape: cq.Shape | cq.Workplane,
     *,
-    linear_tolerance: float = 0.025,
-    angular_tolerance: float = 0.1,
+    linear_tolerance: float = DEFAULT_COMPARISON_LINEAR_TESSELLATION_MM,
+    angular_tolerance: float = DEFAULT_COMPARISON_ANGULAR_TESSELLATION_RAD,
     transform: np.ndarray | None = None,
+    tessellation_cache: TessellationCache | None = None,
 ) -> trimesh.Trimesh:
     validation = validate_shape(shape, require_tessellation=False)
     if not validation.valid:
@@ -177,6 +182,7 @@ def mesh_from_shape(
         shape,
         linear_tolerance=linear_tolerance,
         angular_tolerance=angular_tolerance,
+        cache=tessellation_cache,
     )
     result = trimesh.Trimesh(
         vertices=np.asarray(tessellation.vertices, dtype=np.float64),

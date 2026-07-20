@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from ...db import Repository
@@ -40,10 +40,16 @@ def create_project(
 @router.get("", response_model=ProjectListEnvelope)
 def list_projects(
     request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     repo: Repository = Depends(repository),
 ) -> JSONResponse:
-    projects = repo.list_projects()
-    return success(request, {"items": projects, "total": len(projects)})
+    projects = repo.list_projects(limit=limit, offset=offset)
+    total = repo.count_projects()
+    return success(request, {
+        "items": projects, "total": total, "limit": limit, "offset": offset,
+        "hasMore": offset + len(projects) < total,
+    })
 
 
 @router.get("/{project_id}", response_model=ProjectEnvelope)

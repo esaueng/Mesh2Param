@@ -33,8 +33,10 @@ from .source import generate_cadquery_source, write_cadquery_source
 from .tessellation import (
     MeshArtifact,
     Tessellation,
+    TessellationCache,
     export_binary_stl,
     export_glb,
+    export_obj,
     tessellate_shape,
 )
 from .validation import (
@@ -82,6 +84,7 @@ __all__ = [
     "StepValidation",
     "SurfacePatch",
     "Tessellation",
+    "TessellationCache",
     "__version__",
     "classify_face_surfaces",
     "compare_mesh_to_shape",
@@ -90,6 +93,7 @@ __all__ = [
     "detect_extrusion_candidate",
     "export_binary_stl",
     "export_glb",
+    "export_obj",
     "export_step_validated",
     "fit_closed_line_arc_chain",
     "generate_cadquery_source",
