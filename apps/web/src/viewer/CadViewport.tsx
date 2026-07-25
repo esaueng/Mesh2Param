@@ -23,6 +23,7 @@ import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
 import { OrientationGizmoCanvas, type GizmoViewRequest } from "./OrientationGizmo";
 import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
+import { geometryArtifactUrls, releaseProjectGltfCache, syncProjectGltfCache } from "./gltfCache";
 import { measurementLabel, requiredMeasurementPoints, type MeasurementMode, type Point3 } from "./measurements";
 import { sectionPlaneForBounds } from "./sectionPlane";
 import { viewerPalette, type ViewerTheme } from "./viewerTheme";
@@ -75,6 +76,17 @@ export function CadViewport({
   onSelectPatch,
   chrome = "full",
 }: CadViewportProps) {
+  // Parsed geometry is cached for as long as the project is open rather than
+  // being dropped whenever a layer remounts. Superseded artifacts leave the
+  // cache as they leave this list; the whole project's entries go when the
+  // viewport does.
+  const geometryUrls = useMemo(
+    () => geometryArtifactUrls(artifacts, (name, sha256) => apiClient.artifactUrl(projectId, name, sha256)),
+    [artifacts, projectId],
+  );
+  useEffect(() => { syncProjectGltfCache(projectId, geometryUrls); }, [geometryUrls, projectId]);
+  useEffect(() => () => { releaseProjectGltfCache(projectId); }, [projectId]);
+
   const [boundsState, setBoundsState] = useState<{ artifactKey: string; box: THREE.Box3 } | null>(null);
   const [command, setCommand] = useState<CameraCommand>({ fitRevision: 0, viewRevision: 0, preset: "iso", direction: null });
   const [selectionState, setSelectionState] = useState<{ sha256: string; ranges: SelectionRange[] } | null>(null);
