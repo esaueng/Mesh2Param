@@ -249,5 +249,13 @@ test("start and canvas stay usable at required responsive sizes", async ({ page 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     expect(await hasHOverflow(), `canvas ${viewport.width}x${viewport.height} overflows horizontally`).toBe(false);
+    // From the top of the command panel, without scrolling it: the primary
+    // conversion action has to be reachable rather than buried under the whole
+    // display and feature tree.
+    await page.locator(".canvas-panel").evaluate((panel) => { panel.scrollTop = 0; });
+    await expect(
+      page.locator(".dock-primary"),
+      `primary action is out of view at ${viewport.width}x${viewport.height}`,
+    ).toBeInViewport();
   }
 });
