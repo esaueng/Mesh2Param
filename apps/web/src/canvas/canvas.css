@@ -78,7 +78,17 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-export-formats .panel-btn span{min-width:0;overflow:hidden;color:var(--color-muted);font:600 var(--fs-mini) var(--font-mono);letter-spacing:.04em;text-overflow:ellipsis}
 .panel-export-formats .panel-btn:hover span{color:var(--color-text)}
 
-.shortcut-backdrop{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--color-bg) 72%,transparent);backdrop-filter:blur(6px)}
+/* Shared <dialog> scrim. The UA box (border, padding, fit-content sizing,
+   centering margins) is reset so the element itself is the full-viewport
+   scrim and the panel inside it stays the only visible surface. The scrim is
+   painted on the dialog rather than on ::backdrop because the theme custom
+   properties live on .theme-light, not :root, and ::backdrop inheritance is
+   too recent to rely on for a theme-correct colour. */
+.modal-surface{display:none}
+.modal-surface[open]{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;width:100%;max-width:none;height:100%;max-height:none;margin:0;padding:20px;border:0;background:transparent;color:inherit;overflow:auto}
+.modal-surface::backdrop{background:transparent}
+
+.shortcut-backdrop[open]{background:color-mix(in srgb,var(--color-bg) 72%,transparent);backdrop-filter:blur(6px)}
 .shortcut-dialog{width:min(620px,100%);max-height:min(760px,calc(100dvh - 40px));overflow:auto;border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);color:var(--color-text)}
 .shortcut-dialog>header{position:sticky;top:0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid var(--color-border);background:var(--color-overlay-bg)}
 .shortcut-dialog>header p{margin:0 0 3px;color:var(--color-accent);font:600 var(--fs-mini) var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
@@ -92,7 +102,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .shortcut-dialog dd{margin:0}
 .shortcut-dialog kbd{display:inline-flex;min-height:24px;align-items:center;padding:2px 7px;border:1px solid var(--color-border-strong);border-bottom-width:2px;border-radius:var(--radius-sm);background:var(--color-surface-2);color:var(--color-text);font:600 var(--fs-mini) var(--font-mono);white-space:nowrap}
 .shortcut-note{margin:0;padding:0 20px 18px;color:var(--color-subtle);font:var(--fs-mini) var(--font-ui)}
-.api-token-backdrop{position:fixed;z-index:var(--z-toast);inset:0;display:grid;place-items:center;padding:20px;background:color-mix(in srgb,var(--color-bg) 78%,transparent);backdrop-filter:blur(6px)}
+.api-token-backdrop[open]{background:color-mix(in srgb,var(--color-bg) 78%,transparent);backdrop-filter:blur(6px)}
 .api-token-dialog{width:min(420px,100%);display:grid;gap:12px;padding:22px;border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);color:var(--color-text)}
 .api-token-dialog>p{margin:0;color:var(--color-accent);font:600 var(--fs-mini) var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
 .api-token-dialog>h2{margin:0;font:600 var(--fs-lg) var(--font-ui)}

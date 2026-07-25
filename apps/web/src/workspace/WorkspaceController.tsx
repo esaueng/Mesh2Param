@@ -540,6 +540,10 @@ async function cacheRemoteSource(project: ProjectDetail) {
 function useWorkspaceShortcuts(actions: WorkspaceActions) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // An open modal dialog owns the keyboard. Escape is its native close
+      // request, which the preventDefault below would cancel, and letter
+      // shortcuts must not drive the workspace hidden behind it.
+      if (document.querySelector("dialog[open]") !== null) return;
       const target = event.target;
       const state = workspaceStore.getState();
       const shortcut = shortcutForEvent(event, state.shell.singleKeyShortcuts);

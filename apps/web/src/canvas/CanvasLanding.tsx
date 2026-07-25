@@ -125,6 +125,7 @@ export function CanvasLanding({
         ref={meshRef}
         className="visually-hidden"
         aria-label="Choose source mesh"
+        tabIndex={-1}
         type="file"
         accept=".stl,.obj,.ply"
         onChange={(event) => {
@@ -137,6 +138,7 @@ export function CanvasLanding({
         ref={projectRef}
         className="visually-hidden"
         aria-label="Open saved project file"
+        tabIndex={-1}
         type="file"
         accept=".json,application/json"
         onChange={(event) => {
