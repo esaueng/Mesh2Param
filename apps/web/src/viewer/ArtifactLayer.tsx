@@ -112,10 +112,12 @@ export function ArtifactLayer({
   onSelectPatch,
   onMeasurePoint,
 }: ArtifactLayerProps) {
+  // The cache entry for `url` outlives this component: layers remount on every
+  // display-mode, opacity, shading, and theme change, and the SHA-256 addressed
+  // bytes behind the URL cannot have changed in between. CadViewport owns
+  // eviction; see viewer/gltfCache.ts. Only the resources cloned below are
+  // disposed here.
   const gltf = useGLTF(url) as GLTF;
-  useEffect(() => () => {
-    useGLTF.clear(url);
-  }, [url]);
   const palette = viewerPalette(theme);
   const object = useMemo(() => {
     const clone = gltf.scene.clone(true);
