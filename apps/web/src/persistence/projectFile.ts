@@ -20,11 +20,23 @@ import type {
   Units,
 } from "../state/types";
 import { blobKey } from "./db";
+import {
+  MAX_EMBEDDED_SOURCE_BYTES,
+  ProjectFileError,
+  decodeBase64,
+  encodeBase64,
+  readBlobBytes,
+  sha256Hex,
+} from "./projectBytes";
+
+// Re-exported so this module stays the single entry point for the project-file
+// format; callers that only need the byte helpers should import projectBytes
+// directly and skip the schema validator this module pulls in.
+export { MAX_EMBEDDED_SOURCE_BYTES, ProjectFileError, decodeBase64, encodeBase64, readBlobBytes, sha256Hex };
 
 export const PROJECT_FILE_FORMAT = "mesh2param-project";
 export const PROJECT_FILE_VERSION = 1;
 export const DEFAULT_PROJECT_FILENAME = "project.mesh2param.json";
-export const MAX_EMBEDDED_SOURCE_BYTES = 16 * 1024 * 1024;
 export const MAX_PROJECT_FILE_BYTES = 64 * 1024 * 1024;
 export const MAX_PROJECT_FILE_VERSIONS = 1_000;
 export const MAX_PROJECT_FILE_ARTIFACTS = 512;
@@ -36,16 +48,6 @@ const SOURCE_FORMATS = new Set(["stl", "obj", "ply"]);
 const PATCH_TYPES = new Set(["plane", "cylinder", "cone", "sphere", "freeform", "unknown"]);
 const WORKFLOW_STEPS = new Set(["import", "repair", "surfaces", "features", "refine", "validate", "export"]);
 const VIEWER_MODES = new Set(["source", "repaired", "analysis", "patches", "reconstructed", "residual", "overlay"]);
-
-export class ProjectFileError extends TypeError {
-  readonly code: string;
-
-  constructor(code: string, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "ProjectFileError";
-    this.code = code;
-  }
-}
 
 export interface ParsedProjectFile {
   file: Mesh2ParamProjectFile;
@@ -851,59 +853,6 @@ function validateProjectFile(value: unknown): Mesh2ParamProjectFile {
     source,
     artifactManifest: document.artifactManifest.map(validateArtifact),
   };
-}
-
-function decodedByteLength(base64: string): number {
-  if (base64.length === 0 || base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
-    throw new ProjectFileError("invalid_base64", "Embedded source is not valid base64.");
-  }
-  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
-  return (base64.length / 4) * 3 - padding;
-}
-
-export function decodeBase64(base64: string, maximumBytes = MAX_EMBEDDED_SOURCE_BYTES): Uint8Array {
-  const byteLength = decodedByteLength(base64);
-  if (byteLength > maximumBytes) {
-    throw new ProjectFileError("embedded_source_too_large", "Embedded source exceeds the configured size limit.");
-  }
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-export function encodeBase64(bytes: Uint8Array): string {
-  const chunks: string[] = [];
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
-  }
-  return btoa(chunks.join(""));
-}
-
-export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  if (globalThis.crypto?.subtle === undefined) {
-    throw new ProjectFileError("crypto_unavailable", "SHA-256 verification is unavailable in this browser.");
-  }
-  const detached = Uint8Array.from(bytes).buffer;
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", detached);
-  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-export async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === "function") return new Uint8Array(await blob.arrayBuffer());
-  if (typeof FileReader === "undefined") {
-    throw new ProjectFileError("blob_read_unavailable", "Blob content cannot be read in this environment.");
-  }
-  const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("Blob read failed"));
-    reader.onload = () => {
-      if (reader.result instanceof ArrayBuffer) resolve(reader.result);
-      else reject(new Error("Blob reader did not return binary data"));
-    };
-    reader.readAsArrayBuffer(blob);
-  });
-  return new Uint8Array(buffer);
 }
 
 export async function parseProjectFile(

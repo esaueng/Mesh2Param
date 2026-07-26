@@ -13,6 +13,7 @@
     "build:web": "pnpm --filter @mesh2param/contracts build && pnpm --filter @mesh2param/ui build && pnpm --filter @mesh2param/web build",
     "cf:types": "wrangler types",
     "cf:typecheck": "tsc -p tsconfig.cloudflare.json",
+    "bundle:budgets": "node scripts/check_bundle_budgets.mjs",
     "cf:assets": "node scripts/check_cloudflare_assets.mjs",
     "cf:check": "pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler deploy --dry-run",
     "cf:dev": "pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler dev",
