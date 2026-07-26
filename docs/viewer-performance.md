@@ -64,6 +64,27 @@ delays the reveal. On hardware, where the extension exists, there is little left
 to recover. Gating the reveal on a compile that cannot run in parallel would
 make the tested configuration slower, not faster.
 
+## What the reveal does about it
+
+The compile cost cannot be removed, but the viewer no longer presents an empty
+canvas while it happens. `CadViewport` holds the reveal behind a stated
+"Preparing the 3D preview…" state until react-three-fiber has actually drawn a
+frame containing the artifact — the second `useFrame` callback, since callbacks
+run before the frame they belong to is rendered.
+
+Two details matter:
+
+- Only the **first** paint of a project is held. A display-mode or shading
+  change leaves the previous frame on the canvas, and covering that with a
+  placeholder would replace useful context with less.
+- The overlay is committed immediately but fades in on a 140 ms CSS animation
+  delay. A cheap redraw removes it before it is ever visible, and because the
+  fade is a compositor animation it still plays while the main thread is blocked
+  compiling — which is precisely when it needs to appear.
+
+A failsafe timer clears the hold regardless after 6 s, so a paused or dropped
+render loop cannot strand the viewport behind the overlay.
+
 ## What is guarded
 
 `tests/browser/viewer-scene-build.spec.ts` asserts the scene build stays under
@@ -71,3 +92,8 @@ make the tested configuration slower, not faster.
 `mesh2param:artifact-build` measure emitted by `viewer/buildProfile.ts`. That
 number is pure CPU work and therefore GPU-independent, which makes it a stable
 thing to assert on — unlike long tasks, which mostly measure the driver.
+
+`tests/browser/viewer-reveal.spec.ts` asserts the hold happens on a first reveal
+and never on a later redraw, reading `data-viewer-preparing` through a
+MutationObserver. Polling would not survive the stall; the observer's records
+are queued and delivered once the main thread frees.
