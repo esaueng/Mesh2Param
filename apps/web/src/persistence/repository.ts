@@ -20,16 +20,17 @@ import {
   type UIRecord,
   type VersionRecord,
 } from "./db";
-import {
-  createProjectFile,
-  openProjectFile,
-  parseProjectFile,
-  projectFileSourceFromBlob,
-  readBlobBytes,
-  serializeProjectFile,
-  sha256Hex,
-  type ParsedProjectFile,
-} from "./projectFile";
+import { readBlobBytes, sha256Hex } from "./projectBytes";
+import type { ParsedProjectFile } from "./projectFile";
+
+/**
+ * The project-file codec reaches @mesh2param/contracts for CADGraph migration,
+ * which carries the generated ajv schema validator — the largest single piece
+ * of the app's JavaScript. Saving or opening a .mesh2param.json is a deliberate
+ * user action, never part of opening the app, so the codec is fetched on first
+ * use instead of at startup.
+ */
+const projectFileCodec = () => import("./projectFile");
 
 export const AUTOSAVE_DELAY_MS = 300;
 
@@ -272,10 +273,12 @@ export class WorkspaceRepository {
   }
 
   async importProjectFile(text: string): Promise<ParsedProjectFile> {
+    const { parseProjectFile } = await projectFileCodec();
     return this.importParsedProjectFile(await parseProjectFile(text));
   }
 
   async importProjectFileBlob(file: Blob & { name?: string }): Promise<ParsedProjectFile> {
+    const { openProjectFile } = await projectFileCodec();
     return this.importParsedProjectFile(await openProjectFile(file));
   }
 
@@ -362,6 +365,7 @@ export class WorkspaceRepository {
     projectId: string,
     options: ExportProjectFileOptions = {},
   ): Promise<Mesh2ParamProjectFile> {
+    const { createProjectFile, projectFileSourceFromBlob } = await projectFileCodec();
     const stored = await this.getWorkspace(projectId);
     if (stored === null) throw new Error(`Local project ${projectId} was not found`);
     const sourceDescriptor = stored.document.document.source;
@@ -400,6 +404,7 @@ export class WorkspaceRepository {
   }
 
   async serializeProject(projectId: string, options: ExportProjectFileOptions = {}): Promise<string> {
+    const { serializeProjectFile } = await projectFileCodec();
     return serializeProjectFile(await this.exportProjectFile(projectId, options));
   }
 

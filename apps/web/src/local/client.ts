@@ -10,7 +10,7 @@ import type {
 } from "../api/client";
 import { ApiError } from "../api/errors";
 import { workspaceDb, type DocumentRecord, type ProjectRecord } from "../persistence/db";
-import { readBlobBytes, sha256Hex } from "../persistence/projectFile";
+import { readBlobBytes, sha256Hex } from "../persistence/projectBytes";
 import type {
   ArtifactDescriptor,
   ArtifactPage,
