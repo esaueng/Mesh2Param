@@ -25,6 +25,11 @@ async function openSampleWorkspace(page: Page) {
   // still running the panel re-renders continuously, and a keypress delivered
   // mid-commit lands somewhere other than the expected tab stop.
   await expect(page.locator(".dock-primary")).toContainText("Download STEP", { timeout: 240_000 });
+  // The held reveal removes its overlay from inside the viewport once the first
+  // frame paints. A node disappearing mid-test moves Chromium's sequential
+  // focus starting point to where it was, so wait for the reveal to finish
+  // before any test drives the keyboard.
+  await expect(page.getByTestId("cad-viewport")).toHaveAttribute("data-viewer-preparing", "false", { timeout: 30_000 });
 }
 
 test("every landing tab stop is a visible control", async ({ page }) => {
