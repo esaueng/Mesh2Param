@@ -1,6 +1,6 @@
 import { Html, Line } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Box, Camera, Expand, Focus, Grid3X3, Layers3, Ruler, Rotate3D, ScanLine, Slice, View } from "lucide-react";
+import { Box, Camera, Expand, Focus, Grid3X3, Layers3, LoaderCircle, Ruler, Rotate3D, ScanLine, Slice, View } from "lucide-react";
 import {
   Component,
   Suspense,
@@ -43,6 +43,33 @@ const MODES: ReadonlyArray<{ id: ViewerMode; label: string }> = [
  * gets a lower pixel ratio, but no longer forces the whole canvas (including the
  * orientation gizmo) down to a visibly pixelated 1x backing buffer.
  */
+/**
+ * How long the reveal may wait on a frame that never arrives. Well beyond the
+ * slowest observed shader compile, and only a backstop: the normal path is the
+ * frame counter below.
+ */
+const REVEAL_FAILSAFE_MS = 6_000;
+
+/**
+ * Reports once the current artifact has actually been drawn.
+ *
+ * react-three-fiber runs useFrame callbacks before rendering the frame they
+ * belong to, so the second callback is the first moment at which a frame
+ * containing this artifact is known to have reached the screen.
+ */
+function FramePainted({ onPainted }: { onPainted(): void }) {
+  const frames = useRef(0);
+  const reported = useRef(false);
+  useFrame(() => {
+    if (reported.current) return;
+    frames.current += 1;
+    if (frames.current < 2) return;
+    reported.current = true;
+    onPainted();
+  });
+  return null;
+}
+
 export function viewerDpr(denseMesh: boolean): number {
   return denseMesh ? 1.5 : 2;
 }
@@ -86,6 +113,16 @@ export function CadViewport({
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode | null>(null);
   const [measurementPoints, setMeasurementPoints] = useState<THREE.Vector3[]>([]);
   const [scaleBar, setScaleBar] = useState<ScaleBarSpec | null>(null);
+  // Artifacts can be present for a while before the viewer has actually drawn
+  // them: the first frame carrying a new material compiles its shaders, which
+  // blocks the main thread. Until that frame is on screen the canvas has
+  // nothing to show, so the reveal is held behind a stated "preparing" state
+  // rather than an empty viewport that looks finished.
+  //
+  // Only the first paint of a project is held. Later redraws — a display mode,
+  // a shading change — leave the previous frame on the canvas, and covering
+  // that with a placeholder would replace useful context with less.
+  const [paintedProject, setPaintedProject] = useState<string | null>(null);
   const [contextLost, setContextLost] = useState(false);
   const [rendererRevision, setRendererRevision] = useState(0);
   const recoveryTimer = useRef<number | null>(null);
@@ -142,6 +179,14 @@ export function CadViewport({
 
   const layers = layersForMode(preferences, artifactMap);
   const artifactKey = layers.map((layer) => layer.artifact.sha256).join("|") || projectId;
+  const preparing = layers.length > 0 && paintedProject !== projectId;
+  // A dropped or paused render loop must not strand the viewer behind the
+  // overlay; show whatever the canvas has after this long regardless.
+  useEffect(() => {
+    if (!preparing) return;
+    const failsafe = window.setTimeout(() => setPaintedProject(projectId), REVEAL_FAILSAFE_MS);
+    return () => window.clearTimeout(failsafe);
+  }, [preparing, projectId]);
   const bounds = boundsState?.artifactKey === artifactKey ? boundsState.box : null;
   const selection = selectionArtifact !== undefined
     && selectionState?.sha256 === selectionArtifact.sha256
@@ -236,6 +281,7 @@ export function CadViewport({
       data-testid="cad-viewport"
       data-camera-view={command.direction?.join(",") ?? command.preset}
       data-display-mode={preferences.shading}
+      data-viewer-preparing={String(preparing)}
     >
       {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
@@ -395,6 +441,7 @@ export function CadViewport({
           <ViewerCameraReference targetRef={viewerCamera} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
           <Suspense fallback={<Html center className="viewer-loading">Loading geometry…</Html>}>
+            {preparing ? <FramePainted onPainted={() => setPaintedProject(projectId)} /> : null}
             {layers.map((layer) => (
               <ArtifactLayer
                 key={`${layer.artifact.sha256}-${layer.opacity}-${preferences.shading}-${preferences.edges}-${theme}`}
@@ -461,6 +508,13 @@ export function CadViewport({
       </ViewerErrorBoundary>
 
       <OrientationGizmoCanvas cameraRef={viewerCamera} onSelectView={gizmoView} />
+
+      {preparing ? (
+        <div className="viewer-preparing" role="status" aria-live="polite">
+          <LoaderCircle className="spin" size={18} />
+          <strong>Preparing the 3D preview…</strong>
+        </div>
+      ) : null}
 
       {contextLost ? (
         <div className="viewer-recovering" role="status" aria-live="polite">
