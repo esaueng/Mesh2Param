@@ -1,4 +1,4 @@
-# ruff: noqa: E402, I001
+# ruff: noqa: E402
 from __future__ import annotations
 
 import json
@@ -36,7 +36,9 @@ def _workflow_covers(workflow: str, step: str) -> bool:
     equivalents = _VERIFY_STEP_EQUIVALENTS.get(step)
     # No literal match and no declared equivalent means the step is not covered;
     # `all(())` would otherwise report an unknown step as covered.
-    return bool(equivalents) and all(marker in workflow for marker in equivalents)
+    if not equivalents:
+        return False
+    return all(marker in workflow for marker in equivalents)
 
 
 def _inspect_document(service: str) -> dict[str, object]:
