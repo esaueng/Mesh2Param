@@ -20,6 +20,16 @@ async function sceneBuilds(page: Page) {
     performance.getEntriesByName("mesh2param:artifact-build", "measure").map((entry) => entry.duration));
 }
 
+/**
+ * The viewport element exists before its geometry does: the reveal is held
+ * until the first frame paints, and no scene has been built until then.
+ */
+async function waitForRevealedGeometry(page: Page) {
+  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 240_000 });
+  await expect(page.getByTestId("cad-viewport"))
+    .toHaveAttribute("data-viewer-preparing", "false", { timeout: 60_000 });
+}
+
 async function assertBuildsWithinBudget(page: Page, context: string) {
   const builds = await sceneBuilds(page);
   expect(builds.length, `${context} should have built at least one display scene`).toBeGreaterThan(0);
@@ -32,8 +42,8 @@ test("building a display scene stays cheap for the sample", async ({ page }) => 
   await page.goto("/");
   await expect(page.getByTestId("start-screen")).toBeVisible();
   await page.getByRole("button", { name: /Try the L-bracket sample/i }).click();
-  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".dock-primary")).toContainText("Download STEP", { timeout: 240_000 });
+  await waitForRevealedGeometry(page);
 
   await assertBuildsWithinBudget(page, "sample reveal");
 
@@ -54,7 +64,7 @@ test("building a display scene stays cheap for an uploaded source mesh", async (
   await expect(page.locator(".canvas-shell")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".dock-primary")).toContainText("Analyze mesh", { timeout: 240_000 });
   await page.locator(".dock-primary").click();
-  await expect(page.getByTestId("cad-viewport")).toBeVisible({ timeout: 240_000 });
+  await waitForRevealedGeometry(page);
 
   await assertBuildsWithinBudget(page, "analyzed source mesh");
 });
