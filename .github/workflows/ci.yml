@@ -86,6 +86,13 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --frozen --extra dev
 
+      # @mesh2param/contracts and @mesh2param/ui are consumed through their built
+      # dist output, which is gitignored. Nothing that typechecks, lints, or
+      # imports them resolves on a clean checkout until they are built.
+      - name: Build workspace packages
+        if: matrix.task != 'backend'
+        run: pnpm build:packages
+
       - name: Install Chromium
         if: matrix.task == 'browser'
         run: pnpm --filter @mesh2param/web exec playwright install --with-deps chromium
