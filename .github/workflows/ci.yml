@@ -104,7 +104,6 @@ jobs:
           pnpm lint
           pnpm build
           pnpm bundle:budgets
-          pnpm samples:check
           pnpm licenses:check
           pnpm cf:check
 
@@ -161,6 +160,14 @@ jobs:
 
       - name: Build pinned web image
         run: docker build --file infra/web.Dockerfile --tag mesh2param-web:ci .
+
+      # The corpus is only reproducible against a fixed OCCT build, so it is
+      # verified here against the image just built rather than against whatever
+      # kernel the runner happens to provide.
+      - name: Verify the sample corpus
+        env:
+          MESH2PARAM_SAMPLES_IMAGE: mesh2param-backend:ci
+        run: pnpm samples:check
 
       - name: Create non-secret CI environment
         id: compose-env
