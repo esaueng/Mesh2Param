@@ -24,9 +24,15 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! docker image inspect "$image" >/dev/null 2>&1; then
-  echo "Building $image (first run only)…" >&2
+# Rebuild unless the caller names an image it already built from this commit.
+# Reusing a stale image would silently verify the corpus against old engine
+# code, which is exactly the sort of false pass this check exists to prevent.
+# Layer caching makes the repeat build cheap.
+if [ -z "${MESH2PARAM_SAMPLES_IMAGE:-}" ]; then
   docker build --platform "$platform" --file "$root/infra/backend.Dockerfile" --tag "$image" "$root" >&2
+elif ! docker image inspect "$image" >/dev/null 2>&1; then
+  echo "MESH2PARAM_SAMPLES_IMAGE=$image is not present locally." >&2
+  exit 1
 fi
 
 case "$action" in
