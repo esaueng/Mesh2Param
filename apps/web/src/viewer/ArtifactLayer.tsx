@@ -9,6 +9,7 @@ import { WireframeGeometry2 } from "three/examples/jsm/lines/WireframeGeometry2.
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { GLTF } from "three-stdlib";
 import type { ViewerShading } from "../state/types";
+import { profileSceneBuild } from "./buildProfile";
 import { surfaceColor, viewerPalette, type ViewerTheme } from "./viewerTheme";
 
 export interface SelectionRange {
@@ -117,7 +118,7 @@ export function ArtifactLayer({
     useGLTF.clear(url);
   }, [url]);
   const palette = viewerPalette(theme);
-  const object = useMemo(() => {
+  const object = useMemo(() => profileSceneBuild(() => {
     const clone = gltf.scene.clone(true);
     const triangleCount = objectTriangleCount(clone);
     const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost, facetedProxy);
@@ -162,7 +163,7 @@ export function ArtifactLayer({
       addShadedEdgeOverlays(clone, palette, displayMaterialProperties(shading, opacity).displayedOpacity, sectionPlane, overlayKind);
     }
     return clone;
-  }, [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, shading]);
+  }), [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, shading]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
