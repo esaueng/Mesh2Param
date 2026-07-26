@@ -4,7 +4,6 @@ import { apiClient } from "../api/client";
 import { apiFetch } from "../api/auth";
 import { normalizeApiError } from "../api/errors";
 import { watchJob } from "../api/jobs";
-import { saveProjectFile } from "../persistence/projectFile";
 import { workspaceRepository } from "../persistence/repository";
 import { hasPersistedWorkspaceChanges, snapshotForPersistence } from "../persistence/workspaceState";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
@@ -434,6 +433,9 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
       try {
         await workspaceRepository.saveWorkspace(snapshotForPersistence(current));
         const file = await workspaceRepository.exportProjectFile(current.project.id);
+        // Loaded on demand: the codec carries the CADGraph schema validator, and
+        // most workspace sessions never save a project file.
+        const { saveProjectFile } = await import("../persistence/projectFile");
         await saveProjectFile(file, { suggestedName: `${safeFilename(current.project.name)}.mesh2param.json` });
       } catch (cause) {
         setError(`Project save failed: ${String(cause)}`);
