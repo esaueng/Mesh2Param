@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { setApiToken } from "../api/auth";
+import { Modal } from "./Modal";
 
 export function ApiTokenDialog({ onClose }: { onClose(): void }) {
   const [token, setToken] = useState("");
   return (
-    <div className="api-token-backdrop" role="presentation">
-      <form className="api-token-dialog" role="dialog" aria-modal="true" aria-labelledby="api-token-title" onSubmit={(event) => {
+    <Modal className="api-token-backdrop" labelledBy="api-token-title" onClose={onClose} dismissOnBackdrop={false}>
+      <form className="api-token-dialog" onSubmit={(event) => {
         event.preventDefault();
         if (!token.trim()) return;
         setApiToken(token);
@@ -18,6 +19,6 @@ export function ApiTokenDialog({ onClose }: { onClose(): void }) {
         <small>The token is retained only for this browser tab.</small>
         <div><button type="button" onClick={onClose}>Cancel</button><button type="submit" disabled={!token.trim()}>Connect</button></div>
       </form>
-    </div>
+    </Modal>
   );
 }

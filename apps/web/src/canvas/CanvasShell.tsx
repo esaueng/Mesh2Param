@@ -163,9 +163,19 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   return (
     <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
-      <a className="skip-link" href="#canvas-viewport">Skip to 3D viewport</a>
+      <a
+        className="skip-link"
+        href="#canvas-viewport"
+        onClick={() => {
+          // Fragment navigation alone only moves focus when the target is
+          // focusable, and Safari does not move it even then.
+          document.getElementById("canvas-viewport")?.focus();
+        }}
+      >
+        Skip to 3D viewport
+      </a>
       <div className="canvas-main">
-        <div id="canvas-viewport" className="canvas-stage">
+        <div id="canvas-viewport" className="canvas-stage" tabIndex={-1}>
           {hasGeometry ? (
             <CadViewport
               chrome="minimal"
@@ -455,6 +465,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         ref={fileRef}
         className="visually-hidden"
         aria-label="Choose source mesh"
+        tabIndex={-1}
         type="file"
         accept=".stl,.obj,.ply"
         onChange={(event) => {
