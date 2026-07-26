@@ -123,7 +123,12 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-feature-list button>span{grid-row:1/3;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--color-hover);font:600 var(--fs-mini) var(--font-ui)}
 .panel-feature-list button>strong{overflow:hidden;text-overflow:ellipsis;font:600 var(--fs-sm) var(--font-ui);white-space:nowrap}
 .panel-feature-list button>small{color:var(--color-muted);font:var(--fs-mini) var(--font-ui)}
-.panel-convert{margin-top:auto;padding-top:14px;border-top:1px solid var(--color-border)}
+/* The conversion action stays reachable however long the display and feature
+   sections grow: margin-top:auto seats it at the bottom while the panel is
+   short, and sticky pins it there once the panel scrolls. Negative inline
+   margins make the backdrop full-bleed so content cannot show through the
+   panel's side gutters as it scrolls underneath. */
+.panel-convert{position:sticky;bottom:0;margin-top:auto;margin-inline:-14px;padding:14px 14px 16px;border-top:1px solid var(--color-border);background:var(--color-surface)}
 .panel-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-secondary-grid .panel-btn{justify-content:center;padding:0 8px}
 .canvas-panel .dock-primary{display:flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 12px;border:1px solid var(--color-accent-strong-border);border-radius:var(--radius-md);background:var(--color-accent-strong);color:var(--color-accent-contrast);font:500 var(--fs-base) var(--font-ui);white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
@@ -255,7 +260,9 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .panel-view-group .panel-view-grid{display:grid;grid-template-columns:1fr 1fr}
   .panel-view-group .view-settings{width:100%}
   .panel-btn,.panel-modes button{height:44px}
-  .panel-convert{flex:1 1 100%;display:grid;gap:6px;margin:0;padding:0;border-top:0}
+  /* Same pinning in the bottom-bar layout, matched to its 12px side padding.
+     The separator returns here because the stuck footer now overlays content. */
+  .panel-convert{flex:1 1 100%;display:grid;gap:6px;margin:0 -12px;padding:10px 12px;border-top:1px solid var(--color-border)}
   .canvas-panel .dock-primary{height:44px}
   .debug-console{max-height:34dvh}
 }

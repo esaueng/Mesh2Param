@@ -60,7 +60,7 @@ export function CanvasLanding({
         <MeshTransitionHero />
         <span className="landing-eyebrow">Mesh to parametric CAD</span>
         <h1>Turn a triangle mesh into an editable CAD model.</h1>
-        <p>Upload an STL, OBJ, or PLY file and Mesh2Param reconstructs an exact, kernel-validated STEP you can download.</p>
+        <p>Upload an STL, OBJ, or PLY file and Mesh2Param reconstructs a kernel-validated STEP — editable parameters where the geometry is recognized, fitted curved surfaces or a faceted fallback otherwise.</p>
 
         <div className="landing-actions">
           <button className="landing-primary" disabled={busy || !ready} onClick={() => meshRef.current?.click()}>
