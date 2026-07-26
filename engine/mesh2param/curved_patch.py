@@ -1480,6 +1480,26 @@ def _torus_fusers(tori: tuple[PlateTorus, ...]) -> tuple[TorusFuser, ...]:
     )
 
 
+def _is_removed_core(fragment: cq.Shape, cutter: HoleCutter) -> bool:
+    """Whether a boolean fragment is material the cutter was meant to remove.
+
+    Open CASCADE does not always discard the core it cuts out: on some builds
+    the subtraction returns it alongside the remainder rather than deleting it.
+    A fragment whose centroid lies inside the cutter cylinder is by definition
+    that core, and keeping it would fill the hole back in. A fragment outside
+    the cutter is a piece the hole genuinely severed from the plate, which is a
+    real modelling failure and must still be reported.
+    """
+
+    axis = np.asarray(cutter.direction, dtype=np.float64)
+    base = np.asarray(cutter.base_point, dtype=np.float64)
+    centre = fragment.Center()
+    offset = np.array([centre.x, centre.y, centre.z], dtype=np.float64) - base
+    along = float(offset @ axis)
+    radial = float(np.linalg.norm(offset - along * axis))
+    return radial <= cutter.radius and 0.0 <= along <= cutter.height
+
+
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
     """Boolean-subtract each recorded hole cutter from the plate solid.
 
@@ -1504,7 +1524,16 @@ def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shap
                 "curved_patch_hole_boolean_failed",
                 f"subtracting hole {index} failed: {exc}",
             ) from exc
-        if len(result.Solids()) != 1:
+        solids = result.Solids()
+        if len(solids) > 1:
+            remainder = [piece for piece in solids if not _is_removed_core(piece, cutter_spec)]
+            # Only rebuild the shape when the kernel actually handed back extra
+            # pieces; leaving the single-solid path untouched keeps the exported
+            # bytes identical on builds that discard the core themselves.
+            if len(remainder) == 1:
+                result = remainder[0]
+                solids = remainder
+        if len(solids) != 1:
             raise CurvedPatchError(
                 "assembling solid",
                 "curved_patch_hole_boolean_failed",
