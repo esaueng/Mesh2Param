@@ -23,11 +23,7 @@ jobs:
         task: [static, frontend, backend, browser]
     env:
       CI: "1"
-      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
       MESH2PARAM_ENVIRONMENT: test
-      MESH2PARAM_DATA_DIR: ${{ runner.temp }}/mesh2param-data
-      MESH2PARAM_DATABASE_URL: sqlite:///${{ runner.temp }}/mesh2param-data/mesh2param.sqlite3
-      MESH2PARAM_STORAGE_PATH: ${{ runner.temp }}/mesh2param-data/storage
       MESH2PARAM_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       MESH2PARAM_WORKER_COUNT: "1"
       MESH2PARAM_JOB_RUNNER_MODE: embedded
@@ -35,6 +31,18 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # The runner context is not available to job-level env, and using it there
+      # fails the whole workflow at startup before a single job is created.
+      # Anything derived from the runner's temp directory is exported here.
+      - name: Resolve runner paths
+        run: |
+          {
+            echo "UV_CACHE_DIR=$RUNNER_TEMP/uv-cache"
+            echo "MESH2PARAM_DATA_DIR=$RUNNER_TEMP/mesh2param-data"
+            echo "MESH2PARAM_DATABASE_URL=sqlite:///$RUNNER_TEMP/mesh2param-data/mesh2param.sqlite3"
+            echo "MESH2PARAM_STORAGE_PATH=$RUNNER_TEMP/mesh2param-data/storage"
+          } >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0

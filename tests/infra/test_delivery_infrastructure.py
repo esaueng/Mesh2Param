@@ -1,6 +1,7 @@
 # ruff: noqa: E402, I001
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -15,6 +16,28 @@ from scripts.verify_container_security import (
     validate_compose_model,
     validate_inspect_documents,
 )
+
+# `pnpm test` and `pnpm test:frontend` fan out to per-package runs in CI, and
+# `pnpm test:geometry` runs inside the full backend pytest invocation, so those
+# names never appear verbatim in the workflow.
+_VERIFY_STEP_EQUIVALENTS = {
+    "pnpm test": ("vitest run", "pytest"),
+    "pnpm test:frontend": ("vitest run",),
+    "pnpm test:backend": ("pytest",),
+    "pnpm test:geometry": ("pytest",),
+    "pnpm build": ("pnpm build",),
+}
+
+
+def _workflow_covers(workflow: str, step: str) -> bool:
+    """Whether the CI workflow runs `step`, directly or through an equivalent."""
+    if step in workflow:
+        return True
+    equivalents = _VERIFY_STEP_EQUIVALENTS.get(step)
+    # No literal match and no declared equivalent means the step is not covered;
+    # `all(())` would otherwise report an unknown step as covered.
+    return bool(equivalents) and all(marker in workflow for marker in equivalents)
+
 
 def _inspect_document(service: str) -> dict[str, object]:
     backend = service in {"api", "worker"}
@@ -158,6 +181,14 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     action_references = re.findall(r"uses:\s+[^@\s]+@([^\s#]+)", workflow)
     assert action_references
     assert all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in action_references)
-    assert "pnpm verify" in workflow
+    # The workflow runs the repository's verification in a parallel matrix rather
+    # than as one `pnpm verify` invocation, so assert the coverage that script
+    # defines instead of the literal call. Reading the definition keeps this
+    # honest: adding a step to `verify` without wiring it into CI now fails here.
+    verify_script = json.loads((REPOSITORY_ROOT / "package.json").read_text())["scripts"]["verify"]
+    verify_steps = [step.strip() for step in verify_script.split("&&")]
+    assert verify_steps
+    uncovered = [step for step in verify_steps if not _workflow_covers(workflow, step)]
+    assert not uncovered, f"CI does not run these `pnpm verify` steps: {uncovered}"
     assert "pnpm cf:check" in workflow
     assert "verify_container_security.py" in workflow
