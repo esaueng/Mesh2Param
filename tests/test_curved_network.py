@@ -43,6 +43,13 @@ SETTINGS = CurvedPatchSettings(
 )
 SPLIT = CurvedNetworkSettings(force_split=True)
 
+# A pole shared by two patches evaluates to the same point in exact arithmetic;
+# in doubles the two evaluation paths can differ by a few units in the last
+# place of a coordinate measured in millimetres. A picometre is far below any
+# geometric meaning and still six orders of magnitude tighter than the sewing
+# tolerance that decides whether an edge is actually shared.
+COINCIDENT_POLE_TOLERANCE_MM = 1e-12
+
 
 @pytest.fixture(scope="module")
 def bump_plate(tmp_path_factory: pytest.TempPathFactory) -> Path:
@@ -165,7 +172,11 @@ def test_forced_split_builds_shared_topology_network(bump_plate: Path) -> None:
 
     (evidence,) = result.shared_evidence
     assert evidence.continuity == "smooth"
-    assert evidence.maximum_position_gap == 0.0  # aliased poles: exact G0
+    # Aliased poles: G0 is exact by construction, so the only permissible gap is
+    # the residue of evaluating the same pole through two surface parameterisations.
+    # Comparing to a literal 0.0 asserts the arithmetic, not the construction, and
+    # holds only on the platform it was written on: x86-64 leaves 7.1e-15 mm here.
+    assert evidence.maximum_position_gap == pytest.approx(0.0, abs=COINCIDENT_POLE_TOLERANCE_MM)
     assert evidence.maximum_normal_angle_deg <= SPLIT.g1_maximum_angle_deg
 
     assert result.solid.Volume() == pytest.approx(manifest["groundTruth"]["volume"], rel=5e-3)

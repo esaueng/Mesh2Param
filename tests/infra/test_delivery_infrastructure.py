@@ -1,11 +1,14 @@
-# ruff: noqa: E402, I001
+# ruff: noqa: E402
 from __future__ import annotations
 
+import json
 import re
+import shlex
 import sys
 from pathlib import Path
 
 import pytest
+import yaml  # type: ignore[import-untyped]
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT))
@@ -15,6 +18,80 @@ from scripts.verify_container_security import (
     validate_compose_model,
     validate_inspect_documents,
 )
+
+# `pnpm test` and `pnpm test:frontend` fan out to per-package runs in CI, and
+# `pnpm test:geometry` runs inside the full backend pytest invocation, so those
+# names never appear verbatim in the workflow.
+_VERIFY_STEP_EQUIVALENTS = {
+    "pnpm test": (("vitest", "run"), ("pytest",)),
+    "pnpm test:geometry": (("pytest",),),
+}
+
+
+def _workflow_commands(workflow: str) -> tuple[tuple[str, ...], ...]:
+    document = yaml.safe_load(workflow)
+    if not isinstance(document, dict) or not isinstance(document.get("jobs"), dict):
+        return ()
+    commands: list[tuple[str, ...]] = []
+    for job in document["jobs"].values():
+        if not isinstance(job, dict) or not isinstance(job.get("steps"), list):
+            continue
+        for step in job["steps"]:
+            if not isinstance(step, dict) or not isinstance(step.get("run"), str):
+                continue
+            continued = ""
+            for raw_line in step["run"].splitlines():
+                line = (continued + raw_line.strip()).strip()
+                if line.endswith("\\"):
+                    continued = line[:-1] + " "
+                    continue
+                continued = ""
+                tokens = tuple(shlex.split(line, comments=True))
+                if tokens:
+                    commands.append(tokens)
+            if continued.strip():
+                commands.append(tuple(shlex.split(continued, comments=True)))
+    return tuple(commands)
+
+
+def _contains_token_sequence(command: tuple[str, ...], marker: tuple[str, ...]) -> bool:
+    return any(
+        command[index : index + len(marker)] == marker
+        for index in range(len(command) - len(marker) + 1)
+    )
+
+
+def _workflow_covers(workflow: str, step: str) -> bool:
+    """Whether the CI workflow runs `step`, directly or through an equivalent."""
+    commands = _workflow_commands(workflow)
+    expected = tuple(shlex.split(step))
+    if expected in commands:
+        return True
+    equivalents = _VERIFY_STEP_EQUIVALENTS.get(step)
+    # No exact command and no declared equivalent means the step is not covered;
+    # `all(())` would otherwise report an unknown step as covered.
+    if not equivalents:
+        return False
+    return all(
+        any(_contains_token_sequence(command, marker) for command in commands)
+        for marker in equivalents
+    )
+
+
+def test_workflow_coverage_does_not_accept_command_prefix_collisions() -> None:
+    collisions = """
+jobs:
+  quality:
+    steps:
+      - run: |
+          pnpm build:packages
+          pnpm test:e2e
+"""
+    assert _workflow_covers(collisions, "pnpm build:packages")
+    assert _workflow_covers(collisions, "pnpm test:e2e")
+    assert not _workflow_covers(collisions, "pnpm build")
+    assert not _workflow_covers(collisions, "pnpm test")
+
 
 def _inspect_document(service: str) -> dict[str, object]:
     backend = service in {"api", "worker"}
@@ -158,6 +235,14 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     action_references = re.findall(r"uses:\s+[^@\s]+@([^\s#]+)", workflow)
     assert action_references
     assert all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in action_references)
-    assert "pnpm verify" in workflow
+    # The workflow runs the repository's verification in a parallel matrix rather
+    # than as one `pnpm verify` invocation, so assert the coverage that script
+    # defines instead of the literal call. Reading the definition keeps this
+    # honest: adding a step to `verify` without wiring it into CI now fails here.
+    verify_script = json.loads((REPOSITORY_ROOT / "package.json").read_text())["scripts"]["verify"]
+    verify_steps = [step.strip() for step in verify_script.split("&&")]
+    assert verify_steps
+    uncovered = [step for step in verify_steps if not _workflow_covers(workflow, step)]
+    assert not uncovered, f"CI does not run these `pnpm verify` steps: {uncovered}"
     assert "pnpm cf:check" in workflow
     assert "verify_container_security.py" in workflow

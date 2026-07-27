@@ -56,6 +56,36 @@ def test_inventory_rendering_is_deterministic_and_escapes_pipes() -> None:
     assert first.count("| javascript | alpha | 2 | BSD-3-Clause |") == 1
 
 
+def test_python_marker_only_dependencies_are_platform_constrained(tmp_path: Path) -> None:
+    checker = _checker()
+    (tmp_path / "uv.lock").write_text(
+        """
+version = 1
+
+[[package]]
+name = "parent"
+version = "1"
+dependencies = [
+  { name = "conditional", marker = "sys_platform == 'linux'" },
+  { name = "interpreter", marker = "platform_python_implementation != 'PyPy'" },
+  { name = "shared" },
+]
+
+[[package]]
+name = "other"
+version = "1"
+dependencies = [
+  { name = "shared", marker = "sys_platform == 'win32'" },
+]
+""",
+        encoding="utf-8",
+    )
+
+    assert checker._python_platform_constrained_packages(root=tmp_path) == frozenset(
+        {"conditional"}
+    )
+
+
 def test_dependency_configuration_rejects_gpl_package_in_nested_lock(
     tmp_path: Path,
 ) -> None:
