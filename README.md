@@ -198,6 +198,13 @@ instead of silently changing units.
 | `pnpm licenses:check` | Verify dependency license policy and notices |
 | `pnpm verify` | Run the full delivery gate, including tests, samples, build, browser acceptance, and licenses |
 
+`pnpm samples:check` keeps every non-STEP artifact byte-exact. A changed STEP
+serialization is accepted only when both manifests and metadata remain
+self-consistent, the semantic sample record is unchanged, both files pass live
+OCCT validation and reimport, topology and surface classes match, and a
+scale-aware symmetric-difference check proves the solids geometrically
+equivalent. Accepted serialization drift is reported explicitly.
+
 Generated contracts begin in `packages/contracts/schema/cadgraph.schema.json`. Do not hand-edit a
 generated TypeScript or Python contract without updating the schema and generator inputs.
 
