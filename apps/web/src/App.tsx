@@ -15,10 +15,14 @@ import type {
   SampleDescriptor,
   Units,
 } from "./state/types";
+import { geometryToWarm, prefetchGeometry } from "./viewer/geometryPrefetch";
 import { normalizeProjectDetail } from "./workspace/normalize";
 
+const WORKSPACE_LOADING_LABEL = "Loading CAD workspace…";
+
+const importWorkspaceController = () => import("./workspace/WorkspaceController");
 const WorkspaceController = lazy(async () => ({
-  default: (await import("./workspace/WorkspaceController")).WorkspaceController,
+  default: (await importWorkspaceController()).WorkspaceController,
 }));
 
 // Dev-only control gallery (U1 deliverable). The import.meta.env.DEV guard makes
@@ -28,7 +32,13 @@ const Styleguide = import.meta.env.DEV
   : null;
 
 export default function App() {
-  const [screen, setScreen] = useState<"start" | "workspace">("start");
+  // sessionStorage is synchronous, so a reload can tell on the very first render
+  // whether a project was open. Starting at "start" instead would paint the whole
+  // landing page — and fire its samples/projects requests — for the length of the
+  // IndexedDB read plus the artifacts round-trip below, which reads as a flash.
+  const [screen, setScreen] = useState<"start" | "restoring" | "workspace">(
+    () => sessionStorage.getItem("mesh2param-active-project") === null ? "start" : "restoring",
+  );
   const [samples, setSamples] = useState<SampleDescriptor[]>([]);
   const [recentProjects, setRecentProjects] = useState<ProjectDetail[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -42,13 +52,26 @@ export default function App() {
   useEffect(() => {
     const activeProjectId = sessionStorage.getItem("mesh2param-active-project");
     if (activeProjectId === null) return;
+    // `lazy` only starts fetching when the component renders, which here is after
+    // the IndexedDB read below. The destination is already known, so the chunk —
+    // the largest asset in the app — downloads alongside that read instead.
+    void importWorkspaceController();
     let cancelled = false;
     void workspaceRepository.getWorkspace(activeProjectId).then(async (stored) => {
-      if (cancelled || stored === null) return;
-      await apiClient.listArtifacts(activeProjectId).catch(() => undefined);
       if (cancelled) return;
+      // No stored copy (never flushed, or IndexedDB was cleared): fall back to the
+      // landing rather than leaving the restore placeholder up forever.
+      if (stored === null) { setScreen("start"); return; }
       hydrateStoredWorkspace(stored);
       setScreen("workspace");
+      // Not awaited: the artifact list decides what geometry to warm, not whether
+      // the workspace can open. Awaiting it here put a whole round-trip in front
+      // of the first workspace paint and then discarded the response, which
+      // WorkspaceController goes on to fetch again for itself.
+      void warmRestoredGeometry(activeProjectId);
+    }).catch(() => {
+      // IndexedDB is unavailable in some private-browsing contexts.
+      if (!cancelled) setScreen("start");
     });
     return () => { cancelled = true; };
   }, []);
@@ -144,10 +167,17 @@ export default function App() {
     );
   }
 
+  // Same copy as the Suspense fallback below on purpose: restoring runs straight
+  // into the chunk load, and giving the two stages different wording made a
+  // reload read as two separate loads rather than one.
+  if (screen === "restoring") {
+    return <main className="workspace-loading" role="status">{WORKSPACE_LOADING_LABEL}</main>;
+  }
+
   if (screen === "workspace") {
     return (
       <>
-      <Suspense fallback={<main className="workspace-loading" role="status">Loading CAD workspace…</main>}>
+      <Suspense fallback={<main className="workspace-loading" role="status">{WORKSPACE_LOADING_LABEL}</main>}>
         <WorkspaceController
           workerReady={readiness?.status === "ready"}
           initialJob={initialJob}
@@ -230,6 +260,25 @@ export default function App() {
       {authRequired ? <ApiTokenDialog onClose={() => setAuthRequired(false)} /> : null}
     </>
   );
+}
+
+/**
+ * Starts the geometry download for a restored project while the viewer chunk is
+ * still being fetched and parsed, instead of after. Best-effort throughout: a
+ * failure here costs nothing, because the viewer issues the same request itself.
+ */
+async function warmRestoredGeometry(projectId: string): Promise<void> {
+  try {
+    const artifacts = (await apiClient.listArtifacts(projectId)).data.items;
+    const available = new Set(artifacts.map((artifact) => artifact.name));
+    const wanted = geometryToWarm(workspaceStore.getState().viewer.mode, available);
+    prefetchGeometry(wanted.flatMap((name) => {
+      const artifact = artifacts.find((candidate) => candidate.name === name);
+      return artifact === undefined ? [] : [apiClient.artifactUrl(projectId, artifact.name, artifact.sha256)];
+    }));
+  } catch {
+    // Offline, or the project is server-side gone: the stored workspace still opens.
+  }
 }
 
 function deriveProjectName(filename: string): string {
