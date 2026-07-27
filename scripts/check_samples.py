@@ -119,7 +119,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not comparison.matches and args.generated_output is not None:
             generated_output = args.generated_output.resolve()
             generated_output.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(regenerated, generated_output)
+            shutil.copytree(regenerated, generated_output, copy_function=shutil.copyfile)
 
     payload = comparison.to_dict()
     if args.json_output is not None:
