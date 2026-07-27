@@ -3,8 +3,14 @@ from __future__ import annotations
 from mesh2param.validation import normalize_step_bytes
 
 
-def _step_payload(first: str, second: str, *, wrapped: bool = False) -> bytes:
-    point = f"#1 = CARTESIAN_POINT('',({first},{second},-6.077511700175E-16));"
+def _step_payload(
+    first: str,
+    second: str,
+    *,
+    tiny: str = "-6.077511700175E-16",
+    wrapped: bool = False,
+) -> bytes:
+    point = f"#1 = CARTESIAN_POINT('',({first},{second},{tiny}));"
     if wrapped:
         point = point.replace(f",{second},", f",\n  {second},")
     return (
@@ -34,7 +40,19 @@ def test_step_normalization_removes_sub_kernel_numeric_drift() -> None:
     assert first == second
     assert b"9.31705048922" in first
     assert b"4.16477714952" in first
-    assert b"-6.07751170018E-16" in first
+    assert b",0.));" in first
+
+
+def test_step_normalization_zeroes_sub_precision_scientific_noise() -> None:
+    first = normalize_step_bytes(
+        _step_payload("1.000000000000", "2.000000000000", tiny="-1.084202172486E-19")
+    )
+    second = normalize_step_bytes(
+        _step_payload("1.000000000000", "2.000000000000", tiny="-5.421010862428E-20")
+    )
+
+    assert first == second
+    assert b"(1.,2.,0.));" in first
 
 
 def test_step_normalization_handles_large_real_literals() -> None:

@@ -306,9 +306,12 @@ _STEP_REAL_QUANTUM = Decimal("1e-11")
 
 def _normalize_step_real_literal(match: re.Match[str]) -> str:
     mantissa = match.group("mantissa")
+    exponent = match.group("exponent") or ""
     digits = len(mantissa.lstrip("+-").replace(".", ""))
     with localcontext() as context:
         context.prec = max(28, digits + 12)
+        if abs(Decimal(mantissa + exponent)) < _STEP_REAL_QUANTUM:
+            return "0."
         value = Decimal(mantissa).quantize(
             _STEP_REAL_QUANTUM,
             rounding=ROUND_HALF_EVEN,
@@ -318,7 +321,7 @@ def _normalize_step_real_literal(match: re.Match[str]) -> str:
     normalized = format(value, "f").rstrip("0")
     if not normalized.endswith(".") and "." not in normalized:
         normalized += "."
-    return normalized + (match.group("exponent") or "")
+    return normalized + exponent
 
 
 def _normalize_step_statements(text: str) -> str:
