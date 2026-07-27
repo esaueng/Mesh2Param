@@ -70,7 +70,7 @@ def sample_transform(spec: SampleSpec) -> SampleTransform:
         translation_mm=cast(tuple[float, float, float], translation),
         rotation=cast(
             tuple[tuple[float, float, float], ...],
-            tuple(tuple(float(item) for item in row) for row in rotation),
+            tuple(tuple(round(float(item), 15) for item in row) for row in rotation),
         ),
     )
 

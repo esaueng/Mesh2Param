@@ -209,6 +209,8 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     assert "sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa" in backend
     assert "ARG BACKEND_PLATFORM=linux/amd64" in backend
     assert backend.count("FROM --platform=${BACKEND_PLATFORM}") == 2
+    assert "--reinstall-package mesh2param" in backend
+    assert "--reinstall-package mesh2param-contracts" in backend
     assert "RUN /opt/venv/bin/python -P - <<'PY'" in backend
     assert "BRepCheck_Analyzer(restored.val().wrapped).IsValid()" in backend
     assert "sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94" in web

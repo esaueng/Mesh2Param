@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
@@ -295,10 +296,56 @@ _STEP_FILE_NAME = re.compile(
     r"FILE_NAME\('[^']*','[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+(?:\.[0-9]+)?'"
 )
 _STEP_TRANSLATOR_SEQUENCE = re.compile(r"(Open CASCADE STEP translator [0-9.]+) [0-9]+")
+_STEP_REAL_LITERAL = re.compile(
+    r"(?<![A-Za-z0-9_#])"
+    r"(?P<mantissa>[+-]?(?:[0-9]+\.[0-9]{12,}|\.[0-9]{12,}))"
+    r"(?P<exponent>E[+-]?[0-9]+)?"
+)
+_STEP_REAL_QUANTUM = Decimal("1e-11")
+
+
+def _normalize_step_real_literal(match: re.Match[str]) -> str:
+    mantissa = match.group("mantissa")
+    digits = len(mantissa.lstrip("+-").replace(".", ""))
+    with localcontext() as context:
+        context.prec = max(28, digits + 12)
+        value = Decimal(mantissa).quantize(
+            _STEP_REAL_QUANTUM,
+            rounding=ROUND_HALF_EVEN,
+        )
+    if value.is_zero():
+        value = abs(value)
+    normalized = format(value, "f").rstrip("0")
+    if not normalized.endswith(".") and "." not in normalized:
+        normalized += "."
+    return normalized + (match.group("exponent") or "")
+
+
+def _normalize_step_statements(text: str) -> str:
+    def join_parts(parts: list[str]) -> str:
+        statement = parts[0]
+        for part in parts[1:]:
+            separator = "" if statement[-1] in "(," or part[0] in "),;" else " "
+            statement += separator + part
+        return statement
+
+    statements: list[str] = []
+    current: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        current.append(line)
+        if line.endswith(";"):
+            statements.append(join_parts(current))
+            current.clear()
+    if current:
+        raise ValueError("unexpected Open CASCADE STEP body: unterminated statement")
+    return "\n".join(statements) + "\n"
 
 
 def normalize_step_bytes(payload: bytes, *, model_name: str = "model") -> bytes:
-    """Remove OCCT process/time counters without changing STEP geometry."""
+    """Remove OCCT process/time drift and sub-kernel numeric noise."""
 
     stable_name = re.sub(r"[^A-Za-z0-9._-]+", "_", model_name).strip("._-") or "model"
     text = payload.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
@@ -316,7 +363,8 @@ def normalize_step_bytes(payload: bytes, *, model_name: str = "model") -> bytes:
             "unexpected Open CASCADE STEP labels: expected exactly two translator counters, "
             f"replaced {translator_replacements}"
         )
-    text = "\n".join(line.rstrip() for line in text.split("\n")).rstrip("\n") + "\n"
+    text = _STEP_REAL_LITERAL.sub(_normalize_step_real_literal, text)
+    text = _normalize_step_statements(text)
     return text.encode("utf-8")
 
 

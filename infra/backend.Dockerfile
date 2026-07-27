@@ -40,7 +40,9 @@ COPY engine engine
 COPY services services
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    uv sync --frozen --no-dev --no-editable \
+        --reinstall-package mesh2param \
+        --reinstall-package mesh2param-contracts
 
 # The image is not accepted unless its exact locked OCCT stack completes a real STEP roundtrip.
 RUN /opt/venv/bin/python -P - <<'PY'

@@ -7,7 +7,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 import trimesh
-from mesh2param.samples import SAMPLE_SPECS, generate_sample_corpus
+from mesh2param.samples import (
+    SAMPLE_SPECS,
+    generate_sample_corpus,
+    sample_spec,
+    sample_transform,
+)
 from mesh2param_contracts import CADGraph
 
 EXPECTED_FILES = {
@@ -42,6 +47,12 @@ def _assert_mesh(path: Path) -> trimesh.Trimesh:
     assert loaded.is_winding_consistent
     assert np.all(loaded.area_faces > 1e-12)
     return loaded
+
+
+def test_sample_transform_canonicalizes_platform_trigonometry() -> None:
+    transform = sample_transform(sample_spec("block-blind-hole"))
+
+    assert transform.rotation[0][2] == -0.093429189761508
 
 
 @pytest.mark.geometry
