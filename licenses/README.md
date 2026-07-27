@@ -14,12 +14,11 @@ terms are not replaced by the project license.
 The `cadquery-ocp` wheel declares its Python bindings as Apache-2.0 and also contains OCCT shared
 libraries (`libTK*.so`, `.dylib`, or DLL equivalents). Those OCCT libraries are LGPL-2.1-only with
 the Open CASCADE exception; both layers are recorded. CasADi's package metadata says LGPLv3+, and
-the upstream 3.7.2 text permits version 3 or any later version. On macOS ARM,
-the existing Wrangler development dependency installs
-`@img/sharp-libvips-darwin-arm64`; package version 1.2.4 declares
-LGPL-3.0-or-later and contains libvips 8.17.3 plus its recorded dynamic
-dependencies. It is explicitly reviewed in policy but remains development
-tooling rather than a Mesh2Param application runtime dependency.
+the upstream 3.7.2 text permits version 3 or any later version. The existing Wrangler development
+dependency installs one of the platform-constrained `@img/sharp-libvips-*` packages locked at
+version 1.2.4. Those packages declare LGPL-3.0-or-later and contain libvips 8.17.3 plus their
+recorded dynamic dependencies. Every locked platform variant is explicitly reviewed in policy but
+remains development tooling rather than a Mesh2Param application runtime dependency.
 
 Run the standard-library-only checker from the repository root after installing both ecosystems:
 
@@ -29,11 +28,13 @@ uv run --extra dev python scripts/check_licenses.py
 
 The checker:
 
-- audits every installed Python distribution and every package reported by `pnpm licenses list`;
+- audits every installed Python distribution and every package in pnpm's installed virtual store;
 - rejects unresolved or non-allowlisted licenses and unreviewed GPL/AGPL/SSPL/BUSL/CC-BY-NC
   dependencies;
 - permits LGPL only for the explicitly reviewed OCCT, CasADi, and
   platform-constrained Wrangler libvips packages;
+- omits OS/architecture-constrained Python dependencies and platform-constrained JavaScript
+  packages from the generated cross-platform notice inventory while still auditing their licenses;
 - verifies hashes of the canonical project, OCCT, and CasADi license texts;
 - rejects the GPL-bearing `jsonschema[format]` dependency path;
 - checks that the generated table in `THIRD_PARTY_NOTICES.md` is current.

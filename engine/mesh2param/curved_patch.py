@@ -1480,6 +1480,56 @@ def _torus_fusers(tori: tuple[PlateTorus, ...]) -> tuple[TorusFuser, ...]:
     )
 
 
+_CORE_COVERAGE_RELATIVE_TOLERANCE = 1e-8
+
+
+def _is_removed_core(
+    fragment: cq.Shape,
+    cutter: cq.Shape,
+    sibling_fragments: tuple[cq.Shape, ...] = (),
+) -> bool:
+    """Whether a boolean fragment is material the cutter was meant to remove.
+
+    Open CASCADE does not always discard the core it cuts out: on some builds
+    the subtraction returns it alongside the remainder rather than deleting it,
+    and that core can include material duplicated by the retained fragment. A
+    fragment is removable only when the cutter removes a non-trivial volume and
+    every residual part is already represented by another returned fragment.
+    Centroid containment is insufficient: a valid symmetric plate remainder can
+    have its centroid on the cutter axis even though nearly all of the plate lies
+    outside the cylinder.
+    """
+
+    fragment_volume = abs(float(fragment.Volume()))
+    if not math.isfinite(fragment_volume) or fragment_volume <= 0.0:
+        return False
+    try:
+        outside = fragment.cut(cutter)
+        outside_volume = abs(float(outside.Volume()))
+    except Exception:
+        # Classification must fail closed: if coverage cannot be proved,
+        # leave the fragment in place so the caller reports multiple solids.
+        return False
+    if not math.isfinite(outside_volume):
+        return False
+    tolerance = max(
+        fragment_volume * _CORE_COVERAGE_RELATIVE_TOLERANCE,
+        64.0 * math.ulp(fragment_volume),
+    )
+    removed_volume = fragment_volume - outside_volume
+    if removed_volume <= tolerance:
+        return False
+    if outside_volume <= tolerance:
+        return True
+    if not sibling_fragments:
+        return False
+    try:
+        unmatched_volume = abs(float(outside.cut(*sibling_fragments).Volume()))
+    except Exception:
+        return False
+    return math.isfinite(unmatched_volume) and unmatched_volume <= tolerance
+
+
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
     """Boolean-subtract each recorded hole cutter from the plate solid.
 
@@ -1504,7 +1554,28 @@ def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shap
                 "curved_patch_hole_boolean_failed",
                 f"subtracting hole {index} failed: {exc}",
             ) from exc
-        if len(result.Solids()) != 1:
+        solids = result.Solids()
+        if len(solids) > 1:
+            remainder = [
+                piece
+                for piece_index, piece in enumerate(solids)
+                if not _is_removed_core(
+                    piece,
+                    cutter,
+                    tuple(
+                        sibling
+                        for sibling_index, sibling in enumerate(solids)
+                        if sibling_index != piece_index
+                    ),
+                )
+            ]
+            # Only rebuild the shape when the kernel actually handed back extra
+            # pieces; leaving the single-solid path untouched keeps the exported
+            # bytes identical on builds that discard the core themselves.
+            if len(remainder) == 1:
+                result = remainder[0]
+                solids = remainder
+        if len(solids) != 1:
             raise CurvedPatchError(
                 "assembling solid",
                 "curved_patch_hole_boolean_failed",

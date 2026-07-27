@@ -15,6 +15,28 @@ FIXTURE = (
 )
 
 
+def _assert_artifact_bytes_equal(first: Path, second: Path, artifact: str) -> None:
+    first_bytes = (first / artifact).read_bytes()
+    second_bytes = (second / artifact).read_bytes()
+    if first_bytes == second_bytes:
+        return
+    first_difference = next(
+        (
+            index
+            for index, values in enumerate(zip(first_bytes, second_bytes, strict=False))
+            if values[0] != values[1]
+        ),
+        min(len(first_bytes), len(second_bytes)),
+    )
+    context_start = max(0, first_difference - 160)
+    context_end = first_difference + 240
+    pytest.fail(
+        f"{artifact} differs at byte {first_difference}; "
+        f"first={first_bytes[context_start:context_end]!r}; "
+        f"second={second_bytes[context_start:context_end]!r}"
+    )
+
+
 @pytest.mark.geometry
 @pytest.mark.samples
 def test_filleted_spanner_emits_semantic_fillet_and_is_deterministic(
@@ -91,6 +113,4 @@ def test_filleted_spanner_emits_semantic_fillet_and_is_deterministic(
         "sections.glb",
         "fillets.json",
     ):
-        assert (outputs[0] / artifact).read_bytes() == (outputs[1] / artifact).read_bytes(), (
-            artifact
-        )
+        _assert_artifact_bytes_equal(outputs[0], outputs[1], artifact)
