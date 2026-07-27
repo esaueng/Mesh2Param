@@ -23,6 +23,7 @@ import { ArtifactLayer, type SelectionRange } from "./ArtifactLayer";
 import { CameraRig, type CameraCommand } from "./CameraRig";
 import { OrientationGizmoCanvas, type GizmoViewRequest } from "./OrientationGizmo";
 import { scaleBarForPixelsPerUnit, type ScaleBarSpec, type ViewPreset } from "./cameraMath";
+import { MODE_GEOMETRY, OVERLAY_GEOMETRY, VIEWER_MODE_FALLBACK_ORDER } from "./geometryPrefetch";
 import { geometryArtifactUrls, releaseProjectGltfCache, syncProjectGltfCache } from "./gltfCache";
 import { measurementLabel, requiredMeasurementPoints, type MeasurementMode, type Point3 } from "./measurements";
 import { sectionPlaneForBounds } from "./sectionPlane";
@@ -162,8 +163,7 @@ export function CadViewport({
   const selectionArtifact = artifactMap.get("selection-map.json");
   useEffect(() => {
     if (canShow(preferences.mode, artifactMap)) return;
-    const fallback = (["source", "reconstructed", "patches", "repaired", "analysis", "residual"] as ViewerMode[])
-      .find((mode) => canShow(mode, artifactMap));
+    const fallback = VIEWER_MODE_FALLBACK_ORDER.find((mode) => canShow(mode, artifactMap));
     if (fallback !== undefined) onPreferences({ mode: fallback });
   }, [artifactMap, onPreferences, preferences.mode]);
 
@@ -442,7 +442,18 @@ export function CadViewport({
           gl={{ alpha: false, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false }}
           camera={{ position: [90, -110, 85], up: [0, 0, 1], fov: 42, near: 0.01, far: 100_000 }}
           onPointerMissed={() => onSelectPatch(null)}
-          onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
+          onCreated={({ gl }) => {
+            gl.localClippingEnabled = true;
+            // three.js validates every freshly linked program with
+            // getProgramInfoLog, which blocks the main thread until the driver
+            // has finished linking. On a GPU that advertises
+            // KHR_parallel_shader_compile this costs little, but on the
+            // software fallback (no such extension — older machines, blocklisted
+            // GPUs, VMs, remote sessions) it measured ~240ms of the reload.
+            // Dev keeps the check so shader authoring errors stay loud;
+            // production ships shaders already known to compile.
+            gl.debug.checkShaderErrors = import.meta.env.DEV;
+          }}
         >
           <color key={palette.background} attach="background" args={[palette.background]} />
           <ambientLight intensity={palette.ambientIntensity} />
@@ -658,14 +669,6 @@ function layersForMode(
   map: Map<string, ArtifactDescriptor>,
 ): DisplayLayer[] {
   const { mode } = preferences;
-  const nameFor: Partial<Record<ViewerMode, string>> = {
-    source: "source.glb",
-    repaired: "repaired.glb",
-    patches: "patches.glb",
-    reconstructed: "reconstructed.glb",
-    residual: "residual.glb",
-    analysis: "analysis-proxy.glb",
-  };
   if (mode === "overlay") {
     return [
       { name: "source.glb", opacity: preferences.sourceOpacity, mode: "source" },
@@ -675,22 +678,14 @@ function layersForMode(
       return artifact === undefined ? [] : [{ artifact, opacity: item.opacity, mode: item.mode }];
     });
   }
-  const artifact = map.get(nameFor[mode] ?? "");
+  const artifact = map.get(MODE_GEOMETRY[mode] ?? "");
   const opacity = mode === "source" ? preferences.sourceOpacity : preferences.resultOpacity;
   return artifact === undefined ? [] : [{ artifact, opacity, mode }];
 }
 
 function canShow(mode: ViewerMode, map: Map<string, ArtifactDescriptor>): boolean {
-  if (mode === "overlay") return map.has("source.glb") && map.has("reconstructed.glb");
-  if (mode === "source") return map.has("source.glb");
-  const name: Partial<Record<ViewerMode, string>> = {
-    repaired: "repaired.glb",
-    patches: "patches.glb",
-    reconstructed: "reconstructed.glb",
-    residual: "residual.glb",
-    analysis: "analysis-proxy.glb",
-  };
-  return map.has(name[mode] ?? "");
+  if (mode === "overlay") return OVERLAY_GEOMETRY.every((name) => map.has(name));
+  return map.has(MODE_GEOMETRY[mode] ?? "");
 }
 
 function ModeIcon({ mode }: { mode: ViewerMode }) {
