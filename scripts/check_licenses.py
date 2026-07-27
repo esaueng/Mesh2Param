@@ -197,7 +197,57 @@ def normalize_license(
     return None
 
 
-def python_records(policy: LicensePolicy) -> tuple[list[LicenseRecord], list[str]]:
+def _python_platform_constrained_packages(*, root: Path = ROOT) -> frozenset[str]:
+    """Return packages whose every lockfile edge is constrained by OS or architecture."""
+
+    references: dict[str, list[bool]] = {}
+    platform_marker_fields = (
+        "os_name",
+        "platform_machine",
+        "platform_system",
+        "sys_platform",
+    )
+
+    def inspect(value: object) -> None:
+        if isinstance(value, dict):
+            name = value.get("name")
+            if isinstance(name, str):
+                marker = value.get("marker")
+                references.setdefault(name.casefold(), []).append(
+                    isinstance(marker, str)
+                    and any(field in marker for field in platform_marker_fields)
+                )
+                return
+            for nested in value.values():
+                inspect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                inspect(nested)
+
+    for relative in ("uv.lock", "packages/contracts/uv.lock"):
+        path = root / relative
+        if not path.is_file():
+            continue
+        with path.open("rb") as stream:
+            document = tomllib.load(stream)
+        packages = document.get("package", [])
+        if not isinstance(packages, list):
+            continue
+        for package in packages:
+            if not isinstance(package, dict):
+                continue
+            for field, value in package.items():
+                if field != "name":
+                    inspect(value)
+    return frozenset(
+        name for name, markers in references.items() if markers and all(markers)
+    )
+
+
+def python_records(
+    policy: LicensePolicy, *, root: Path = ROOT
+) -> tuple[list[LicenseRecord], list[str]]:
+    platform_constrained = _python_platform_constrained_packages(root=root)
     records: set[LicenseRecord] = set()
     errors: list[str] = []
     for distribution in importlib.metadata.distributions():
@@ -217,7 +267,15 @@ def python_records(policy: LicensePolicy) -> tuple[list[LicenseRecord], list[str
         if license_name is None:
             errors.append(f"unresolved Python license: {name}=={distribution.version}")
             continue
-        records.add(LicenseRecord("python", name, distribution.version, license_name))
+        records.add(
+            LicenseRecord(
+                "python",
+                name,
+                distribution.version,
+                license_name,
+                platform_constrained=name.casefold() in platform_constrained,
+            )
+        )
     return sorted(records), errors
 
 

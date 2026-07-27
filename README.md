@@ -190,7 +190,7 @@ instead of silently changing units.
 | `pnpm test:geometry` | Run the exact sixteen-step geometry acceptance case |
 | `pnpm test:e2e` | Run the native primary-workflow Playwright test |
 | `pnpm cf:test` | Run browser-local Cloudflare/OCCT integration tests against `pnpm cf:dev` |
-| `pnpm samples:check` | Verify the committed procedural corpus is deterministic and current |
+| `pnpm samples:check` | Verify the committed procedural corpus in the pinned image (Docker required) |
 | `pnpm curved:fixtures` | Regenerate the curved ground-truth benchmark fixtures |
 | `pnpm curved:baseline` | Measure the faceted baseline for the curved corpus |
 | `pnpm general:fixtures` | Regenerate the general-parametric spanner fixtures |
