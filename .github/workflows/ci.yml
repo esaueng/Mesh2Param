@@ -144,7 +144,6 @@ jobs:
 
   containers:
     name: Containers
-    needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -178,6 +177,7 @@ jobs:
       - name: Verify the sample corpus
         env:
           MESH2PARAM_SAMPLES_IMAGE: mesh2param-backend:ci
+          MESH2PARAM_SAMPLES_DIAGNOSTICS_DIR: artifacts/container-ci/sample-corpus
         run: pnpm samples:check
 
       - name: Create non-secret CI environment

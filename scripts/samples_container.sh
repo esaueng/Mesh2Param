@@ -54,8 +54,18 @@ case "$action" in
   check)
     # The repository is mounted read-only; the comparison regenerates into the
     # container's own temporary directory.
-    docker run --rm --platform "$platform" --user 0:0 -v "$root":/src:ro "$image" \
-      python -P /src/scripts/check_samples.py --expected /src/samples/generated
+    diagnostics_args=()
+    diagnostics_mount=()
+    if [ -n "${MESH2PARAM_SAMPLES_DIAGNOSTICS_DIR:-}" ]; then
+      mkdir -p "$MESH2PARAM_SAMPLES_DIAGNOSTICS_DIR"
+      diagnostics_root=$(cd "$MESH2PARAM_SAMPLES_DIAGNOSTICS_DIR" && pwd)
+      diagnostics_mount=(-v "$diagnostics_root":/diagnostics)
+      diagnostics_args=(--generated-output /diagnostics/generated)
+    fi
+    docker run --rm --platform "$platform" --user 0:0 -v "$root":/src:ro \
+      "${diagnostics_mount[@]}" "$image" \
+      python -P /src/scripts/check_samples.py --expected /src/samples/generated \
+      "${diagnostics_args[@]}"
     ;;
   *)
     echo "usage: samples_container.sh [generate|check]" >&2

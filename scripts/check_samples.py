@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import stat
 import tempfile
 from collections.abc import Sequence
@@ -99,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="optional machine-readable comparison output",
     )
+    parser.add_argument(
+        "--generated-output",
+        type=Path,
+        help="copy the regenerated corpus here when the comparison fails",
+    )
     return parser
 
 
@@ -110,6 +116,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         regenerated = Path(temporary) / "generated"
         generate_sample_corpus(regenerated)
         comparison = compare_sample_trees(args.expected.resolve(), regenerated)
+        if not comparison.matches and args.generated_output is not None:
+            generated_output = args.generated_output.resolve()
+            generated_output.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(regenerated, generated_output)
 
     payload = comparison.to_dict()
     if args.json_output is not None:
