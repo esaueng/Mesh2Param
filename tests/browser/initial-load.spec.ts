@@ -23,6 +23,27 @@ test("the landing page does not load the project-file codec", async ({ page }) =
   expect(scripts.filter((path) => /WorkspaceController/.test(path))).toEqual([]);
 });
 
+test("the landing page remains usable when session storage is denied", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(String(error)));
+  await page.addInitScript(() => {
+    for (const method of ["getItem", "setItem", "removeItem"]) {
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value() {
+          throw new DOMException("Storage disabled for boot regression", "SecurityError");
+        },
+      });
+    }
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByTestId("start-screen")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Try the L-bracket sample/i })).toBeEnabled();
+  expect(pageErrors).toEqual([]);
+});
+
 test("saving a project loads the codec on demand and produces a readable file", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Reflect.deleteProperty(globalThis, "showSaveFilePicker");
