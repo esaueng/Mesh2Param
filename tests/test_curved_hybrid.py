@@ -52,7 +52,7 @@ def _load(directory: Path) -> trimesh.Trimesh:
 
 
 @pytest.mark.geometry
-def test_removed_core_requires_whole_fragment_containment() -> None:
+def test_removed_core_requires_whole_result_coverage() -> None:
     cutter = cq.Solid.makeCylinder(
         10.0,
         10.0,
@@ -68,11 +68,16 @@ def test_removed_core_requires_whole_fragment_containment() -> None:
     plate = cq.Workplane("XY").box(100.0, 100.0, 10.0).val()
     assert isinstance(plate, cq.Shape)
     centered_remainder = plate.cut(cutter)
+    duplicate_tab = cq.Workplane("XY").box(24.0, 2.0, 2.0).translate((10.0, 0.0, 0.0)).val()
+    assert isinstance(duplicate_tab, cq.Shape)
+    core_with_duplicated_tab = core.fuse(duplicate_tab)
 
     center = centered_remainder.Center()
     assert (center.x, center.y, center.z) == pytest.approx((0.0, 0.0, 0.0), abs=1e-12)
     assert _is_removed_core(core, cutter)
     assert not _is_removed_core(centered_remainder, cutter)
+    assert not _is_removed_core(core_with_duplicated_tab, cutter)
+    assert _is_removed_core(core_with_duplicated_tab, cutter, (centered_remainder,))
 
 
 @pytest.mark.geometry
