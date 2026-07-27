@@ -5,6 +5,7 @@ import { ErrorToast } from "./components/ErrorToast";
 import { ApiTokenDialog } from "./components/ApiTokenDialog";
 import { workspaceRepository } from "./persistence/repository";
 import { loadAppPreferences } from "./persistence/appPreferences";
+import { getSessionItem, removeSessionItem, setSessionItem } from "./persistence/sessionStorage";
 import { CanvasLanding } from "./canvas/CanvasLanding";
 import { workspaceStore } from "./state/store";
 import type {
@@ -19,6 +20,7 @@ import { geometryToWarm, prefetchGeometry } from "./viewer/geometryPrefetch";
 import { normalizeProjectDetail } from "./workspace/normalize";
 
 const WORKSPACE_LOADING_LABEL = "Loading CAD workspace…";
+const ACTIVE_PROJECT_KEY = "mesh2param-active-project";
 
 const importWorkspaceController = () => import("./workspace/WorkspaceController");
 const WorkspaceController = lazy(async () => ({
@@ -36,8 +38,9 @@ export default function App() {
   // whether a project was open. Starting at "start" instead would paint the whole
   // landing page — and fire its samples/projects requests — for the length of the
   // IndexedDB read plus the artifacts round-trip below, which reads as a flash.
+  // The best-effort wrapper keeps storage-denied browsers on a usable start screen.
   const [screen, setScreen] = useState<"start" | "restoring" | "workspace">(
-    () => sessionStorage.getItem("mesh2param-active-project") === null ? "start" : "restoring",
+    () => getSessionItem(ACTIVE_PROJECT_KEY) === null ? "start" : "restoring",
   );
   const [samples, setSamples] = useState<SampleDescriptor[]>([]);
   const [recentProjects, setRecentProjects] = useState<ProjectDetail[]>([]);
@@ -50,7 +53,7 @@ export default function App() {
   const dismissError = useCallback(() => setError(null), []);
 
   useEffect(() => {
-    const activeProjectId = sessionStorage.getItem("mesh2param-active-project");
+    const activeProjectId = getSessionItem(ACTIVE_PROJECT_KEY);
     if (activeProjectId === null) return;
     // `lazy` only starts fetching when the component renders, which here is after
     // the IndexedDB read below. The destination is already known, so the chunk —
@@ -139,7 +142,7 @@ export default function App() {
       state.setViewerPreferences(ui.viewer);
       state.setShellState(ui.shell);
     }
-    sessionStorage.setItem("mesh2param-active-project", project.id);
+    setSessionItem(ACTIVE_PROJECT_KEY, project.id);
     setInitialJob(job);
     setInitialUpload(upload);
     setError(null);
@@ -183,7 +186,7 @@ export default function App() {
           initialJob={initialJob}
           initialUpload={initialUpload}
           onOpenStart={() => {
-            sessionStorage.removeItem("mesh2param-active-project");
+            removeSessionItem(ACTIVE_PROJECT_KEY);
             setInitialJob(null);
             setInitialUpload(null);
             setScreen("start");
@@ -246,7 +249,7 @@ export default function App() {
             if (stored === null) throw cause;
             await apiClient.listArtifacts(projectId).catch(() => undefined);
             hydrateStoredWorkspace(stored);
-            sessionStorage.setItem("mesh2param-active-project", projectId);
+            setSessionItem(ACTIVE_PROJECT_KEY, projectId);
             setInitialJob(null);
             setScreen("workspace");
           }
