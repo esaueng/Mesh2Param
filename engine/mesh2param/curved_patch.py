@@ -1480,24 +1480,39 @@ def _torus_fusers(tori: tuple[PlateTorus, ...]) -> tuple[TorusFuser, ...]:
     )
 
 
-def _is_removed_core(fragment: cq.Shape, cutter: HoleCutter) -> bool:
+_CORE_CONTAINMENT_RELATIVE_TOLERANCE = 1e-8
+
+
+def _is_removed_core(fragment: cq.Shape, cutter: cq.Shape) -> bool:
     """Whether a boolean fragment is material the cutter was meant to remove.
 
     Open CASCADE does not always discard the core it cuts out: on some builds
     the subtraction returns it alongside the remainder rather than deleting it.
-    A fragment whose centroid lies inside the cutter cylinder is by definition
-    that core, and keeping it would fill the hole back in. A fragment outside
-    the cutter is a piece the hole genuinely severed from the plate, which is a
-    real modelling failure and must still be reported.
+    The fragment is removable only when its whole volume is contained by the
+    cutter. Centroid containment is insufficient: a valid symmetric plate
+    remainder can have its centroid on the cutter axis even though nearly all of
+    the plate lies outside the cylinder.
     """
 
-    axis = np.asarray(cutter.direction, dtype=np.float64)
-    base = np.asarray(cutter.base_point, dtype=np.float64)
-    centre = fragment.Center()
-    offset = np.array([centre.x, centre.y, centre.z], dtype=np.float64) - base
-    along = float(offset @ axis)
-    radial = float(np.linalg.norm(offset - along * axis))
-    return radial <= cutter.radius and 0.0 <= along <= cutter.height
+    fragment_volume = abs(float(fragment.Volume()))
+    if not math.isfinite(fragment_volume) or fragment_volume <= 0.0:
+        return False
+    try:
+        intersection_volume = abs(float(fragment.intersect(cutter).Volume()))
+    except Exception:
+        # Classification must fail closed: if containment cannot be proved,
+        # leave the fragment in place so the caller reports multiple solids.
+        return False
+    if not math.isfinite(intersection_volume):
+        return False
+    tolerance = max(
+        fragment_volume * _CORE_CONTAINMENT_RELATIVE_TOLERANCE,
+        64.0 * math.ulp(fragment_volume),
+    )
+    return (
+        intersection_volume > 0.0
+        and abs(fragment_volume - intersection_volume) <= tolerance
+    )
 
 
 def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shape:
@@ -1526,7 +1541,7 @@ def _subtract_holes(solid: cq.Shape, cutters: tuple[HoleCutter, ...]) -> cq.Shap
             ) from exc
         solids = result.Solids()
         if len(solids) > 1:
-            remainder = [piece for piece in solids if not _is_removed_core(piece, cutter_spec)]
+            remainder = [piece for piece in solids if not _is_removed_core(piece, cutter)]
             # Only rebuild the shape when the kernel actually handed back extra
             # pieces; leaving the single-solid path untouched keeps the exported
             # bytes identical on builds that discard the core themselves.

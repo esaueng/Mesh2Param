@@ -38,6 +38,15 @@ forbidden_fragments = [
 ]
 allowed_copyleft_packages = [
   "javascript:@img/sharp-libvips-darwin-arm64",
+  "javascript:@img/sharp-libvips-darwin-x64",
+  "javascript:@img/sharp-libvips-linux-arm",
+  "javascript:@img/sharp-libvips-linux-arm64",
+  "javascript:@img/sharp-libvips-linux-ppc64",
+  "javascript:@img/sharp-libvips-linux-riscv64",
+  "javascript:@img/sharp-libvips-linux-s390x",
+  "javascript:@img/sharp-libvips-linux-x64",
+  "javascript:@img/sharp-libvips-linuxmusl-arm64",
+  "javascript:@img/sharp-libvips-linuxmusl-x64",
   "python:cadquery-ocp",
   "python:casadi",
 ]

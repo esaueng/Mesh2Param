@@ -19,6 +19,7 @@ from mesh2param.curved_patch import (
     CurvedNetworkSettings,
     CurvedPatchError,
     CurvedPatchSettings,
+    _is_removed_core,
     reconstruct_plate_network,
     reconstruct_single_patch_plate,
 )
@@ -48,6 +49,30 @@ def _load(directory: Path) -> trimesh.Trimesh:
     loaded = trimesh.load_mesh(directory / FIXTURE_STL_NAME, process=True)
     assert isinstance(loaded, trimesh.Trimesh)
     return loaded
+
+
+@pytest.mark.geometry
+def test_removed_core_requires_whole_fragment_containment() -> None:
+    cutter = cq.Solid.makeCylinder(
+        10.0,
+        10.0,
+        cq.Vector(0.0, 0.0, -5.0),
+        cq.Vector(0.0, 0.0, 1.0),
+    )
+    core = cq.Solid.makeCylinder(
+        10.0,
+        10.0,
+        cq.Vector(0.0, 0.0, -5.0),
+        cq.Vector(0.0, 0.0, 1.0),
+    )
+    plate = cq.Workplane("XY").box(100.0, 100.0, 10.0).val()
+    assert isinstance(plate, cq.Shape)
+    centered_remainder = plate.cut(cutter)
+
+    center = centered_remainder.Center()
+    assert (center.x, center.y, center.z) == pytest.approx((0.0, 0.0, 0.0), abs=1e-12)
+    assert _is_removed_core(core, cutter)
+    assert not _is_removed_core(centered_remainder, cutter)
 
 
 @pytest.mark.geometry
