@@ -51,8 +51,10 @@ def _assert_mesh(path: Path) -> trimesh.Trimesh:
 
 def test_sample_transform_canonicalizes_platform_trigonometry() -> None:
     transform = sample_transform(sample_spec("block-blind-hole"))
+    four_hole_transform = sample_transform(sample_spec("four-hole-mounting-plate"))
 
-    assert transform.rotation[0][2] == -0.093429189761508
+    assert transform.rotation[0][2] == -0.093429189762
+    assert four_hole_transform.rotation[1][2] == 0.566130350913
 
 
 @pytest.mark.geometry
