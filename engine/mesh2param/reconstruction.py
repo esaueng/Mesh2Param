@@ -642,8 +642,34 @@ def _complete_prismatic_reconstruction(
             allowed_surfaces.append("surfaceOfExtrusion")
         if any(feature.operation == "fillet" for feature in graph.features):
             allowed_surfaces.extend(("torus", "bspline"))
+        # Mesh comparison tessellates the accepted shape. On Linux, accumulated
+        # OCCT state can subsequently serialize equivalent filleted
+        # reconstructions to different STEP bytes. Recompile the authoritative
+        # graph after comparison so export starts from untouched B-Rep state,
+        # and fail closed unless the compiler proves the same final topology.
+        step_candidate = compile_candidate(f"{candidate_label}-step-export", graph)
+        accepted_topology_hash = (
+            selected.compilation.feature_records[-1].topology_hash
+            if selected.compilation.feature_records
+            else None
+        )
+        step_topology_hash = (
+            step_candidate.compilation.feature_records[-1].topology_hash
+            if step_candidate.compilation.feature_records
+            else None
+        )
+        if (
+            not step_candidate.valid
+            or step_candidate.shape is None
+            or accepted_topology_hash is None
+            or step_topology_hash is None
+            or step_topology_hash != accepted_topology_hash
+        ):
+            raise ValueError(
+                "fresh STEP export compile did not reproduce the accepted topology"
+            )
         step = export_step_validated(
-            selected.shape,
+            step_candidate.shape,
             step_path,
             units=units,
             parametric_surface_policy=ParametricSurfacePolicy(
