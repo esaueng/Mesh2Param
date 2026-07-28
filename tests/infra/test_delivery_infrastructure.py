@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shlex
@@ -151,6 +152,181 @@ def test_sample_tree_comparison_detects_missing_extra_and_changed_files(
     assert comparison.missing == ("missing.txt",)
     assert comparison.unexpected == ("unexpected.txt",)
     assert not comparison.matches
+
+
+def _write_sample_acceptance_records(
+    sample_root: Path,
+    *,
+    volume_delta: float,
+    volume_tolerance: float,
+    reimport_valid: bool = True,
+) -> None:
+    sample_root.mkdir(parents=True, exist_ok=True)
+    (sample_root / "model.cadgraph.json").write_text(
+        '{"semanticModel":"unchanged"}\n',
+        encoding="utf-8",
+    )
+    step_path = sample_root / "model.step"
+    metadata = {
+        "schemaVersion": 1,
+        "slug": "acceptance-probe",
+        "step": {
+            "sha256": hashlib.sha256(step_path.read_bytes()).hexdigest(),
+            "volumeDelta": volume_delta,
+            "volumeTolerance": volume_tolerance,
+            "topologyCountsMatch": True,
+            "sourceValid": True,
+            "reimportValid": reimport_valid,
+        },
+    }
+    (sample_root / "metadata.json").write_text(
+        json.dumps(metadata, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    artifacts = []
+    for path in sorted(sample_root.iterdir()):
+        if not path.is_file() or path.name == "manifest.json":
+            continue
+        payload = path.read_bytes()
+        artifacts.append(
+            {
+                "name": path.name,
+                "byteSize": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }
+        )
+    manifest = {
+        "schemaVersion": 1,
+        "sample": "acceptance-probe",
+        "generatedAt": "1970-01-01T00:00:00Z",
+        "artifacts": artifacts,
+    }
+    (sample_root / "manifest.json").write_text(
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+
+def test_sample_tree_accepts_only_kernel_equivalent_step_serialization(
+    tmp_path: Path,
+) -> None:
+    import cadquery as cq
+    from mesh2param.validation import export_step_validated
+
+    expected = tmp_path / "expected" / "probe"
+    actual = tmp_path / "actual" / "probe"
+    expected.mkdir(parents=True)
+    actual.mkdir(parents=True)
+    shape = cq.Workplane("XY").box(40.0, 30.0, 12.0).faces(">Z").workplane().hole(8.0)
+    expected_report = export_step_validated(shape, expected / "model.step")
+    actual_payload = (
+        (expected / "model.step")
+        .read_bytes()
+        .replace(
+            b"DATA;\n",
+            b"DATA;\n\n",
+            1,
+        )
+    )
+    assert actual_payload != (expected / "model.step").read_bytes()
+    (actual / "model.step").write_bytes(actual_payload)
+    _write_sample_acceptance_records(
+        expected,
+        volume_delta=expected_report.volume_delta,
+        volume_tolerance=expected_report.volume_tolerance,
+    )
+    _write_sample_acceptance_records(
+        actual,
+        volume_delta=expected_report.volume_delta,
+        volume_tolerance=expected_report.volume_tolerance,
+    )
+
+    comparison = compare_sample_trees(expected.parent, actual.parent)
+
+    assert comparison.matches
+    assert comparison.changed == ()
+    assert comparison.equivalent_step_serializations == ("probe/model.step",)
+    assert comparison.step_validation_errors == ()
+
+
+def test_sample_tree_rejects_valid_step_with_different_geometry(
+    tmp_path: Path,
+) -> None:
+    import cadquery as cq
+    from mesh2param.validation import export_step_validated
+
+    expected = tmp_path / "expected" / "probe"
+    actual = tmp_path / "actual" / "probe"
+    expected.mkdir(parents=True)
+    actual.mkdir(parents=True)
+    shape = cq.Workplane("XY").box(40.0, 30.0, 12.0)
+    shifted = shape.translate((1.0, 0.0, 0.0))
+    expected_report = export_step_validated(shape, expected / "model.step")
+    actual_report = export_step_validated(shifted, actual / "model.step")
+    _write_sample_acceptance_records(
+        expected,
+        volume_delta=expected_report.volume_delta,
+        volume_tolerance=expected_report.volume_tolerance,
+    )
+    _write_sample_acceptance_records(
+        actual,
+        volume_delta=actual_report.volume_delta,
+        volume_tolerance=actual_report.volume_tolerance,
+    )
+
+    comparison = compare_sample_trees(expected.parent, actual.parent)
+
+    assert not comparison.matches
+    assert comparison.changed == (
+        "probe/manifest.json",
+        "probe/metadata.json",
+        "probe/model.step",
+    )
+    assert comparison.equivalent_step_serializations == ()
+    assert any(
+        "bounding-box delta" in error or "only volume" in error
+        for error in comparison.step_validation_errors
+    )
+
+
+def test_sample_tree_rejects_false_step_reimport_guarantee(tmp_path: Path) -> None:
+    import cadquery as cq
+    from mesh2param.validation import export_step_validated
+
+    expected = tmp_path / "expected" / "probe"
+    actual = tmp_path / "actual" / "probe"
+    expected.mkdir(parents=True)
+    actual.mkdir(parents=True)
+    report = export_step_validated(
+        cq.Workplane("XY").box(40.0, 30.0, 12.0),
+        expected / "model.step",
+    )
+    actual_payload = (
+        (expected / "model.step")
+        .read_bytes()
+        .replace(
+            b"DATA;\n",
+            b"DATA;\n\n",
+            1,
+        )
+    )
+    (actual / "model.step").write_bytes(actual_payload)
+    _write_sample_acceptance_records(
+        expected,
+        volume_delta=report.volume_delta,
+        volume_tolerance=report.volume_tolerance,
+    )
+    _write_sample_acceptance_records(
+        actual,
+        volume_delta=report.volume_delta,
+        volume_tolerance=report.volume_tolerance,
+        reimport_valid=False,
+    )
+
+    comparison = compare_sample_trees(expected.parent, actual.parent)
+
+    assert not comparison.matches
+    assert any("reimportValid is not true" in error for error in comparison.step_validation_errors)
 
 
 def test_sample_inventory_rejects_symlinks(tmp_path: Path) -> None:
