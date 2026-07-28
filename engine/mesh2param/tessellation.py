@@ -282,6 +282,40 @@ def _canonical_polyline(points: list[Vertex]) -> EdgePolyline:
     return min(candidates)
 
 
+def _bound_edge_polylines(
+    polylines: list[EdgePolyline],
+    maximum_segments: int = MAX_DISPLAY_EDGE_SEGMENTS,
+) -> tuple[EdgePolyline, ...]:
+    if maximum_segments < 1:
+        raise ValueError("maximum display edge segments must be positive")
+    if not polylines or len(polylines) > maximum_segments:
+        return ()
+    segment_counts = tuple(len(polyline) - 1 for polyline in polylines)
+    total_segments = sum(segment_counts)
+    if total_segments <= maximum_segments:
+        return tuple(polylines)
+
+    def sampled_segment_count(stride: int) -> int:
+        return sum(math.ceil(count / stride) for count in segment_counts)
+
+    lower = max(1, math.ceil(total_segments / maximum_segments))
+    upper = max(segment_counts)
+    while lower < upper:
+        middle = lower + (upper - lower) // 2
+        if sampled_segment_count(middle) <= maximum_segments:
+            upper = middle
+        else:
+            lower = middle + 1
+
+    bounded: list[EdgePolyline] = []
+    for polyline in polylines:
+        sampled = list(polyline[::lower])
+        if sampled[-1] != polyline[-1]:
+            sampled.append(polyline[-1])
+        bounded.append(tuple(sampled))
+    return tuple(bounded)
+
+
 def sample_shape_edges(
     value: cq.Shape | cq.Workplane,
     *,
@@ -318,19 +352,7 @@ def sample_shape_edges(
         polyline = _canonical_polyline(points)
         if len(polyline) >= 2:
             polylines.append(polyline)
-    if len(polylines) > MAX_DISPLAY_EDGE_SEGMENTS:
-        return ()
-    segment_count = sum(len(polyline) - 1 for polyline in polylines)
-    stride = max(1, math.ceil(segment_count / MAX_DISPLAY_EDGE_SEGMENTS))
-    if stride > 1:
-        bounded: list[EdgePolyline] = []
-        for polyline in polylines:
-            sampled = list(polyline[::stride])
-            if sampled[-1] != polyline[-1]:
-                sampled.append(polyline[-1])
-            bounded.append(tuple(sampled))
-        polylines = bounded
-    return tuple(sorted(polylines))
+    return tuple(sorted(_bound_edge_polylines(polylines)))
 
 
 def canonicalize_tessellation(

@@ -7,6 +7,7 @@ import {
   DISPLAY_ANGULAR_DEFLECTION,
   DISPLAY_EDGE_ANGULAR_DEFLECTION,
   DISPLAY_RELATIVE_LINEAR_DEFLECTION,
+  MAX_DISPLAY_EDGE_SEGMENTS,
   displayTessellationOptions,
   edgeLinesFromWireframe,
 } from "./displayTessellation";
@@ -110,5 +111,33 @@ describe("exact edge line conversion", () => {
     ]));
     expect(lines.indices).toEqual(new Uint32Array([0, 1, 1, 2, 3, 4]));
     expect(lines.segmentCount).toBe(3);
+  });
+
+  it("enforces the global segment cap after retaining every polyline endpoint", () => {
+    const lines = edgeLinesFromWireframe({
+      points: new Float32Array([
+        0, 0, 0, 1, 0, 0,
+        0, 1, 0, 1, 1, 0, 2, 1, 0, 3, 1, 0,
+        0, 2, 0, 1, 2, 0,
+        0, 3, 0, 1, 3, 0, 2, 3, 0, 3, 3, 0,
+      ]),
+      edgeGroups: new Int32Array([
+        0, 6, 1,
+        6, 12, 2,
+        18, 6, 3,
+        24, 12, 4,
+      ]),
+      pointCount: 36,
+      edgeCount: 4,
+    }, 4);
+
+    expect(lines.segmentCount).toBe(4);
+    expect(lines.segmentCount).toBeLessThanOrEqual(MAX_DISPLAY_EDGE_SEGMENTS);
+    expect(lines.positions).toEqual(new Float32Array([
+      0, 0, 0, 1, 0, 0,
+      0, 1, 0, 3, 1, 0,
+      0, 2, 0, 1, 2, 0,
+      0, 3, 0, 3, 3, 0,
+    ]));
   });
 });

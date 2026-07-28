@@ -1,9 +1,11 @@
 // @vitest-environment node
 
+import type { CADGraph } from "@mesh2param/contracts";
+import { readFileSync } from "node:fs";
 import { OcctKernel } from "occt-wasm";
 import { expect, it } from "vitest";
 
-import { compileStl } from "./compiler";
+import { compileCadGraph, compileStl } from "./compiler";
 
 type Point = readonly [number, number, number];
 type Triangle = readonly [Point, Point, Point];
@@ -47,6 +49,25 @@ it("exports and reimports disconnected watertight STL components as multiple sol
     expect(result.stepReimportValid).toBe(true);
     expect(result.diagnostics?.connectedComponentCount).toBe(2);
     expect(kernel.getSubShapes(kernel.importStep(result.step), "solid")).toHaveLength(2);
+  } finally {
+    kernel[Symbol.dispose]();
+  }
+});
+
+it("keeps the browser display LOD separate from STL and OBJ export tessellation", async () => {
+  const graph = JSON.parse(readFileSync(
+    new URL("../../../../../packages/contracts/tests/fixtures/base.cadgraph.json", import.meta.url),
+    "utf8",
+  )) as CADGraph;
+  graph.projectTolerance.surfaceDeviation = 0.2;
+  graph.projectTolerance.angularDeviationDeg = 20;
+  const kernel = await OcctKernel.init();
+  try {
+    const result = compileCadGraph(kernel, graph);
+
+    expect(result.exportMesh).toBeDefined();
+    expect(result.exportMesh!.triangleCount).toBeLessThan(result.mesh.triangleCount);
+    expect(result.edgeLines?.segmentCount).toBeGreaterThan(0);
   } finally {
     kernel[Symbol.dispose]();
   }

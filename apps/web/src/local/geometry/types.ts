@@ -31,6 +31,7 @@ export interface BrowserMeshDiagnostics {
 export interface BrowserCadResult {
   step: string;
   mesh: BrowserMesh;
+  exportMesh?: BrowserMesh;
   edgeLines?: BrowserEdgeLines;
   valid: boolean;
   solid: boolean;
