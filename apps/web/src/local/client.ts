@@ -30,7 +30,7 @@ import type {
   VersionPage,
 } from "../state/types";
 import { browserGeometry } from "./geometry/client";
-import type { BrowserEdgeLines, BrowserMesh } from "./geometry/types";
+import type { BrowserCadResult } from "./geometry/types";
 import { meshToGlb } from "./glb";
 import { meshToBinaryStl, meshToObj } from "./meshExports";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
@@ -320,7 +320,7 @@ export class BrowserApiClient {
         }
         const artifacts = await Promise.all([
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "faceted-step"),
-          ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "preserved-source-proxy"),
+          ...this.resultMeshArtifactWrites(projectId, compiled, "preserved-source-proxy"),
         ]);
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
         next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
@@ -348,9 +348,8 @@ export class BrowserApiClient {
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "curved-step"),
           ...this.resultMeshArtifactWrites(
             projectId,
-            compiled.mesh,
+            compiled,
             "reconstructed-curved",
-            compiled.edgeLines,
           ),
         ]);
         next.state.cadgraph = null;
@@ -433,9 +432,8 @@ export class BrowserApiClient {
           this.putArtifact(projectId, "model.step", new Blob([parametric.step], { type: "model/step" }), "parametric-step"),
           ...this.resultMeshArtifactWrites(
             projectId,
-            parametric.mesh,
+            parametric,
             "reconstructed-parametric",
-            parametric.edgeLines,
           ),
           this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(parametric.graph, null, 2)], { type: "application/json" }), "cadgraph"),
           this.putArtifact(projectId, "comparison.json", new Blob([JSON.stringify(parametric.parametricReconstruction.comparison, null, 2)], { type: "application/json" }), "comparison"),
@@ -507,9 +505,8 @@ export class BrowserApiClient {
         this.putArtifact(projectId, "model.step", step, "step"),
         ...this.resultMeshArtifactWrites(
           projectId,
-          compiled.mesh,
+          compiled,
           "reconstructed",
-          compiled.edgeLines,
         ),
         this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(next.state.cadgraph, null, 2)], { type: "application/json" }), "cadgraph"),
       ]);
@@ -915,14 +912,19 @@ export class BrowserApiClient {
 
   private resultMeshArtifactWrites(
     projectId: string,
-    mesh: BrowserMesh,
+    result: BrowserCadResult,
     kind: string,
-    edgeLines?: BrowserEdgeLines,
   ): Array<Promise<ArtifactDescriptor>> {
+    const exportMesh = result.exportMesh ?? result.mesh;
     return [
-      this.putArtifact(projectId, "reconstructed.glb", meshToGlb(mesh, edgeLines), kind),
-      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(mesh), kind),
-      this.putArtifact(projectId, "reconstructed.obj", meshToObj(mesh), kind),
+      this.putArtifact(
+        projectId,
+        "reconstructed.glb",
+        meshToGlb(result.mesh, result.edgeLines),
+        kind,
+      ),
+      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(exportMesh), kind),
+      this.putArtifact(projectId, "reconstructed.obj", meshToObj(exportMesh), kind),
     ];
   }
 

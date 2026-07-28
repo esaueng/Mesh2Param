@@ -60,7 +60,13 @@ export function displayTessellationOptions(
  * A global segment cap keeps pathological topology bounded; when reached, each
  * polyline is sampled at the same stride and still retains both endpoints.
  */
-export function edgeLinesFromWireframe(data: EdgeData): BrowserEdgeLines {
+export function edgeLinesFromWireframe(
+  data: EdgeData,
+  maximumSegments = MAX_DISPLAY_EDGE_SEGMENTS,
+): BrowserEdgeLines {
+  if (!Number.isSafeInteger(maximumSegments) || maximumSegments < 1) {
+    throw new Error("Display edge segment limit must be a positive safe integer");
+  }
   const groups: Array<{ start: number; count: number }> = [];
   let rawSegments = 0;
   for (let group = 0; group + 2 < data.edgeGroups.length; group += 3) {
@@ -86,8 +92,31 @@ export function edgeLinesFromWireframe(data: EdgeData): BrowserEdgeLines {
       segmentCount: 0,
     };
   }
+  if (groups.length > maximumSegments) {
+    return {
+      positions: new Float32Array(),
+      indices: new Uint32Array(),
+      segmentCount: 0,
+    };
+  }
 
-  const stride = Math.max(1, Math.ceil(rawSegments / MAX_DISPLAY_EDGE_SEGMENTS));
+  const sampledSegmentCount = (stride: number): number => {
+    let total = 0;
+    for (const group of groups) {
+      total += Math.ceil((group.count - 1) / stride);
+      if (total > maximumSegments) return total;
+    }
+    return total;
+  };
+  let lower = Math.max(1, Math.ceil(rawSegments / maximumSegments));
+  let upper = 1;
+  for (const group of groups) upper = Math.max(upper, group.count - 1);
+  while (lower < upper) {
+    const middle = lower + Math.floor((upper - lower) / 2);
+    if (sampledSegmentCount(middle) <= maximumSegments) upper = middle;
+    else lower = middle + 1;
+  }
+  const stride = lower;
   const positions: number[] = [];
   const indices: number[] = [];
   for (const group of groups) {

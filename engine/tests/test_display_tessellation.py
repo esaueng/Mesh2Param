@@ -9,6 +9,7 @@ from typing import cast
 
 import cadquery as cq
 import pytest
+from mesh2param import tessellation as tessellation_module
 from mesh2param.tessellation import (
     display_tessellation,
     sample_shape_edges,
@@ -27,6 +28,20 @@ def _maximum_angular_gap(points: list[tuple[float, float]]) -> float:
     gaps = [right - left for left, right in pairwise(angles)]
     gaps.append(angles[0] + 2 * math.pi - angles[-1])
     return max(gaps)
+
+
+def test_edge_polyline_budget_accounts_for_retained_endpoints() -> None:
+    polylines = [
+        tuple((float(polyline), float(point), 0.0) for point in range(segment_count + 1))
+        for polyline, segment_count in enumerate((1, 3, 1, 3))
+    ]
+
+    bounded = tessellation_module._bound_edge_polylines(polylines, maximum_segments=4)
+
+    assert sum(len(polyline) - 1 for polyline in bounded) == 4
+    pairs = tuple(zip(bounded, polylines, strict=True))
+    assert all(polyline[0] == source[0] for polyline, source in pairs)
+    assert all(polyline[-1] == source[-1] for polyline, source in pairs)
 
 
 @pytest.mark.parametrize("diameter", [1.0, 10.0, 100.0])

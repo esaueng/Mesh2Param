@@ -345,6 +345,9 @@ function shapeResult(
   const display = bbox === null
     ? null
     : displayTessellationOptions(bbox, linearDeflection, angularDeflection);
+  const exportMesh = meshProxy === undefined
+    ? kernel.tessellate(current, { linearDeflection, angularDeflection })
+    : undefined;
   const mesh = meshProxy?.mesh ?? kernel.tessellate(current, display!.mesh);
   const edgeLines = display === null
     ? undefined
@@ -375,6 +378,7 @@ function shapeResult(
   return {
     step,
     mesh,
+    ...(exportMesh === undefined ? {} : { exportMesh }),
     ...(edgeLines === undefined ? {} : { edgeLines }),
     valid,
     solid,
