@@ -15,11 +15,11 @@ DEGENERATE_NORMAL_MAGNITUDE_EPSILON = 1e-30
 # Viewport result meshes use one bounded high-quality LOD.  The chordal
 # tolerance scales with the exact shape bounds so the same CADGraph rendered in
 # mm, m, or inches gets equivalent sampling.  One degree keeps curved
-# silhouettes smooth at normal and close inspection without applying the
-# setting to source meshes or STEP/B-Rep data.
+# silhouettes and exact-curve overlays smooth at normal and close inspection
+# without applying the setting to source meshes or STEP/B-Rep data.
 DISPLAY_TESSELLATION_RELATIVE_LINEAR_DEFLECTION = 2.5e-4
 DISPLAY_TESSELLATION_ANGULAR_DEFLECTION_RAD = 0.017453292519943295
-DISPLAY_EDGE_ANGULAR_DEFLECTION_RAD = 0.008726646259971648
+DISPLAY_EDGE_ANGULAR_DEFLECTION_RAD = DISPLAY_TESSELLATION_ANGULAR_DEFLECTION_RAD
 MAX_DISPLAY_EDGE_SEGMENTS = 200_000
 
 DEFAULT_COMPARISON_LINEAR_TESSELLATION_MM = 0.025

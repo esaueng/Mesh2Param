@@ -296,9 +296,15 @@ function hasAnalyticEdgeGeometry(object: THREE.Object3D): boolean {
   return found;
 }
 
+function isReadableBufferAttribute(
+  value: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | undefined,
+): value is THREE.BufferAttribute | THREE.InterleavedBufferAttribute {
+  return value instanceof THREE.BufferAttribute || value instanceof THREE.InterleavedBufferAttribute;
+}
+
 export function lineSegmentPositions(geometry: THREE.BufferGeometry): number[] {
   const position = geometry.getAttribute("position");
-  if (!(position instanceof THREE.BufferAttribute)) return [];
+  if (!isReadableBufferAttribute(position)) return [];
   const index = geometry.index;
   const count = index?.count ?? position.count;
   const positions: number[] = [];
@@ -405,7 +411,7 @@ function makePatchHighlight(
     if (child.userData.mesh2paramEdgeOverlay === true) return;
     if (!(child instanceof THREE.Mesh) || !(child.geometry instanceof THREE.BufferGeometry)) return;
     const position = child.geometry.getAttribute("position");
-    if (!(position instanceof THREE.BufferAttribute)) return;
+    if (!isReadableBufferAttribute(position)) return;
     const index = child.geometry.index;
     const triangleCount = index === null ? Math.floor(position.count / 3) : Math.floor(index.count / 3);
     for (const range of selected) {
