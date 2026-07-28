@@ -976,6 +976,8 @@ def generate_sample(spec: SampleSpec, output_root: str | Path) -> GeneratedSampl
 
     from .source import write_cadquery_source
     from .tessellation import (
+        display_tessellation,
+        sample_shape_edges,
         tessellate_shape,
         transform_tessellation,
         write_binary_stl,
@@ -1030,25 +1032,41 @@ def generate_sample(spec: SampleSpec, output_root: str | Path) -> GeneratedSampl
         linear_tolerance=0.025,
         angular_tolerance=0.10,
     )
-    model_tessellation = tessellate_shape(
+    model_export_tessellation = tessellate_shape(
         baseline_shape,
         linear_tolerance=0.10,
         angular_tolerance=0.20,
     )
+    display = display_tessellation(
+        baseline_shape,
+        maximum_linear_tolerance=0.10,
+        maximum_angular_tolerance=0.20,
+    )
+    model_display_tessellation = tessellate_shape(
+        baseline_shape,
+        linear_tolerance=display.linear_tolerance,
+        angular_tolerance=display.angular_tolerance,
+    )
+    display_edges = sample_shape_edges(
+        baseline_shape,
+        linear_tolerance=display.linear_tolerance,
+        angular_tolerance=display.edge_angular_tolerance,
+    )
     glb = write_glb(
-        model_tessellation,
+        model_display_tessellation,
         destination / "model.glb",
-        linear_tolerance=0.10,
-        angular_tolerance=0.20,
+        linear_tolerance=display.linear_tolerance,
+        angular_tolerance=display.angular_tolerance,
+        edge_polylines=display_edges,
     )
     model_stl = write_binary_stl(
-        model_tessellation,
+        model_export_tessellation,
         destination / "model.stl",
         linear_tolerance=0.10,
         angular_tolerance=0.20,
     )
     model_obj = write_obj(
-        model_tessellation,
+        model_export_tessellation,
         destination / "model.obj",
         linear_tolerance=0.10,
         angular_tolerance=0.20,

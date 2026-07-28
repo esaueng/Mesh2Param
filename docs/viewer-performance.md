@@ -11,8 +11,10 @@ ground is not re-covered a fourth time.
 
 `ArtifactLayer` rebuilds a display scene for each display state: it clones the
 parsed GLTF, optionally recomputes creased normals, creates display materials,
-and generates fat-line edge overlays. Instrumented on the bundled L-bracket
-sample (1,044 triangles):
+and generates fat-line edge overlays. Result GLBs carry exact B-Rep edge
+polylines; source and explicitly faceted proxy GLBs retain mesh-derived
+outlines. Instrumented on the bundled L-bracket sample before the result display
+LOD was increased (1,044 triangles):
 
 | phase | duration |
 | --- | ---: |
@@ -30,6 +32,25 @@ tasks begin.
 Dense meshes are already handled separately — `MAX_TRIANGLE_EDGE_OVERLAY` skips
 the overlay above 20,000 triangles, which is the part that would otherwise scale
 badly.
+
+## Curved result display quality is bounded
+
+STEP and CADGraph data remain exact. The viewport uses a separate, bounded
+result LOD:
+
+- chordal deflection is at most `0.025%` of the exact B-Rep bounding-box
+  diagonal, while retaining any stricter project setting;
+- angular deflection is at most `1 degree`;
+- B-Rep edges are sampled directly and adaptively from OCCT at a `0.5 degree`
+  angular target and embedded as a GL `LINES` primitive;
+- the exact-edge overlay is capped at 200,000 segments for pathological
+  topology; source/faceted mesh overlays retain the existing triangle-count
+  gate.
+
+The mesh and line data are generated from the same immutable shape and shipped
+in one content-addressed GLB. Rebuilding geometry changes the artifact SHA, so
+the project-level GLTF cache evicts the superseded display mesh and edge data
+together. No viewport tessellation setting changes the STEP/B-Rep export.
 
 ## The long tasks are the WebGL path, and mostly the software rasterizer
 
