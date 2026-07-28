@@ -348,6 +348,7 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
         _shape: object,
         **_settings: float,
     ) -> mesh2param.Tessellation:
+        captured.setdefault("tessellationSettings", []).append(_settings)
         return mesh2param.Tessellation(
             vertices=((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
             triangles=((0, 1, 2),),
@@ -372,7 +373,14 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
         _progress,
     )
 
-    assert captured == {"surfaceDeviation": surface_deviation, "units": "mm"}
+    assert captured == {
+        "surfaceDeviation": surface_deviation,
+        "units": "mm",
+        "tessellationSettings": [
+            {},
+            {"linear_tolerance": 0.1, "angular_tolerance": 0.1},
+        ],
+    }
     assert output.state_patch["cadgraph"]["projectTolerance"]["surfaceDeviation"] == (
         surface_deviation
     )
