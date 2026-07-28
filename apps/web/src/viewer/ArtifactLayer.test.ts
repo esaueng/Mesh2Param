@@ -88,6 +88,27 @@ describe("analytic edge geometry", () => {
       1, 1, 0,
     ]);
   });
+
+  it("expands quantized interleaved GL line pairs", () => {
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new THREE.InterleavedBuffer(new Uint16Array([
+      0, 0, 0, 0,
+      0xffff, 0, 0, 0,
+      0xffff, 0xffff, 0, 0,
+    ]), 4);
+    geometry.setAttribute(
+      "position",
+      new THREE.InterleavedBufferAttribute(vertices, 3, 0, true),
+    );
+    geometry.setIndex(new THREE.Uint16BufferAttribute([0, 1, 1, 2], 1));
+
+    expect(lineSegmentPositions(geometry)).toEqual([
+      0, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+    ]);
+  });
 });
 
 describe("display material modes", () => {

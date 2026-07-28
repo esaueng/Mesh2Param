@@ -4,7 +4,7 @@ import type { BrowserEdgeLines } from "./types";
 
 export const DISPLAY_RELATIVE_LINEAR_DEFLECTION = 2.5e-4;
 export const DISPLAY_ANGULAR_DEFLECTION = Math.PI / 180;
-export const DISPLAY_EDGE_ANGULAR_DEFLECTION = Math.PI / 360;
+export const DISPLAY_EDGE_ANGULAR_DEFLECTION = DISPLAY_ANGULAR_DEFLECTION;
 export const MAX_DISPLAY_EDGE_SEGMENTS = 200_000;
 
 export interface DisplayTessellationOptions {
