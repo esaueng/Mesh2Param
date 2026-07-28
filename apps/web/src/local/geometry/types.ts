@@ -8,6 +8,12 @@ export interface BrowserMesh {
   triangleCount: number;
 }
 
+export interface BrowserEdgeLines {
+  positions: Float32Array;
+  indices: Uint32Array;
+  segmentCount: number;
+}
+
 export interface BrowserMeshDiagnostics {
   rawVertexCount: number;
   weldedVertexCount: number;
@@ -25,6 +31,7 @@ export interface BrowserMeshDiagnostics {
 export interface BrowserCadResult {
   step: string;
   mesh: BrowserMesh;
+  edgeLines?: BrowserEdgeLines;
   valid: boolean;
   solid: boolean;
   stepReimportValid: boolean;

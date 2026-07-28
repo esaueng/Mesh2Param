@@ -11,6 +11,10 @@ import type {
 import { OcctKernel, type ShapeHandle, type Vec3 } from "occt-wasm";
 
 import type { BrowserCadResult } from "./types";
+import {
+  displayTessellationOptions,
+  edgeLinesFromWireframe,
+} from "./displayTessellation";
 import { reconstructLayeredCurvedShape } from "./layered";
 import { analyzeStl } from "./stl";
 import { BrowserTopologyRegistry, type BrowserTopologyRecord } from "./topology";
@@ -337,11 +341,14 @@ function shapeResult(
     && kernel.isValid(reimported)
     && countSolids(kernel, reimported) === sourceSolidCount
     && sourceSolidCount > 0;
-  const mesh = meshProxy?.mesh ?? kernel.tessellate(current, {
-    linearDeflection,
-    angularDeflection,
-  });
-  const bbox = meshProxy === undefined ? kernel.getBoundingBox(current, true) : null;
+  const bbox = meshProxy === undefined ? kernel.getBoundingBox(current, false) : null;
+  const display = bbox === null
+    ? null
+    : displayTessellationOptions(bbox, linearDeflection, angularDeflection);
+  const mesh = meshProxy?.mesh ?? kernel.tessellate(current, display!.mesh);
+  const edgeLines = display === null
+    ? undefined
+    : edgeLinesFromWireframe(kernel.wireframe(current, display.edgeAngularDeflection));
   const surfaceCounts: Record<string, number> = {};
   for (const face of kernel.getSubShapes(current, "face")) {
     const kind = kernel.surfaceType(face);
@@ -368,6 +375,7 @@ function shapeResult(
   return {
     step,
     mesh,
+    ...(edgeLines === undefined ? {} : { edgeLines }),
     valid,
     solid,
     stepReimportValid,
