@@ -1157,7 +1157,14 @@ def _graph_build(
         tessellate_shape,
         write_cadquery_source,
     )
-    from mesh2param.tessellation import write_binary_stl, write_glb, write_obj
+    from mesh2param.tessellation import (
+        EdgePolyline,
+        display_tessellation,
+        sample_shape_edges,
+        write_binary_stl,
+        write_glb,
+        write_obj,
+    )
     from mesh2param_contracts import CADGraph, canonical_json
     from mesh2param_contracts.models import ImportedFacetedFeature
 
@@ -1280,12 +1287,34 @@ def _graph_build(
         )
     if imported_features:
         shutil.copyfile(_source_path(payload), workdir / "source.original.stl")
+    result_edges: tuple[EdgePolyline, ...]
     if faceted_base:
         faceted_source = ingest_mesh(_source_path(payload), limits=_mesh_limits(payload))
         result_mesh = _mesh_tessellation(faceted_source.mesh)
+        result_edges = ()
+        display_linear_tolerance = 0.1
+        display_angular_tolerance = 0.1
     else:
-        result_mesh = tessellate_shape(shape)
-    write_glb(result_mesh, workdir / "reconstructed.glb")
+        display = display_tessellation(shape)
+        display_linear_tolerance = display.linear_tolerance
+        display_angular_tolerance = display.angular_tolerance
+        result_mesh = tessellate_shape(
+            shape,
+            linear_tolerance=display.linear_tolerance,
+            angular_tolerance=display.angular_tolerance,
+        )
+        result_edges = sample_shape_edges(
+            shape,
+            linear_tolerance=display.linear_tolerance,
+            angular_tolerance=display.edge_angular_tolerance,
+        )
+    write_glb(
+        result_mesh,
+        workdir / "reconstructed.glb",
+        linear_tolerance=display_linear_tolerance,
+        angular_tolerance=display_angular_tolerance,
+        edge_polylines=result_edges,
+    )
     write_binary_stl(result_mesh, workdir / "reconstructed.stl")
     write_obj(result_mesh, workdir / "reconstructed.obj")
     validation = {

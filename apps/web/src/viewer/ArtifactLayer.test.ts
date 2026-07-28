@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import * as THREE from "three";
 import {
   edgeOverlayKind,
   displayMaterialProperties,
+  lineSegmentPositions,
   patchForFace,
   selectedTriangleRanges,
   usesAnalyticResultShading,
@@ -49,6 +51,13 @@ describe("shaded edge overlay", () => {
     expect(edgeOverlayKind("reconstructed", false, false, false)).toBe("none");
   });
 
+  it("prefers exact sampled CAD edges for reconstructed B-Reps", () => {
+    expect(edgeOverlayKind("reconstructed", false, true, false, 2_876, false, true))
+      .toBe("analytic");
+    expect(edgeOverlayKind("reconstructed", false, true, false, 2_876, true, true))
+      .toBe("creases");
+  });
+
   it("keeps dense meshes on the lightweight path", () => {
     expect(edgeOverlayKind("source", false, true, false, 45_615)).toBe("none");
     expect(edgeOverlayKind("source", false, true, false, 20_000)).toBe("triangles");
@@ -59,6 +68,25 @@ describe("shaded edge overlay", () => {
     expect(edgeOverlayKind("reconstructed", false, true, false, 6_260, true)).toBe("creases");
     expect(edgeOverlayKind("reconstructed", false, true, false, 20_000, true)).toBe("creases");
     expect(edgeOverlayKind("reconstructed", false, true, false, 20_001, true)).toBe("none");
+  });
+});
+
+describe("analytic edge geometry", () => {
+  it("expands indexed GL line pairs without introducing triangle boundaries", () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+      0, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+    ], 3));
+    geometry.setIndex([0, 1, 1, 2]);
+
+    expect(lineSegmentPositions(geometry)).toEqual([
+      0, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+    ]);
   });
 });
 

@@ -41,7 +41,7 @@ export function usesAnalyticResultShading(mode: string): boolean {
   return mode === "reconstructed";
 }
 
-export type EdgeOverlayKind = "none" | "triangles" | "creases";
+export type EdgeOverlayKind = "none" | "triangles" | "creases" | "analytic";
 export const MAX_TRIANGLE_EDGE_OVERLAY = 20_000;
 
 export function usesCreasedSurfaceNormals(
@@ -59,12 +59,14 @@ export function edgeOverlayKind(
   comparisonGhost: boolean,
   triangleCount = 0,
   facetedProxy = false,
+  analyticEdges = false,
 ): EdgeOverlayKind {
   if (!edges || wireframe || comparisonGhost) return "none";
   // Dense meshes stay on the lightweight path; a faceted proxy is only gated on that count,
   // not suppressed outright, and draws creases like any other result: its facet boundaries
   // are exactly the edges above the threshold, and its coplanar tessellation is not.
   if (triangleCount > MAX_TRIANGLE_EDGE_OVERLAY && (mode === "source" || facetedProxy)) return "none";
+  if (mode === "reconstructed" && !facetedProxy && analyticEdges) return "analytic";
   return mode === "reconstructed" ? "creases" : "triangles";
 }
 
@@ -123,6 +125,7 @@ export function ArtifactLayer({
   const object = useMemo(() => profileSceneBuild(() => {
     const clone = gltf.scene.clone(true);
     const triangleCount = objectTriangleCount(clone);
+    const analyticEdges = hasAnalyticEdgeGeometry(clone);
     const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost, facetedProxy);
     const overlayKind = edgeOverlayKind(
       mode,
@@ -131,8 +134,16 @@ export function ArtifactLayer({
       comparisonGhost,
       triangleCount,
       facetedProxy,
+      analyticEdges,
     );
     clone.traverse((child) => {
+      if (child instanceof THREE.LineSegments) {
+        child.visible = false;
+        child.material = Array.isArray(child.material)
+          ? child.material.map((material) => material.clone())
+          : child.material.clone();
+        return;
+      }
       if (!(child instanceof THREE.Mesh)) return;
       if (smoothSurface && child.geometry instanceof THREE.BufferGeometry) {
         child.geometry = toCreasedNormals(child.geometry, Math.PI / 6);
@@ -277,13 +288,36 @@ function objectTriangleCount(object: THREE.Object3D): number {
   return total;
 }
 
+function hasAnalyticEdgeGeometry(object: THREE.Object3D): boolean {
+  let found = false;
+  object.traverse((child) => {
+    if (child instanceof THREE.LineSegments) found = true;
+  });
+  return found;
+}
+
+export function lineSegmentPositions(geometry: THREE.BufferGeometry): number[] {
+  const position = geometry.getAttribute("position");
+  if (!(position instanceof THREE.BufferAttribute)) return [];
+  const index = geometry.index;
+  const count = index?.count ?? position.count;
+  const positions: number[] = [];
+  for (let item = 0; item + 1 < count; item += 2) {
+    for (const offset of [0, 1]) {
+      const vertex = index?.getX(item + offset) ?? item + offset;
+      positions.push(position.getX(vertex), position.getY(vertex), position.getZ(vertex));
+    }
+  }
+  return positions;
+}
+
 /**
- * Add a dark triangle network over the solid surface, matching shaded-with-edges CAD views.
+ * Add dark CAD edges over the solid surface.
  *
- * Both paths draw fat lines rather than GL lines: WebGL ignores LineBasicMaterial.linewidth and
- * MeshBasicMaterial wireframes alike, capping them at one device pixel, so palette.edgeWidth can
- * only be honoured by extruding each segment into screen-space quads. LineSegments2 keeps its own
- * resolution uniform in sync from the renderer viewport, so thickness stays in CSS pixels.
+ * Exact result GLBs carry adaptively sampled B-Rep curves. Source/faceted
+ * artifacts retain the mesh-derived paths. All draw fat lines rather than GL
+ * lines: WebGL caps ordinary line widths at one device pixel, while
+ * LineSegments2 keeps its resolution uniform synced to the viewport.
  */
 function addShadedEdgeOverlays(
   object: THREE.Object3D,
@@ -292,6 +326,43 @@ function addShadedEdgeOverlays(
   sectionPlane: THREE.Plane | null,
   kind: Exclude<EdgeOverlayKind, "none">,
 ) {
+  const edgeMaterial = () => new LineMaterial({
+    color: new THREE.Color(palette.edge).getHex(),
+    linewidth: palette.edgeWidth,
+    transparent: true,
+    opacity: palette.edgeOpacity * opacity,
+    depthWrite: false,
+    clippingPlanes: sectionPlane === null ? null : [sectionPlane],
+  });
+  if (kind === "analytic") {
+    const lines: THREE.LineSegments[] = [];
+    let segmentCount = 0;
+    object.traverse((child) => {
+      if (child instanceof THREE.LineSegments) lines.push(child);
+    });
+    for (const line of lines) {
+      const positions = lineSegmentPositions(line.geometry);
+      if (positions.length === 0 || line.parent === null) continue;
+      segmentCount += positions.length / 6;
+      const geometry = new LineSegmentsGeometry();
+      geometry.setPositions(positions);
+      geometry.userData.mesh2paramOwned = true;
+      const overlay = new LineSegments2(geometry, edgeMaterial());
+      overlay.name = "mesh2param-analytic-edges";
+      overlay.position.copy(line.position);
+      overlay.quaternion.copy(line.quaternion);
+      overlay.scale.copy(line.scale);
+      overlay.renderOrder = 10;
+      overlay.userData.mesh2paramEdgeOverlay = true;
+      overlay.raycast = () => {};
+      line.parent.add(overlay);
+    }
+    performance.mark("mesh2param:analytic-edge-overlay", {
+      detail: { segmentCount },
+    });
+    return;
+  }
+
   const meshes: THREE.Mesh[] = [];
   object.traverse((child) => {
     if (child instanceof THREE.Mesh && child.geometry instanceof THREE.BufferGeometry) meshes.push(child);
@@ -306,15 +377,7 @@ function addShadedEdgeOverlays(
       continue;
     }
     geometry.userData.mesh2paramOwned = true;
-    const material = new LineMaterial({
-      color: new THREE.Color(palette.edge).getHex(),
-      linewidth: palette.edgeWidth,
-      transparent: true,
-      opacity: palette.edgeOpacity * opacity,
-      depthWrite: false,
-      clippingPlanes: sectionPlane === null ? null : [sectionPlane],
-    });
-    const overlay = new LineSegments2(geometry, material);
+    const overlay = new LineSegments2(geometry, edgeMaterial());
     overlay.name = kind === "creases" ? "mesh2param-feature-edges" : "mesh2param-shaded-edges";
     overlay.renderOrder = 10;
     overlay.userData.mesh2paramEdgeOverlay = true;

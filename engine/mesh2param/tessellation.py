@@ -14,13 +14,21 @@ from pathlib import Path
 from typing import Any
 
 import cadquery as cq
+from OCP.Bnd import Bnd_Box
+from OCP.BRepAdaptor import BRepAdaptor_Curve
+from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepTools import BRepTools
+from OCP.GCPnts import GCPnts_TangentialDeflection
 
 from .tolerances import (
     DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
     DEFAULT_TESSELLATION_COORDINATE_RESOLUTION_MM,
     DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
     DEGENERATE_NORMAL_MAGNITUDE_EPSILON,
+    DISPLAY_EDGE_ANGULAR_DEFLECTION_RAD,
+    DISPLAY_TESSELLATION_ANGULAR_DEFLECTION_RAD,
+    DISPLAY_TESSELLATION_RELATIVE_LINEAR_DEFLECTION,
+    MAX_DISPLAY_EDGE_SEGMENTS,
     MINIMUM_OCCT_TESSELLATION_TOLERANCE,
     TESSELLATION_VALIDATION_LINEAR_TOLERANCE_MM,
 )
@@ -29,6 +37,7 @@ from .validation import as_shape, validate_shape
 Vertex = tuple[float, float, float]
 Triangle = tuple[int, int, int]
 CoordinateTriangle = tuple[Vertex, Vertex, Vertex]
+EdgePolyline = tuple[Vertex, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +63,16 @@ class MeshArtifact:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayTessellation:
+    """Scale-aware, bounded viewport tessellation settings."""
+
+    linear_tolerance: float
+    angular_tolerance: float
+    edge_angular_tolerance: float
+    model_diagonal: float
 
 
 @dataclass(slots=True)
@@ -175,6 +194,145 @@ def tessellate_shape(
     return mesh
 
 
+def display_tessellation(
+    value: cq.Shape | cq.Workplane,
+    *,
+    maximum_linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
+    maximum_angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+) -> DisplayTessellation:
+    """Choose the single high-quality viewport LOD from exact shape bounds.
+
+    The returned values affect display meshes only.  They never alter the
+    authoritative B-Rep or STEP export, and callers may retain a stricter
+    project-specific tolerance through either ``maximum_*`` argument.
+    """
+
+    shape = as_shape(value)
+    maximum_linear_tolerance = float(maximum_linear_tolerance)
+    maximum_angular_tolerance = float(maximum_angular_tolerance)
+    if (
+        not math.isfinite(maximum_linear_tolerance)
+        or maximum_linear_tolerance <= 0
+        or not math.isfinite(maximum_angular_tolerance)
+        or maximum_angular_tolerance <= 0
+    ):
+        raise ValueError("display tessellation tolerances must be finite and positive")
+
+    native = Bnd_Box()
+    BRepBndLib.AddOptimal_s(shape.wrapped, native, False, False)
+    bounds = tuple(float(item) for item in native.Get())
+    diagonal = math.hypot(
+        bounds[3] - bounds[0],
+        bounds[4] - bounds[1],
+        bounds[5] - bounds[2],
+    )
+    if not math.isfinite(diagonal) or diagonal <= 0:
+        scaled_linear = maximum_linear_tolerance
+        diagonal = 0.0
+    else:
+        scaled_linear = max(
+            diagonal * DISPLAY_TESSELLATION_RELATIVE_LINEAR_DEFLECTION,
+            MINIMUM_OCCT_TESSELLATION_TOLERANCE,
+        )
+    return DisplayTessellation(
+        linear_tolerance=min(maximum_linear_tolerance, scaled_linear),
+        angular_tolerance=min(
+            maximum_angular_tolerance,
+            DISPLAY_TESSELLATION_ANGULAR_DEFLECTION_RAD,
+        ),
+        edge_angular_tolerance=min(
+            maximum_angular_tolerance,
+            DISPLAY_EDGE_ANGULAR_DEFLECTION_RAD,
+        ),
+        model_diagonal=diagonal,
+    )
+
+
+def _canonical_polyline(points: list[Vertex]) -> EdgePolyline:
+    resolution = DEFAULT_TESSELLATION_COORDINATE_RESOLUTION_MM
+
+    def quantize(point: Vertex) -> Vertex:
+        values = tuple(round(value / resolution) * resolution for value in point)
+        return tuple(0.0 if value == 0 else value for value in values)  # type: ignore[return-value]
+
+    quantized: list[Vertex] = []
+    for point in points:
+        candidate = quantize(point)
+        if not quantized or candidate != quantized[-1]:
+            quantized.append(candidate)
+    if len(quantized) < 2:
+        return ()
+
+    if quantized[0] != quantized[-1]:
+        forward = tuple(quantized)
+        reverse = tuple(reversed(quantized))
+        return min(forward, reverse)
+
+    ring = quantized[:-1]
+    if len(ring) < 2:
+        return ()
+    minimum = min(ring)
+    candidates: list[EdgePolyline] = []
+    for oriented in (ring, list(reversed(ring))):
+        for index, point in enumerate(oriented):
+            if point != minimum:
+                continue
+            rotated = oriented[index:] + oriented[:index]
+            candidates.append(tuple((*rotated, rotated[0])))
+    return min(candidates)
+
+
+def sample_shape_edges(
+    value: cq.Shape | cq.Workplane,
+    *,
+    linear_tolerance: float,
+    angular_tolerance: float = DISPLAY_EDGE_ANGULAR_DEFLECTION_RAD,
+) -> tuple[EdgePolyline, ...]:
+    """Adaptively sample exact B-Rep curves for the viewport edge overlay."""
+
+    shape = as_shape(value)
+    if not math.isfinite(linear_tolerance) or linear_tolerance <= 0:
+        raise ValueError("edge linear tolerance must be finite and positive")
+    if not math.isfinite(angular_tolerance) or angular_tolerance <= 0:
+        raise ValueError("edge angular tolerance must be finite and positive")
+
+    polylines: list[EdgePolyline] = []
+    for edge in shape.Edges():
+        adaptor = BRepAdaptor_Curve(edge.wrapped)
+        sampler = GCPnts_TangentialDeflection(
+            adaptor,
+            angular_tolerance,
+            linear_tolerance,
+            2,
+            1e-9,
+            max(linear_tolerance * 1e-3, 1e-12),
+        )
+        points = [
+            (
+                float(sampler.Value(index).X()),
+                float(sampler.Value(index).Y()),
+                float(sampler.Value(index).Z()),
+            )
+            for index in range(1, sampler.NbPoints() + 1)
+        ]
+        polyline = _canonical_polyline(points)
+        if len(polyline) >= 2:
+            polylines.append(polyline)
+    if len(polylines) > MAX_DISPLAY_EDGE_SEGMENTS:
+        return ()
+    segment_count = sum(len(polyline) - 1 for polyline in polylines)
+    stride = max(1, math.ceil(segment_count / MAX_DISPLAY_EDGE_SEGMENTS))
+    if stride > 1:
+        bounded: list[EdgePolyline] = []
+        for polyline in polylines:
+            sampled = list(polyline[::stride])
+            if sampled[-1] != polyline[-1]:
+                sampled.append(polyline[-1])
+            bounded.append(tuple(sampled))
+        polylines = bounded
+    return tuple(sorted(polylines))
+
+
 def canonicalize_tessellation(
     mesh: Tessellation,
     *,
@@ -191,11 +349,7 @@ def canonicalize_tessellation(
             if not math.isfinite(value):
                 raise ValueError("tessellation contains a non-finite coordinate")
             rounded = round(value / coordinate_resolution) * coordinate_resolution
-            result.append(
-                0.0
-                if abs(rounded) <= coordinate_resolution * 0.5
-                else float(rounded)
-            )
+            result.append(0.0 if abs(rounded) <= coordinate_resolution * 0.5 else float(rounded))
         return (result[0], result[1], result[2])
 
     rounded_vertices = tuple(quantize(vertex) for vertex in mesh.vertices)
@@ -423,8 +577,9 @@ def write_glb(
     *,
     linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
     angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
+    edge_polylines: tuple[EdgePolyline, ...] = (),
 ) -> MeshArtifact:
-    """Write an already tessellated mesh as minimal deterministic glTF 2.0."""
+    """Write a deterministic GLB, optionally with exact B-Rep edge samples."""
 
     destination = Path(path)
     if destination.suffix.lower() != ".glb":
@@ -436,59 +591,130 @@ def write_glb(
     indices = b"".join(
         struct.pack("<I", index) for triangle in mesh.triangles for index in triangle
     )
+    edge_vertices: list[Vertex] = []
+    edge_indices: list[int] = []
+    for polyline in edge_polylines:
+        if len(polyline) < 2:
+            continue
+        base = len(edge_vertices)
+        edge_vertices.extend(polyline)
+        for index in range(len(polyline) - 1):
+            edge_indices.extend((base + index, base + index + 1))
+    edge_positions = b"".join(struct.pack("<3f", *vertex) for vertex in edge_vertices)
+    edge_index_bytes = b"".join(struct.pack("<I", index) for index in edge_indices)
     position_offset = 0
     normal_offset = len(positions)
     index_offset = normal_offset + len(normals)
-    binary = _pad4(positions + normals + indices, b"\0")
+    edge_position_offset = index_offset + len(indices)
+    edge_index_offset = edge_position_offset + len(edge_positions)
+    binary = _pad4(
+        positions + normals + indices + edge_positions + edge_index_bytes,
+        b"\0",
+    )
     mins = [min(vertex[index] for vertex in mesh.vertices) for index in range(3)]
     maxes = [max(vertex[index] for vertex in mesh.vertices) for index in range(3)]
+    accessors: list[dict[str, Any]] = [
+        {
+            "bufferView": 0,
+            "componentType": 5126,
+            "count": len(mesh.vertices),
+            "max": maxes,
+            "min": mins,
+            "type": "VEC3",
+        },
+        {
+            "bufferView": 1,
+            "componentType": 5126,
+            "count": len(mesh.normals),
+            "type": "VEC3",
+        },
+        {
+            "bufferView": 2,
+            "componentType": 5125,
+            "count": len(mesh.triangles) * 3,
+            "max": [len(mesh.vertices) - 1],
+            "min": [0],
+            "type": "SCALAR",
+        },
+    ]
+    buffer_views: list[dict[str, Any]] = [
+        {
+            "buffer": 0,
+            "byteLength": len(positions),
+            "byteOffset": position_offset,
+            "target": 34962,
+        },
+        {"buffer": 0, "byteLength": len(normals), "byteOffset": normal_offset, "target": 34962},
+        {"buffer": 0, "byteLength": len(indices), "byteOffset": index_offset, "target": 34963},
+    ]
+    primitives: list[dict[str, Any]] = [
+        {
+            "attributes": {"NORMAL": 1, "POSITION": 0},
+            "indices": 2,
+            "mode": 4,
+        }
+    ]
+    if edge_vertices and edge_indices:
+        edge_position_accessor = len(accessors)
+        edge_index_accessor = edge_position_accessor + 1
+        edge_position_view = len(buffer_views)
+        edge_index_view = edge_position_view + 1
+        edge_mins = [min(vertex[index] for vertex in edge_vertices) for index in range(3)]
+        edge_maxes = [max(vertex[index] for vertex in edge_vertices) for index in range(3)]
+        buffer_views.extend(
+            (
+                {
+                    "buffer": 0,
+                    "byteLength": len(edge_positions),
+                    "byteOffset": edge_position_offset,
+                    "target": 34962,
+                },
+                {
+                    "buffer": 0,
+                    "byteLength": len(edge_index_bytes),
+                    "byteOffset": edge_index_offset,
+                    "target": 34963,
+                },
+            )
+        )
+        accessors.extend(
+            (
+                {
+                    "bufferView": edge_position_view,
+                    "componentType": 5126,
+                    "count": len(edge_vertices),
+                    "max": edge_maxes,
+                    "min": edge_mins,
+                    "type": "VEC3",
+                },
+                {
+                    "bufferView": edge_index_view,
+                    "componentType": 5125,
+                    "count": len(edge_indices),
+                    "max": [len(edge_vertices) - 1],
+                    "min": [0],
+                    "type": "SCALAR",
+                },
+            )
+        )
+        primitives.append(
+            {
+                "attributes": {"POSITION": edge_position_accessor},
+                "indices": edge_index_accessor,
+                "mode": 1,
+                "extras": {"mesh2paramAnalyticEdges": True},
+            }
+        )
+
     document = {
-        "accessors": [
-            {
-                "bufferView": 0,
-                "componentType": 5126,
-                "count": len(mesh.vertices),
-                "max": maxes,
-                "min": mins,
-                "type": "VEC3",
-            },
-            {
-                "bufferView": 1,
-                "componentType": 5126,
-                "count": len(mesh.normals),
-                "type": "VEC3",
-            },
-            {
-                "bufferView": 2,
-                "componentType": 5125,
-                "count": len(mesh.triangles) * 3,
-                "max": [len(mesh.vertices) - 1],
-                "min": [0],
-                "type": "SCALAR",
-            },
-        ],
+        "accessors": accessors,
         "asset": {"generator": "Mesh2Param", "version": "2.0"},
-        "bufferViews": [
-            {
-                "buffer": 0,
-                "byteLength": len(positions),
-                "byteOffset": position_offset,
-                "target": 34962,
-            },
-            {"buffer": 0, "byteLength": len(normals), "byteOffset": normal_offset, "target": 34962},
-            {"buffer": 0, "byteLength": len(indices), "byteOffset": index_offset, "target": 34963},
-        ],
+        "bufferViews": buffer_views,
         "buffers": [{"byteLength": len(binary)}],
         "meshes": [
             {
                 "name": "Mesh2Param result",
-                "primitives": [
-                    {
-                        "attributes": {"NORMAL": 1, "POSITION": 0},
-                        "indices": 2,
-                        "mode": 4,
-                    }
-                ],
+                "primitives": primitives,
             }
         ],
         "nodes": [{"mesh": 0, "name": "Mesh2Param result"}],
@@ -526,6 +752,7 @@ def export_glb(
     linear_tolerance: float = DEFAULT_TESSELLATION_LINEAR_TOLERANCE_MM,
     angular_tolerance: float = DEFAULT_TESSELLATION_ANGULAR_TOLERANCE_RAD,
     cache: TessellationCache | None = None,
+    edge_polylines: tuple[EdgePolyline, ...] = (),
 ) -> MeshArtifact:
     """Tessellate once and write a deterministic GLB artifact."""
 
@@ -540,17 +767,22 @@ def export_glb(
         path,
         linear_tolerance=linear_tolerance,
         angular_tolerance=angular_tolerance,
+        edge_polylines=edge_polylines,
     )
 
 
 __all__ = [
+    "DisplayTessellation",
+    "EdgePolyline",
     "MeshArtifact",
     "Tessellation",
     "TessellationCache",
     "canonicalize_tessellation",
+    "display_tessellation",
     "export_binary_stl",
     "export_glb",
     "export_obj",
+    "sample_shape_edges",
     "tessellate_shape",
     "transform_tessellation",
     "write_binary_stl",
