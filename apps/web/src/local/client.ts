@@ -30,7 +30,7 @@ import type {
   VersionPage,
 } from "../state/types";
 import { browserGeometry } from "./geometry/client";
-import type { BrowserMesh } from "./geometry/types";
+import type { BrowserCadResult } from "./geometry/types";
 import { meshToGlb } from "./glb";
 import { meshToBinaryStl, meshToObj } from "./meshExports";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
@@ -320,7 +320,7 @@ export class BrowserApiClient {
         }
         const artifacts = await Promise.all([
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "faceted-step"),
-          ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "preserved-source-proxy"),
+          ...this.resultMeshArtifactWrites(projectId, compiled, "preserved-source-proxy"),
         ]);
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
         next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
@@ -346,7 +346,11 @@ export class BrowserApiClient {
         }
         const artifacts = await Promise.all([
           this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "curved-step"),
-          ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "reconstructed-curved"),
+          ...this.resultMeshArtifactWrites(
+            projectId,
+            compiled,
+            "reconstructed-curved",
+          ),
         ]);
         next.state.cadgraph = null;
         next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
@@ -426,7 +430,11 @@ export class BrowserApiClient {
         } as unknown as JsonObject;
         const artifactPromises = [
           this.putArtifact(projectId, "model.step", new Blob([parametric.step], { type: "model/step" }), "parametric-step"),
-          ...this.resultMeshArtifactWrites(projectId, parametric.mesh, "reconstructed-parametric"),
+          ...this.resultMeshArtifactWrites(
+            projectId,
+            parametric,
+            "reconstructed-parametric",
+          ),
           this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(parametric.graph, null, 2)], { type: "application/json" }), "cadgraph"),
           this.putArtifact(projectId, "comparison.json", new Blob([JSON.stringify(parametric.parametricReconstruction.comparison, null, 2)], { type: "application/json" }), "comparison"),
           this.putArtifact(projectId, "surface-audit.json", new Blob([JSON.stringify({
@@ -495,7 +503,11 @@ export class BrowserApiClient {
       const step = new Blob([compiled.step], { type: "model/step" });
       const artifacts = await Promise.all([
         this.putArtifact(projectId, "model.step", step, "step"),
-        ...this.resultMeshArtifactWrites(projectId, compiled.mesh, "reconstructed"),
+        ...this.resultMeshArtifactWrites(
+          projectId,
+          compiled,
+          "reconstructed",
+        ),
         this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(next.state.cadgraph, null, 2)], { type: "application/json" }), "cadgraph"),
       ]);
       next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
@@ -900,13 +912,19 @@ export class BrowserApiClient {
 
   private resultMeshArtifactWrites(
     projectId: string,
-    mesh: BrowserMesh,
+    result: BrowserCadResult,
     kind: string,
   ): Array<Promise<ArtifactDescriptor>> {
+    const exportMesh = result.exportMesh ?? result.mesh;
     return [
-      this.putArtifact(projectId, "reconstructed.glb", meshToGlb(mesh), kind),
-      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(mesh), kind),
-      this.putArtifact(projectId, "reconstructed.obj", meshToObj(mesh), kind),
+      this.putArtifact(
+        projectId,
+        "reconstructed.glb",
+        meshToGlb(result.mesh, result.edgeLines),
+        kind,
+      ),
+      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(exportMesh), kind),
+      this.putArtifact(projectId, "reconstructed.obj", meshToObj(exportMesh), kind),
     ];
   }
 

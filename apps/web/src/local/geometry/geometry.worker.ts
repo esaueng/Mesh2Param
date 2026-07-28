@@ -42,6 +42,19 @@ async function processRequest(request: BrowserGeometryRequest): Promise<void> {
         result.mesh.normals.buffer as ArrayBuffer,
         result.mesh.indices.buffer as ArrayBuffer,
       ];
+      if (result.edgeLines !== undefined) {
+        transfer.push(
+          result.edgeLines.positions.buffer as ArrayBuffer,
+          result.edgeLines.indices.buffer as ArrayBuffer,
+        );
+      }
+      if (result.exportMesh !== undefined) {
+        transfer.push(
+          result.exportMesh.positions.buffer as ArrayBuffer,
+          result.exportMesh.normals.buffer as ArrayBuffer,
+          result.exportMesh.indices.buffer as ArrayBuffer,
+        );
+      }
       const suppressed = "suppressedMesh" in result ? result.suppressedMesh as BrowserMesh | null : null;
       if (suppressed !== null) {
         transfer.push(

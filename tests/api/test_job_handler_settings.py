@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import mesh2param
+import mesh2param.tessellation as tessellation_module
 import pytest
 import trimesh
 from mesh2param_api.jobs.handlers import (
@@ -111,9 +112,7 @@ def test_analyze_handler_applies_segmentation_settings_and_writes_viewer_glbs(
     analysis = output.state_patch["analysis"]
     assert isinstance(analysis, dict)
     assert analysis["prismaticCandidate"]["accepted"] is False
-    assert analysis["prismaticCandidate"]["diagnostics"][0]["code"] == (
-        "no_opposing_planar_caps"
-    )
+    assert analysis["prismaticCandidate"]["diagnostics"][0]["code"] == ("no_opposing_planar_caps")
     assert analysis["settings"] == {
         "smoothAngleDeg": 27.5,
         "planarFitToleranceMm": 0.125,
@@ -345,7 +344,11 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
     def write_cadquery_source(_graph: Any, destination: Path) -> None:
         destination.write_text("# generated\n", encoding="utf-8")
 
-    def tessellate_shape(_shape: object) -> mesh2param.Tessellation:
+    def tessellate_shape(
+        _shape: object,
+        **_settings: float,
+    ) -> mesh2param.Tessellation:
+        captured.setdefault("tessellationSettings", []).append(_settings)
         return mesh2param.Tessellation(
             vertices=((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
             triangles=((0, 1, 2),),
@@ -356,6 +359,12 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
     monkeypatch.setattr(mesh2param, "export_step_validated", export_step_validated)
     monkeypatch.setattr(mesh2param, "write_cadquery_source", write_cadquery_source)
     monkeypatch.setattr(mesh2param, "tessellate_shape", tessellate_shape)
+    monkeypatch.setattr(
+        tessellation_module,
+        "display_tessellation",
+        lambda _shape: tessellation_module.DisplayTessellation(0.1, 0.1, 0.05, 1.0),
+    )
+    monkeypatch.setattr(tessellation_module, "sample_shape_edges", lambda *_args, **_kwargs: ())
 
     output = run_handler(
         "validate",
@@ -364,7 +373,14 @@ def test_validation_setting_updates_graph_and_tolerance_outcome(
         _progress,
     )
 
-    assert captured == {"surfaceDeviation": surface_deviation, "units": "mm"}
+    assert captured == {
+        "surfaceDeviation": surface_deviation,
+        "units": "mm",
+        "tessellationSettings": [
+            {},
+            {"linear_tolerance": 0.1, "angular_tolerance": 0.1},
+        ],
+    }
     assert output.state_patch["cadgraph"]["projectTolerance"]["surfaceDeviation"] == (
         surface_deviation
     )
