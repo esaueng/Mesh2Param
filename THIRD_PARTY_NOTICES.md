@@ -242,7 +242,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | fast-deep-equal | 3.1.3 | MIT |
 | javascript | fast-json-stable-stringify | 2.1.0 | MIT |
 | javascript | fast-levenshtein | 2.0.6 | MIT |
-| javascript | fast-uri | 3.1.3 | BSD-3-Clause |
+| javascript | fast-uri | 3.1.4 | BSD-3-Clause |
 | javascript | fdir | 6.5.0 | MIT |
 | javascript | fflate | 0.6.10 | MIT |
 | javascript | fflate | 0.8.3 | MIT |
