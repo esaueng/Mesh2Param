@@ -90,6 +90,7 @@ interface ArtifactLayerProps {
   facetedProxy: boolean;
   theme: ViewerTheme;
   selectionRanges: SelectionRange[];
+  hiddenPatchIds: readonly string[];
   selectedPatchId: string | null;
   sectionPlane: THREE.Plane | null;
   measurementEnabled: boolean;
@@ -108,6 +109,7 @@ export function ArtifactLayer({
   facetedProxy,
   theme,
   selectionRanges,
+  hiddenPatchIds,
   selectedPatchId,
   sectionPlane,
   measurementEnabled,
@@ -124,6 +126,7 @@ export function ArtifactLayer({
   const palette = viewerPalette(theme);
   const object = useMemo(() => profileSceneBuild(() => {
     const clone = gltf.scene.clone(true);
+    if (mode === "patches") hidePatchTriangles(clone, selectionRanges, hiddenPatchIds);
     const triangleCount = objectTriangleCount(clone);
     const analyticEdges = hasAnalyticEdgeGeometry(clone);
     const smoothSurface = usesCreasedSurfaceNormals(mode, comparisonGhost, facetedProxy);
@@ -176,7 +179,19 @@ export function ArtifactLayer({
       addShadedEdgeOverlays(clone, palette, displayMaterialProperties(shading, opacity).displayedOpacity, sectionPlane, overlayKind);
     }
     return clone;
-  }), [comparisonGhost, edges, facetedProxy, gltf.scene, mode, opacity, palette, sectionPlane, shading]);
+  }), [
+    comparisonGhost,
+    edges,
+    facetedProxy,
+    gltf.scene,
+    hiddenPatchIds,
+    mode,
+    opacity,
+    palette,
+    sectionPlane,
+    selectionRanges,
+    shading,
+  ]);
 
   const highlight = useMemo(
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
@@ -286,6 +301,62 @@ function objectTriangleCount(object: THREE.Object3D): number {
     total += Math.floor((index?.count ?? position?.count ?? 0) / 3);
   });
   return total;
+}
+
+/**
+ * Degenerate hidden patch triangles in a display-only geometry clone.
+ *
+ * Keeping the original index length preserves the selection map's face indices,
+ * while zero-area triangles are neither rendered nor raycast. Edge overlays are
+ * built from this filtered clone, so hidden surfaces cannot leave selectable or
+ * visible wireframe remnants. The cached GLTF and every export remain untouched.
+ */
+export function hidePatchTriangles(
+  object: THREE.Object3D,
+  ranges: SelectionRange[],
+  hiddenPatchIds: readonly string[],
+): number {
+  if (ranges.length === 0 || hiddenPatchIds.length === 0) return 0;
+  const hiddenIds = new Set(hiddenPatchIds);
+  let triangleOffset = 0;
+  let hiddenTriangleCount = 0;
+
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || !(child.geometry instanceof THREE.BufferGeometry)) return;
+    const position = child.geometry.getAttribute("position");
+    if (!(position instanceof THREE.BufferAttribute)) return;
+    const sourceIndex = child.geometry.getIndex();
+    const triangleCount = Math.floor((sourceIndex?.count ?? position.count) / 3);
+    const localHidden: number[] = [];
+    for (const range of ranges) {
+      if (!hiddenIds.has(range.patchId)) continue;
+      const start = Math.max(0, range.triangleStart - triangleOffset);
+      const end = Math.min(triangleCount, range.triangleEndExclusive - triangleOffset);
+      for (let triangle = start; triangle < end; triangle += 1) localHidden.push(triangle);
+    }
+    triangleOffset += triangleCount;
+    if (localHidden.length === 0) return;
+
+    const geometry = child.geometry.clone();
+    if (geometry.getIndex() === null) {
+      const IndexArray = position.count > 65_535 ? Uint32Array : Uint16Array;
+      const indices = new IndexArray(position.count);
+      for (let index = 0; index < indices.length; index += 1) indices[index] = index;
+      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    }
+    const index = geometry.getIndex();
+    if (index === null) return;
+    for (const triangle of localHidden) {
+      const first = index.getX(triangle * 3);
+      index.setX(triangle * 3 + 1, first);
+      index.setX(triangle * 3 + 2, first);
+    }
+    index.needsUpdate = true;
+    geometry.userData.mesh2paramOwned = true;
+    child.geometry = geometry;
+    hiddenTriangleCount += localHidden.length;
+  });
+  return hiddenTriangleCount;
 }
 
 function hasAnalyticEdgeGeometry(object: THREE.Object3D): boolean {

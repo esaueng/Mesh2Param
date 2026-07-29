@@ -51,6 +51,8 @@ const MODES: ReadonlyArray<{ id: ViewerMode; label: string }> = [
  * frame counter below.
  */
 const REVEAL_FAILSAFE_MS = 6_000;
+const NO_SELECTION_RANGES: SelectionRange[] = [];
+const NO_HIDDEN_PATCH_IDS: string[] = [];
 
 /**
  * Reports once the current artifact has actually been drawn.
@@ -84,6 +86,7 @@ interface CadViewportProps {
   theme: ViewerTheme;
   denseMesh?: boolean;
   sourceProxyActive?: boolean;
+  hiddenPatchIds?: readonly string[];
   selectedPatchId: string | null;
   onPreferences(patch: Partial<ViewerPreferences>): void;
   onSelectPatch(id: string | null): void;
@@ -99,6 +102,7 @@ export function CadViewport({
   theme,
   denseMesh = false,
   sourceProxyActive = false,
+  hiddenPatchIds = NO_HIDDEN_PATCH_IDS,
   selectedPatchId,
   onPreferences,
   onSelectPatch,
@@ -293,6 +297,7 @@ export function CadViewport({
       data-testid="cad-viewport"
       data-camera-view={command.direction?.join(",") ?? command.preset}
       data-display-mode={preferences.shading}
+      data-hidden-patch-count={hiddenPatchIds.length}
       data-viewer-preparing={String(preparing)}
     >
       {chrome === "full" ? (
@@ -476,7 +481,8 @@ export function CadViewport({
                 comparisonGhost={preferences.mode === "overlay" && layer.mode === "source"}
                 facetedProxy={sourceProxyActive && layer.mode === "reconstructed"}
                 theme={theme}
-                selectionRanges={layer.mode === "patches" ? selection : []}
+                selectionRanges={layer.mode === "patches" ? selection : NO_SELECTION_RANGES}
+                hiddenPatchIds={layer.mode === "patches" ? hiddenPatchIds : NO_HIDDEN_PATCH_IDS}
                 selectedPatchId={selectedPatchId}
                 sectionPlane={sectionPlane}
                 measurementEnabled={measurementMode !== null}

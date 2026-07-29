@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Box,
@@ -65,6 +65,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const regenerate = regenerationAction(vm);
   const modes = availableModes(vm.artifacts);
   const activeJob = vm.activeJob;
+  const hiddenPatchIds = useMemo(
+    () => state.patches.filter((patch) => patch.hidden === true).map((patch) => patch.id).sort(),
+    [state.patches],
+  );
 
   const setMode = useCallback((mode: ViewerMode) => {
     debugLog.debug("view", `Display mode -> ${mode}`);
@@ -186,6 +190,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               theme={theme}
               denseMesh={(state.diagnostics?.triangleCount ?? 0) > 20_000}
               sourceProxyActive={sourceProxy}
+              hiddenPatchIds={hiddenPatchIds}
               selectedPatchId={vm.selectedPatchId}
               onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
               onSelectPatch={actions.selectPatch}

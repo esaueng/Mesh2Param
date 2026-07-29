@@ -26,7 +26,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-brand svg{width:26px;height:26px;color:var(--color-accent-soft)}
 .canvas-brand strong{font-size:var(--fs-md);font-weight:600}
 .canvas-badge{padding:2px 6px;border:1px solid var(--color-accent-border);border-radius:var(--radius-sm);background:var(--color-accent-dim);color:var(--color-accent);font:10px var(--font-mono)}
-.canvas-file{min-width:0;max-width:100%;display:grid;grid-template-columns:minmax(0,34ch) max-content max-content;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--color-border);color:var(--color-muted);overflow:hidden}
+.canvas-file{justify-self:start;min-width:0;max-width:100%;display:grid;grid-template-columns:minmax(0,34ch) max-content max-content;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--color-border);color:var(--color-muted);overflow:hidden}
 .canvas-file-name{width:100%;min-width:0;max-width:34ch;display:inline-flex;align-items:center;gap:6px;margin:-4px;padding:4px;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--color-text);font:var(--fs-xs) var(--font-mono);text-align:left}
 .canvas-file-name>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .canvas-file-name>svg{flex:none;color:var(--color-subtle);opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
