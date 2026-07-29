@@ -9,6 +9,9 @@ node_modules
 **/node_modules
 .pnpm-store
 .cache
+.mesh2param-data
+.wrangler
+output
 .mypy_cache
 .pytest_cache
 .ruff_cache

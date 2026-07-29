@@ -78,10 +78,10 @@ backend:
 pnpm cf:deploy --var MESH2PARAM_API_ORIGIN:https://api.example.com
 ```
 
-`MESH2PARAM_API_ORIGIN` must be a bare `http://` or `https://` origin with no credentials, path,
-query, or fragment. Use HTTPS outside local development. Wrangler's `--var` value is deployment
-configuration, not a secret; the API origin is visible to operators and need not contain
-credentials.
+`MESH2PARAM_API_ORIGIN` must be a bare `https://` origin with no credentials, path, query, or
+fragment. Plain `http://` is accepted only for the loopback hostnames `localhost`, `127.0.0.1`, and
+`[::1]` during local Wrangler development. Wrangler's `--var` value is deployment configuration,
+not a secret; the API origin is visible to operators and need not contain credentials.
 
 At startup the web client probes the same-origin `/ready` route. A ready response selects the
 FastAPI/OCCT backend for the whole workspace; a missing or unavailable origin keeps the project in
