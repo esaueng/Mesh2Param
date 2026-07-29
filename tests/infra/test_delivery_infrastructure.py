@@ -392,6 +392,8 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     assert "sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94" in web
     assert "sha256:42a7d7f2ee23e9f5a1dcdf3647ba5c585bbd18f79e79cd817e70e8cd61c55779" in web
     assert "!packages/contracts/tests/fixtures/base.cadgraph.json" in dockerignore
+    dockerignore_patterns = set(dockerignore.splitlines())
+    assert {".mesh2param-data", ".wrangler", "output"} <= dockerignore_patterns
     assert compose.count("read_only: true") == 3
     assert compose.count('cap_drop: ["ALL"]') == 3
     assert compose.count("platform: linux/amd64") == 2
