@@ -89,8 +89,8 @@ def test_exact_cylinders_have_smooth_scale_independent_display_lod(diameter: flo
 
     assert len(circular_edges) == 2
     assert len(mesh.triangles) < 4_000
-    assert max(len(polyline) - 1 for polyline in circular_edges) <= 1_000
-    assert min(len(polyline) - 1 for polyline in circular_edges) >= 700
+    assert max(len(polyline) - 1 for polyline in circular_edges) <= 500
+    assert min(len(polyline) - 1 for polyline in circular_edges) >= 350
 
     # A normal fit view and a 10x close view both keep the largest surface
     # chord comfortably below a tenth of a screen pixel.
@@ -130,8 +130,47 @@ def test_result_glb_carries_exact_edge_lines_separately_from_triangles(tmp_path:
     document = json.loads(payload[20 : 20 + json_length])
     primitives = document["meshes"][0]["primitives"]
 
+    assert len(payload) < 50_000
+    assert document["extensionsRequired"] == ["KHR_mesh_quantization"]
+    assert document["extensionsUsed"] == ["KHR_mesh_quantization"]
     assert primitives[0]["mode"] == 4
     assert primitives[1]["mode"] == 1
     assert primitives[1]["extras"]["mesh2paramAnalyticEdges"] is True
+    surface_position_accessor = document["accessors"][primitives[0]["attributes"]["POSITION"]]
+    surface_normal_accessor = document["accessors"][primitives[0]["attributes"]["NORMAL"]]
+    surface_index_accessor = document["accessors"][primitives[0]["indices"]]
+    edge_position_accessor = document["accessors"][primitives[1]["attributes"]["POSITION"]]
     line_index_accessor = document["accessors"][primitives[1]["indices"]]
-    assert line_index_accessor["count"] >= 2 * 1_400
+    assert surface_position_accessor["componentType"] == 5123
+    assert surface_position_accessor["normalized"] is True
+    assert surface_normal_accessor["componentType"] == 5120
+    assert surface_normal_accessor["normalized"] is True
+    assert surface_index_accessor["componentType"] == 5123
+    assert edge_position_accessor["componentType"] == 5123
+    assert edge_position_accessor["normalized"] is True
+    assert line_index_accessor["componentType"] == 5123
+    assert line_index_accessor["count"] >= 2 * 700
+    assert document["bufferViews"][surface_position_accessor["bufferView"]]["byteStride"] == 8
+    assert document["bufferViews"][surface_normal_accessor["bufferView"]]["byteStride"] == 4
+    assert document["bufferViews"][edge_position_accessor["bufferView"]]["byteStride"] == 8
+
+    binary_offset = 20 + json_length + 8
+    surface_view = document["bufferViews"][surface_position_accessor["bufferView"]]
+    origin = document["nodes"][0]["translation"]
+    scale = document["nodes"][0]["scale"][0]
+    maximum_error = 0.0
+    for index, expected in enumerate(mesh.vertices):
+        quantized = struct.unpack_from(
+            "<3H",
+            payload,
+            binary_offset + surface_view["byteOffset"] + index * surface_view["byteStride"],
+        )
+        decoded = tuple(
+            origin[axis] + scale * quantized[axis] / 0xFFFF for axis in range(3)
+        )
+        maximum_error = max(
+            maximum_error,
+            math.dist(expected, decoded),
+        )
+    assert maximum_error <= math.sqrt(3) * scale / (2 * 0xFFFF) + 1e-9
+    assert maximum_error * (4_000 / 10) < 0.06

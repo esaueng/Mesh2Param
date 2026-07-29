@@ -8,7 +8,7 @@ import math
 import struct
 import weakref
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -79,6 +79,12 @@ class DisplayTessellation:
 class _CachedTessellation:
     shape: weakref.ReferenceType[cq.Shape]
     mesh: Tessellation
+
+
+@dataclass(frozen=True, slots=True)
+class _PositionQuantization:
+    origin: Vertex
+    scale: float
 
 
 class TessellationCache:
@@ -593,6 +599,88 @@ def _pad4(payload: bytes, byte: bytes) -> bytes:
     return payload if remainder == 0 else payload + byte * (4 - remainder)
 
 
+def _align4(value: int) -> int:
+    return (value + 3) & ~3
+
+
+def _pack_indices(values: list[int]) -> tuple[bytes, int]:
+    if not values or min(values) < 0:
+        raise ValueError("GLB indices must contain non-negative values")
+    maximum = max(values)
+    if maximum <= 0xFF:
+        component_type = 5121
+        width = 1
+        format_code = "<B"
+    elif maximum <= 0xFFFF:
+        component_type = 5123
+        width = 2
+        format_code = "<H"
+    elif maximum <= 0xFFFFFFFF:
+        component_type = 5125
+        width = 4
+        format_code = "<I"
+    else:
+        raise ValueError("GLB index exceeds the unsigned 32-bit range")
+    payload = bytearray(len(values) * width)
+    for offset, value in enumerate(values):
+        struct.pack_into(format_code, payload, offset * width, value)
+    return bytes(payload), component_type
+
+
+def _position_quantization(vertices: tuple[Vertex, ...]) -> _PositionQuantization:
+    origin: Vertex = (
+        min(vertex[0] for vertex in vertices),
+        min(vertex[1] for vertex in vertices),
+        min(vertex[2] for vertex in vertices),
+    )
+    maximum: Vertex = (
+        max(vertex[0] for vertex in vertices),
+        max(vertex[1] for vertex in vertices),
+        max(vertex[2] for vertex in vertices),
+    )
+    scale = max(maximum[axis] - origin[axis] for axis in range(3))
+    if not math.isfinite(scale) or scale <= 0:
+        raise ValueError("display GLB positions must span a finite positive range")
+    return _PositionQuantization(origin=origin, scale=scale)
+
+
+def _pack_quantized_positions(
+    vertices: tuple[Vertex, ...],
+    quantization: _PositionQuantization,
+) -> tuple[bytes, list[int], list[int]]:
+    packed: list[tuple[int, int, int]] = []
+    for vertex in vertices:
+        quantized = (
+            min(
+                0xFFFF,
+                max(0, round((vertex[0] - quantization.origin[0]) / quantization.scale * 0xFFFF)),
+            ),
+            min(
+                0xFFFF,
+                max(0, round((vertex[1] - quantization.origin[1]) / quantization.scale * 0xFFFF)),
+            ),
+            min(
+                0xFFFF,
+                max(0, round((vertex[2] - quantization.origin[2]) / quantization.scale * 0xFFFF)),
+            ),
+        )
+        packed.append(quantized)
+    payload = b"".join(struct.pack("<4H", *vertex, 0) for vertex in packed)
+    mins = [min(vertex[axis] for vertex in packed) for axis in range(3)]
+    maxes = [max(vertex[axis] for vertex in packed) for axis in range(3)]
+    return payload, mins, maxes
+
+
+def _pack_quantized_normals(normals: tuple[Vertex, ...]) -> bytes:
+    def quantize(value: float) -> int:
+        return round(max(-1.0, min(1.0, value)) * 127)
+
+    return b"".join(
+        struct.pack("<4b", quantize(normal[0]), quantize(normal[1]), quantize(normal[2]), 0)
+        for normal in normals
+    )
+
+
 def write_glb(
     mesh: Tessellation,
     path: str | Path,
@@ -608,11 +696,6 @@ def write_glb(
         raise ValueError("GLB output must use a .glb extension")
     mesh = canonicalize_tessellation(mesh)
 
-    positions = b"".join(struct.pack("<3f", *vertex) for vertex in mesh.vertices)
-    normals = b"".join(struct.pack("<3f", *normal) for normal in mesh.normals)
-    indices = b"".join(
-        struct.pack("<I", index) for triangle in mesh.triangles for index in triangle
-    )
     edge_vertices: list[Vertex] = []
     edge_indices: list[int] = []
     for polyline in edge_polylines:
@@ -622,53 +705,95 @@ def write_glb(
         edge_vertices.extend(polyline)
         for index in range(len(polyline) - 1):
             edge_indices.extend((base + index, base + index + 1))
-    edge_positions = b"".join(struct.pack("<3f", *vertex) for vertex in edge_vertices)
-    edge_index_bytes = b"".join(struct.pack("<I", index) for index in edge_indices)
+    compact_display = bool(edge_vertices and edge_indices)
+    surface_indices = [index for triangle in mesh.triangles for index in triangle]
+    mins: Sequence[int | float]
+    maxes: Sequence[int | float]
+    edge_mins: Sequence[int | float]
+    edge_maxes: Sequence[int | float]
+    if compact_display:
+        quantization = _position_quantization((*mesh.vertices, *edge_vertices))
+        positions, mins, maxes = _pack_quantized_positions(mesh.vertices, quantization)
+        normals = _pack_quantized_normals(mesh.normals)
+        indices, surface_index_component = _pack_indices(surface_indices)
+        edge_positions, edge_mins, edge_maxes = _pack_quantized_positions(
+            tuple(edge_vertices),
+            quantization,
+        )
+        edge_index_bytes, edge_index_component = _pack_indices(edge_indices)
+    else:
+        quantization = None
+        positions = b"".join(struct.pack("<3f", *vertex) for vertex in mesh.vertices)
+        normals = b"".join(struct.pack("<3f", *normal) for normal in mesh.normals)
+        indices = b"".join(struct.pack("<I", index) for index in surface_indices)
+        edge_positions = b""
+        edge_index_bytes = b""
+        surface_index_component = 5125
+        edge_index_component = 5125
+        mins = [min(vertex[index] for vertex in mesh.vertices) for index in range(3)]
+        maxes = [max(vertex[index] for vertex in mesh.vertices) for index in range(3)]
+        edge_mins = []
+        edge_maxes = []
     position_offset = 0
     normal_offset = len(positions)
     index_offset = normal_offset + len(normals)
-    edge_position_offset = index_offset + len(indices)
+    edge_position_offset = _align4(index_offset + len(indices))
     edge_index_offset = edge_position_offset + len(edge_positions)
-    binary = _pad4(
-        positions + normals + indices + edge_positions + edge_index_bytes,
-        b"\0",
-    )
-    mins = [min(vertex[index] for vertex in mesh.vertices) for index in range(3)]
-    maxes = [max(vertex[index] for vertex in mesh.vertices) for index in range(3)]
+    binary = bytearray(_align4(edge_index_offset + len(edge_index_bytes)))
+    binary[position_offset : position_offset + len(positions)] = positions
+    binary[normal_offset : normal_offset + len(normals)] = normals
+    binary[index_offset : index_offset + len(indices)] = indices
+    binary[edge_position_offset : edge_position_offset + len(edge_positions)] = edge_positions
+    binary[edge_index_offset : edge_index_offset + len(edge_index_bytes)] = edge_index_bytes
+    position_accessor: dict[str, Any] = {
+        "bufferView": 0,
+        "componentType": 5123 if compact_display else 5126,
+        "count": len(mesh.vertices),
+        "max": maxes,
+        "min": mins,
+        "type": "VEC3",
+    }
+    normal_accessor: dict[str, Any] = {
+        "bufferView": 1,
+        "componentType": 5120 if compact_display else 5126,
+        "count": len(mesh.normals),
+        "type": "VEC3",
+    }
+    if compact_display:
+        position_accessor["normalized"] = True
+        normal_accessor["normalized"] = True
     accessors: list[dict[str, Any]] = [
-        {
-            "bufferView": 0,
-            "componentType": 5126,
-            "count": len(mesh.vertices),
-            "max": maxes,
-            "min": mins,
-            "type": "VEC3",
-        },
-        {
-            "bufferView": 1,
-            "componentType": 5126,
-            "count": len(mesh.normals),
-            "type": "VEC3",
-        },
+        position_accessor,
+        normal_accessor,
         {
             "bufferView": 2,
-            "componentType": 5125,
+            "componentType": surface_index_component,
             "count": len(mesh.triangles) * 3,
             "max": [len(mesh.vertices) - 1],
             "min": [0],
             "type": "SCALAR",
         },
     ]
+    position_view: dict[str, Any] = {
+        "buffer": 0,
+        "byteLength": len(positions),
+        "byteOffset": position_offset,
+        "target": 34962,
+    }
+    normal_view: dict[str, Any] = {
+        "buffer": 0,
+        "byteLength": len(normals),
+        "byteOffset": normal_offset,
+        "target": 34962,
+    }
     buffer_views: list[dict[str, Any]] = [
-        {
-            "buffer": 0,
-            "byteLength": len(positions),
-            "byteOffset": position_offset,
-            "target": 34962,
-        },
-        {"buffer": 0, "byteLength": len(normals), "byteOffset": normal_offset, "target": 34962},
+        position_view,
+        normal_view,
         {"buffer": 0, "byteLength": len(indices), "byteOffset": index_offset, "target": 34963},
     ]
+    if compact_display:
+        position_view["byteStride"] = 8
+        normal_view["byteStride"] = 4
     primitives: list[dict[str, Any]] = [
         {
             "attributes": {"NORMAL": 1, "POSITION": 0},
@@ -681,16 +806,17 @@ def write_glb(
         edge_index_accessor = edge_position_accessor + 1
         edge_position_view = len(buffer_views)
         edge_index_view = edge_position_view + 1
-        edge_mins = [min(vertex[index] for vertex in edge_vertices) for index in range(3)]
-        edge_maxes = [max(vertex[index] for vertex in edge_vertices) for index in range(3)]
+        edge_position_view_document = {
+            "buffer": 0,
+            "byteLength": len(edge_positions),
+            "byteOffset": edge_position_offset,
+            "target": 34962,
+        }
+        if compact_display:
+            edge_position_view_document["byteStride"] = 8
         buffer_views.extend(
             (
-                {
-                    "buffer": 0,
-                    "byteLength": len(edge_positions),
-                    "byteOffset": edge_position_offset,
-                    "target": 34962,
-                },
+                edge_position_view_document,
                 {
                     "buffer": 0,
                     "byteLength": len(edge_index_bytes),
@@ -699,19 +825,22 @@ def write_glb(
                 },
             )
         )
+        edge_position_accessor_document: dict[str, Any] = {
+            "bufferView": edge_position_view,
+            "componentType": 5123 if compact_display else 5126,
+            "count": len(edge_vertices),
+            "max": edge_maxes,
+            "min": edge_mins,
+            "type": "VEC3",
+        }
+        if compact_display:
+            edge_position_accessor_document["normalized"] = True
         accessors.extend(
             (
-                {
-                    "bufferView": edge_position_view,
-                    "componentType": 5126,
-                    "count": len(edge_vertices),
-                    "max": edge_maxes,
-                    "min": edge_mins,
-                    "type": "VEC3",
-                },
+                edge_position_accessor_document,
                 {
                     "bufferView": edge_index_view,
-                    "componentType": 5125,
+                    "componentType": edge_index_component,
                     "count": len(edge_indices),
                     "max": [len(edge_vertices) - 1],
                     "min": [0],
@@ -728,7 +857,8 @@ def write_glb(
             }
         )
 
-    document = {
+    node: dict[str, Any] = {"mesh": 0, "name": "Mesh2Param result"}
+    document: dict[str, Any] = {
         "accessors": accessors,
         "asset": {"generator": "Mesh2Param", "version": "2.0"},
         "bufferViews": buffer_views,
@@ -739,10 +869,15 @@ def write_glb(
                 "primitives": primitives,
             }
         ],
-        "nodes": [{"mesh": 0, "name": "Mesh2Param result"}],
+        "nodes": [node],
         "scene": 0,
         "scenes": [{"nodes": [0]}],
     }
+    if quantization is not None:
+        node["scale"] = [quantization.scale] * 3
+        node["translation"] = list(quantization.origin)
+        document["extensionsRequired"] = ["KHR_mesh_quantization"]
+        document["extensionsUsed"] = ["KHR_mesh_quantization"]
     json_chunk = _pad4(
         json.dumps(document, sort_keys=True, separators=(",", ":")).encode("utf-8"),
         b" ",
