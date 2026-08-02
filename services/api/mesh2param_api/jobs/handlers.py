@@ -1521,8 +1521,13 @@ def _sample_open(payload: dict[str, Any], workdir: Path, progress: Progress) -> 
     sample_dir = Path(generated.directory)
     graph = json.loads((sample_dir / "model.cadgraph.json").read_text(encoding="utf-8"))
     metadata = json.loads((sample_dir / "metadata.json").read_text(encoding="utf-8"))
-    source = ingest_mesh(sample_dir / "source-random.stl", limits=_mesh_limits(payload))
-    write_glb(_mesh_tessellation(source.mesh), workdir / "source.glb")
+    ingest_mesh(sample_dir / "source-random.stl", limits=_mesh_limits(payload))
+    # The bundled sample opens an already-validated canonical CADGraph while the
+    # persisted source remains the randomly transformed inference fixture. Render
+    # the canonical source in Compare so the preview is registered without changing
+    # the source bytes used by repair, analysis, and reconstruction.
+    preview_source = ingest_mesh(sample_dir / "source-high.stl", limits=_mesh_limits(payload))
+    write_glb(_mesh_tessellation(preview_source.mesh), workdir / "source.glb")
     automatic_reconstruction: dict[str, Any] = {
         "supported": spec.automatic_reconstruction_supported,
         "sampleId": slug,

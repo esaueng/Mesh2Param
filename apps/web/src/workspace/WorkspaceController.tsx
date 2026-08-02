@@ -352,6 +352,9 @@ export function WorkspaceController({ workerReady, initialJob, initialUpload = n
       try {
         await apiClient.updatePatch(current.project.id, patchId, current.serverRevision, patch);
         await refreshProject("Update surface patch");
+        if (patch.hidden === true && workspaceStore.getState().selection.patchId === patchId) {
+          workspaceStore.getState().setSelection({ patchId: null });
+        }
       } catch (cause) {
         setError(normalizeApiError(cause).detail);
       }
