@@ -36,6 +36,22 @@ def binary_triangle_stl() -> bytes:
     return b"Mesh2Param test".ljust(80, b"\0") + struct.pack("<I", 1) + triangle
 
 
+def glb_position_bounds(payload: bytes) -> tuple[list[float], list[float]]:
+    assert struct.unpack_from("<I", payload, 0)[0] == 0x46546C67
+    json_length = struct.unpack_from("<I", payload, 12)[0]
+    document = json.loads(payload[20 : 20 + json_length].decode("utf-8").strip())
+    bounds = []
+    for mesh in document["meshes"]:
+        for primitive in mesh["primitives"]:
+            accessor = document["accessors"][primitive["attributes"]["POSITION"]]
+            bounds.append((accessor["min"], accessor["max"]))
+    assert bounds
+    return (
+        [min(item[0][axis] for item in bounds) for axis in range(3)],
+        [max(item[1][axis] for item in bounds) for axis in range(3)],
+    )
+
+
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
     settings = Settings(  # type: ignore[call-arg]
@@ -434,8 +450,13 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
     sample_artifacts = client.get(f"/api/projects/{project_id}/artifacts").json()["data"][
         "items"
     ]
-    random_source = next(item for item in sample_artifacts if item["name"] == "source-random.stl")
+    random_source = next(
+        item for item in sample_artifacts if item["name"] == "source-random.stl"
+    )
     source_glb = next(item for item in sample_artifacts if item["name"] == "source.glb")
+    result_glb = next(
+        item for item in sample_artifacts if item["name"] == "reconstructed.glb"
+    )
     assert source_glb["kind"] == "source-mesh"
     assert source == {
         "id": source["id"],
@@ -449,6 +470,20 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
         "scaleFactor": 1.0,
         "state": "valid",
     }
+    source_glb_response = client.get(
+        f"/api/projects/{project_id}/artifacts/source.glb",
+        params={"sha256": source_glb["sha256"]},
+    )
+    result_glb_response = client.get(
+        f"/api/projects/{project_id}/artifacts/reconstructed.glb",
+        params={"sha256": result_glb["sha256"]},
+    )
+    assert source_glb_response.status_code == 200
+    assert result_glb_response.status_code == 200
+    source_bounds = glb_position_bounds(source_glb_response.content)
+    result_bounds = glb_position_bounds(result_glb_response.content)
+    assert source_bounds[0] == pytest.approx(result_bounds[0], abs=1e-6)
+    assert source_bounds[1] == pytest.approx(result_bounds[1], abs=1e-6)
     assert project["state"]["cadgraph"]
 
     repair = client.post(

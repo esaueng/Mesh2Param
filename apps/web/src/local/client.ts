@@ -748,16 +748,17 @@ export class BrowserApiClient {
     const saved = await this.save(detail, true);
     const job = this.queueJob(saved.id, "sample_open", saved.revision, async () => {
       const next = await this.requireProject(saved.id);
-      const [glb, stl, obj, step, source] = await Promise.all([
+      const [glb, stl, obj, step, source, previewSource] = await Promise.all([
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.glb"), "model/gltf-binary"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.stl"), "model/stl"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.obj"), "model/obj"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "model.step"), "model/step"),
         blobFromUrl(browserSampleAssetUrl(sampleId, "source-random.stl"), "model/stl"),
+        blobFromUrl(browserSampleAssetUrl(sampleId, "source-high.stl"), "model/stl"),
       ]);
       const sourceSha = await sha256Hex(await readBlobBytes(source));
       const sourcePreview = await browserGeometry.compileStl(
-        source,
+        previewSource,
         Math.max(0.01, sample.graph.projectTolerance.surfaceDeviation),
         { solidify: false, validateStep: false },
       );
