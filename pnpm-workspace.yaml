@@ -6,3 +6,6 @@ allowBuilds:
   esbuild: true
   sharp: false
   workerd: true
+
+patchedDependencies:
+  '@react-three/fiber@9.6.1': patches/@react-three__fiber@9.6.1.patch
