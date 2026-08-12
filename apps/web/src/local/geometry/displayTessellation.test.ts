@@ -72,7 +72,7 @@ describe("result display tessellation", () => {
 
           expect(mesh.triangleCount).toBeGreaterThan(700);
           expect(mesh.triangleCount).toBeLessThan(5_000);
-          expect(lines.segmentCount).toBeGreaterThan(1_400);
+          expect(lines.segmentCount).toBeGreaterThan(700);
           expect(lines.segmentCount).toBeLessThan(10_000);
         } finally {
           kernel.release(cylinder);

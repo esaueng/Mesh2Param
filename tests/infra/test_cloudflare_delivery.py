@@ -26,6 +26,12 @@ def test_cloudflare_worker_delivery_contract() -> None:
     assert "new Response(upstreamResponse.body" in worker
     assert "return env.ASSETS.fetch(request)" in worker
     assert "api_origin_not_configured" in worker
+    assert 'url.protocol === "https:"' in worker
+    assert 'url.protocol === "http:" && isLoopbackHostname(url.hostname)' in worker
+    assert 'normalized === "localhost"' in worker
+    assert 'normalized === "127.0.0.1"' in worker
+    assert 'normalized === "[::1]"' in worker
+    assert "valid HTTPS or loopback HTTP origin" in worker
     assert "Content-Security-Policy: default-src 'self'" in headers
     document_policy = headers.split("/assets/*", 1)[0]
     assert "'unsafe-eval'" not in document_policy
