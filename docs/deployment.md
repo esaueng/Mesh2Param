@@ -93,6 +93,20 @@ arbitrary topology because sewing, STEP export, and STEP reimport are memory- an
 The default native job timeout is 300 seconds; size the API/worker host for the configured 4 GiB
 worker memory limit and raise the timeout deliberately when production models require it.
 
+### Worker health checks
+
+For a self-contained browser-local Worker (the default `MESH2PARAM_API_ORIGIN=""` deployment),
+use `GET /health` as the production health check. It returns `200` only when the Worker is handling
+the request and identifies the active `executionMode` as `browser-local`; it does not claim that a
+native API is available. `GET /ready` remains the optional native-service readiness route and
+returns `503` with `api_origin_not_configured` until an API origin is configured. This is expected
+for a browser-local deployment and must not be used to monitor its availability.
+
+When `MESH2PARAM_API_ORIGIN` is configured, `/health` and `/ready` proxy the native service. In that
+mode, use `/health` for API liveness and `/ready` for database, artifact storage, and external
+geometry-worker readiness. The Docker Compose self-hosting topology always uses `/ready` through
+the same-origin web proxy.
+
 For a browser-visible Worker origin such as `https://cad.example.com` and an API origin such as
 `https://api.example.com`, the backend must use exact production values that include:
 

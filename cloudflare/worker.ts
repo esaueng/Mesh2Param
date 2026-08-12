@@ -67,6 +67,24 @@ function unavailable(requestId: string): Response {
   );
 }
 
+function browserLocalHealth(requestId: string): Response {
+  return Response.json(
+    {
+      status: "ok",
+      service: "mesh2param-worker",
+      executionMode: "browser-local",
+      apiProxy: "not-configured",
+    },
+    {
+      headers: {
+        ...ERROR_SECURITY_HEADERS,
+        "Cache-Control": "no-store",
+        "X-Request-ID": requestId,
+      },
+    },
+  );
+}
+
 function proxyFailure(requestId: string): Response {
   return Response.json(
     {
@@ -145,6 +163,9 @@ async function proxyToApi(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const pathname = new URL(request.url).pathname;
+    if (pathname === "/health" && configuredApiOrigin(env.MESH2PARAM_API_ORIGIN) === null) {
+      return browserLocalHealth(requestIdFor(request));
+    }
     if (isProxyPath(pathname)) return proxyToApi(request, env);
     return env.ASSETS.fetch(request);
   },
