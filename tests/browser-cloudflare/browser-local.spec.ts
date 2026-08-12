@@ -2,6 +2,20 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+test("reports the browser-local Worker deployment as healthy without an API origin", async ({ request }) => {
+  const response = await request.get("/health");
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()["cache-control"]).toBe("no-store");
+  expect(response.headers()["x-request-id"]).toBeTruthy();
+  await expect(response.json()).resolves.toEqual({
+    status: "ok",
+    service: "mesh2param-worker",
+    executionMode: "browser-local",
+    apiProxy: "not-configured",
+  });
+});
+
 test("opens persisted geometry and rebuilds an exact CADGraph in browser WASM", async ({ page }) => {
   const wasmResponses: number[] = [];
   page.on("response", (response) => {

@@ -275,6 +275,14 @@ acceptance gates. Set `MESH2PARAM_API_ORIGIN` to the
 public HTTPS origin of a separately hosted FastAPI/native-OCCT service to proxy `/api`, `/health`,
 `/ready`, `/docs`, and `/openapi.json` for native reconstruction.
 
+For a browser-local Worker deployment, monitor `GET /health`: it returns `200` with
+`executionMode: "browser-local"` when the deployed static application is serving correctly. `GET
+/ready` is intentionally reserved for the optional native API and returns `503` until
+`MESH2PARAM_API_ORIGIN` is configured. When that origin is configured, both routes proxy the native
+service; use `/ready` to check its database, storage, and geometry-worker capacity. See
+[deployment](docs/deployment.md#cloudflare-worker-frontend) for the full production and self-hosting
+configuration.
+
 ## Security model
 
 Uploads and generated geometry are untrusted. Mesh2Param uses bounded stream parsing, structural
