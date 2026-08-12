@@ -13,14 +13,22 @@ function isProxyPath(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/") || PROXY_PATHS.has(pathname);
 }
 
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]";
+}
+
 function configuredApiOrigin(value: string): URL | null {
   const candidate = value.trim();
   if (candidate === "") return null;
 
   try {
     const url = new URL(candidate);
+    const hasSafeProtocol =
+      url.protocol === "https:" ||
+      (url.protocol === "http:" && isLoopbackHostname(url.hostname));
     const hasCleanOrigin =
-      (url.protocol === "https:" || url.protocol === "http:") &&
+      hasSafeProtocol &&
       url.username === "" &&
       url.password === "" &&
       (url.pathname === "" || url.pathname === "/") &&
@@ -39,7 +47,7 @@ function unavailable(requestId: string): Response {
         code: "api_origin_not_configured",
         summary: "Mesh2Param API unavailable",
         detail:
-          "This Cloudflare Worker serves the web application, but MESH2PARAM_API_ORIGIN is not configured with a valid HTTP(S) origin.",
+          "This Cloudflare Worker serves the web application, but MESH2PARAM_API_ORIGIN is not configured with a valid HTTPS or loopback HTTP origin.",
         phase: null,
         projectId: null,
         jobId: null,

@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
   edgeOverlayKind,
   displayMaterialProperties,
+  hidePatchTriangles,
   lineSegmentPositions,
   patchForFace,
   selectedTriangleRanges,
@@ -27,6 +28,42 @@ describe("selection map lookup", () => {
   it("retains every disjoint range for the selected viewport highlight", () => {
     expect(selectedTriangleRanges(ranges, "patch-a")).toHaveLength(2);
     expect(selectedTriangleRanges(ranges, null)).toEqual([]);
+  });
+
+  it("removes hidden patch triangles from rendering and raycasting without mutating the cached geometry", () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+      1, 1, 0,
+    ], 3));
+    geometry.setIndex([0, 1, 2, 1, 3, 2]);
+    const originalIndices = Array.from(geometry.getIndex()!.array);
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    const object = new THREE.Group();
+    object.add(mesh);
+
+    expect(hidePatchTriangles(object, [
+      { triangleStart: 0, triangleEndExclusive: 1, patchId: "patch-a", semanticIds: ["patch-a"] },
+      { triangleStart: 1, triangleEndExclusive: 2, patchId: "patch-b", semanticIds: ["patch-b"] },
+    ], ["patch-a"])).toBe(1);
+
+    expect(mesh.geometry).not.toBe(geometry);
+    expect(Array.from(geometry.getIndex()!.array)).toEqual(originalIndices);
+    expect(Array.from(mesh.geometry.getIndex()!.array)).toEqual([0, 0, 0, 1, 3, 2]);
+
+    object.updateMatrixWorld(true);
+    const hiddenRay = new THREE.Raycaster(
+      new THREE.Vector3(0.2, 0.2, 1),
+      new THREE.Vector3(0, 0, -1),
+    );
+    const visibleRay = new THREE.Raycaster(
+      new THREE.Vector3(0.8, 0.8, 1),
+      new THREE.Vector3(0, 0, -1),
+    );
+    expect(hiddenRay.intersectObject(mesh)).toEqual([]);
+    expect(visibleRay.intersectObject(mesh)).toHaveLength(1);
   });
 });
 
@@ -80,6 +117,27 @@ describe("analytic edge geometry", () => {
       1, 1, 0,
     ], 3));
     geometry.setIndex([0, 1, 1, 2]);
+
+    expect(lineSegmentPositions(geometry)).toEqual([
+      0, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+    ]);
+  });
+
+  it("expands quantized interleaved GL line pairs", () => {
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new THREE.InterleavedBuffer(new Uint16Array([
+      0, 0, 0, 0,
+      0xffff, 0, 0, 0,
+      0xffff, 0xffff, 0, 0,
+    ]), 4);
+    geometry.setAttribute(
+      "position",
+      new THREE.InterleavedBufferAttribute(vertices, 3, 0, true),
+    );
+    geometry.setIndex(new THREE.Uint16BufferAttribute([0, 1, 1, 2], 1));
 
     expect(lineSegmentPositions(geometry)).toEqual([
       0, 0, 0,

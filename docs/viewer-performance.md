@@ -41,7 +41,7 @@ result LOD:
 - chordal deflection is at most `0.025%` of the exact B-Rep bounding-box
   diagonal, while retaining any stricter project setting;
 - angular deflection is at most `1 degree`;
-- B-Rep edges are sampled directly and adaptively from OCCT at a `0.5 degree`
+- B-Rep edges are sampled directly and adaptively from OCCT at the same `1 degree`
   angular target and embedded as a GL `LINES` primitive;
 - the exact-edge overlay is capped at 200,000 segments for pathological
   topology; source/faceted mesh overlays retain the existing triangle-count
@@ -51,6 +51,26 @@ The mesh and line data are generated from the same immutable shape and shipped
 in one content-addressed GLB. Rebuilding geometry changes the artifact SHA, so
 the project-level GLTF cache evicts the superseded display mesh and edge data
 together. No viewport tessellation setting changes the STEP/B-Rep export.
+
+Exact-result GLBs use the ratified `KHR_mesh_quantization` representation:
+surface and edge positions share one uniform 16-bit coordinate grid, smooth
+normals use signed normalized bytes, and triangle/line indices use the smallest
+legal unsigned width. The uniform transform preserves angles while
+`ArtifactLayer` recomputes its creased display normals. The 10x close-view
+regression bounds position quantization below `0.06 px` and the 1-degree curve
+sagitta below `0.1 px`.
+
+Measured committed sample sizes against the original dense result GLBs:
+
+| sample | before | compact | reduction |
+| --- | ---: | ---: | ---: |
+| spacer (24 mm cylinder) | 197,188 B | 87,936 B | 55.4% |
+| shaft collar (36 mm cylinder) | 478,336 B | 213,588 B | 55.3% |
+| flange (70 mm cylinder) | 883,320 B | 390,744 B | 55.8% |
+
+The compact encoding applies only to exact-result viewport GLBs carrying
+analytic curves. Source/faceted GLBs keep their existing representation, and
+STEP, STL, OBJ, CADGraph, validation, and manufacturing geometry are unchanged.
 
 ## The long tasks are the WebGL path, and mostly the software rasterizer
 

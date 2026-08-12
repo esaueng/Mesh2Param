@@ -85,6 +85,19 @@ test("L-bracket sample opens validated and exports a STEP", async ({ page }) => 
   await page.getByRole("button", { name: "Result", exact: true }).click();
   await expect(page.getByRole("button", { name: "Result", exact: true })).toHaveAttribute("aria-pressed", "true");
 
+  // The identity strip occupies the same top row visually, but its empty grid
+  // area must not intercept the viewport tools underneath it.
+  const section = page.getByRole("button", { name: "Section", exact: true });
+  await section.click({ timeout: 15_000 });
+  await expect(page.getByTestId("section-controls")).toBeVisible();
+  await section.click({ timeout: 15_000 });
+  await expect(page.getByTestId("section-controls")).toHaveCount(0);
+  const measure = page.getByRole("button", { name: "Measure", exact: true });
+  await measure.click({ timeout: 15_000 });
+  await expect(page.getByTestId("measurement-controls")).toBeVisible();
+  await measure.click({ timeout: 15_000 });
+  await expect(page.getByTestId("measurement-controls")).toHaveCount(0);
+
   const download = page.waitForEvent("download", { timeout: 30_000 });
   await primaryAction(page).click();
   expect((await download).suggestedFilename()).toMatch(/\.step$/i);
@@ -158,6 +171,25 @@ test("surface patch controls persist authoritative edits", async ({ page }) => {
   const firstFreeformId = await patchId(freeformItems.nth(0));
   const secondFreeformId = await patchId(freeformItems.nth(1));
   const planeId = await patchId(planeItems.nth(0));
+
+  // Hide/show is a viewport contract, not metadata-only state. Keep the second
+  // patch selected so the screenshots differ only if the first patch's
+  // triangles and edges actually leave the scene.
+  await patchItem(page, secondFreeformId).locator(".panel-patch-row").click();
+  const viewport = page.getByTestId("cad-viewport");
+  const beforeHide = await viewport.screenshot();
+  await expectPatch(page, firstFreeformId, { hidden: true }, () =>
+    page.getByRole("button", { name: `Hide ${firstFreeformId}`, exact: true }).click());
+  await expect(page.getByRole("button", { name: `Show ${firstFreeformId}`, exact: true })).toBeVisible();
+  await expect(viewport).toHaveAttribute("data-hidden-patch-count", "1");
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  const afterHide = await viewport.screenshot();
+  expect(afterHide.equals(beforeHide), "hiding a patch should change the rendered viewport").toBe(false);
+  await expectPatch(page, firstFreeformId, { hidden: false }, () =>
+    page.getByRole("button", { name: `Show ${firstFreeformId}`, exact: true }).click());
+  await expect(viewport).toHaveAttribute("data-hidden-patch-count", "0");
 
   await expectPatch(page, planeId, { locked: true }, () =>
     page.getByRole("button", { name: `Lock ${planeId}`, exact: true }).click());
