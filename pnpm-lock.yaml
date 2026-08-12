@@ -7,6 +7,9 @@ settings:
 overrides:
   fast-uri: 3.1.4
 
+patchedDependencies:
+  '@react-three/fiber@9.6.1': 31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82
+
 importers:
 
   .:
@@ -43,10 +46,10 @@ importers:
         version: link:../../packages/ui
       '@react-three/drei':
         specifier: ^10.7.4
-        version: 10.7.7(@react-three/fiber@9.6.1(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1))(@types/react@19.2.17)(@types/three@0.185.1)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
+        version: 10.7.7(@react-three/fiber@9.6.1(patch_hash=31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82)(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1))(@types/react@19.2.17)(@types/three@0.185.1)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
       '@react-three/fiber':
         specifier: ^9.3.0
-        version: 9.6.1(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
+        version: 9.6.1(patch_hash=31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82)(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
       dexie:
         specifier: ^4.2.0
         version: 4.4.4
@@ -2863,12 +2866,12 @@ snapshots:
 
   '@poppinss/exception@1.2.3': {}
 
-  '@react-three/drei@10.7.7(@react-three/fiber@9.6.1(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1))(@types/react@19.2.17)(@types/three@0.185.1)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)':
+  '@react-three/drei@10.7.7(@react-three/fiber@9.6.1(patch_hash=31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82)(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1))(@types/react@19.2.17)(@types/three@0.185.1)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@mediapipe/tasks-vision': 0.10.17
       '@monogrid/gainmap-js': 3.4.0(three@0.185.1)
-      '@react-three/fiber': 9.6.1(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
+      '@react-three/fiber': 9.6.1(patch_hash=31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82)(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)
       '@use-gesture/react': 10.3.1(react@19.2.7)
       camera-controls: 3.1.2(three@0.185.1)
       cross-env: 7.0.3
@@ -2896,7 +2899,7 @@ snapshots:
       - '@types/three'
       - immer
 
-  '@react-three/fiber@9.6.1(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)':
+  '@react-three/fiber@9.6.1(patch_hash=31d385f1184f459b23d1bc6e7e979b93dd0579073640b9a3c5bbcf12595fbd82)(@types/react@19.2.17)(immer@11.1.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(three@0.185.1)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@types/webxr': 0.5.24
