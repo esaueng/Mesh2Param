@@ -1,0 +1,106 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        30.0,
+        20.0,
+        48.0
+      ],
+      "min": [
+        -30.0,
+        -20.0,
+        -2.1992423e-16
+      ]
+    },
+    "edgeCount": 87,
+    "faceCount": 33,
+    "holeCount": 3,
+    "sha256": "6a8a78ed0df163d00db2f6f8c863b63d342d198decfed8f27eb69539b873e1ef",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 6,
+      "cylinder": 11,
+      "plane": 16
+    },
+    "vertexCount": 56,
+    "volume": 23823.8975
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          30.0,
+          20.0,
+          48.0
+        ],
+        "min": [
+          -30.0,
+          -20.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "ecf56a0a2ee5da3183a505179f1b1093d1e840eb3d77a35bad6bb204f2596601",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 704,
+      "vertices": 348,
+      "volume": 23818.9403,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          30.0,
+          20.0,
+          48.0
+        ],
+        "min": [
+          -30.0,
+          -20.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "838d9900076dea7ade26a1aca2c1b2dadd4cf03cbb2fa9b2e425d211156e8cb5",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3312,
+      "vertices": 1652,
+      "volume": 23823.6038,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Countersinks on the top face and plain holes through the wall give two distinct hole archetypes on one small bracket.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "corner-brace-countersunk",
+  "tags": [
+    "prismatic-multi-axis",
+    "countersink",
+    "through-hole",
+    "fillet-vertical",
+    "chamfer"
+  ],
+  "title": "Countersunk corner brace",
+  "units": "mm"
+}

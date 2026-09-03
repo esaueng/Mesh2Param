@@ -1,0 +1,107 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        37.5644213,
+        37.5644213,
+        12.0
+      ],
+      "min": [
+        -37.5644213,
+        -37.5644213,
+        -3.59046126e-13
+      ]
+    },
+    "edgeCount": 27,
+    "faceCount": 13,
+    "holeCount": 4,
+    "sha256": "db53a5da2c41148fe4a6395e1f22cf70770db2f8dd8ac3494d9c25104c7e7a71",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 6,
+      "plane": 2,
+      "torus": 1
+    },
+    "vertexCount": 16,
+    "volume": 25499.2734
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          34.0,
+          33.7521019,
+          12.0
+        ],
+        "min": [
+          -34.0,
+          -33.7521019,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "6eaa36aabf559717deb9de46fff5e48c87866b754ab29dcc73020cc8ce642125",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1624,
+      "vertices": 806,
+      "volume": 25270.3206,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          34.0,
+          33.9894333,
+          12.0
+        ],
+        "min": [
+          -34.0,
+          -33.9894333,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "41df59b55a729f3e6dd69da8aba065491197d32a2bd8309e69aa77934a5c5ab3",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 23700,
+      "vertices": 11844,
+      "volume": 25489.4757,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The seal groove is a real toroidal face; fitting it as a cylinder or cone changes the sealing dimension.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "oring-gland-ring",
+  "tags": [
+    "torus",
+    "revolved",
+    "circular-pattern",
+    "blind-hole",
+    "chamfer"
+  ],
+  "title": "O-ring gland ring",
+  "units": "mm"
+}

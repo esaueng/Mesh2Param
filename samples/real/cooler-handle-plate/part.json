@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          34.0081024,
+          53.0999985,
+          21.9973717
+        ],
+        "min": [
+          -32.4918976,
+          -43.3983116,
+          -7.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "585f4abd5a0be4803b87015c2583426062a5ebe2fe262d1b1505a7bb58fd2404",
+      "sourceFormat": "stl",
+      "sourceSha256": "585f4abd5a0be4803b87015c2583426062a5ebe2fe262d1b1505a7bb58fd2404",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 2864,
+      "vertices": 1426,
+      "volume": 41617.8458,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Bent plate with a rolled lip, rectangular window, and screw holes. Hand check: 2 to 4 holes, 1 window.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "cooler-handle-plate",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "pocket",
+    "fillet-rim"
+  ],
+  "title": "Cooler handle plate v1.5",
+  "units": "mm"
+}

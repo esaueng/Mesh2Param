@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          21.0940742,
+          22.094696,
+          25.0
+        ],
+        "min": [
+          -21.0940742,
+          -22.094696,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "33008bda48583bc4aba6e9a0156ab89fab5c25affa7ca4260a4284e0cff8cb6b",
+      "sourceFormat": "stl",
+      "sourceSha256": "33008bda48583bc4aba6e9a0156ab89fab5c25affa7ca4260a4284e0cff8cb6b",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 4088,
+      "vertices": 2044,
+      "volume": 17778.6865,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Stepped round fitting with a central bore and four side slots. Hand check: 1 bore, 4 slots.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "conduit-fitting",
+  "tags": [
+    "revolved",
+    "through-hole",
+    "slot",
+    "prismatic-multi-axis"
+  ],
+  "title": "Conduit fitting v1",
+  "units": "mm"
+}

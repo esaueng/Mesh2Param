@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        55.0,
+        55.0,
+        34.0
+      ],
+      "min": [
+        -55.0,
+        -55.0,
+        -4.48308057e-13
+      ]
+    },
+    "edgeCount": 41,
+    "faceCount": 22,
+    "holeCount": 9,
+    "sha256": "3a8802efffc916faf3a36036aaefa5d6d1cfce91f1112e00d83baf1dfbdf71aa",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 2,
+      "cylinder": 11,
+      "plane": 7,
+      "torus": 2
+    },
+    "vertexCount": 26,
+    "volume": 121081.568
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          55.0,
+          54.5989876,
+          34.0
+        ],
+        "min": [
+          -55.0,
+          -54.5989876,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "632e5c9f6b5898adb2f720d3f28da457b1301223cb197e9527e62bcdbb7d52c9",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1992,
+      "vertices": 988,
+      "volume": 119899.275,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          55.0,
+          54.9829063,
+          34.0
+        ],
+        "min": [
+          -55.0,
+          -54.9829063,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "05bea349625ffb2d2fcd113fde9c5e2299f18c8ca5e81607ca99ff2d0b0d5caf",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 22192,
+      "vertices": 11088,
+      "volume": 121031.044,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A revolved hub with a filleted rim; the counterbores are cut from the opposite face to the fillet, which trips up single-axis fits.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "flange-four-bolt",
+  "tags": [
+    "revolved",
+    "through-hole",
+    "counterbore",
+    "circular-pattern",
+    "fillet-rim",
+    "chamfer"
+  ],
+  "title": "Four-bolt pipe flange",
+  "units": "mm"
+}

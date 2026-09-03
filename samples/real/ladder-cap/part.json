@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          13.5,
+          13.4994307,
+          10.0
+        ],
+        "min": [
+          -13.5,
+          -13.4994307,
+          -15.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "20576faf1d1b403903b427da04683146ae663f74710792868f5fcfc6add38cb0",
+      "sourceFormat": "stl",
+      "sourceSha256": "20576faf1d1b403903b427da04683146ae663f74710792868f5fcfc6add38cb0",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 13530,
+      "vertices": 6767,
+      "volume": 6991.5349,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Domed round cap, shelled from below. Hand check: revolve profile with a spherical top; 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "ladder-cap",
+  "tags": [
+    "revolved",
+    "sphere",
+    "shell",
+    "fillet-rim"
+  ],
+  "title": "Ladder cap v1.2",
+  "units": "mm"
+}

@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          49.0,
+          49.0,
+          12.0
+        ],
+        "min": [
+          -5.0,
+          -3.5,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "adc1f477441dac282ccbe010beabde6aa99c0e295f98c88b4018cfb8767a86d2",
+      "sourceFormat": "stl",
+      "sourceSha256": "adc1f477441dac282ccbe010beabde6aa99c0e295f98c88b4018cfb8767a86d2",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 11648,
+      "vertices": 5824,
+      "volume": 15799.3582,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Rounded-corner square frame with tapered walls. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "dock-side-protector-cap",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "taper",
+    "thin-wall"
+  ],
+  "title": "Dock side protector cap v1.3",
+  "units": "mm"
+}

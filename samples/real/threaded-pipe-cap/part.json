@@ -1,0 +1,107 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        22.2925061,
+        21.8154375,
+        30.0
+      ],
+      "min": [
+        -21.8154375,
+        -22.2925061,
+        -1.38564065
+      ]
+    },
+    "edgeCount": 131,
+    "faceCount": 46,
+    "holeCount": 6,
+    "sha256": "0336133f949cdcda154f3bc0ce3a62b64d074dcc4a1f2f166ddb865ebe33c2bf",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 3,
+      "cone": 10,
+      "cylinder": 18,
+      "plane": 15
+    },
+    "vertexCount": 87,
+    "volume": 15137.3678
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          17.0,
+          16.9717846,
+          30.0
+        ],
+        "min": [
+          -17.0,
+          -16.9717846,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "a13736558ae62d8a4da4282c4822141e900863447fb93f4048ef77b83149ec87",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 2442,
+      "vertices": 1221,
+      "volume": 15005.7628,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          17.0,
+          16.9948158,
+          30.0
+        ],
+        "min": [
+          -17.0,
+          -16.9948158,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "fb334bc69ed9a549551fd3b4b149401c01d2fcaca700fbbf16ca1cdbbb8ea6f3",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 10270,
+      "vertices": 5135,
+      "volume": 15132.8354,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A helical swept thread inside a knurl-cut cap: the thread is a genuinely non-analytic sweep surface, out of scope for prismatic reconstruction.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "threaded-pipe-cap",
+  "tags": [
+    "thread-like",
+    "revolved",
+    "circular-pattern",
+    "thin-wall",
+    "chamfer"
+  ],
+  "title": "Threaded pipe cap",
+  "units": "mm"
+}

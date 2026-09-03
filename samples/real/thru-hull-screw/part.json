@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          26.5,
+          26.4984455,
+          80.0
+        ],
+        "min": [
+          -26.5,
+          -26.4984455,
+          -20.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "e6a23354657c17754bec4e23d4bcbb6d070014f1a15ccc62a2fee887605bbba6",
+      "sourceFormat": "stl",
+      "sourceSha256": "e6a23354657c17754bec4e23d4bcbb6d070014f1a15ccc62a2fee887605bbba6",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 134094,
+      "vertices": 67047,
+      "volume": 33168.2049,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Threaded thru-hull with flanged head and hex socket; 134k triangles.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "thru-hull-screw",
+  "tags": [
+    "revolved",
+    "thread-like",
+    "chamfer",
+    "through-hole"
+  ],
+  "title": "Thru-hull screw v1.10",
+  "units": "mm"
+}

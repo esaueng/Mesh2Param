@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        42.0,
+        30.0,
+        32.0
+      ],
+      "min": [
+        -42.0,
+        -30.0,
+        0.0
+      ]
+    },
+    "edgeCount": 108,
+    "faceCount": 45,
+    "holeCount": 4,
+    "sha256": "617256f4dd3bd024bbaf0680124e5d81b79d4c9c504b049ed3b4a8f105d92938",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 4,
+      "plane": 41
+    },
+    "vertexCount": 72,
+    "volume": 62489.4726
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          42.0,
+          30.0,
+          32.0
+        ],
+        "min": [
+          -42.0,
+          -30.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "5e5f5823ca4b60c774ded58c3709a176fdd5e9a719f50622c7dfbbe183a08880",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 556,
+      "vertices": 272,
+      "volume": 62493.0155,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          42.0,
+          30.0,
+          32.0
+        ],
+        "min": [
+          -42.0,
+          -30.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "5e8136b4033079ea403927d996c96610863552637b2f1a28fd8c0da0636a23d8",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2156,
+      "vertices": 1072,
+      "volume": 62489.625,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Seven thin fins on a shared base: the narrow channels between them are where mesh decimation loses parallelism.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "finned-heat-sink",
+  "tags": [
+    "prismatic-single-axis",
+    "linear-pattern",
+    "rib",
+    "through-hole"
+  ],
+  "title": "Finned heat sink plate",
+  "units": "mm"
+}

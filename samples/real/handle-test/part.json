@@ -1,0 +1,47 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          132.0,
+          12.0,
+          39.0
+        ],
+        "min": [
+          -7.0,
+          -12.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "8bab0516a4bc1631dfc179021969ff41a930bbae0ffeba0d4046d678e97300d1",
+      "sourceFormat": "stl",
+      "sourceSha256": "8bab0516a4bc1631dfc179021969ff41a930bbae0ffeba0d4046d678e97300d1",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 3564,
+      "vertices": 1780,
+      "volume": 35660.1595,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Drawer handle bar with two feet. Hand check: 0 holes, planar and cylindrical faces.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "handle-test",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical"
+  ],
+  "title": "Handle test v2",
+  "units": "mm"
+}

@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        45.0,
+        17.0,
+        5.0
+      ],
+      "min": [
+        -45.0,
+        -17.0,
+        0.0
+      ]
+    },
+    "edgeCount": 156,
+    "faceCount": 58,
+    "holeCount": 2,
+    "sha256": "f85f16fcbe52aa93d3632fb965bc161f0567b348de6f62395091d3c6101c956e",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 6,
+      "plane": 52
+    },
+    "vertexCount": 104,
+    "volume": 13283.5928
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          45.0,
+          17.0,
+          5.0
+        ],
+        "min": [
+          -45.0,
+          -17.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "f9f45e4317d694b244f3bb1ed262b556d2ab470918e3263f555d49ad6e31e201",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 504,
+      "vertices": 250,
+      "volume": 13282.5378,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          45.0,
+          17.0,
+          5.0
+        ],
+        "min": [
+          -45.0,
+          -17.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "82efb813677b0d3660d7c973729ef5d32cb2ee53aebc96ff4af57e26ad900a18",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 1700,
+      "vertices": 848,
+      "volume": 13283.5494,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Eleven shallow 2 mm strokes inside a recessed panel imitate engraved lettering - many tiny coplanar faces at one depth.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "engraved-label-plate",
+  "tags": [
+    "text-like",
+    "pocket",
+    "prismatic-single-axis",
+    "fillet-vertical"
+  ],
+  "title": "Engraved label plate",
+  "units": "mm"
+}

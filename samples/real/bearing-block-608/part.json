@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        32.0,
+        13.0,
+        40.0
+      ],
+      "min": [
+        -32.0,
+        -13.0,
+        0.0
+      ]
+    },
+    "edgeCount": 45,
+    "faceCount": 19,
+    "holeCount": 4,
+    "sha256": "c2c1474c5cb3730d46b6c03e3222fae243433329f99e39016f1b787a3c78eebf",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 7,
+      "plane": 12
+    },
+    "vertexCount": 30,
+    "volume": 50564.0403
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          32.0,
+          13.0,
+          40.0
+        ],
+        "min": [
+          -32.0,
+          -13.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "eb9e849a96a8ecba59b93613656dd8de33a2116f67e19390b1880cf2500b0102",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 574,
+      "vertices": 289,
+      "volume": 50653.5803,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          32.0,
+          13.0,
+          40.0
+        ],
+        "min": [
+          -32.0,
+          -13.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "ca8962b144f600736b5d7ad80f405f0dc92b34a2a607a10ad3f56983b9d44b5b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2708,
+      "vertices": 1356,
+      "volume": 50567.2518,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The bearing bore runs along Y, the foot holes along Z and the grub screw along Z into the bore, so three axes intersect.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "bearing-block-608",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "blind-hole",
+    "counterbore",
+    "fillet-vertical"
+  ],
+  "title": "608 bearing pillow block",
+  "units": "mm"
+}

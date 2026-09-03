@@ -1,0 +1,103 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        7.5,
+        6.49519053,
+        35.0
+      ],
+      "min": [
+        -7.5,
+        -6.49519053,
+        -2.00000002e-07
+      ]
+    },
+    "edgeCount": 45,
+    "faceCount": 21,
+    "holeCount": 1,
+    "sha256": "dca0ba45b641eabee000f927d5cf5b14e275bc3326c05543dc1d9332d1f205b0",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 1,
+      "plane": 20
+    },
+    "vertexCount": 26,
+    "volume": 4310.85236
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          7.5,
+          6.49519062,
+          35.0
+        ],
+        "min": [
+          -7.5,
+          -6.49519062,
+          -2.00000002e-07
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "fb042edb60f40e5c97f563f53aa2550b935bac115c93ab2206986e4df81acebc",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 152,
+      "vertices": 76,
+      "volume": 4318.06613,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          7.5,
+          6.49519062,
+          35.0
+        ],
+        "min": [
+          -7.5,
+          -6.49519062,
+          -2.00000002e-07
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "b421334653eb73c512f21095a84408822ef0c7205a12c7b76ea4ed539a35a94a",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 552,
+      "vertices": 276,
+      "volume": 4311.16044,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The easy baseline: one hex profile extruded once, with chamfered ends and a single axial bore.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "hex-standoff-spacer",
+  "tags": [
+    "prismatic-single-axis",
+    "through-hole",
+    "chamfer"
+  ],
+  "title": "Hex standoff spacer",
+  "units": "mm"
+}

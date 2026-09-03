@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        39.0,
+        23.0,
+        18.0
+      ],
+      "min": [
+        -35.0,
+        -23.0,
+        0.0
+      ]
+    },
+    "edgeCount": 56,
+    "faceCount": 18,
+    "holeCount": 5,
+    "sha256": "2b76755582cff5f5832152bc5b0e2e0933458d8c1db383badee440200b1f7fc0",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 9,
+      "plane": 9
+    },
+    "vertexCount": 38,
+    "volume": 22719.4953
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          38.9358292,
+          23.0,
+          17.999506
+        ],
+        "min": [
+          -35.0,
+          -23.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "1cbe0a0a810c375058f1d2895f847e06a35e65e9285170853840cff703da7e19",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 856,
+      "vertices": 418,
+      "volume": 22691.0878,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          38.9999428,
+          23.0,
+          17.9976921
+        ],
+        "min": [
+          -35.0,
+          -23.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "11145701dc840794809ff907b5cc9811dfea5794da33add835627f383bfd2a64",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3916,
+      "vertices": 1948,
+      "volume": 22718.2218,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Two knuckles extruded along Y are welded to a leaf extruded along Z; the pin bore is coaxial with the knuckles.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "hinge-half-knuckle",
+  "tags": [
+    "prismatic-multi-axis",
+    "linear-pattern",
+    "through-hole",
+    "fillet-vertical"
+  ],
+  "title": "Hinge half with knuckles",
+  "units": "mm"
+}

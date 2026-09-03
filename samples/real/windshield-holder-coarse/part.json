@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          16.5,
+          35.6187935,
+          20.0
+        ],
+        "min": [
+          -16.5,
+          -9.20087814,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "6bec8d06b4cecf1c98f94a779b8114777b08b5b718ef19ec086337aa0c7b34fd",
+      "sourceFormat": "stl",
+      "sourceSha256": "6bec8d06b4cecf1c98f94a779b8114777b08b5b718ef19ec086337aa0c7b34fd",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 3488,
+      "vertices": 1746,
+      "volume": 12323.3065,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "C-clip with hook; coarse Fusion export (3.5k triangles). Same design family as windshield-holder-fine.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "windshield-holder-coarse",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "taper",
+    "slot"
+  ],
+  "title": "Windshield holder v2.4",
+  "units": "mm"
+}

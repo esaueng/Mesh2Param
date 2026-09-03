@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        11.0,
+        11.0,
+        40.0
+      ],
+      "min": [
+        -11.0,
+        -11.0,
+        -3.51718654e-13
+      ]
+    },
+    "edgeCount": 27,
+    "faceCount": 12,
+    "holeCount": 0,
+    "sha256": "10c5acc4a2d78fb500713e18ab9ff8fcce329baa6b136072ecacfc04786609e2",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 3,
+      "cylinder": 3,
+      "plane": 5,
+      "sphere": 1
+    },
+    "vertexCount": 16,
+    "volume": 7334.38497
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          11.0,
+          10.934763,
+          40.0
+        ],
+        "min": [
+          -10.9267912,
+          -10.934763,
+          0.0
+        ]
+      },
+      "degenerateFaces": 1,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "e9f4ecc0dd075a0d6b3b79ef63cc85c270a259217361d0f77a6eca653833c58b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 541,
+      "vertices": 272,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          11.0,
+          10.9966707,
+          40.0
+        ],
+        "min": [
+          -10.9967022,
+          -10.9966707,
+          0.0
+        ]
+      },
+      "degenerateFaces": 1,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "e8c6cc1fa0f7a9ae1157e42e8af5d4611e8afdfeeaf9f7d15c1df76004b1d993",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 8175,
+      "vertices": 4089,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A true spherical head on a tapered neck, with wrench flats milled along X - three surface families on one small part.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "spherical-ball-stud",
+  "tags": [
+    "sphere",
+    "revolved",
+    "cone",
+    "taper",
+    "chamfer",
+    "prismatic-multi-axis"
+  ],
+  "title": "Spherical ball stud",
+  "units": "mm"
+}

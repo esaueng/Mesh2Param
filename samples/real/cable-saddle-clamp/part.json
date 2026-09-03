@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        28.0,
+        13.0,
+        21.5066804
+      ],
+      "min": [
+        -28.0,
+        -13.0,
+        0.0
+      ]
+    },
+    "edgeCount": 59,
+    "faceCount": 22,
+    "holeCount": 2,
+    "sha256": "1060e44989a3b0802d488a5f47219b8753188adf2172a8ed48e9606d3af52e04",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 12,
+      "plane": 10
+    },
+    "vertexCount": 38,
+    "volume": 13143.6356
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          28.0,
+          13.0,
+          21.5066795
+        ],
+        "min": [
+          -28.0,
+          -13.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "f5b0a59ef353519e5afc6f327b9012f4327e586c95c3e760773bd55d0db6d96e",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 540,
+      "vertices": 266,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          28.0,
+          13.0,
+          21.5066795
+        ],
+        "min": [
+          -28.0,
+          -13.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "5b74740995191e3b5a28e949bb0f44412c32e519395687fb32cc0694b4cf7864",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2420,
+      "vertices": 1206,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A half-annular arch extruded along Y sits on a plate drilled along Z, and a tie slot cuts the arch crown.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "cable-saddle-clamp",
+  "tags": [
+    "prismatic-multi-axis",
+    "thin-wall",
+    "through-hole",
+    "slot",
+    "fillet-vertical"
+  ],
+  "title": "Cable saddle clamp",
+  "units": "mm"
+}

@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          181.0,
+          7.5,
+          62.0
+        ],
+        "min": [
+          -23.8999996,
+          -35.0,
+          -18.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "38335b121b0c5b5ba3a12cb18134d615c2dff52e73ec580dce5c93645629498c",
+      "sourceFormat": "stl",
+      "sourceSha256": "38335b121b0c5b5ba3a12cb18134d615c2dff52e73ec580dce5c93645629498c",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 5448,
+      "vertices": 2716,
+      "volume": 62603.4405,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Long angled arm with mounting holes at both ends. Hand check: 3 to 4 holes across two directions.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "camera-support-arm",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "fillet-vertical"
+  ],
+  "title": "Printer camera support v1.6",
+  "units": "mm"
+}

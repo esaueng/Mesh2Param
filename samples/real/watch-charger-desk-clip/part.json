@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        18.0,
+        23.0,
+        30.0
+      ],
+      "min": [
+        -48.5,
+        -7.98686539,
+        -5.0
+      ]
+    },
+    "edgeCount": 169,
+    "faceCount": 70,
+    "holeCount": 0,
+    "sha256": "a9a57607d793143438a09081adc604fd5ab800c972e5e96ed79f8fe41b7fea18",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 24,
+      "cylinder": 19,
+      "plane": 27
+    },
+    "vertexCount": 101,
+    "volume": 15831.4145
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          18.0,
+          23.0,
+          30.0
+        ],
+        "min": [
+          -48.5,
+          -7.9659133,
+          -5.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "03e1e650afc9ac1e993704e160e3873c74a878b4a4514f260103ac6407a8935e",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 950,
+      "vertices": 477,
+      "volume": 15809.3634,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          18.0,
+          23.0,
+          30.0
+        ],
+        "min": [
+          -48.5,
+          -7.98549461,
+          -5.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "b04cc7997b82bc98fbe53a9500434ec32ee43fc97810718527752198046f6d31",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 4906,
+      "vertices": 2455,
+      "volume": 15830.3705,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Desk-edge clip with a puck pocket. Ground truth from Fusion STEP; STLs tessellated by OCCT.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "watch-charger-desk-clip",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "fillet-vertical",
+    "pocket"
+  ],
+  "title": "Watch charger desk clip v1.2",
+  "units": "mm"
+}

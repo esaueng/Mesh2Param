@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        44.0,
+        44.0,
+        70.0
+      ],
+      "min": [
+        -44.0,
+        -44.0,
+        0.0
+      ]
+    },
+    "edgeCount": 16,
+    "faceCount": 10,
+    "holeCount": 2,
+    "sha256": "cb13a2fdd9ac28dba24b602cd697d4038f246e6671b38972824d587907f9a334",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 2,
+      "cylinder": 4,
+      "plane": 4
+    },
+    "vertexCount": 10,
+    "volume": 36948.2712
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          44.0,
+          43.6791916,
+          70.0
+        ],
+        "min": [
+          -44.0,
+          -43.6791916,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "95d96f9b3cd95245312294e2441f3345ba0b4a41d62aa8c3d6be836d41879678",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 624,
+      "vertices": 312,
+      "volume": 36354.6426,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          44.0,
+          43.9863243,
+          70.0
+        ],
+        "min": [
+          -44.0,
+          -43.9863243,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "7a3875295a55d831d6814e8e64446ce99bbc7568eda6ea05bbae77238abc97ad",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3780,
+      "vertices": 1890,
+      "volume": 36918.752,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A 2.5 mm wall revolved cone: the inner and outer cone faces have the same half-angle but different apex positions.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "conical-funnel-adapter",
+  "tags": [
+    "cone",
+    "revolved",
+    "taper",
+    "thin-wall"
+  ],
+  "title": "Conical funnel adapter",
+  "units": "mm"
+}

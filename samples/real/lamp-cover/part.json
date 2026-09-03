@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          51.5,
+          51.4839935,
+          90.0
+        ],
+        "min": [
+          -51.5,
+          -51.4839935,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "de8462b5a7fecb785a56315d629a49584ddccb32b593ea4c608e12d10baf55e8",
+      "sourceFormat": "stl",
+      "sourceSha256": "de8462b5a7fecb785a56315d629a49584ddccb32b593ea4c608e12d10baf55e8",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 1008,
+      "vertices": 504,
+      "volume": 43029.8294,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Thin slightly tapered tube. Hand check: 2 conical/cylindrical walls plus 2 planar rims.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "lamp-cover",
+  "tags": [
+    "revolved",
+    "thin-wall",
+    "taper"
+  ],
+  "title": "Lamp cover v1.2",
+  "units": "mm"
+}

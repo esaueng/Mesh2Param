@@ -1,0 +1,107 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        26.0,
+        15.0,
+        40.0
+      ],
+      "min": [
+        -26.0,
+        -15.0,
+        -8.9729776e-17
+      ]
+    },
+    "edgeCount": 94,
+    "faceCount": 38,
+    "holeCount": 2,
+    "sha256": "8d008a83504eff5ec904cea34e329d5ae7cc5372b2cdf4faf7388f3a0668319b",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 14,
+      "plane": 20
+    },
+    "vertexCount": 60,
+    "volume": 11617.2171
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          26.0,
+          15.0,
+          40.0
+        ],
+        "min": [
+          -26.0,
+          -15.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "af7252053057a456670580c7dbaf5d04bfa74685a87371fb414fbb1010499969",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 740,
+      "vertices": 368,
+      "volume": 11612.6744,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          26.0,
+          15.0,
+          40.0
+        ],
+        "min": [
+          -26.0,
+          -15.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "054f7de97654e583e7c7fd21a6563f427dc752959d8d077c6588e71e15746bfb",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3520,
+      "vertices": 1758,
+      "volume": 11616.9609,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A small bracket where the adjustment slots run along Z and X and the pilot holes stop blind inside a 5 mm plate.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "sensor-mount-bracket",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "through-hole",
+    "blind-hole",
+    "fillet-vertical",
+    "chamfer"
+  ],
+  "title": "Sensor mounting bracket",
+  "units": "mm"
+}

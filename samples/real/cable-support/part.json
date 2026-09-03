@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          7.5,
+          4.0,
+          18.0
+        ],
+        "min": [
+          -7.5,
+          -7.0,
+          -7.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "23ae4bf73d85f58aa91516565cf6e38b56bd97991604ffa9739d2be5a8acaed1",
+      "sourceFormat": "stl",
+      "sourceSha256": "23ae4bf73d85f58aa91516565cf6e38b56bd97991604ffa9739d2be5a8acaed1",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 2052,
+      "vertices": 1020,
+      "volume": 3152.51898,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Small block with a cable channel cut from the side and a chamfered face. Hand check: 0 round holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "cable-support",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "chamfer"
+  ],
+  "title": "Cable support v1.2",
+  "units": "mm"
+}

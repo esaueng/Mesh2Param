@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        60.0,
+        60.0,
+        26.0
+      ],
+      "min": [
+        -60.0,
+        -60.0,
+        -4.48308057e-13
+      ]
+    },
+    "edgeCount": 57,
+    "faceCount": 30,
+    "holeCount": 11,
+    "sha256": "6b624f51e226db0d0f625298a2bdd826462818c42f0fdff02e4895d95931b4e8",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 7,
+      "cylinder": 13,
+      "plane": 8,
+      "torus": 2
+    },
+    "vertexCount": 35,
+    "volume": 137102.903
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          60.0,
+          59.5625343,
+          26.0
+        ],
+        "min": [
+          -60.0,
+          -59.5625343,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "ac1fee1e04ea62c9bee6cee4f211eae3cf6f92a19ea4f4a3aa148312c730960c",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 2464,
+      "vertices": 1222,
+      "volume": 135764.307,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          60.0,
+          59.9813499,
+          26.0
+        ],
+        "min": [
+          -60.0,
+          -59.9813499,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "e954dcbbc32222f2815f0bf051d29ea1574c3c193efe2428fc2a2c9e46dbda53",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 25094,
+      "vertices": 12537,
+      "volume": 137046.227,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Five counterbored studs on an odd-count bolt circle, so no mirror symmetry can be exploited to clean up the fit.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "wheel-hub-adapter",
+  "tags": [
+    "revolved",
+    "circular-pattern",
+    "counterbore",
+    "through-hole",
+    "fillet-rim",
+    "chamfer"
+  ],
+  "title": "Wheel hub adapter",
+  "units": "mm"
+}

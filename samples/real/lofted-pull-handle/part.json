@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        23.0,
+        15.0,
+        50.0
+      ],
+      "min": [
+        -23.0,
+        -15.0,
+        0.0
+      ]
+    },
+    "edgeCount": 61,
+    "faceCount": 26,
+    "holeCount": 4,
+    "sha256": "217c7617d1fcbba6641461da4840ba7e8360656aeeb085f6b028f4065d7ba911",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 10,
+      "cylinder": 4,
+      "plane": 12
+    },
+    "vertexCount": 39,
+    "volume": 34580.0789
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          23.0,
+          15.0,
+          50.0
+        ],
+        "min": [
+          -23.0,
+          -15.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "743d0919bd9d79227aa53049e96d6573e3bcbc38388f5a24c58eed49f2e10840",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 558,
+      "vertices": 273,
+      "volume": 34452.0294,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          23.0,
+          15.0,
+          50.0
+        ],
+        "min": [
+          -23.0,
+          -15.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "292507f1f166649cfb7c270eba0db7255fc45980f26def8c82e2922967552725",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 5512,
+      "vertices": 2750,
+      "volume": 34551.8359,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The grip is a rectangle-to-circle-to-rectangle loft, so the body is a B-spline surface with no analytic fit at all.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "lofted-pull-handle",
+  "tags": [
+    "freeform",
+    "through-hole",
+    "prismatic-multi-axis"
+  ],
+  "title": "Lofted pull handle",
+  "units": "mm"
+}

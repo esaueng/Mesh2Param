@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          65.6999969,
+          53.2999992,
+          20.0
+        ],
+        "min": [
+          -2.0,
+          -2.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "4a69d9ea86a1946fdfc289ff9b5bdd6f96e041e390129aed99bee0085040f36e",
+      "sourceFormat": "stl",
+      "sourceSha256": "4a69d9ea86a1946fdfc289ff9b5bdd6f96e041e390129aed99bee0085040f36e",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 804,
+      "vertices": 404,
+      "volume": 19134.4187,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Rectangular tapered tray, planar faces only. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "boat-lift-cap",
+  "tags": [
+    "prismatic-single-axis",
+    "shell",
+    "taper",
+    "thin-wall"
+  ],
+  "title": "Boat lift cap v1",
+  "units": "mm"
+}

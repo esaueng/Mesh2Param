@@ -1,0 +1,50 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          32.9984474,
+          14.4954929,
+          15.0
+        ],
+        "min": [
+          -14.5,
+          -14.4954929,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "f513eefd5b5f78ba58553b3572d6aba51ccef58841bc2327a8039786d2fc5666",
+      "sourceFormat": "stl",
+      "sourceSha256": "f513eefd5b5f78ba58553b3572d6aba51ccef58841bc2327a8039786d2fc5666",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 12686,
+      "vertices": 6343,
+      "volume": 7615.612,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Round tapered plug with a tab and a lanyard hole. Hand check: 1 hole.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "cockpit-plug",
+  "tags": [
+    "revolved",
+    "prismatic-multi-axis",
+    "through-hole",
+    "fillet-rim",
+    "taper"
+  ],
+  "title": "Cockpit plug v2.2",
+  "units": "mm"
+}
