@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -41,6 +41,8 @@ FLOAT_DIGITS = 9
 
 #: A cylindrical face counts as "full" when its u range covers a whole revolution.
 _FULL_TURN_TOLERANCE = 1e-6
+#: Slack for sweeps summed across split faces, which lose slivers to boolean trimming.
+_SWEEP_TOLERANCE = 1e-4
 
 ORIGINS = ("generated", "user-design", "user-export", "public")
 
@@ -172,21 +174,29 @@ def _surface_name(face: TopoDS_Face) -> str:
     return _SURFACE_NAMES.get(BRepAdaptor_Surface(face).GetType(), "other")
 
 
-def is_hole_face(face: TopoDS_Face) -> bool:
-    """Heuristic: does this face bound a cylindrical hole through the material?
+@dataclass
+class _BoreFace:
+    """One inward-facing cylindrical face, reduced to what hole grouping needs."""
 
-    A face qualifies when it is a cylinder whose u range spans a full revolution and
-    whose material side faces inward -- that is, the outward-of-material normal (the
-    surface normal flipped for a REVERSED face) points back toward the cylinder axis.
-    See ``samples/real/README.md`` for the caveats this simplification accepts.
+    axis_point: gp_Pnt
+    axis_dir: gp_Vec
+    radius: float
+    sweep: float
+    axial_min: float
+    axial_max: float
+
+
+def _bore_face(face: TopoDS_Face) -> _BoreFace | None:
+    """Return the bore description of ``face`` if it is a cylinder facing its own axis.
+
+    The material side is inferred from the surface normal (flipped for a REVERSED face):
+    a bore's outward-of-material normal points back toward the axis, a boss's points away.
     """
 
     adaptor = BRepAdaptor_Surface(face)
     if adaptor.GetType() != GeomAbs_SurfaceType.GeomAbs_Cylinder:
-        return False
+        return None
     u_min, u_max, v_min, v_max = BRepTools.UVBounds_s(face)
-    if abs((u_max - u_min) - 2.0 * math.pi) > _FULL_TURN_TOLERANCE:
-        return False
 
     point = gp_Pnt()
     d_u = gp_Vec()
@@ -196,13 +206,74 @@ def is_hole_face(face: TopoDS_Face) -> bool:
     if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
         normal.Reverse()
 
-    axis = adaptor.Cylinder().Axis()
-    offset = gp_Vec(axis.Location(), point)
+    cylinder = adaptor.Cylinder()
+    axis = cylinder.Axis()
     along = gp_Vec(axis.Direction())
+    offset = gp_Vec(axis.Location(), point)
     radial = offset.Subtracted(along.Multiplied(offset.Dot(along)))
-    if radial.Magnitude() <= 1e-9:
+    if radial.Magnitude() <= 1e-9 or normal.Dot(radial) >= 0.0:
+        return None
+
+    # Canonical axis: direction with a positive leading component, located at the point
+    # of the axis nearest the origin, so split faces on one bore compare equal.
+    if tuple(along.Coord()) < (0.0, 0.0, 0.0):
+        along.Reverse()
+    location = gp_Vec(axis.Location().XYZ())
+    axis_point = gp_Pnt(location.Subtracted(along.Multiplied(location.Dot(along))).XYZ())
+
+    box = Bnd_Box()
+    BRepBndLib.Add_s(face, box, False)
+    x0, y0, z0, x1, y1, z1 = box.Get()
+    stations = [along.Dot(gp_Vec(x, y, z)) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)]
+    return _BoreFace(
+        axis_point=axis_point,
+        axis_dir=along,
+        radius=cylinder.Radius(),
+        sweep=min(u_max - u_min, 2.0 * math.pi),
+        axial_min=min(stations),
+        axial_max=max(stations),
+    )
+
+
+def _same_bore_axis(a: _BoreFace, b: _BoreFace, tolerance: float) -> bool:
+    if abs(a.radius - b.radius) > tolerance:
         return False
-    return bool(normal.Dot(radial) < 0.0)
+    if abs(a.axis_dir.Dot(b.axis_dir)) < 1.0 - 1e-6:
+        return False
+    return bool(a.axis_point.Distance(b.axis_point) <= tolerance)
+
+
+def count_holes(faces: Sequence[TopoDS_Face], *, tolerance: float = 1e-3) -> int:
+    """Count cylindrical bores, treating faces split around one bore as a single hole.
+
+    Inward-facing cylindrical faces are grouped by axis and radius. Within a group, faces
+    whose axial extents overlap or touch are merged; each merged run whose angular sweeps
+    add up to a full revolution counts as one hole. Coaxial bores of the same radius that
+    are separated along the axis (a hole through each wall of a channel) count separately.
+    Blind holes and every stage of a stepped bore count; countersinks and bosses do not.
+    """
+
+    bores = [bore for face in faces if (bore := _bore_face(face)) is not None]
+    groups: list[list[_BoreFace]] = []
+    for bore in bores:
+        for group in groups:
+            if _same_bore_axis(group[0], bore, tolerance):
+                group.append(bore)
+                break
+        else:
+            groups.append([bore])
+
+    holes = 0
+    for group in groups:
+        runs: list[list[float]] = []  # [axial_min, axial_max, sweep]
+        for bore in sorted(group, key=lambda item: item.axial_min):
+            if runs and bore.axial_min <= runs[-1][1] + tolerance:
+                runs[-1][1] = max(runs[-1][1], bore.axial_max)
+                runs[-1][2] += bore.sweep
+            else:
+                runs.append([bore.axial_min, bore.axial_max, bore.sweep])
+        holes += sum(1 for run in runs if run[2] >= 2.0 * math.pi - _SWEEP_TOLERANCE)
+    return holes
 
 
 def load_step_shape(path: Path) -> TopoDS_Shape:
@@ -228,12 +299,10 @@ def audit_step(path: Path) -> dict[str, Any]:
     faces = [TopoDS.Face_s(face) for face in _sub_shapes(shape, TopAbs_ShapeEnum.TopAbs_FACE)]
 
     inventory: dict[str, int] = {}
-    hole_count = 0
     for face in faces:
         name = _surface_name(face)
         inventory[name] = inventory.get(name, 0) + 1
-        if is_hole_face(face):
-            hole_count += 1
+    hole_count = count_holes(faces)
 
     return {
         "step": path.name,

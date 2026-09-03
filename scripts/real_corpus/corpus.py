@@ -441,12 +441,13 @@ run. Where that happens the topology counts, surface inventory and triangle coun
 unchanged -- only the SHA-256 moves -- so compare those, not the bytes, when checking a
 regeneration.
 
-`holeCount` is a deliberately simple heuristic: it counts cylindrical faces whose `u`
-range spans a full revolution and whose material side is inward (the surface normal,
-flipped for a `REVERSED` face, points back toward the cylinder axis). Consequences:
-blind holes and counterbores count, each stage of a stepped bore counts separately, a
-bore split into two half-cylinder faces is missed, and the outer wall of a tube is
-correctly ignored. It is a corpus statistic, not a feature recognizer.
+`holeCount` is a corpus statistic, not a feature recognizer. Inward-facing cylindrical
+faces (surface normal, flipped for a `REVERSED` face, pointing back toward the axis) are
+grouped by axis and radius; faces whose axial extents overlap are merged, and each merged
+run whose angular sweeps add up to a full revolution counts as one hole. A bore that an
+exporter split into two half-cylinders therefore counts once, while coaxial holes through
+separate walls count separately. Blind holes and every stage of a stepped bore count;
+countersinks, bosses, and the outer wall of a tube do not.
 
 """
 

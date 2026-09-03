@@ -15,6 +15,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from scripts.real_corpus import audit as audit_module  # noqa: E402
 from scripts.real_corpus import corpus, threemf  # noqa: E402
 from scripts.real_corpus.audit import (  # noqa: E402
     GENERATED_MESH_ROLES,
@@ -70,6 +71,69 @@ def build_box_with_hole() -> cq.Shape:
     shape = workplane.val()
     assert isinstance(shape, cq.Shape)
     return shape
+
+
+def build_split_bore_plate() -> cq.Shape:
+    """The hole plate cut in half through the bore axis and fused back without cleaning.
+
+    Exporters often emit a bore as two half-cylinder faces; this reproduces that topology.
+    """
+
+    plate = cq.Workplane("XY").box(40.0, 24.0, 8.0).faces(">Z").workplane().hole(10.0)
+    lower = plate.split(keepBottom=True)
+    upper = plate.split(keepTop=True)
+    fused = lower.union(upper, clean=False)
+    shape = fused.val()
+    assert isinstance(shape, cq.Shape)
+    return shape
+
+
+def build_channel_with_coaxial_holes() -> cq.Shape:
+    """A U-channel with one 6 mm hole through each wall on a shared axis."""
+
+    channel = (
+        cq.Workplane("XY")
+        .box(40.0, 30.0, 20.0)
+        .faces(">Z")
+        .workplane()
+        .rect(40.0, 18.0)
+        .cutBlind(-16.0)
+    )
+    # ProjectedOrigin would land on the wall's top edge; center on the face instead.
+    drilled = channel.faces(">Y").workplane(centerOption="CenterOfBoundBox").hole(6.0)
+    shape = drilled.val()
+    assert isinstance(shape, cq.Shape)
+    return shape
+
+
+@pytest.mark.geometry
+def test_split_bore_counts_as_one_hole(tmp_path: Path) -> None:
+    from OCP.TopAbs import TopAbs_ShapeEnum
+    from OCP.TopoDS import TopoDS
+
+    from scripts.real_corpus.audit import _sub_shapes, count_holes
+
+    shape = build_split_bore_plate()
+    faces = [
+        TopoDS.Face_s(face) for face in _sub_shapes(shape.wrapped, TopAbs_ShapeEnum.TopAbs_FACE)
+    ]
+    cylinders = [face for face in faces if audit_module._surface_name(face) == "cylinder"]
+    assert len(cylinders) == 2, "fixture must keep the bore split in two faces"
+    assert count_holes(faces) == 1
+
+
+@pytest.mark.geometry
+def test_coaxial_holes_through_separate_walls_count_separately() -> None:
+    from OCP.TopAbs import TopAbs_ShapeEnum
+    from OCP.TopoDS import TopoDS
+
+    from scripts.real_corpus.audit import _sub_shapes, count_holes
+
+    shape = build_channel_with_coaxial_holes()
+    faces = [
+        TopoDS.Face_s(face) for face in _sub_shapes(shape.wrapped, TopAbs_ShapeEnum.TopAbs_FACE)
+    ]
+    assert count_holes(faces) == 2
 
 
 @pytest.mark.geometry

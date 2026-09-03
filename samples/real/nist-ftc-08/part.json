@@ -15,7 +15,7 @@
     },
     "edgeCount": 725,
     "faceCount": 270,
-    "holeCount": 0,
+    "holeCount": 20,
     "sha256": "cea7a50c6b263387bf8fba76e6d6f8ff7fcebb130611b87a13297d609138def0",
     "solidCount": 1,
     "step": "model.step",

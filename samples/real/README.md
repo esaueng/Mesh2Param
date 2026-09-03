@@ -31,12 +31,13 @@ run. Where that happens the topology counts, surface inventory and triangle coun
 unchanged -- only the SHA-256 moves -- so compare those, not the bytes, when checking a
 regeneration.
 
-`holeCount` is a deliberately simple heuristic: it counts cylindrical faces whose `u`
-range spans a full revolution and whose material side is inward (the surface normal,
-flipped for a `REVERSED` face, points back toward the cylinder axis). Consequences:
-blind holes and counterbores count, each stage of a stepped bore counts separately, a
-bore split into two half-cylinder faces is missed, and the outer wall of a tube is
-correctly ignored. It is a corpus statistic, not a feature recognizer.
+`holeCount` is a corpus statistic, not a feature recognizer. Inward-facing cylindrical
+faces (surface normal, flipped for a `REVERSED` face, pointing back toward the axis) are
+grouped by axis and radius; faces whose axial extents overlap are merged, and each merged
+run whose angular sweeps add up to a full revolution counts as one hole. A bore that an
+exporter split into two half-cylinders therefore counts once, while coaxial holes through
+separate walls count separately. Blind holes and every stage of a stepped bore count;
+countersinks, bosses, and the outer wall of a tube do not.
 
 ## Featured part
 
@@ -69,7 +70,7 @@ Start here: `hammer-holder` (Hammer holder 46 mm v4). Featured parts lead the ta
 | flange-four-bolt | generated | Apache-2.0 (repository) | revolved, through-hole, counterbore, circular-pattern, fillet-rim, chamfer | 22 | cylinder 11, plane 7, cone 2, torus 2 | 9 | coarse 1992 / default 22192 | coarse ok, default ok |
 | fluted-control-knob | generated | Apache-2.0 (repository) | revolved, circular-pattern, taper, cone, blind-hole, prismatic-multi-axis | 44 | cylinder 26, plane 17, cone 1 | 2 | coarse 1110 / default 4894 | coarse ok, default ok |
 | freeform-palm-rest | generated | Apache-2.0 (repository) | freeform, pocket, through-hole | 9 | plane 5, cylinder 2, bspline 1, extrusion 1 | 2 | coarse 496 / default 4270 | coarse ok, default ok |
-| gear-blank-disc | generated | Apache-2.0 (repository) | revolved, circular-pattern, through-hole, slot, chamfer, prismatic-multi-axis | 20 | cylinder 11, plane 7, cone 2 | 8 | coarse 1264 / default 5972 | coarse !watertight !manifold, default !watertight !manifold |
+| gear-blank-disc | generated | Apache-2.0 (repository) | revolved, circular-pattern, through-hole, slot, chamfer, prismatic-multi-axis | 20 | cylinder 11, plane 7, cone 2 | 9 | coarse 1264 / default 5972 | coarse !watertight !manifold, default !watertight !manifold |
 | hammer-holder-v1 | user-design | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-multi-axis, fillet-vertical, fillet-rim, through-hole, slot | 248 | plane 121, bspline 61, cylinder 42, torus 14, sphere 8, cone 2 | 2 | coarse 5326 / default 46488 / export(stl) 60814 | coarse !watertight !manifold, default !watertight !manifold, export(stl) ok |
 | handle-test | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-multi-axis, fillet-vertical | - | - | - | export(stl) 3564 | export(stl) ok |
 | hex-standoff-spacer | generated | Apache-2.0 (repository) | prismatic-single-axis, through-hole, chamfer | 21 | plane 20, cylinder 1 | 1 | coarse 152 / default 552 | coarse ok, default ok |
@@ -83,14 +84,14 @@ Start here: `hammer-holder` (Hammer holder 46 mm v4). Featured parts lead the ta
 | mailbox-tray | user-design | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-multi-axis, thin-wall, pocket, fillet-vertical | 600 | plane 306, bspline 132, cylinder 124, torus 20, sphere 14, extrusion 4 | 10 | coarse 10366 / default 107520 | coarse !watertight !manifold, default !watertight !manifold |
 | motor-mount-nema17 | generated | Apache-2.0 (repository) | prismatic-multi-axis, through-hole, pocket, slot, linear-pattern, fillet-vertical, chamfer | 37 | plane 22, cylinder 11, cone 4 | 3 | coarse 642 / default 2996 | coarse ok, default ok |
 | nist-ctc-01 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 139 | plane 80, cylinder 57, cone 2 | 10 | coarse 2832 / default 13050 | coarse !watertight !manifold, default !watertight !manifold |
-| nist-ctc-02 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 664 | cylinder 318, cone 158, plane 130, bspline 34, sphere 24 | 0 | coarse 20722 / default 177462 | coarse !watertight !manifold, default !watertight !manifold |
+| nist-ctc-02 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 664 | cylinder 318, cone 158, plane 130, bspline 34, sphere 24 | 94 | coarse 20722 / default 177462 | coarse !watertight !manifold, default !watertight !manifold |
 | nist-ctc-03 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 139 | plane 86, cylinder 53 | 15 | coarse 3224 / default 13938 | coarse ok, default ok |
-| nist-ctc-04 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 518 | cylinder 238, cone 116, plane 113, torus 29, sphere 22 | 0 | coarse 15668 / default 143710 | coarse !watertight !manifold, default !watertight !manifold |
-| nist-ctc-05 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 209 | cylinder 100, plane 63, cone 26, bspline 9, torus 7, sphere 4 | 0 | coarse 6429 / default 53495 | coarse !watertight !manifold, default !watertight !manifold |
+| nist-ctc-04 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 518 | cylinder 238, cone 116, plane 113, torus 29, sphere 22 | 60 | coarse 15668 / default 143710 | coarse !watertight !manifold, default !watertight !manifold |
+| nist-ctc-05 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 209 | cylinder 100, plane 63, cone 26, bspline 9, torus 7, sphere 4 | 31 | coarse 6429 / default 53495 | coarse !watertight !manifold, default !watertight !manifold |
 | nist-ftc-06 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 144 | plane 71, cylinder 58, torus 6, sphere 5, cone 4 | 22 | coarse 7124 / default 83186 | coarse !watertight !manifold, default !watertight !manifold |
 | nist-ftc-07 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 269 | cylinder 106, plane 73, cone 28, torus 24, bspline 20, sphere 18 | 27 | coarse 8148 / default 83220 | coarse !watertight !manifold, default !watertight !manifold |
-| nist-ftc-08 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 270 | cylinder 157, plane 81, sphere 20, torus 12 | 0 | coarse 7102 / default 54710 | coarse !watertight !manifold, default !watertight !manifold |
-| nist-ftc-09 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 158 | cylinder 88, plane 62, cone 8 | 0 | coarse 4892 / default 23244 | coarse ok, default ok |
+| nist-ftc-08 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 270 | cylinder 157, plane 81, sphere 20, torus 12 | 20 | coarse 7102 / default 54710 | coarse !watertight !manifold, default !watertight !manifold |
+| nist-ftc-09 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 158 | cylinder 88, plane 62, cone 8 | 29 | coarse 4892 / default 23244 | coarse ok, default ok |
 | nist-ftc-10 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 214 | cylinder 103, plane 53, torus 39, sphere 10, cone 8, bspline 1 | 42 | coarse 11416 / default 132906 | coarse !watertight !manifold, default !watertight !manifold |
 | nist-ftc-11 | public | Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested | - | 6 | cylinder 2, plane 2, torus 2 | 1 | coarse 2014 / default 45360 | coarse ok, default ok |
 | oil-ring | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | revolved, thin-wall | - | - | - | export(stl) 1040 | export(stl) ok |
@@ -107,7 +108,7 @@ Start here: `hammer-holder` (Hammer holder 46 mm v4). Featured parts lead the ta
 | stand-horizontal | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-multi-axis, fillet-vertical, through-hole | - | - | - | export(stl) 20020 | export(stl) ok |
 | stepped-shaft-spacer | generated | Apache-2.0 (repository) | revolved, through-hole, chamfer | 12 | cone 4, cylinder 4, plane 4 | 1 | coarse 624 / default 3402 | coarse ok, default ok |
 | switch-stand | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-multi-axis, thin-wall, slot | - | - | - | export(stl) 208 | export(stl) ok |
-| threaded-pipe-cap | generated | Apache-2.0 (repository) | thread-like, revolved, circular-pattern, thin-wall, chamfer | 46 | cylinder 18, plane 15, cone 10, bspline 3 | 6 | coarse 2442 / default 10270 | coarse ok, default ok |
+| threaded-pipe-cap | generated | Apache-2.0 (repository) | thread-like, revolved, circular-pattern, thin-wall, chamfer | 46 | cylinder 18, plane 15, cone 10, bspline 3 | 1 | coarse 2442 / default 10270 | coarse ok, default ok |
 | thru-hull-hex-nut | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | prismatic-single-axis, revolved, thread-like, chamfer | - | - | - | export(stl) 155762 | export(stl) ok |
 | thru-hull-screw | user-export | Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed | revolved, thread-like, chamfer, through-hole | - | - | - | export(stl) 134094 | export(stl) ok |
 | tube-end-cap-boss | generated | Apache-2.0 (repository) | boss, blind-hole, fillet-rim, circular-pattern, chamfer, prismatic-multi-axis | 20 | cylinder 9, plane 8, torus 2, cone 1 | 7 | coarse 1796 / default 21334 | coarse ok, default ok |
