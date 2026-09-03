@@ -292,8 +292,10 @@ def _build_gear_blank_disc() -> cq.Workplane:
     body = body.faces(">Z").workplane().circle(12.5).cutThruAll()
     lightening = cq.Workplane("XY").polarArray(28, 0, 360, 6).circle(6.5).extrude(14)
     body = body.cut(lightening)
+    # Start the keyway inside the bore: a box that begins at the bore radius only grazes
+    # the cylinder along one line and leaves the arc intact.
     keyway = (
-        cq.Workplane("XY").box(8, 3.2, 14, centered=(True, False, False)).translate((0, 12.5, 0))
+        cq.Workplane("XY").box(8, 5.7, 14, centered=(True, False, False)).translate((0, 10.0, 0))
     )
     body = body.cut(keyway)
     hub = cq.Workplane("YZ").workplane(offset=-46).center(0, 7).circle(2.6).extrude(40)

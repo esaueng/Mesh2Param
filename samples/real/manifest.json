@@ -2041,19 +2041,19 @@
             0.0
           ]
         },
-        "edgeCount": 54,
-        "faceCount": 20,
-        "holeCount": 9,
-        "sha256": "c8e7eee80cb9452a861a8c6b86695e469618fee8a7c754c7a3c7a4e487462fdd",
+        "edgeCount": 46,
+        "faceCount": 17,
+        "holeCount": 8,
+        "sha256": "0ee084e21cd0582bb197bb0afc8d6d2fffb7af87fb719031f1ccaaaa57d787fb",
         "solidCount": 1,
         "step": "model.step",
         "surfaceInventory": {
           "cone": 2,
-          "cylinder": 11,
-          "plane": 7
+          "cylinder": 10,
+          "plane": 5
         },
-        "vertexCount": 34,
-        "volume": 69633.4655
+        "vertexCount": 30,
+        "volume": 69609.1662
       },
       "license": "Apache-2.0 (repository)",
       "meshes": [
@@ -2073,18 +2073,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-coarse.stl",
           "linearTolerance": 0.5,
-          "sha256": "fa0daac9538f3f240e5b1161efd445b6ff9fdf55783682bee7b4607c0bb5858a",
+          "sha256": "a883578645ce005c647b9527d66331606d1dd030388ddead66be6fe5ce227b2b",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "coarse",
-          "triangles": 1264,
-          "vertices": 614,
-          "volume": null,
-          "watertight": false,
+          "triangles": 1244,
+          "vertices": 606,
+          "volume": 68939.9629,
+          "watertight": true,
           "windingConsistent": true
         },
         {
@@ -2103,18 +2103,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-default.stl",
           "linearTolerance": 0.1,
-          "sha256": "dd1d3d131d456d1940ad0e42183138944d64afcd4ba0f795396d5da50d8e60bc",
+          "sha256": "64e94dd0b75dd41b8548d8de56ae5872076d4204c3bc76c765c222389cd86673",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "default",
-          "triangles": 5972,
-          "vertices": 2968,
-          "volume": null,
-          "watertight": false,
+          "triangles": 5908,
+          "vertices": 2938,
+          "volume": 69580.5981,
+          "watertight": true,
           "windingConsistent": true
         }
       ],
