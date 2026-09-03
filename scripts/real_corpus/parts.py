@@ -180,7 +180,8 @@ def _build_v_belt_pulley() -> cq.Workplane:
     # for the reverse order.
     keyway = cq.Workplane("XY").box(4, 4.4, 26, centered=(True, False, False)).translate((0, 4, -1))
     body = body.cut(keyway)
-    grub = cq.Workplane("YZ").workplane(offset=-40).center(0, 4).circle(2.1).extrude(32)
+    # Run the grub hole past the bore wall; ending it on the wall leaves a tangent pinch.
+    grub = cq.Workplane("YZ").workplane(offset=-40).center(0, 4).circle(2.1).extrude(36)
     return body.cut(grub)
 
 
@@ -258,7 +259,8 @@ def _build_cable_saddle_clamp() -> cq.Workplane:
         .extrude(10)
     )
     body = body.cut(holes)
-    tie = cq.Workplane("XZ").workplane(offset=-14).center(0, 20).slot2D(9, 4).extrude(28)
+    # Slot taller than the arch wall: a 4 mm slot sat tangent to the inner arc apex.
+    tie = cq.Workplane("XZ").workplane(offset=-14).center(0, 20).slot2D(9, 6).extrude(28)
     return body.cut(tie)
 
 

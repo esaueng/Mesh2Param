@@ -488,7 +488,7 @@
           "max": [
             28.0,
             13.0,
-            21.5066804
+            21.4159841
           ],
           "min": [
             -28.0,
@@ -496,18 +496,18 @@
             0.0
           ]
         },
-        "edgeCount": 59,
-        "faceCount": 22,
+        "edgeCount": 54,
+        "faceCount": 20,
         "holeCount": 2,
-        "sha256": "1060e44989a3b0802d488a5f47219b8753188adf2172a8ed48e9606d3af52e04",
+        "sha256": "9b2a9460de853878acf476af5cee03e1bb6bb4db4f39752e831125bbb2654c97",
         "solidCount": 1,
         "step": "model.step",
         "surfaceInventory": {
           "cylinder": 12,
-          "plane": 10
+          "plane": 8
         },
-        "vertexCount": 38,
-        "volume": 13143.6356
+        "vertexCount": 36,
+        "volume": 13085.2022
       },
       "license": "Apache-2.0 (repository)",
       "meshes": [
@@ -517,7 +517,7 @@
             "max": [
               28.0,
               13.0,
-              21.5066795
+              21.4159832
             ],
             "min": [
               -28.0,
@@ -527,18 +527,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-coarse.stl",
           "linearTolerance": 0.5,
-          "sha256": "f5b0a59ef353519e5afc6f327b9012f4327e586c95c3e760773bd55d0db6d96e",
+          "sha256": "580f21745c07e67e468a2352948986baf1c569c32de54e717691d12d90f10a17",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "coarse",
-          "triangles": 540,
-          "vertices": 266,
-          "volume": null,
-          "watertight": false,
+          "triangles": 492,
+          "vertices": 244,
+          "volume": 13059.1557,
+          "watertight": true,
           "windingConsistent": true
         },
         {
@@ -547,7 +547,7 @@
             "max": [
               28.0,
               13.0,
-              21.5066795
+              21.4159832
             ],
             "min": [
               -28.0,
@@ -557,18 +557,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-default.stl",
           "linearTolerance": 0.1,
-          "sha256": "5b74740995191e3b5a28e949bb0f44412c32e519395687fb32cc0694b4cf7864",
+          "sha256": "ae4f319b99d182a8349e9ada7feba1c97fb288710465cb6a20fc83b91bf9cd7a",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "default",
-          "triangles": 2420,
-          "vertices": 1206,
-          "volume": null,
-          "watertight": false,
+          "triangles": 2204,
+          "vertices": 1100,
+          "volume": 13083.759,
+          "watertight": true,
           "windingConsistent": true
         }
       ],
@@ -5729,19 +5729,19 @@
             0.0
           ]
         },
-        "edgeCount": 30,
-        "faceCount": 13,
+        "edgeCount": 27,
+        "faceCount": 11,
         "holeCount": 1,
-        "sha256": "ac6ee0340416ed0891094de12b5455cd577aa021885970f83063b75cf2ece15c",
+        "sha256": "4946c6f3ea4572de9a8ca2261f28155735816db7bba9952e07bb37afac08fc5c",
         "solidCount": 1,
         "step": "model.step",
         "surfaceInventory": {
           "cone": 2,
           "cylinder": 4,
-          "plane": 7
+          "plane": 5
         },
-        "vertexCount": 19,
-        "volume": 92931.1202
+        "vertexCount": 17,
+        "volume": 92930.0588
       },
       "license": "Apache-2.0 (repository)",
       "meshes": [
@@ -5761,18 +5761,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-coarse.stl",
           "linearTolerance": 0.5,
-          "sha256": "7b539117b9bf76828967c2117fcaade35f0d3fdc6bb25aa7f6684ddee4f08239",
+          "sha256": "ecf5ab258b5ce8bd3e25e3dfe8bc13c13e18660f84e174a20b92365a695e6e5f",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "coarse",
-          "triangles": 498,
-          "vertices": 247,
-          "volume": null,
-          "watertight": false,
+          "triangles": 514,
+          "vertices": 255,
+          "volume": 92047.8183,
+          "watertight": true,
           "windingConsistent": true
         },
         {
@@ -5791,18 +5791,18 @@
           },
           "degenerateFaces": 0,
           "duplicateFaces": 0,
-          "edgeManifold": false,
+          "edgeManifold": true,
           "file": "mesh-default.stl",
           "linearTolerance": 0.1,
-          "sha256": "2bfa9fa467a0c791e2042f5fec03e3d72a46431082a222a7b704bb0add6d5010",
+          "sha256": "8006eae385ce3f14d5eed27eef63c5857acb3fa2117ad18370ee2ae904d97d9a",
           "sourceFormat": "step",
           "sourceSha256": null,
           "sourceUnit": null,
           "tessellation": "default",
-          "triangles": 2864,
-          "vertices": 1430,
-          "volume": null,
-          "watertight": false,
+          "triangles": 2948,
+          "vertices": 1472,
+          "volume": 92862.8725,
+          "watertight": true,
           "windingConsistent": true
         }
       ],
