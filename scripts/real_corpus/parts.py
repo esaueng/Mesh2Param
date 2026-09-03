@@ -371,6 +371,10 @@ def _build_ball_stud() -> cq.Workplane:
         .revolve()
     )
     body = shaft.union(cq.Workplane("XY").workplane(offset=31).sphere(9))
+    # Flat on top like a real ball stud; it also removes the sphere pole, which OCCT
+    # tessellates with a degenerate triangle.
+    top_cut = cq.Workplane("XY").workplane(offset=38.5).rect(30, 30).extrude(5)
+    body = body.cut(top_cut)
     body = body.edges("%CIRCLE and <Z").chamfer(1.0)
     flats = cq.Workplane("XY").box(30, 30, 7, centered=(True, True, False))
     keep = cq.Workplane("XY").box(15.2, 30, 7, centered=(True, True, False))
