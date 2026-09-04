@@ -634,6 +634,13 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 * A NURBS boundary edge on a cylindrical face is treated as a rim candidate by
   the band tessellator, which then sweeps a band that is not there.
 
+- **Platform-sensitive fits.** Two coarse meshes reach a higher tier on macOS than on the
+  Linux CI runner (`lofted-pull-handle/mesh-coarse`, `threaded-pipe-cap/mesh-coarse`): a
+  near-degenerate fit resolves differently in floating point, and on Linux the thread band
+  produces a face hundreds of millimetres off the mesh that verification rejects. Both rows
+  are blessed at the tier both platforms reach. The fix is a conditioning check in the
+  cylinder and torus fits so a near-degenerate system is refused instead of solved.
+
 ## Running the scoreboard
 
 The scoreboard walks `samples/real/*/part.json`, runs `faceted_step`, `segment`,
