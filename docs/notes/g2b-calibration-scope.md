@@ -32,3 +32,4 @@ The user approved the minimal amendment. Commit `af50641` records
 two calibrated filleted rejection expectations only. G2b resumed after that
 plan commit was merged into the implementation branch; the sharp calibration
 remains unchanged.
+
