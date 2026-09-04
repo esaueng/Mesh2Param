@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        35.0,
+        24.0,
+        26.0
+      ],
+      "min": [
+        -35.0,
+        -24.0,
+        0.0
+      ]
+    },
+    "edgeCount": 42,
+    "faceCount": 17,
+    "holeCount": 2,
+    "sha256": "168a784ad625c709178033de66616a4748d9ff4617ff16709737cef272f92cf5",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 4,
+      "plane": 13
+    },
+    "vertexCount": 28,
+    "volume": 61993.301
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          35.0,
+          24.0,
+          26.0
+        ],
+        "min": [
+          -35.0,
+          -24.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "8e3dc8b601fe2788d7cf03bf133fbfee3c5c16cafd17843025debf0b733c7218",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 356,
+      "vertices": 176,
+      "volume": 62004.0026,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          35.0,
+          24.0,
+          26.0
+        ],
+        "min": [
+          -35.0,
+          -24.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "fb5c239f43192e611ae06e9ce55379806e17f62b02d6adbd020386cbf40c05ed",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 1556,
+      "vertices": 776,
+      "volume": 61993.7579,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The dovetail flanks are sloped planes cut along X while the gib holes and lube slot come from Z and Y.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "dovetail-slide-block",
+  "tags": [
+    "prismatic-multi-axis",
+    "taper",
+    "slot",
+    "through-hole"
+  ],
+  "title": "Dovetail slide block",
+  "units": "mm"
+}

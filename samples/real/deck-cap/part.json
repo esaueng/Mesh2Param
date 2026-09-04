@@ -1,0 +1,50 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          54.0,
+          34.0,
+          -6.9388939e-15
+        ],
+        "min": [
+          -14.0,
+          -34.0,
+          -20.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "6639193b6a917b154a855f410f7e2504643cc22d9888bdb0cbeddd9a0d5a76ed",
+      "sourceFormat": "stl",
+      "sourceSha256": "6639193b6a917b154a855f410f7e2504643cc22d9888bdb0cbeddd9a0d5a76ed",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 3434,
+      "vertices": 1709,
+      "volume": 18689.6692,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Octagonal pyramid cap, chamfered rim, central counterbored screw hole. Hand check: 1 hole, all faces planar or cylindrical.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "deck-cap",
+  "tags": [
+    "prismatic-multi-axis",
+    "chamfer",
+    "taper",
+    "through-hole",
+    "counterbore"
+  ],
+  "title": "Deck post cap v1.4",
+  "units": "mm"
+}

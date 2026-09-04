@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          698.099976,
+          14.0,
+          20.0
+        ],
+        "min": [
+          653.099976,
+          -14.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "3ac19fce8cfec9776144f64a591420af08a4ed18a9291fe27bd8689e3a5d316e",
+      "sourceFormat": "stl",
+      "sourceSha256": "3ac19fce8cfec9776144f64a591420af08a4ed18a9291fe27bd8689e3a5d316e",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 7080,
+      "vertices": 3540,
+      "volume": 19323.929,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Block with one rounded end and a top groove. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "laser-rail",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "fillet-vertical"
+  ],
+  "title": "Laser rail v1.2",
+  "units": "mm"
+}

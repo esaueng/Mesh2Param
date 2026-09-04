@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        52.0,
+        45.5905183,
+        28.0
+      ],
+      "min": [
+        -77.1590873,
+        -45.5905183,
+        0.0
+      ]
+    },
+    "edgeCount": 12,
+    "faceCount": 9,
+    "holeCount": 2,
+    "sha256": "ffe5c73f63adcaeed8ffeb63529bb95cec095b0372b03659e94a0230f881ef5f",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 1,
+      "cylinder": 2,
+      "extrusion": 1,
+      "plane": 5
+    },
+    "vertexCount": 8,
+    "volume": 77148.8694
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          52.0,
+          33.8872528,
+          28.0
+        ],
+        "min": [
+          -51.9925499,
+          -33.9922142,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "8275f7026497ab2aaccb153b22ce501f4cf780cc1e6aa658e498086df0e513c4",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 496,
+      "vertices": 250,
+      "volume": 70295.2622,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          52.0,
+          33.9969215,
+          28.0
+        ],
+        "min": [
+          -51.9970284,
+          -33.9999847,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "4f95d3c99bab961bb0f318c6e49b9887f7fe18417ce4a1fdc6aa4be98f401fc4",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 4270,
+      "vertices": 2137,
+      "volume": 76302.7638,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Three elliptical sections lofted into a doubly curved shell; the hollow underside keeps the wall thin so normals vary quickly.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "freeform-palm-rest",
+  "tags": [
+    "freeform",
+    "pocket",
+    "through-hole"
+  ],
+  "title": "Freeform palm rest",
+  "units": "mm"
+}

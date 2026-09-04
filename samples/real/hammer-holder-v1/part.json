@@ -1,0 +1,139 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        46.235883,
+        65.735883,
+        60.735883
+      ],
+      "min": [
+        -0.13,
+        3.264117,
+        9.264117
+      ]
+    },
+    "edgeCount": 639,
+    "faceCount": 248,
+    "holeCount": 2,
+    "sha256": "aa7243c7ab2ccb40bef5ca8d6482747828c04519781ff7eb80cd586ededc07c6",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 61,
+      "cone": 2,
+      "cylinder": 42,
+      "plane": 121,
+      "sphere": 8,
+      "torus": 14
+    },
+    "vertexCount": 398,
+    "volume": 21029.6456
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          45.0,
+          64.5,
+          59.5
+        ],
+        "min": [
+          0.0,
+          4.5,
+          10.5
+        ]
+      },
+      "degenerateFaces": 12,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "1a031da099309697b37bbb30eee58e94833ed46efc6bdaca5f9cd5daae138f68",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 5326,
+      "vertices": 2655,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          45.0,
+          64.5,
+          59.5
+        ],
+        "min": [
+          0.0,
+          4.5,
+          10.5
+        ]
+      },
+      "degenerateFaces": 12,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "0784d9618a256d506011f2822f66d5aa3ed2cf7502b12f821bd42bb1a92b4e89",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 46488,
+      "vertices": 23236,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          45.0,
+          64.5,
+          59.5
+        ],
+        "min": [
+          0.0,
+          4.5,
+          10.5
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "0911afda72bfdfd76d9e451845b979be229036841773cd2b7c70c24eb5063576",
+      "sourceFormat": "stl",
+      "sourceSha256": "0911afda72bfdfd76d9e451845b979be229036841773cd2b7c70c24eb5063576",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 60814,
+      "vertices": 30405,
+      "volume": 21026.1997,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "U-shaped hook bracket, all edges filleted, two mounting holes in the back plate. Fusion STEP and Fusion STL both present.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "hammer-holder-v1",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "fillet-rim",
+    "through-hole",
+    "slot"
+  ],
+  "title": "Hammer holder v1.3 (earlier revision)",
+  "units": "mm"
+}

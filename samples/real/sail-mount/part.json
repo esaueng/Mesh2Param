@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          35.0,
+          7.5,
+          18.9998703
+        ],
+        "min": [
+          -10.0,
+          -7.5,
+          -5.20417043e-15
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "390df842b33321b01d742ce741ef5054259fdfe74810215d660e82b2f2f6fc18",
+      "sourceFormat": "stl",
+      "sourceSha256": "390df842b33321b01d742ce741ef5054259fdfe74810215d660e82b2f2f6fc18",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 31274,
+      "vertices": 15635,
+      "volume": 7258.84048,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Curved saddle block with two counterbored holes. Hand check: 2 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "sail-mount",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "counterbore",
+    "fillet-vertical"
+  ],
+  "title": "Sail mount v1.4",
+  "units": "mm"
+}

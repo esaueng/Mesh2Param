@@ -1,0 +1,102 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        152.4,
+        106.68,
+        7.50601504e-16
+      ],
+      "min": [
+        -152.4,
+        -4.38857286e-16,
+        -247.65
+      ]
+    },
+    "edgeCount": 454,
+    "faceCount": 144,
+    "holeCount": 22,
+    "sha256": "f54f4adc2c63c6bef0587fce12ced96b5b4f51784c17b05ccb756a73285d3528",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 58,
+      "plane": 71,
+      "sphere": 5,
+      "torus": 6
+    },
+    "vertexCount": 426,
+    "volume": 3323546.07
+  },
+  "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          152.399994,
+          97.7900009,
+          0.0
+        ],
+        "min": [
+          -152.399994,
+          -4.261049e-16,
+          -247.649994
+        ]
+      },
+      "degenerateFaces": 8,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "a8202f64fd091d93885a47157cd5567b9b27fb86b82af9cc2b906905cd676151",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 7124,
+      "vertices": 3540,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          152.399994,
+          97.7900009,
+          0.0
+        ],
+        "min": [
+          -152.399994,
+          -4.38311757e-16,
+          -247.649994
+        ]
+      },
+      "degenerateFaces": 8,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "92d1dd60cc118017f3074b816bac19484862588778d8c1f5a4b9adfd66e9bd1b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 83186,
+      "vertices": 41571,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "NIST PMI test case FTC 6, geometry-only AP203 export (nist_ftc_06_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+  "origin": "public",
+  "schemaVersion": 1,
+  "slug": "nist-ftc-06",
+  "tags": [],
+  "title": "NIST FTC 6",
+  "units": "mm"
+}

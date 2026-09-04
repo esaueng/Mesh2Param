@@ -1,0 +1,50 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          16.5,
+          35.164341,
+          20.0
+        ],
+        "min": [
+          -16.5,
+          -9.20087814,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "c637422bc260cf07a2eaead71562016ae632343edd60da04e6d4bf62c59ba942",
+      "sourceFormat": "stl",
+      "sourceSha256": "c637422bc260cf07a2eaead71562016ae632343edd60da04e6d4bf62c59ba942",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 115670,
+      "vertices": 57837,
+      "volume": 11150.5222,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "C-clip with hook; fine Fusion export (116k triangles), fillets everywhere.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "windshield-holder-fine",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "fillet-rim",
+    "taper",
+    "slot"
+  ],
+  "title": "Windshield holder v3.7",
+  "units": "mm"
+}

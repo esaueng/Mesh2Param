@@ -1,0 +1,17 @@
+[package]
+name = "segmentation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Standalone: not a member of the Mesh2Param tree nor of the remus workspace.
+[workspace]
+
+[dependencies]
+# Only for STL parsing; no Remus geometry is used, the fitting is all local.
+remus-io = {path = "../../../../../../remus/crates/io"}
+serde = {version = "1", features = ["derive"]}
+serde_json = "1"
+
+[profile.release]
+debug = false

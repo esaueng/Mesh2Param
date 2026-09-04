@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          15.0,
+          15.9950781,
+          0.0
+        ],
+        "min": [
+          -15.0,
+          -15.9950781,
+          -26.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "d4cb287cabe26575b3875f128fb987ff6621d2f82bdb1c9cfa0d6792a9475e9e",
+      "sourceFormat": "stl",
+      "sourceSha256": "d4cb287cabe26575b3875f128fb987ff6621d2f82bdb1c9cfa0d6792a9475e9e",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 52696,
+      "vertices": 26350,
+      "volume": 5332.48787,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Round base with a wedge boss and a side notch.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "rear-plug-bottom",
+  "tags": [
+    "revolved",
+    "boss",
+    "prismatic-multi-axis",
+    "slot"
+  ],
+  "title": "Rear plug bottom v4.2",
+  "units": "mm"
+}

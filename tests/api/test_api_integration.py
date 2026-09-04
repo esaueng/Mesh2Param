@@ -36,19 +36,38 @@ def binary_triangle_stl() -> bytes:
     return b"Mesh2Param test".ljust(80, b"\0") + struct.pack("<I", 1) + triangle
 
 
-def glb_position_bounds(payload: bytes) -> tuple[list[float], list[float]]:
+def glb_position_bounds(payload: bytes) -> tuple[list[float], list[float], float]:
+    """Return world-space position bounds and the largest quantization step present."""
+
     assert struct.unpack_from("<I", payload, 0)[0] == 0x46546C67
     json_length = struct.unpack_from("<I", payload, 12)[0]
     document = json.loads(payload[20 : 20 + json_length].decode("utf-8").strip())
     bounds = []
-    for mesh in document["meshes"]:
-        for primitive in mesh["primitives"]:
+    step = 0.0
+    for node in document["nodes"]:
+        if "mesh" not in node:
+            continue
+        # Compact display GLBs store normalized uint16 positions under
+        # KHR_mesh_quantization; the node scale/translation maps them back to
+        # model units. Float GLBs carry an identity node.
+        scale = node.get("scale", [1.0, 1.0, 1.0])
+        translation = node.get("translation", [0.0, 0.0, 0.0])
+        for primitive in document["meshes"][node["mesh"]]["primitives"]:
             accessor = document["accessors"][primitive["attributes"]["POSITION"]]
-            bounds.append((accessor["min"], accessor["max"]))
+            divisor = 65535.0 if accessor.get("normalized") else 1.0
+            if accessor.get("normalized"):
+                step = max(step, max(scale) / divisor)
+            corners = []
+            for values in (accessor["min"], accessor["max"]):
+                corners.append(
+                    [translation[axis] + values[axis] / divisor * scale[axis] for axis in range(3)]
+                )
+            bounds.append((corners[0], corners[1]))
     assert bounds
     return (
         [min(item[0][axis] for item in bounds) for axis in range(3)],
         [max(item[1][axis] for item in bounds) for axis in range(3)],
+        step,
     )
 
 
@@ -82,9 +101,7 @@ def wait_job(client: TestClient, job_id: str, timeout: float = 180) -> dict[str,
     raise AssertionError(f"job did not terminate: {last}")
 
 
-def create_project(
-    client: TestClient, name: str = "API project"
-) -> tuple[dict[str, Any], str]:
+def create_project(client: TestClient, name: str = "API project") -> tuple[dict[str, Any], str]:
     response = client.post("/api/projects", json={"name": name, "units": "mm"})
     assert response.status_code == 201, response.text
     return response.json()["data"], response.headers["etag"]
@@ -158,10 +175,13 @@ def test_optional_bearer_auth_protects_api_without_blocking_health(tmp_path: Pat
         assert rejected.headers["www-authenticate"] == "Bearer"
         assert rejected.json()["error"]["code"] == "authentication_required"
         assert rejected.headers["x-content-type-options"] == "nosniff"
-        assert protected.get(
-            "/api/projects",
-            headers={"Authorization": "Bearer wrong-token"},
-        ).status_code == 401
+        assert (
+            protected.get(
+                "/api/projects",
+                headers={"Authorization": "Bearer wrong-token"},
+            ).status_code
+            == 401
+        )
         accepted = protected.get(
             "/api/projects",
             headers={"Authorization": "Bearer correct-horse-battery-staple"},
@@ -225,10 +245,10 @@ def test_health_projects_upload_diagnostics_reopen_and_delete(client: TestClient
     schema = openapi.json()
     assert schema["info"]["title"] == "Mesh2Param API"
     upload_schema = schema["paths"]["/api/projects/{project_id}/upload"]["post"]
-    assert (
-        upload_schema["requestBody"]["content"]["application/octet-stream"]["schema"]
-        == {"type": "string", "format": "binary"}
-    )
+    assert upload_schema["requestBody"]["content"]["application/octet-stream"]["schema"] == {
+        "type": "string",
+        "format": "binary",
+    }
     representative_responses = (
         schema["paths"]["/api/projects/{project_id}"]["get"]["responses"]["200"],
         schema["paths"]["/api/jobs/{job_id}"]["get"]["responses"]["200"],
@@ -285,9 +305,7 @@ def test_health_projects_upload_diagnostics_reopen_and_delete(client: TestClient
     assert "event: completed" in events.text
     assert "event: progress" in events.text
 
-    delete = client.delete(
-        f"/api/projects/{project_id}", headers={"If-Match": etag}
-    )
+    delete = client.delete(f"/api/projects/{project_id}", headers={"If-Match": etag})
     assert delete.status_code == 204
     assert client.get(f"/api/projects/{project_id}").status_code == 404
 
@@ -447,16 +465,10 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
 
     project, etag = current_project(client, project_id)
     source = project["state"]["source"]
-    sample_artifacts = client.get(f"/api/projects/{project_id}/artifacts").json()["data"][
-        "items"
-    ]
-    random_source = next(
-        item for item in sample_artifacts if item["name"] == "source-random.stl"
-    )
+    sample_artifacts = client.get(f"/api/projects/{project_id}/artifacts").json()["data"]["items"]
+    random_source = next(item for item in sample_artifacts if item["name"] == "source-random.stl")
     source_glb = next(item for item in sample_artifacts if item["name"] == "source.glb")
-    result_glb = next(
-        item for item in sample_artifacts if item["name"] == "reconstructed.glb"
-    )
+    result_glb = next(item for item in sample_artifacts if item["name"] == "reconstructed.glb")
     assert source_glb["kind"] == "source-mesh"
     assert source == {
         "id": source["id"],
@@ -482,8 +494,10 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
     assert result_glb_response.status_code == 200
     source_bounds = glb_position_bounds(source_glb_response.content)
     result_bounds = glb_position_bounds(result_glb_response.content)
-    assert source_bounds[0] == pytest.approx(result_bounds[0], abs=1e-6)
-    assert source_bounds[1] == pytest.approx(result_bounds[1], abs=1e-6)
+    # Compact display payloads round positions to one uint16 step.
+    tolerance = 1e-6 + max(source_bounds[2], result_bounds[2])
+    assert source_bounds[0] == pytest.approx(result_bounds[0], abs=tolerance)
+    assert source_bounds[1] == pytest.approx(result_bounds[1], abs=tolerance)
     assert project["state"]["cadgraph"]
 
     repair = client.post(
@@ -542,9 +556,7 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
     assert project["state"]["validation"]["stepReimportValid"] is True
     reconstructed_artifacts = {
         item["name"]
-        for item in client.get(
-            f"/api/projects/{project_id}/artifacts"
-        ).json()["data"]["items"]
+        for item in client.get(f"/api/projects/{project_id}/artifacts").json()["data"]["items"]
     }
     assert {
         "model.step",
@@ -611,9 +623,7 @@ def test_sample_reconstruct_rebuild_validate_export_versions_and_cancel(
         assert expected_conversion_artifacts - {"mesh2param-export.zip"} <= bundle_names
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["timestamp"]
-    assert {
-        item["name"] for item in manifest["artifacts"]
-    } == bundle_names - {"manifest.json"}
+    assert {item["name"] for item in manifest["artifacts"]} == bundle_names - {"manifest.json"}
 
     version_one = client.post(
         f"/api/projects/{project_id}/versions",

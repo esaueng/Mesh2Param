@@ -1,0 +1,109 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        21.647844,
+        28.4943532,
+        6.8759375
+      ],
+      "min": [
+        -21.647844,
+        -21.647844,
+        -0.375914346
+      ]
+    },
+    "edgeCount": 217,
+    "faceCount": 85,
+    "holeCount": 2,
+    "sha256": "e7da1c4b88276bb1233fffa66a598ed010ccfd4a178bcad200747105e23f6da1",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 40,
+      "cone": 14,
+      "cylinder": 11,
+      "offset": 2,
+      "plane": 8,
+      "torus": 10
+    },
+    "vertexCount": 134,
+    "volume": 3472.60544
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          20.0,
+          27.9981728,
+          6.50033665
+        ],
+        "min": [
+          -20.0,
+          -19.8571434,
+          -0.00033643801
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "18ee9820e989987ad0543d08c230a1df2dcf66fb908022b5452d36d0de61a892",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 3468,
+      "vertices": 1732,
+      "volume": 3446.67107,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          20.0,
+          27.9999332,
+          6.50033665
+        ],
+        "min": [
+          -20.0,
+          -19.9951744,
+          -0.00033643801
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "4a6ebe0bf327ed882c5bc86611ee246c794901ca31ed1453f3f097955248106a",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 58538,
+      "vertices": 29267,
+      "volume": 3469.69417,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Flat keychain with a circular pocket and a lanyard hole. Ground truth from Fusion STEP; STLs tessellated by OCCT.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "airtag-keychain",
+  "tags": [
+    "prismatic-single-axis",
+    "pocket",
+    "through-hole",
+    "fillet-vertical",
+    "fillet-rim"
+  ],
+  "title": "AirTag keychain v1.2",
+  "units": "mm"
+}

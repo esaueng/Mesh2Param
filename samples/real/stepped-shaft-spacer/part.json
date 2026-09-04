@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        22.0,
+        22.0,
+        46.0
+      ],
+      "min": [
+        -22.0,
+        -22.0,
+        -3.58602037e-13
+      ]
+    },
+    "edgeCount": 20,
+    "faceCount": 12,
+    "holeCount": 1,
+    "sha256": "823741eeaec89475536766bec0e4cf7f47271b9f9999aded8fe08301d6d35528",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 4,
+      "plane": 4
+    },
+    "vertexCount": 12,
+    "volume": 27944.8436
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          22.0,
+          21.8395958,
+          46.0
+        ],
+        "min": [
+          -22.0,
+          -21.8395958,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "fd4800f6aad9f1c6ca170648424c2144769165fdad1d5affab4bc4ef95b3a974",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 624,
+      "vertices": 312,
+      "volume": 27673.64,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          22.0,
+          21.9931622,
+          46.0
+        ],
+        "min": [
+          -22.0,
+          -21.9931622,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "8bef19cade00e20ea2b0582e4316e55c5404546aad482f7ee8f15c840f06f678",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3402,
+      "vertices": 1701,
+      "volume": 27933.2283,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Three coaxial cylinder steps that a naive fitter is tempted to merge into one cylinder of averaged radius.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "stepped-shaft-spacer",
+  "tags": [
+    "revolved",
+    "through-hole",
+    "chamfer"
+  ],
+  "title": "Stepped shaft spacer",
+  "units": "mm"
+}

@@ -1,0 +1,102 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        250.0,
+        780.0,
+        30.0
+      ],
+      "min": [
+        -250.0,
+        -7.10542736e-15,
+        -100.64252
+      ]
+    },
+    "edgeCount": 1272,
+    "faceCount": 518,
+    "holeCount": 60,
+    "sha256": "4ae8fc2d117a55bb9f3c43d81bc9a3178a558839b61ff85a511c7b897fae3898",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 116,
+      "cylinder": 238,
+      "plane": 113,
+      "sphere": 22,
+      "torus": 29
+    },
+    "vertexCount": 728,
+    "volume": 17518568.3
+  },
+  "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          250.0,
+          780.0,
+          30.0
+        ],
+        "min": [
+          -250.0,
+          0.0,
+          -100.595131
+        ]
+      },
+      "degenerateFaces": 66,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "5f7ae876606af151ec0e1f212701e29990d1ca35dff5bdcc7cea0c671f5e340b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 15668,
+      "vertices": 7749,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          250.0,
+          780.0,
+          30.0
+        ],
+        "min": [
+          -250.0,
+          0.0,
+          -100.603752
+        ]
+      },
+      "degenerateFaces": 76,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "3cfb482ab3f70ff94c14efec7f77933b1eb077ee88550abdf6eed11fd2ef8072",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 143710,
+      "vertices": 71820,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "NIST PMI test case CTC 4, geometry-only AP203 export (nist_ctc_04_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+  "origin": "public",
+  "schemaVersion": 1,
+  "slug": "nist-ctc-04",
+  "tags": [],
+  "title": "NIST CTC 4",
+  "units": "mm"
+}

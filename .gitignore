@@ -23,3 +23,6 @@ test-results/
 output/playwright/
 artifacts/acceptance/
 artifacts/curved-baseline/
+
+# Rust spike build output
+spikes/*/target/

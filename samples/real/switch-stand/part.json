@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          169.0,
+          100.0,
+          32.0
+        ],
+        "min": [
+          -3.0,
+          0.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "daacb6305721f55b6c9230c345585140c7994711f80718d1cc8ca7b6cbd75c3e",
+      "sourceFormat": "stl",
+      "sourceSha256": "daacb6305721f55b6c9230c345585140c7994711f80718d1cc8ca7b6cbd75c3e",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 208,
+      "vertices": 96,
+      "volume": 71980.0,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Rectangular frame with lips, 208 triangles, planar only. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "switch-stand",
+  "tags": [
+    "prismatic-multi-axis",
+    "thin-wall",
+    "slot"
+  ],
+  "title": "Switch stand v1",
+  "units": "mm"
+}

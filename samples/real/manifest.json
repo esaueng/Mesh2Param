@@ -1,0 +1,6139 @@
+{
+  "parts": [
+    {
+      "featured": true,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            49.1534908,
+            60.6534908,
+            63.735883
+          ],
+          "min": [
+            -27.1534908,
+            5.264117,
+            4.5
+          ]
+        },
+        "edgeCount": 396,
+        "faceCount": 160,
+        "holeCount": 2,
+        "sha256": "9f367ee2bde614803ae6657da86f721f66926dd527b7ef8a55b501bbbef5466a",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 42,
+          "cone": 2,
+          "cylinder": 42,
+          "plane": 52,
+          "sphere": 8,
+          "torus": 14
+        },
+        "vertexCount": 240,
+        "volume": 50248.7436
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              48.0,
+              59.5,
+              62.5
+            ],
+            "min": [
+              -26.0,
+              6.5,
+              4.5
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "017c5f80dfdf1cc4fc2817cb46e411ba0a1d27b9e5e80b9c281602dc0464767e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 4900,
+          "vertices": 2444,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              48.0,
+              59.5,
+              62.5
+            ],
+            "min": [
+              -26.0,
+              6.5,
+              4.5
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "48530cfeb0ee157d49e8d7f6ac65ca366fbd4032f8bdf9190f6e404a5f2df608",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 43364,
+          "vertices": 21676,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              48.0,
+              59.5,
+              62.5
+            ],
+            "min": [
+              -26.0,
+              6.5,
+              4.5
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "3c4021824cb020aeef56e43a9169be091a41696610171d38f9b740434854afa4",
+          "sourceFormat": "stl",
+          "sourceSha256": "3c4021824cb020aeef56e43a9169be091a41696610171d38f9b740434854afa4",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 70038,
+          "vertices": 35017,
+          "volume": 50241.1025,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              48.0,
+              59.5,
+              62.5
+            ],
+            "min": [
+              -26.0,
+              6.5,
+              4.5
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export-3mf.stl",
+          "linearTolerance": null,
+          "sha256": "846da3e9cb43cf777855c14af9f1e427cc9ff62af9aa1d25367b5c9e33f11c3b",
+          "sourceFormat": "3mf",
+          "sourceSha256": "8934791706007659613d04e93ca67e60d55877f5738932bcf3edda34f1550a97",
+          "sourceUnit": "millimeter",
+          "tessellation": "export",
+          "triangles": 70038,
+          "vertices": 35017,
+          "volume": 50241.1024,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Featured part. U-shaped hook bracket for a 46 mm handle, all edges filleted, mounting holes in the back plate. Shapr3D STEP (160 faces) plus STL (70k triangles) and 3MF exports of the same revision.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "hammer-holder",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "fillet-rim",
+        "through-hole",
+        "slot"
+      ],
+      "title": "Hammer holder 46 mm v4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            21.647844,
+            28.4943532,
+            6.8759375
+          ],
+          "min": [
+            -21.647844,
+            -21.647844,
+            -0.375914346
+          ]
+        },
+        "edgeCount": 217,
+        "faceCount": 85,
+        "holeCount": 2,
+        "sha256": "e7da1c4b88276bb1233fffa66a598ed010ccfd4a178bcad200747105e23f6da1",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 40,
+          "cone": 14,
+          "cylinder": 11,
+          "offset": 2,
+          "plane": 8,
+          "torus": 10
+        },
+        "vertexCount": 134,
+        "volume": 3472.60544
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              20.0,
+              27.9981728,
+              6.50033665
+            ],
+            "min": [
+              -20.0,
+              -19.8571434,
+              -0.00033643801
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "18ee9820e989987ad0543d08c230a1df2dcf66fb908022b5452d36d0de61a892",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 3468,
+          "vertices": 1732,
+          "volume": 3446.67107,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              20.0,
+              27.9999332,
+              6.50033665
+            ],
+            "min": [
+              -20.0,
+              -19.9951744,
+              -0.00033643801
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "4a6ebe0bf327ed882c5bc86611ee246c794901ca31ed1453f3f097955248106a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 58538,
+          "vertices": 29267,
+          "volume": 3469.69417,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Flat keychain with a circular pocket and a lanyard hole. Ground truth from Fusion STEP; STLs tessellated by OCCT.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "airtag-keychain",
+      "tags": [
+        "prismatic-single-axis",
+        "pocket",
+        "through-hole",
+        "fillet-vertical",
+        "fillet-rim"
+      ],
+      "title": "AirTag keychain v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "CC BY-SA 4.0, Malolo, https://www.thingiverse.com/thing:4878426",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              172.761154,
+              13.9171114,
+              18.0
+            ],
+            "min": [
+              -6.29838085,
+              -6.30000019,
+              -2.93830308e-15
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "a62930aac1cd07abb57f89a7e76f612d2791d7961ce896ac3b53ee43f2449c6a",
+          "sourceFormat": "stl",
+          "sourceSha256": "a62930aac1cd07abb57f89a7e76f612d2791d7961ce896ac3b53ee43f2449c6a",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 11334,
+          "vertices": 5667,
+          "volume": 37941.3696,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Thingiverse bag clip, FreeCAD authored. CC BY-SA 4.0 by Malolo.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "bag-clip-150",
+      "tags": [
+        "prismatic-single-axis",
+        "thin-wall",
+        "fillet-vertical",
+        "slot"
+      ],
+      "title": "Bag clip 150 (Thingiverse 4878426)",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            32.0,
+            13.0,
+            40.0
+          ],
+          "min": [
+            -32.0,
+            -13.0,
+            0.0
+          ]
+        },
+        "edgeCount": 45,
+        "faceCount": 19,
+        "holeCount": 4,
+        "sha256": "c2c1474c5cb3730d46b6c03e3222fae243433329f99e39016f1b787a3c78eebf",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 7,
+          "plane": 12
+        },
+        "vertexCount": 30,
+        "volume": 50564.0403
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              32.0,
+              13.0,
+              40.0
+            ],
+            "min": [
+              -32.0,
+              -13.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "eb9e849a96a8ecba59b93613656dd8de33a2116f67e19390b1880cf2500b0102",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 574,
+          "vertices": 289,
+          "volume": 50653.5803,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              32.0,
+              13.0,
+              40.0
+            ],
+            "min": [
+              -32.0,
+              -13.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "ca8962b144f600736b5d7ad80f405f0dc92b34a2a607a10ad3f56983b9d44b5b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2708,
+          "vertices": 1356,
+          "volume": 50567.2518,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The bearing bore runs along Y, the foot holes along Z and the grub screw along Z into the bore, so three axes intersect.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "bearing-block-608",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "blind-hole",
+        "counterbore",
+        "fillet-vertical"
+      ],
+      "title": "608 bearing pillow block",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              65.6999969,
+              53.2999992,
+              20.0
+            ],
+            "min": [
+              -2.0,
+              -2.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "4a69d9ea86a1946fdfc289ff9b5bdd6f96e041e390129aed99bee0085040f36e",
+          "sourceFormat": "stl",
+          "sourceSha256": "4a69d9ea86a1946fdfc289ff9b5bdd6f96e041e390129aed99bee0085040f36e",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 804,
+          "vertices": 404,
+          "volume": 19134.4187,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Rectangular tapered tray, planar faces only. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "boat-lift-cap",
+      "tags": [
+        "prismatic-single-axis",
+        "shell",
+        "taper",
+        "thin-wall"
+      ],
+      "title": "Boat lift cap v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            28.0,
+            13.0,
+            21.4159841
+          ],
+          "min": [
+            -28.0,
+            -13.0,
+            0.0
+          ]
+        },
+        "edgeCount": 54,
+        "faceCount": 20,
+        "holeCount": 2,
+        "sha256": "9b2a9460de853878acf476af5cee03e1bb6bb4db4f39752e831125bbb2654c97",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 12,
+          "plane": 8
+        },
+        "vertexCount": 36,
+        "volume": 13085.2022
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              28.0,
+              13.0,
+              21.4159832
+            ],
+            "min": [
+              -28.0,
+              -13.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "580f21745c07e67e468a2352948986baf1c569c32de54e717691d12d90f10a17",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 492,
+          "vertices": 244,
+          "volume": 13059.1557,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              28.0,
+              13.0,
+              21.4159832
+            ],
+            "min": [
+              -28.0,
+              -13.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "ae4f319b99d182a8349e9ada7feba1c97fb288710465cb6a20fc83b91bf9cd7a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2204,
+          "vertices": 1100,
+          "volume": 13083.759,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A half-annular arch extruded along Y sits on a plate drilled along Z, and a tie slot cuts the arch crown.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "cable-saddle-clamp",
+      "tags": [
+        "prismatic-multi-axis",
+        "thin-wall",
+        "through-hole",
+        "slot",
+        "fillet-vertical"
+      ],
+      "title": "Cable saddle clamp",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              7.5,
+              4.0,
+              18.0
+            ],
+            "min": [
+              -7.5,
+              -7.0,
+              -7.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "23ae4bf73d85f58aa91516565cf6e38b56bd97991604ffa9739d2be5a8acaed1",
+          "sourceFormat": "stl",
+          "sourceSha256": "23ae4bf73d85f58aa91516565cf6e38b56bd97991604ffa9739d2be5a8acaed1",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 2052,
+          "vertices": 1020,
+          "volume": 3152.51898,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Small block with a cable channel cut from the side and a chamfered face. Hand check: 0 round holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "cable-support",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "chamfer"
+      ],
+      "title": "Cable support v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              181.0,
+              7.5,
+              62.0
+            ],
+            "min": [
+              -23.8999996,
+              -35.0,
+              -18.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "38335b121b0c5b5ba3a12cb18134d615c2dff52e73ec580dce5c93645629498c",
+          "sourceFormat": "stl",
+          "sourceSha256": "38335b121b0c5b5ba3a12cb18134d615c2dff52e73ec580dce5c93645629498c",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 5448,
+          "vertices": 2716,
+          "volume": 62603.4405,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Long angled arm with mounting holes at both ends. Hand check: 3 to 4 holes across two directions.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "camera-support-arm",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "fillet-vertical"
+      ],
+      "title": "Printer camera support v1.6",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              32.9984474,
+              14.4954929,
+              15.0
+            ],
+            "min": [
+              -14.5,
+              -14.4954929,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "f513eefd5b5f78ba58553b3572d6aba51ccef58841bc2327a8039786d2fc5666",
+          "sourceFormat": "stl",
+          "sourceSha256": "f513eefd5b5f78ba58553b3572d6aba51ccef58841bc2327a8039786d2fc5666",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 12686,
+          "vertices": 6343,
+          "volume": 7615.612,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Round tapered plug with a tab and a lanyard hole. Hand check: 1 hole.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "cockpit-plug",
+      "tags": [
+        "revolved",
+        "prismatic-multi-axis",
+        "through-hole",
+        "fillet-rim",
+        "taper"
+      ],
+      "title": "Cockpit plug v2.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              21.0940742,
+              22.094696,
+              25.0
+            ],
+            "min": [
+              -21.0940742,
+              -22.094696,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "33008bda48583bc4aba6e9a0156ab89fab5c25affa7ca4260a4284e0cff8cb6b",
+          "sourceFormat": "stl",
+          "sourceSha256": "33008bda48583bc4aba6e9a0156ab89fab5c25affa7ca4260a4284e0cff8cb6b",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 4088,
+          "vertices": 2044,
+          "volume": 17778.6865,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Stepped round fitting with a central bore and four side slots. Hand check: 1 bore, 4 slots.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "conduit-fitting",
+      "tags": [
+        "revolved",
+        "through-hole",
+        "slot",
+        "prismatic-multi-axis"
+      ],
+      "title": "Conduit fitting v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            44.0,
+            44.0,
+            70.0
+          ],
+          "min": [
+            -44.0,
+            -44.0,
+            0.0
+          ]
+        },
+        "edgeCount": 16,
+        "faceCount": 10,
+        "holeCount": 2,
+        "sha256": "cb13a2fdd9ac28dba24b602cd697d4038f246e6671b38972824d587907f9a334",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 2,
+          "cylinder": 4,
+          "plane": 4
+        },
+        "vertexCount": 10,
+        "volume": 36948.2712
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              44.0,
+              43.6791916,
+              70.0
+            ],
+            "min": [
+              -44.0,
+              -43.6791916,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "95d96f9b3cd95245312294e2441f3345ba0b4a41d62aa8c3d6be836d41879678",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 624,
+          "vertices": 312,
+          "volume": 36354.6426,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              44.0,
+              43.9863243,
+              70.0
+            ],
+            "min": [
+              -44.0,
+              -43.9863243,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "7a3875295a55d831d6814e8e64446ce99bbc7568eda6ea05bbae77238abc97ad",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3780,
+          "vertices": 1890,
+          "volume": 36918.752,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A 2.5 mm wall revolved cone: the inner and outer cone faces have the same half-angle but different apex positions.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "conical-funnel-adapter",
+      "tags": [
+        "cone",
+        "revolved",
+        "taper",
+        "thin-wall"
+      ],
+      "title": "Conical funnel adapter",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              34.0081024,
+              53.0999985,
+              21.9973717
+            ],
+            "min": [
+              -32.4918976,
+              -43.3983116,
+              -7.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "585f4abd5a0be4803b87015c2583426062a5ebe2fe262d1b1505a7bb58fd2404",
+          "sourceFormat": "stl",
+          "sourceSha256": "585f4abd5a0be4803b87015c2583426062a5ebe2fe262d1b1505a7bb58fd2404",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 2864,
+          "vertices": 1426,
+          "volume": 41617.8458,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Bent plate with a rolled lip, rectangular window, and screw holes. Hand check: 2 to 4 holes, 1 window.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "cooler-handle-plate",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "pocket",
+        "fillet-rim"
+      ],
+      "title": "Cooler handle plate v1.5",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            30.0,
+            20.0,
+            48.0
+          ],
+          "min": [
+            -30.0,
+            -20.0,
+            -2.1992423e-16
+          ]
+        },
+        "edgeCount": 87,
+        "faceCount": 33,
+        "holeCount": 3,
+        "sha256": "6a8a78ed0df163d00db2f6f8c863b63d342d198decfed8f27eb69539b873e1ef",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 6,
+          "cylinder": 11,
+          "plane": 16
+        },
+        "vertexCount": 56,
+        "volume": 23823.8975
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              30.0,
+              20.0,
+              48.0
+            ],
+            "min": [
+              -30.0,
+              -20.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "ecf56a0a2ee5da3183a505179f1b1093d1e840eb3d77a35bad6bb204f2596601",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 704,
+          "vertices": 348,
+          "volume": 23818.9403,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              30.0,
+              20.0,
+              48.0
+            ],
+            "min": [
+              -30.0,
+              -20.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "838d9900076dea7ade26a1aca2c1b2dadd4cf03cbb2fa9b2e425d211156e8cb5",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3312,
+          "vertices": 1652,
+          "volume": 23823.6038,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Countersinks on the top face and plain holes through the wall give two distinct hole archetypes on one small bracket.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "corner-brace-countersunk",
+      "tags": [
+        "prismatic-multi-axis",
+        "countersink",
+        "through-hole",
+        "fillet-vertical",
+        "chamfer"
+      ],
+      "title": "Countersunk corner brace",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              18.0,
+              25.0,
+              14.489439
+            ],
+            "min": [
+              -18.0,
+              0.0,
+              -23.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "4d61a8f483bcc33698c40c0a633f435dc0853bf52a62b249e76758f5f880c457",
+          "sourceFormat": "stl",
+          "sourceSha256": "4d61a8f483bcc33698c40c0a633f435dc0853bf52a62b249e76758f5f880c457",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 2524,
+          "vertices": 1264,
+          "volume": 13206.9994,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Snap clip with rounded arms. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "cup-holder-bar-mount",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "slot"
+      ],
+      "title": "Cup holder bar mount v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              54.0,
+              34.0,
+              -6.9388939e-15
+            ],
+            "min": [
+              -14.0,
+              -34.0,
+              -20.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "6639193b6a917b154a855f410f7e2504643cc22d9888bdb0cbeddd9a0d5a76ed",
+          "sourceFormat": "stl",
+          "sourceSha256": "6639193b6a917b154a855f410f7e2504643cc22d9888bdb0cbeddd9a0d5a76ed",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 3434,
+          "vertices": 1709,
+          "volume": 18689.6692,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Octagonal pyramid cap, chamfered rim, central counterbored screw hole. Hand check: 1 hole, all faces planar or cylindrical.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "deck-cap",
+      "tags": [
+        "prismatic-multi-axis",
+        "chamfer",
+        "taper",
+        "through-hole",
+        "counterbore"
+      ],
+      "title": "Deck post cap v1.4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              29.3999996,
+              18.0,
+              25.0
+            ],
+            "min": [
+              -19.0,
+              -7.98549461,
+              -1.29999995
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "a418e1221023c2acef38acb5e826f1e9d2efe5c8144c8a93894450ed67f22d76",
+          "sourceFormat": "stl",
+          "sourceSha256": "a418e1221023c2acef38acb5e826f1e9d2efe5c8144c8a93894450ed67f22d76",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 3150,
+          "vertices": 1577,
+          "volume": 8432.73373,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "C-clip with a wedge back. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "desk-cable-clip",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "fillet-vertical",
+        "taper"
+      ],
+      "title": "Desk cable clip v1.4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              49.0,
+              49.0,
+              12.0
+            ],
+            "min": [
+              -5.0,
+              -3.5,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "adc1f477441dac282ccbe010beabde6aa99c0e295f98c88b4018cfb8767a86d2",
+          "sourceFormat": "stl",
+          "sourceSha256": "adc1f477441dac282ccbe010beabde6aa99c0e295f98c88b4018cfb8767a86d2",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 11648,
+          "vertices": 5824,
+          "volume": 15799.3582,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Rounded-corner square frame with tapered walls. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "dock-side-protector-cap",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "taper",
+        "thin-wall"
+      ],
+      "title": "Dock side protector cap v1.3",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              79.3000031,
+              79.3000031,
+              30.0
+            ],
+            "min": [
+              -3.0,
+              -3.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "dd17ef20e1f3acc51252a61531d6989218ea71956b6b0a43d57639e7cc498470",
+          "sourceFormat": "stl",
+          "sourceSha256": "dd17ef20e1f3acc51252a61531d6989218ea71956b6b0a43d57639e7cc498470",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 1336,
+          "vertices": 668,
+          "volume": 34760.7091,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Square frame with sloped inner walls, planar faces only. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "dock-wheel-cap",
+      "tags": [
+        "prismatic-single-axis",
+        "thin-wall",
+        "taper"
+      ],
+      "title": "Dock wheel cap v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            35.0,
+            24.0,
+            26.0
+          ],
+          "min": [
+            -35.0,
+            -24.0,
+            0.0
+          ]
+        },
+        "edgeCount": 42,
+        "faceCount": 17,
+        "holeCount": 2,
+        "sha256": "168a784ad625c709178033de66616a4748d9ff4617ff16709737cef272f92cf5",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 4,
+          "plane": 13
+        },
+        "vertexCount": 28,
+        "volume": 61993.301
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              35.0,
+              24.0,
+              26.0
+            ],
+            "min": [
+              -35.0,
+              -24.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "8e3dc8b601fe2788d7cf03bf133fbfee3c5c16cafd17843025debf0b733c7218",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 356,
+          "vertices": 176,
+          "volume": 62004.0026,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              35.0,
+              24.0,
+              26.0
+            ],
+            "min": [
+              -35.0,
+              -24.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "fb5c239f43192e611ae06e9ce55379806e17f62b02d6adbd020386cbf40c05ed",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 1556,
+          "vertices": 776,
+          "volume": 61993.7579,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The dovetail flanks are sloped planes cut along X while the gib holes and lube slot come from Z and Y.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "dovetail-slide-block",
+      "tags": [
+        "prismatic-multi-axis",
+        "taper",
+        "slot",
+        "through-hole"
+      ],
+      "title": "Dovetail slide block",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            55.0,
+            35.0,
+            22.0
+          ],
+          "min": [
+            -55.0,
+            -35.0,
+            0.0
+          ]
+        },
+        "edgeCount": 140,
+        "faceCount": 55,
+        "holeCount": 4,
+        "sha256": "3a904003ea8ec7e413a5b689bc416e4ed7edb3c86632d896e9984e4d4b398c15",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 26,
+          "plane": 25
+        },
+        "vertexCount": 92,
+        "volume": 38703.3474
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              55.0,
+              35.0,
+              22.0
+            ],
+            "min": [
+              -55.0,
+              -35.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "beaa9a0127fed06b66847a48647de120636b0f3e5480e8ef56257b7346a7cb90",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1992,
+          "vertices": 980,
+          "volume": 38640.5292,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              55.0,
+              35.0,
+              22.0
+            ],
+            "min": [
+              -55.0,
+              -35.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "589b516c39e5706a630b69e14d77ded106acd626c46c9ab105362ed30b1f4854",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 10200,
+          "vertices": 5084,
+          "volume": 38700.612,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A 2.5 mm shell means inner and outer faces are offset pairs; the countersinks and vent slots then perforate the thin wall.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "enclosure-lid-shell",
+      "tags": [
+        "shell",
+        "thin-wall",
+        "boss",
+        "countersink",
+        "slot",
+        "linear-pattern",
+        "fillet-vertical",
+        "prismatic-multi-axis"
+      ],
+      "title": "Shelled enclosure lid",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            45.0,
+            17.0,
+            5.0
+          ],
+          "min": [
+            -45.0,
+            -17.0,
+            0.0
+          ]
+        },
+        "edgeCount": 156,
+        "faceCount": 58,
+        "holeCount": 2,
+        "sha256": "f85f16fcbe52aa93d3632fb965bc161f0567b348de6f62395091d3c6101c956e",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 6,
+          "plane": 52
+        },
+        "vertexCount": 104,
+        "volume": 13283.5928
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              45.0,
+              17.0,
+              5.0
+            ],
+            "min": [
+              -45.0,
+              -17.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "f9f45e4317d694b244f3bb1ed262b556d2ab470918e3263f555d49ad6e31e201",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 504,
+          "vertices": 250,
+          "volume": 13282.5378,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              45.0,
+              17.0,
+              5.0
+            ],
+            "min": [
+              -45.0,
+              -17.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "82efb813677b0d3660d7c973729ef5d32cb2ee53aebc96ff4af57e26ad900a18",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 1700,
+          "vertices": 848,
+          "volume": 13283.5494,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Eleven shallow 2 mm strokes inside a recessed panel imitate engraved lettering - many tiny coplanar faces at one depth.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "engraved-label-plate",
+      "tags": [
+        "text-like",
+        "pocket",
+        "prismatic-single-axis",
+        "fillet-vertical"
+      ],
+      "title": "Engraved label plate",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            42.0,
+            30.0,
+            32.0
+          ],
+          "min": [
+            -42.0,
+            -30.0,
+            0.0
+          ]
+        },
+        "edgeCount": 108,
+        "faceCount": 45,
+        "holeCount": 4,
+        "sha256": "617256f4dd3bd024bbaf0680124e5d81b79d4c9c504b049ed3b4a8f105d92938",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 4,
+          "plane": 41
+        },
+        "vertexCount": 72,
+        "volume": 62489.4726
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              42.0,
+              30.0,
+              32.0
+            ],
+            "min": [
+              -42.0,
+              -30.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "5e5f5823ca4b60c774ded58c3709a176fdd5e9a719f50622c7dfbbe183a08880",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 556,
+          "vertices": 272,
+          "volume": 62493.0155,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              42.0,
+              30.0,
+              32.0
+            ],
+            "min": [
+              -42.0,
+              -30.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "5e8136b4033079ea403927d996c96610863552637b2f1a28fd8c0da0636a23d8",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2156,
+          "vertices": 1072,
+          "volume": 62489.625,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Seven thin fins on a shared base: the narrow channels between them are where mesh decimation loses parallelism.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "finned-heat-sink",
+      "tags": [
+        "prismatic-single-axis",
+        "linear-pattern",
+        "rib",
+        "through-hole"
+      ],
+      "title": "Finned heat sink plate",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            55.0,
+            55.0,
+            34.0
+          ],
+          "min": [
+            -55.0,
+            -55.0,
+            -4.48308057e-13
+          ]
+        },
+        "edgeCount": 41,
+        "faceCount": 22,
+        "holeCount": 9,
+        "sha256": "3a8802efffc916faf3a36036aaefa5d6d1cfce91f1112e00d83baf1dfbdf71aa",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 2,
+          "cylinder": 11,
+          "plane": 7,
+          "torus": 2
+        },
+        "vertexCount": 26,
+        "volume": 121081.568
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              55.0,
+              54.5989876,
+              34.0
+            ],
+            "min": [
+              -55.0,
+              -54.5989876,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "632e5c9f6b5898adb2f720d3f28da457b1301223cb197e9527e62bcdbb7d52c9",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1992,
+          "vertices": 988,
+          "volume": 119899.275,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              55.0,
+              54.9829063,
+              34.0
+            ],
+            "min": [
+              -55.0,
+              -54.9829063,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "05bea349625ffb2d2fcd113fde9c5e2299f18c8ca5e81607ca99ff2d0b0d5caf",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 22192,
+          "vertices": 11088,
+          "volume": 121031.044,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A revolved hub with a filleted rim; the counterbores are cut from the opposite face to the fillet, which trips up single-axis fits.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "flange-four-bolt",
+      "tags": [
+        "revolved",
+        "through-hole",
+        "counterbore",
+        "circular-pattern",
+        "fillet-rim",
+        "chamfer"
+      ],
+      "title": "Four-bolt pipe flange",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            21.0,
+            21.0,
+            22.0
+          ],
+          "min": [
+            -21.0,
+            -21.0,
+            0.0
+          ]
+        },
+        "edgeCount": 123,
+        "faceCount": 44,
+        "holeCount": 2,
+        "sha256": "d02728af46c1d48efeb2a7c04847bd022c8b9b7f6194bd8ddbaa952e8c70ea36",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 1,
+          "cylinder": 26,
+          "plane": 17
+        },
+        "vertexCount": 82,
+        "volume": 26330.7977
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              20.8390484,
+              20.8390484,
+              22.0
+            ],
+            "min": [
+              -20.8390484,
+              -20.8390484,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "3d7453e3f2fd723c9a9cb5f0d60effae6eebfb68dc7d1944d425218d8128a573",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1110,
+          "vertices": 555,
+          "volume": 26293.8542,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              20.8390484,
+              20.8390484,
+              22.0
+            ],
+            "min": [
+              -20.8390484,
+              -20.8390484,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "a7055f69f45d716c23a44a57066c3b1ad7aafa101cf44a5fa230975b7cca524f",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 4894,
+          "vertices": 2447,
+          "volume": 26320.5996,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Twelve scalloped flutes leave narrow slivers of the original cylinder between them, which mesh segmentation likes to drop.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "fluted-control-knob",
+      "tags": [
+        "revolved",
+        "circular-pattern",
+        "taper",
+        "cone",
+        "blind-hole",
+        "prismatic-multi-axis"
+      ],
+      "title": "Fluted control knob",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            52.0,
+            45.5905183,
+            28.0
+          ],
+          "min": [
+            -77.1590873,
+            -45.5905183,
+            0.0
+          ]
+        },
+        "edgeCount": 12,
+        "faceCount": 9,
+        "holeCount": 2,
+        "sha256": "ffe5c73f63adcaeed8ffeb63529bb95cec095b0372b03659e94a0230f881ef5f",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 1,
+          "cylinder": 2,
+          "extrusion": 1,
+          "plane": 5
+        },
+        "vertexCount": 8,
+        "volume": 77148.8694
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              52.0,
+              33.8872528,
+              28.0
+            ],
+            "min": [
+              -51.9925499,
+              -33.9922142,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "8275f7026497ab2aaccb153b22ce501f4cf780cc1e6aa658e498086df0e513c4",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 496,
+          "vertices": 250,
+          "volume": 70295.2622,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              52.0,
+              33.9969215,
+              28.0
+            ],
+            "min": [
+              -51.9970284,
+              -33.9999847,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "4f95d3c99bab961bb0f318c6e49b9887f7fe18417ce4a1fdc6aa4be98f401fc4",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 4270,
+          "vertices": 2137,
+          "volume": 76302.7638,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Three elliptical sections lofted into a doubly curved shell; the hollow underside keeps the wall thin so normals vary quickly.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "freeform-palm-rest",
+      "tags": [
+        "freeform",
+        "pocket",
+        "through-hole"
+      ],
+      "title": "Freeform palm rest",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            45.0,
+            45.0,
+            14.0
+          ],
+          "min": [
+            -45.0,
+            -45.0,
+            0.0
+          ]
+        },
+        "edgeCount": 46,
+        "faceCount": 17,
+        "holeCount": 8,
+        "sha256": "0ee084e21cd0582bb197bb0afc8d6d2fffb7af87fb719031f1ccaaaa57d787fb",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 2,
+          "cylinder": 10,
+          "plane": 5
+        },
+        "vertexCount": 30,
+        "volume": 69609.1662
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              45.0,
+              44.6718979,
+              14.0
+            ],
+            "min": [
+              -45.0,
+              -44.6718979,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a883578645ce005c647b9527d66331606d1dd030388ddead66be6fe5ce227b2b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1244,
+          "vertices": 606,
+          "volume": 68939.9629,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              45.0,
+              44.9860115,
+              14.0
+            ],
+            "min": [
+              -45.0,
+              -44.9860115,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "64e94dd0b75dd41b8548d8de56ae5872076d4204c3bc76c765c222389cd86673",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 5908,
+          "vertices": 2938,
+          "volume": 69580.5981,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Six lightening holes on a bolt circle plus a keyway that breaks the bore into a non-circular profile.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "gear-blank-disc",
+      "tags": [
+        "revolved",
+        "circular-pattern",
+        "through-hole",
+        "slot",
+        "chamfer",
+        "prismatic-multi-axis"
+      ],
+      "title": "Gear blank disc",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            46.235883,
+            65.735883,
+            60.735883
+          ],
+          "min": [
+            -0.13,
+            3.264117,
+            9.264117
+          ]
+        },
+        "edgeCount": 639,
+        "faceCount": 248,
+        "holeCount": 2,
+        "sha256": "aa7243c7ab2ccb40bef5ca8d6482747828c04519781ff7eb80cd586ededc07c6",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 61,
+          "cone": 2,
+          "cylinder": 42,
+          "plane": 121,
+          "sphere": 8,
+          "torus": 14
+        },
+        "vertexCount": 398,
+        "volume": 21029.6456
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              45.0,
+              64.5,
+              59.5
+            ],
+            "min": [
+              0.0,
+              4.5,
+              10.5
+            ]
+          },
+          "degenerateFaces": 12,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "1a031da099309697b37bbb30eee58e94833ed46efc6bdaca5f9cd5daae138f68",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 5326,
+          "vertices": 2655,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              45.0,
+              64.5,
+              59.5
+            ],
+            "min": [
+              0.0,
+              4.5,
+              10.5
+            ]
+          },
+          "degenerateFaces": 12,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "0784d9618a256d506011f2822f66d5aa3ed2cf7502b12f821bd42bb1a92b4e89",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 46488,
+          "vertices": 23236,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              45.0,
+              64.5,
+              59.5
+            ],
+            "min": [
+              0.0,
+              4.5,
+              10.5
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "0911afda72bfdfd76d9e451845b979be229036841773cd2b7c70c24eb5063576",
+          "sourceFormat": "stl",
+          "sourceSha256": "0911afda72bfdfd76d9e451845b979be229036841773cd2b7c70c24eb5063576",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 60814,
+          "vertices": 30405,
+          "volume": 21026.1997,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "U-shaped hook bracket, all edges filleted, two mounting holes in the back plate. Fusion STEP and Fusion STL both present.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "hammer-holder-v1",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "fillet-rim",
+        "through-hole",
+        "slot"
+      ],
+      "title": "Hammer holder v1.3 (earlier revision)",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              132.0,
+              12.0,
+              39.0
+            ],
+            "min": [
+              -7.0,
+              -12.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "8bab0516a4bc1631dfc179021969ff41a930bbae0ffeba0d4046d678e97300d1",
+          "sourceFormat": "stl",
+          "sourceSha256": "8bab0516a4bc1631dfc179021969ff41a930bbae0ffeba0d4046d678e97300d1",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 3564,
+          "vertices": 1780,
+          "volume": 35660.1595,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Drawer handle bar with two feet. Hand check: 0 holes, planar and cylindrical faces.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "handle-test",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical"
+      ],
+      "title": "Handle test v2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            7.5,
+            6.49519053,
+            35.0
+          ],
+          "min": [
+            -7.5,
+            -6.49519053,
+            -2.00000002e-07
+          ]
+        },
+        "edgeCount": 45,
+        "faceCount": 21,
+        "holeCount": 1,
+        "sha256": "dca0ba45b641eabee000f927d5cf5b14e275bc3326c05543dc1d9332d1f205b0",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 1,
+          "plane": 20
+        },
+        "vertexCount": 26,
+        "volume": 4310.85236
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              7.5,
+              6.49519062,
+              35.0
+            ],
+            "min": [
+              -7.5,
+              -6.49519062,
+              -2.00000002e-07
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "fb042edb60f40e5c97f563f53aa2550b935bac115c93ab2206986e4df81acebc",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 152,
+          "vertices": 76,
+          "volume": 4318.06613,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              7.5,
+              6.49519062,
+              35.0
+            ],
+            "min": [
+              -7.5,
+              -6.49519062,
+              -2.00000002e-07
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "b421334653eb73c512f21095a84408822ef0c7205a12c7b76ea4ed539a35a94a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 552,
+          "vertices": 276,
+          "volume": 4311.16044,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The easy baseline: one hex profile extruded once, with chamfered ends and a single axial bore.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "hex-standoff-spacer",
+      "tags": [
+        "prismatic-single-axis",
+        "through-hole",
+        "chamfer"
+      ],
+      "title": "Hex standoff spacer",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            39.0,
+            23.0,
+            18.0
+          ],
+          "min": [
+            -35.0,
+            -23.0,
+            0.0
+          ]
+        },
+        "edgeCount": 56,
+        "faceCount": 18,
+        "holeCount": 5,
+        "sha256": "2b76755582cff5f5832152bc5b0e2e0933458d8c1db383badee440200b1f7fc0",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 9,
+          "plane": 9
+        },
+        "vertexCount": 38,
+        "volume": 22719.4953
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              38.9358292,
+              23.0,
+              17.999506
+            ],
+            "min": [
+              -35.0,
+              -23.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "1cbe0a0a810c375058f1d2895f847e06a35e65e9285170853840cff703da7e19",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 856,
+          "vertices": 418,
+          "volume": 22691.0878,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              38.9999428,
+              23.0,
+              17.9976921
+            ],
+            "min": [
+              -35.0,
+              -23.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "11145701dc840794809ff907b5cc9811dfea5794da33add835627f383bfd2a64",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3916,
+          "vertices": 1948,
+          "volume": 22718.2218,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Two knuckles extruded along Y are welded to a leaf extruded along Z; the pin bore is coaxial with the knuckles.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "hinge-half-knuckle",
+      "tags": [
+        "prismatic-multi-axis",
+        "linear-pattern",
+        "through-hole",
+        "fillet-vertical"
+      ],
+      "title": "Hinge half with knuckles",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            38.0,
+            23.0,
+            38.0
+          ],
+          "min": [
+            -38.0,
+            -23.0,
+            -1.23470074e-15
+          ]
+        },
+        "edgeCount": 104,
+        "faceCount": 44,
+        "holeCount": 10,
+        "sha256": "82ea7585e6601afe2b7cd0558ebee8f7829702b764a1c636831007e818eb8a26",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 8,
+          "cylinder": 14,
+          "plane": 22
+        },
+        "vertexCount": 64,
+        "volume": 113069.371
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              38.0,
+              23.0,
+              38.0
+            ],
+            "min": [
+              -38.0,
+              -23.0,
+              -7.77156117e-16
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "b170bdbec72d3311768e656511457defb92adcba8c5aab6dd3d5d38e67fb6469",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1364,
+          "vertices": 670,
+          "volume": 113155.542,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              38.0,
+              23.0,
+              38.0
+            ],
+            "min": [
+              -38.0,
+              -23.0,
+              -7.77156117e-16
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "5d76bfad0d1ee68c8f5926be8a86fd0a4878ed2f6285c7d507a81f6ad0b46930",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 6724,
+          "vertices": 3350,
+          "volume": 113072.998,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Ports drilled from three orthogonal faces intersect inside the block, producing partial cylinder faces with curved seams.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "hydraulic-manifold-block",
+      "tags": [
+        "prismatic-multi-axis",
+        "counterbore",
+        "through-hole",
+        "blind-hole",
+        "pocket",
+        "chamfer",
+        "fillet-vertical"
+      ],
+      "title": "Hydraulic manifold block",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            35.0,
+            25.0,
+            55.0
+          ],
+          "min": [
+            -35.0,
+            -25.0,
+            0.0
+          ]
+        },
+        "edgeCount": 60,
+        "faceCount": 22,
+        "holeCount": 7,
+        "sha256": "114b81175f3909d2b4ba7c0a6b114c01da172648e6eb20c702889e286d8b0568",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 9,
+          "plane": 13
+        },
+        "vertexCount": 40,
+        "volume": 49324.5549
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              35.0,
+              25.0,
+              55.0
+            ],
+            "min": [
+              -35.0,
+              -25.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "c3f4df338abdb1130ece97ce4d1eac3fa3ebb42a02f32da19667f0a5f8c87c14",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 852,
+          "vertices": 414,
+          "volume": 49332.8766,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              35.0,
+              25.0,
+              55.0
+            ],
+            "min": [
+              -35.0,
+              -25.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "da25d259775ed30afcaf0e0950fba77f9653f9343c8255756572a74ff42ea46f",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3852,
+          "vertices": 1914,
+          "volume": 49324.8747,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A triangular gusset meets the base and wall at three different angles, so the tangent-plane clustering has to separate a sloped rib face from two orthogonal plates.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "l-bracket-gusset",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "rib",
+        "fillet-vertical",
+        "chamfer"
+      ],
+      "title": "Gusseted L bracket",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              13.5,
+              13.4994307,
+              10.0
+            ],
+            "min": [
+              -13.5,
+              -13.4994307,
+              -15.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "20576faf1d1b403903b427da04683146ae663f74710792868f5fcfc6add38cb0",
+          "sourceFormat": "stl",
+          "sourceSha256": "20576faf1d1b403903b427da04683146ae663f74710792868f5fcfc6add38cb0",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 13530,
+          "vertices": 6767,
+          "volume": 6991.5349,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Domed round cap, shelled from below. Hand check: revolve profile with a spherical top; 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "ladder-cap",
+      "tags": [
+        "revolved",
+        "sphere",
+        "shell",
+        "fillet-rim"
+      ],
+      "title": "Ladder cap v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              51.5,
+              51.4839935,
+              90.0
+            ],
+            "min": [
+              -51.5,
+              -51.4839935,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "de8462b5a7fecb785a56315d629a49584ddccb32b593ea4c608e12d10baf55e8",
+          "sourceFormat": "stl",
+          "sourceSha256": "de8462b5a7fecb785a56315d629a49584ddccb32b593ea4c608e12d10baf55e8",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 1008,
+          "vertices": 504,
+          "volume": 43029.8294,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Thin slightly tapered tube. Hand check: 2 conical/cylindrical walls plus 2 planar rims.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "lamp-cover",
+      "tags": [
+        "revolved",
+        "thin-wall",
+        "taper"
+      ],
+      "title": "Lamp cover v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              698.099976,
+              14.0,
+              20.0
+            ],
+            "min": [
+              653.099976,
+              -14.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "3ac19fce8cfec9776144f64a591420af08a4ed18a9291fe27bd8689e3a5d316e",
+          "sourceFormat": "stl",
+          "sourceSha256": "3ac19fce8cfec9776144f64a591420af08a4ed18a9291fe27bd8689e3a5d316e",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 7080,
+          "vertices": 3540,
+          "volume": 19323.929,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Block with one rounded end and a top groove. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "laser-rail",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "fillet-vertical"
+      ],
+      "title": "Laser rail v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            23.0,
+            15.0,
+            50.0
+          ],
+          "min": [
+            -23.0,
+            -15.0,
+            0.0
+          ]
+        },
+        "edgeCount": 61,
+        "faceCount": 26,
+        "holeCount": 4,
+        "sha256": "217c7617d1fcbba6641461da4840ba7e8360656aeeb085f6b028f4065d7ba911",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 10,
+          "cylinder": 4,
+          "plane": 12
+        },
+        "vertexCount": 39,
+        "volume": 34580.0789
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              23.0,
+              15.0,
+              50.0
+            ],
+            "min": [
+              -23.0,
+              -15.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "743d0919bd9d79227aa53049e96d6573e3bcbc38388f5a24c58eed49f2e10840",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 558,
+          "vertices": 273,
+          "volume": 34452.0294,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              23.0,
+              15.0,
+              50.0
+            ],
+            "min": [
+              -23.0,
+              -15.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "292507f1f166649cfb7c270eba0db7255fc45980f26def8c82e2922967552725",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 5512,
+          "vertices": 2750,
+          "volume": 34551.8359,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The grip is a rectangle-to-circle-to-rectangle loft, so the body is a B-spline surface with no analytic fit at all.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "lofted-pull-handle",
+      "tags": [
+        "freeform",
+        "through-hole",
+        "prismatic-multi-axis"
+      ],
+      "title": "Lofted pull handle",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            153.951022,
+            458.435883,
+            101.6
+          ],
+          "min": [
+            -196.251022,
+            -1.0,
+            -2.54284599e-15
+          ]
+        },
+        "edgeCount": 1584,
+        "faceCount": 600,
+        "holeCount": 10,
+        "sha256": "c614026dbc217303d33f56dcc2a58809dc7bf3b648ce076ae28c0e345027ed02",
+        "solidCount": 5,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 132,
+          "cylinder": 124,
+          "extrusion": 4,
+          "plane": 306,
+          "sphere": 14,
+          "torus": 20
+        },
+        "vertexCount": 1002,
+        "volume": 572029.795
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              151.699997,
+              457.200012,
+              101.599998
+            ],
+            "min": [
+              -194.0,
+              -1.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 20,
+          "duplicateFaces": 21,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "6c63a80bd44394a7ffb304707ccaa143f5c4730bb588b7f4617e1d854b742e8b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 10366,
+          "vertices": 5113,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              151.699997,
+              457.200012,
+              101.599998
+            ],
+            "min": [
+              -194.0,
+              -1.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 34,
+          "duplicateFaces": 52,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "c92ab4a7bb369be82720d26225156ea264b40272ad8099939dabb15e3b2f299b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 107520,
+          "vertices": 53583,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Large thin-walled tray assembly body. Ground truth from Fusion STEP; the most complex STEP in the corpus.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "mailbox-tray",
+      "tags": [
+        "prismatic-multi-axis",
+        "thin-wall",
+        "pocket",
+        "fillet-vertical"
+      ],
+      "title": "Mailbox tray v2.4.5",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            30.0,
+            30.0,
+            42.0
+          ],
+          "min": [
+            -30.0,
+            -30.0,
+            -2.1992423e-16
+          ]
+        },
+        "edgeCount": 103,
+        "faceCount": 37,
+        "holeCount": 3,
+        "sha256": "701050b47567f8e47f60ac1a43e6008fa705d7c949f5d37be123211c40f20067",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 11,
+          "plane": 22
+        },
+        "vertexCount": 66,
+        "volume": 33058.3753
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              30.0,
+              30.0,
+              42.0
+            ],
+            "min": [
+              -30.0,
+              -30.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "fd202a739909913eb322b7b3039a01c27aba52fc33ec898ab80e60c86787e002",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 642,
+          "vertices": 317,
+          "volume": 33061.9585,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              30.0,
+              30.0,
+              42.0
+            ],
+            "min": [
+              -30.0,
+              -30.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "63863bf05a806e1716356feee936a22866e4c11ed34db3515bbe270c99c5e54b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2996,
+          "vertices": 1494,
+          "volume": 33058.5147,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Bolt pattern and pilot bore are cut along Z while the adjustment slots are cut along Y, giving two independent extrusion axes.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "motor-mount-nema17",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "pocket",
+        "slot",
+        "linear-pattern",
+        "fillet-vertical",
+        "chamfer"
+      ],
+      "title": "NEMA 17 motor mount",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            580.0,
+            325.0,
+            50.0
+          ],
+          "min": [
+            -590.0,
+            -325.0,
+            -100.0
+          ]
+        },
+        "edgeCount": 468,
+        "faceCount": 139,
+        "holeCount": 10,
+        "sha256": "980ac83ab3804633044f8820af2140f5d58929b9011cac627d5ea3b3b350137d",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 2,
+          "cylinder": 57,
+          "plane": 80
+        },
+        "vertexCount": 433,
+        "volume": 14642823.6
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              400.0,
+              225.0,
+              50.0
+            ],
+            "min": [
+              -400.0,
+              -225.0,
+              -100.0
+            ]
+          },
+          "degenerateFaces": 2,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "fb3de1744df6391d2f1e8d5a502850fa294314d9ab2fbd987e42951c52ce6546",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 2832,
+          "vertices": 1397,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              400.0,
+              225.0,
+              50.0
+            ],
+            "min": [
+              -400.0,
+              -225.0,
+              -100.0
+            ]
+          },
+          "degenerateFaces": 2,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "a6b3f92114fbc648f3584249584c525942b814cf0ecb2aebdfeb1a923df1c171",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 13050,
+          "vertices": 6506,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case CTC 1, geometry-only AP203 export (nist_ctc_01_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ctc-01",
+      "tags": [],
+      "title": "NIST CTC 1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            340.008358,
+            820.0,
+            40.1594851
+          ],
+          "min": [
+            -340.008358,
+            -40.0,
+            -360.0
+          ]
+        },
+        "edgeCount": 1647,
+        "faceCount": 664,
+        "holeCount": 94,
+        "sha256": "aa163ce08c4ad40ecac23705c0b6bb1d8f7e7389b74843f9475dc263cd4146ed",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 34,
+          "cone": 158,
+          "cylinder": 318,
+          "plane": 130,
+          "sphere": 24
+        },
+        "vertexCount": 942,
+        "volume": 47847994.4
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              340.0,
+              820.0,
+              40.0
+            ],
+            "min": [
+              -340.0,
+              -40.0,
+              -360.0
+            ]
+          },
+          "degenerateFaces": 216,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "d426d0943d5bf1c1e6b8246ca46212080e77e5606db08df28e3f40ceb17b45a4",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 20722,
+          "vertices": 10267,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              340.0,
+              820.0,
+              40.0
+            ],
+            "min": [
+              -340.0,
+              -40.0,
+              -360.0
+            ]
+          },
+          "degenerateFaces": 196,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "c79ffeb02a01336723ddb32a421da1636c4c71dd9f57c2184a258bebe6a274f8",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 177462,
+          "vertices": 88637,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case CTC 2, geometry-only AP203 export (nist_ctc_02_asme1_rc.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ctc-02",
+      "tags": [],
+      "title": "NIST CTC 2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            88.9,
+            504.4948,
+            162.68015
+          ],
+          "min": [
+            -330.2,
+            -45.72,
+            -1.66449597e-16
+          ]
+        },
+        "edgeCount": 497,
+        "faceCount": 139,
+        "holeCount": 15,
+        "sha256": "2fec912c07b8fdfa7e3d43e2589170c2bb73fd38ee5e0ff728415acbd7a31f79",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 53,
+          "plane": 86
+        },
+        "vertexCount": 458,
+        "volume": 331938.27
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              53.4022446,
+              485.444794,
+              162.680145
+            ],
+            "min": [
+              -249.561081,
+              -2.60208521e-15,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "49a3dd2f0f1c2ae48407b597082295f95bc37b2ccc70cb8150684738a91d162e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 3224,
+          "vertices": 1580,
+          "volume": 331709.559,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              53.4022446,
+              485.444794,
+              162.680145
+            ],
+            "min": [
+              -249.561081,
+              -2.60208521e-15,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "122d53a6e9d8004ea864cd130ab3889d63845ea26acb11c1e41384a2e1f025cc",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 13938,
+          "vertices": 6937,
+          "volume": 331926.419,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case CTC 3, geometry-only AP203 export (nist_ctc_03_asme1_rc.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ctc-03",
+      "tags": [],
+      "title": "NIST CTC 3",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            250.0,
+            780.0,
+            30.0
+          ],
+          "min": [
+            -250.0,
+            -7.10542736e-15,
+            -100.64252
+          ]
+        },
+        "edgeCount": 1272,
+        "faceCount": 518,
+        "holeCount": 60,
+        "sha256": "4ae8fc2d117a55bb9f3c43d81bc9a3178a558839b61ff85a511c7b897fae3898",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 116,
+          "cylinder": 238,
+          "plane": 113,
+          "sphere": 22,
+          "torus": 29
+        },
+        "vertexCount": 728,
+        "volume": 17518568.3
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              250.0,
+              780.0,
+              30.0
+            ],
+            "min": [
+              -250.0,
+              0.0,
+              -100.595131
+            ]
+          },
+          "degenerateFaces": 66,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "5f7ae876606af151ec0e1f212701e29990d1ca35dff5bdcc7cea0c671f5e340b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 15668,
+          "vertices": 7749,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              250.0,
+              780.0,
+              30.0
+            ],
+            "min": [
+              -250.0,
+              0.0,
+              -100.603752
+            ]
+          },
+          "degenerateFaces": 76,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "3cfb482ab3f70ff94c14efec7f77933b1eb077ee88550abdf6eed11fd2ef8072",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 143710,
+          "vertices": 71820,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case CTC 4, geometry-only AP203 export (nist_ctc_04_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ctc-04",
+      "tags": [],
+      "title": "NIST CTC 4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            263.525,
+            279.4,
+            482.6
+          ],
+          "min": [
+            -263.525,
+            -279.4,
+            0.0
+          ]
+        },
+        "edgeCount": 540,
+        "faceCount": 209,
+        "holeCount": 31,
+        "sha256": "a941cdeff5307fb037e0439ccd880f4e07893b45facb71bd7c8ae20d1ced0296",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 9,
+          "cone": 26,
+          "cylinder": 100,
+          "plane": 63,
+          "sphere": 4,
+          "torus": 7
+        },
+        "vertexCount": 339,
+        "volume": 12828991.0
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              263.524994,
+              279.399994,
+              482.600006
+            ],
+            "min": [
+              -263.524994,
+              -279.399994,
+              0.0
+            ]
+          },
+          "degenerateFaces": 35,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a08411646c8ecc8b236f1297c7e5304b3f81c007fbdf7e4ddfd2c844a5efcb0e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 6429,
+          "vertices": 3189,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              263.524994,
+              279.399994,
+              482.600006
+            ],
+            "min": [
+              -263.524994,
+              -279.399994,
+              0.0
+            ]
+          },
+          "degenerateFaces": 21,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "3e149e4ced56d59d1339f94efc81eee16b766fdf0d76ae8e694976be0c944c9a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 53495,
+          "vertices": 26722,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case CTC 5, geometry-only AP203 export (nist_ctc_05_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ctc-05",
+      "tags": [],
+      "title": "NIST CTC 5",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            152.4,
+            106.68,
+            7.50601504e-16
+          ],
+          "min": [
+            -152.4,
+            -4.38857286e-16,
+            -247.65
+          ]
+        },
+        "edgeCount": 454,
+        "faceCount": 144,
+        "holeCount": 22,
+        "sha256": "f54f4adc2c63c6bef0587fce12ced96b5b4f51784c17b05ccb756a73285d3528",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 58,
+          "plane": 71,
+          "sphere": 5,
+          "torus": 6
+        },
+        "vertexCount": 426,
+        "volume": 3323546.07
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              152.399994,
+              97.7900009,
+              0.0
+            ],
+            "min": [
+              -152.399994,
+              -4.261049e-16,
+              -247.649994
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a8202f64fd091d93885a47157cd5567b9b27fb86b82af9cc2b906905cd676151",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 7124,
+          "vertices": 3540,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              152.399994,
+              97.7900009,
+              0.0
+            ],
+            "min": [
+              -152.399994,
+              -4.38311757e-16,
+              -247.649994
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "92d1dd60cc118017f3074b816bac19484862588778d8c1f5a4b9adfd66e9bd1b",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 83186,
+          "vertices": 41571,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 6, geometry-only AP203 export (nist_ftc_06_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-06",
+      "tags": [],
+      "title": "NIST FTC 6",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            155.881201,
+            12.9920176,
+            111.431201
+          ],
+          "min": [
+            -155.881201,
+            -123.19,
+            -111.431201
+          ]
+        },
+        "edgeCount": 630,
+        "faceCount": 269,
+        "holeCount": 27,
+        "sha256": "24421f116945ccb4bb4511b75e5b50fa5e3ed910cde5e7c4ab5072dd03abb59e",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 20,
+          "cone": 28,
+          "cylinder": 106,
+          "plane": 73,
+          "sphere": 18,
+          "torus": 24
+        },
+        "vertexCount": 374,
+        "volume": 1726247.58
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              155.802948,
+              12.6999998,
+              111.352951
+            ],
+            "min": [
+              -155.802948,
+              -123.190002,
+              -111.352951
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "51c349ae93d177a433e91fd8ca5658dd749b2476e9663c597613c05e06bce49a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 8148,
+          "vertices": 4042,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              155.802948,
+              12.6999998,
+              111.352951
+            ],
+            "min": [
+              -155.802948,
+              -123.190002,
+              -111.352951
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "652a97a65a21abc0d8b6f6e8e767b63062fd33b97e32d967e9df490b7482f29e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 83220,
+          "vertices": 41578,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 7, geometry-only AP203 export (nist_ftc_07_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-07",
+      "tags": [],
+      "title": "NIST FTC 7",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            155.79725,
+            111.34725,
+            48.29302
+          ],
+          "min": [
+            -155.79725,
+            -111.34725,
+            0.0
+          ]
+        },
+        "edgeCount": 725,
+        "faceCount": 270,
+        "holeCount": 20,
+        "sha256": "cea7a50c6b263387bf8fba76e6d6f8ff7fcebb130611b87a13297d609138def0",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 157,
+          "plane": 81,
+          "sphere": 20,
+          "torus": 12
+        },
+        "vertexCount": 442,
+        "volume": 503592.175
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              155.797256,
+              111.347252,
+              48.2599983
+            ],
+            "min": [
+              -155.797256,
+              -111.347252,
+              0.0
+            ]
+          },
+          "degenerateFaces": 20,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "b9a4348908f0ee0863369b1755a385f1a702936050c6d562421aa4d49fa36b33",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 7102,
+          "vertices": 3493,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              155.797256,
+              111.347252,
+              48.2599983
+            ],
+            "min": [
+              -155.797256,
+              -111.347252,
+              0.0
+            ]
+          },
+          "degenerateFaces": 20,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "e75c79c54f781db5ab85fd732916eeac59b1748448ed66077c294f98ffa345fc",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 54710,
+          "vertices": 27297,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 8, geometry-only AP203 export (nist_ftc_08_asme1_rc.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-08",
+      "tags": [],
+      "title": "NIST FTC 8",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            95.25,
+            3.03784,
+            139.7
+          ],
+          "min": [
+            -95.25,
+            0.0,
+            -139.7
+          ]
+        },
+        "edgeCount": 495,
+        "faceCount": 158,
+        "holeCount": 29,
+        "sha256": "481a6b3aa9b2c07b52fd4a233e1ef3ae60df15f304274e4ce0651b03b57521d0",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 8,
+          "cylinder": 88,
+          "plane": 62
+        },
+        "vertexCount": 342,
+        "volume": 136445.105
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              95.25,
+              3.03783989,
+              139.699997
+            ],
+            "min": [
+              -95.25,
+              0.0,
+              -139.699997
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "21d0fb4dc771aa099e6eb5a70af5512d153a270e3f1cdf69ae7a0fe93b57a2c2",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 4892,
+          "vertices": 2380,
+          "volume": 136495.459,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              95.25,
+              3.03783989,
+              139.699997
+            ],
+            "min": [
+              -95.25,
+              0.0,
+              -139.699997
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "bda942aa7ebea44df4ffd3cecce026accc3e6441295694ae11ad65804606c84f",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 23244,
+          "vertices": 11556,
+          "volume": 136447.344,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 9, geometry-only AP203 export (nist_ftc_09_asme1_rd.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-09",
+      "tags": [],
+      "title": "NIST FTC 9",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            79.7415298,
+            31.6591376,
+            38.2415298
+          ],
+          "min": [
+            -79.7415298,
+            -2.94666252e-14,
+            -38.2415298
+          ]
+        },
+        "edgeCount": 503,
+        "faceCount": 214,
+        "holeCount": 42,
+        "sha256": "3c8f04c3db4e79004f4ee0e5113449a8b51d58ab6e4e216defa51832ed570ec5",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 1,
+          "cone": 8,
+          "cylinder": 103,
+          "plane": 53,
+          "sphere": 10,
+          "torus": 39
+        },
+        "vertexCount": 306,
+        "volume": 188318.067
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              78.9798737,
+              31.0,
+              37.5
+            ],
+            "min": [
+              -78.9798737,
+              -2.88657986e-14,
+              -37.5
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a4bebce8a0fecaafd77fd2af7925e1c303c1e8dbfeac9137484a68d4a859744c",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 11416,
+          "vertices": 5662,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              78.9972534,
+              31.0,
+              37.5
+            ],
+            "min": [
+              -78.9972534,
+              -2.88657986e-14,
+              -37.5
+            ]
+          },
+          "degenerateFaces": 8,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "e0b58dc56a63cef6d68dd227f7909f19dc774339a8b5925bc10815271e96fa2e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 132906,
+          "vertices": 66407,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 10, geometry-only AP203 export (nist_ftc_10_asme1_rb.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-10",
+      "tags": [],
+      "title": "NIST FTC 10",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            34.0953543,
+            34.0953543,
+            1.5
+          ],
+          "min": [
+            -34.0953543,
+            -34.0953543,
+            -1.5
+          ]
+        },
+        "edgeCount": 12,
+        "faceCount": 6,
+        "holeCount": 1,
+        "sha256": "b9da5455192148a651992796f92566cd59fbc8d118da1ed0df4a44425bb0499e",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 2,
+          "plane": 2,
+          "torus": 2
+        },
+        "vertexCount": 8,
+        "volume": 5129.38614
+      },
+      "license": "Public domain (NIST MBE PMI Validation and Conformance Testing project, https://www.nist.gov/document/nist-pmi-step-files); attribution requested",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              31.2703304,
+              31.5,
+              1.49334598
+            ],
+            "min": [
+              -31.4577656,
+              -31.5,
+              -1.5
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "23cd0c3d094b97571934afbe11ee10cc751c52aefd2424fb9f222cd2286bbb2d",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 2014,
+          "vertices": 1007,
+          "volume": 5028.76876,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              31.4939537,
+              31.5,
+              1.49978387
+            ],
+            "min": [
+              -31.4982605,
+              -31.5,
+              -1.5
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "023e41ae6c13e572aca26560aff8972f7618ac786273b3fd669a04b61b192713",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 45360,
+          "vertices": 22680,
+          "volume": 5126.65353,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "NIST PMI test case FTC 11, geometry-only AP203 export (nist_ftc_11_asme1_rb.stp). Drawings in the NIST archive PDF folder.",
+      "origin": "public",
+      "schemaVersion": 1,
+      "slug": "nist-ftc-11",
+      "tags": [],
+      "title": "NIST FTC 11",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              42.5,
+              42.497036,
+              1.0
+            ],
+            "min": [
+              -42.5,
+              -42.497036,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "037f1caae1684fe8413bf0d8c505b601dafdef21abba85f6d191130322eebf5a",
+          "sourceFormat": "stl",
+          "sourceSha256": "037f1caae1684fe8413bf0d8c505b601dafdef21abba85f6d191130322eebf5a",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 1040,
+          "vertices": 520,
+          "volume": 1137.82322,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Flat washer 85 mm by 1 mm. Hand check: 2 planes, 2 cylinders.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "oil-ring",
+      "tags": [
+        "revolved",
+        "thin-wall"
+      ],
+      "title": "Oil ring v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            37.5644213,
+            37.5644213,
+            12.0
+          ],
+          "min": [
+            -37.5644213,
+            -37.5644213,
+            -3.59046126e-13
+          ]
+        },
+        "edgeCount": 27,
+        "faceCount": 13,
+        "holeCount": 4,
+        "sha256": "db53a5da2c41148fe4a6395e1f22cf70770db2f8dd8ac3494d9c25104c7e7a71",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 6,
+          "plane": 2,
+          "torus": 1
+        },
+        "vertexCount": 16,
+        "volume": 25499.2734
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              34.0,
+              33.7521019,
+              12.0
+            ],
+            "min": [
+              -34.0,
+              -33.7521019,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "6eaa36aabf559717deb9de46fff5e48c87866b754ab29dcc73020cc8ce642125",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1624,
+          "vertices": 806,
+          "volume": 25270.3206,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              34.0,
+              33.9894333,
+              12.0
+            ],
+            "min": [
+              -34.0,
+              -33.9894333,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "41df59b55a729f3e6dd69da8aba065491197d32a2bd8309e69aa77934a5c5ab3",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 23700,
+          "vertices": 11844,
+          "volume": 25489.4757,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The seal groove is a real toroidal face; fitting it as a cylinder or cone changes the sealing dimension.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "oring-gland-ring",
+      "tags": [
+        "torus",
+        "revolved",
+        "circular-pattern",
+        "blind-hole",
+        "chamfer"
+      ],
+      "title": "O-ring gland ring",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              15.0,
+              14.998888,
+              15.0
+            ],
+            "min": [
+              -15.0,
+              -14.998888,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "c5b6f6bb12afd87f095099ecdc18793e82705f3acc5d018f2dec40f60b927d21",
+          "sourceFormat": "stl",
+          "sourceSha256": "c5b6f6bb12afd87f095099ecdc18793e82705f3acc5d018f2dec40f60b927d21",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 13288,
+          "vertices": 6646,
+          "volume": 5468.95105,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Round cup 30 mm across. Hand check: revolve profile; 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "pole-cap",
+      "tags": [
+        "revolved",
+        "shell",
+        "fillet-rim"
+      ],
+      "title": "Pole cap v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              15.0,
+              15.9950781,
+              0.0
+            ],
+            "min": [
+              -15.0,
+              -15.9950781,
+              -26.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "d4cb287cabe26575b3875f128fb987ff6621d2f82bdb1c9cfa0d6792a9475e9e",
+          "sourceFormat": "stl",
+          "sourceSha256": "d4cb287cabe26575b3875f128fb987ff6621d2f82bdb1c9cfa0d6792a9475e9e",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 52696,
+          "vertices": 26350,
+          "volume": 5332.48787,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Round base with a wedge boss and a side notch.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "rear-plug-bottom",
+      "tags": [
+        "revolved",
+        "boss",
+        "prismatic-multi-axis",
+        "slot"
+      ],
+      "title": "Rear plug bottom v4.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              35.0,
+              7.5,
+              18.9998703
+            ],
+            "min": [
+              -10.0,
+              -7.5,
+              -5.20417043e-15
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "390df842b33321b01d742ce741ef5054259fdfe74810215d660e82b2f2f6fc18",
+          "sourceFormat": "stl",
+          "sourceSha256": "390df842b33321b01d742ce741ef5054259fdfe74810215d660e82b2f2f6fc18",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 31274,
+          "vertices": 15635,
+          "volume": 7258.84048,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Curved saddle block with two counterbored holes. Hand check: 2 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "sail-mount",
+      "tags": [
+        "prismatic-multi-axis",
+        "through-hole",
+        "counterbore",
+        "fillet-vertical"
+      ],
+      "title": "Sail mount v1.4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            26.0,
+            15.0,
+            40.0
+          ],
+          "min": [
+            -26.0,
+            -15.0,
+            -8.9729776e-17
+          ]
+        },
+        "edgeCount": 94,
+        "faceCount": 38,
+        "holeCount": 2,
+        "sha256": "8d008a83504eff5ec904cea34e329d5ae7cc5372b2cdf4faf7388f3a0668319b",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 14,
+          "plane": 20
+        },
+        "vertexCount": 60,
+        "volume": 11617.2171
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              26.0,
+              15.0,
+              40.0
+            ],
+            "min": [
+              -26.0,
+              -15.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "af7252053057a456670580c7dbaf5d04bfa74685a87371fb414fbb1010499969",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 740,
+          "vertices": 368,
+          "volume": 11612.6744,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              26.0,
+              15.0,
+              40.0
+            ],
+            "min": [
+              -26.0,
+              -15.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "054f7de97654e583e7c7fd21a6563f427dc752959d8d077c6588e71e15746bfb",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3520,
+          "vertices": 1758,
+          "volume": 11616.9609,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A small bracket where the adjustment slots run along Z and X and the pilot holes stop blind inside a 5 mm plate.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "sensor-mount-bracket",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "through-hole",
+        "blind-hole",
+        "fillet-vertical",
+        "chamfer"
+      ],
+      "title": "Sensor mounting bracket",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            45.0,
+            22.0,
+            52.0
+          ],
+          "min": [
+            -45.0,
+            -22.0,
+            -4.32957053e-17
+          ]
+        },
+        "edgeCount": 96,
+        "faceCount": 34,
+        "holeCount": 0,
+        "sha256": "c2b281cdcbb9685e65d2bd3488efa2e0716e1e6d8ddfc0232ebf36f63f3fb0eb",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cylinder": 16,
+          "plane": 18
+        },
+        "vertexCount": 64,
+        "volume": 35914.6125
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              45.0,
+              22.0,
+              52.0
+            ],
+            "min": [
+              -45.0,
+              -22.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a087cab02e6502b240a35d38087e478b2b9890ecd0523f056217ea707cba3833",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 688,
+          "vertices": 338,
+          "volume": 35915.061,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              45.0,
+              22.0,
+              52.0
+            ],
+            "min": [
+              -45.0,
+              -22.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "efb250aa3c872b18c2e38a4a8048bf33046a8dfb764db2ddbe0b91fc70608cad",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2880,
+          "vertices": 1434,
+          "volume": 35914.5297,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Slots in both flanges are patterned on perpendicular planes, so the slot end caps are half-cylinders about two different axes.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "slotted-angle-plate",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "linear-pattern",
+        "fillet-vertical"
+      ],
+      "title": "Slotted angle plate",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              9.5,
+              9.49704742,
+              19.5
+            ],
+            "min": [
+              -9.5,
+              -9.49704742,
+              -59.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "3a35722d087763b7b35f0fc52e1005c830fe9a2824cf2fc95b35583b622d53ed",
+          "sourceFormat": "stl",
+          "sourceSha256": "3a35722d087763b7b35f0fc52e1005c830fe9a2824cf2fc95b35583b622d53ed",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 4086,
+          "vertices": 2045,
+          "volume": 4747.04108,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Tapered ground spike with fins. Hand check: conical spike plus planar fins.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "solar-light-post",
+      "tags": [
+        "revolved",
+        "cone",
+        "taper",
+        "prismatic-multi-axis"
+      ],
+      "title": "Solar light post v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            -4.8958424,
+            25.7846913,
+            19.0574523
+          ],
+          "min": [
+            -122.74225,
+            -25.1622498,
+            7.81801901
+          ]
+        },
+        "edgeCount": 408,
+        "faceCount": 163,
+        "holeCount": 0,
+        "sha256": "913f0ba4096ae3b972360b2efdf6ca0c83d5d916677a8e9b1d41e611d069dd72",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 23,
+          "cone": 13,
+          "cylinder": 27,
+          "offset": 1,
+          "plane": 83,
+          "torus": 16
+        },
+        "vertexCount": 252,
+        "volume": 15484.6425
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              -5.30780363,
+              19.0521698,
+              16.8180199
+            ],
+            "min": [
+              -121.075829,
+              -20.1669693,
+              7.81801891
+            ]
+          },
+          "degenerateFaces": 3,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "09fea782505d01e843391dba23d5a5d684479127f2c5d7410971dea077479eca",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 3101,
+          "vertices": 1549,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              -5.30780363,
+              19.0815983,
+              16.8180199
+            ],
+            "min": [
+              -121.075829,
+              -20.1832752,
+              7.81801891
+            ]
+          },
+          "degenerateFaces": 3,
+          "duplicateFaces": 0,
+          "edgeManifold": false,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "f7a6a9756811dc9d94e7dfc3d06a7bc65bf1592bf83a5a9e971afeaaa760696e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 33073,
+          "vertices": 16535,
+          "volume": null,
+          "watertight": false,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Open-end spanner with splined outer profile and rim fillets; the general-parametric fixture's real origin.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "spanner-18mm",
+      "tags": [
+        "prismatic-single-axis",
+        "fillet-rim",
+        "freeform",
+        "through-hole"
+      ],
+      "title": "Spanner 18 mm",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            11.0,
+            11.0,
+            38.5
+          ],
+          "min": [
+            -11.0,
+            -11.0,
+            -3.51718654e-13
+          ]
+        },
+        "edgeCount": 27,
+        "faceCount": 13,
+        "holeCount": 0,
+        "sha256": "bd56edeb9997e0550029b15568726d253cd16d7c83f4cfaefa531c2b73ec03ea",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 3,
+          "cylinder": 3,
+          "plane": 6,
+          "sphere": 1
+        },
+        "vertexCount": 16,
+        "volume": 7274.30201
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              11.0,
+              10.934763,
+              38.5
+            ],
+            "min": [
+              -10.9267912,
+              -10.934763,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "6c64ad4debd21e459c07eca7211e8c97f0b0e56f1f31c6ebc34c95bad4ba3865",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 514,
+          "vertices": 259,
+          "volume": 7120.92829,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              11.0,
+              10.9966707,
+              38.5
+            ],
+            "min": [
+              -10.9967022,
+              -10.9966707,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "12725758b7cda0158c9d4bf8bdac07ceaae9e3b373c785a42a9d650e9cb4567e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 6968,
+          "vertices": 3486,
+          "volume": 7266.79037,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A true spherical head on a tapered neck, with wrench flats milled along X - three surface families on one small part.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "spherical-ball-stud",
+      "tags": [
+        "sphere",
+        "revolved",
+        "cone",
+        "taper",
+        "chamfer",
+        "prismatic-multi-axis"
+      ],
+      "title": "Spherical ball stud",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            28.0,
+            28.0,
+            24.0
+          ],
+          "min": [
+            -28.0,
+            -28.0,
+            -3.85824706e-12
+          ]
+        },
+        "edgeCount": 60,
+        "faceCount": 22,
+        "holeCount": 4,
+        "sha256": "4cc1e81b077143edd1bb9b386cd8defd87c2bcf56516be9de282984c4e96a039",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 6,
+          "plane": 12
+        },
+        "vertexCount": 40,
+        "volume": 43879.5631
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              27.9866314,
+              28.0,
+              24.0
+            ],
+            "min": [
+              -27.9866314,
+              -27.803793,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "d89b0604d71b613b2a7fd0c9e136970585389c2b1393bc0944722a8dfa931336",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 808,
+          "vertices": 398,
+          "volume": 43690.2864,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              27.9997063,
+              28.0,
+              24.0
+            ],
+            "min": [
+              -27.9997063,
+              -27.9913483,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "55fef242cffac5625a8fe7dacba210562b5d0f7453c15f9eefd4ef51ea43bad9",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3544,
+          "vertices": 1766,
+          "volume": 43871.2482,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A revolved sleeve with a milled split and cross-drilled pinch bolts, so the bore is only nearly closed.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "split-tube-clamp",
+      "tags": [
+        "revolved",
+        "prismatic-multi-axis",
+        "slot",
+        "through-hole",
+        "chamfer"
+      ],
+      "title": "Split tube clamp",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              21.5917149,
+              74.7735977,
+              22.0
+            ],
+            "min": [
+              -21.5917149,
+              -1.54893959,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "cc5e0095ba123449a027adcd78cd0fc0a8e53e81894b4d91a30f30bee5ff5543",
+          "sourceFormat": "stl",
+          "sourceSha256": "cc5e0095ba123449a027adcd78cd0fc0a8e53e81894b4d91a30f30bee5ff5543",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 20020,
+          "vertices": 10010,
+          "volume": 11179.0025,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Rectangular frame with four upright posts; the missing stand.stl regression fixture referenced by the prismatic tests.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "stand-horizontal",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "through-hole"
+      ],
+      "title": "Horizontal stand",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            22.0,
+            22.0,
+            46.0
+          ],
+          "min": [
+            -22.0,
+            -22.0,
+            -3.58602037e-13
+          ]
+        },
+        "edgeCount": 20,
+        "faceCount": 12,
+        "holeCount": 1,
+        "sha256": "823741eeaec89475536766bec0e4cf7f47271b9f9999aded8fe08301d6d35528",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 4,
+          "cylinder": 4,
+          "plane": 4
+        },
+        "vertexCount": 12,
+        "volume": 27944.8436
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              22.0,
+              21.8395958,
+              46.0
+            ],
+            "min": [
+              -22.0,
+              -21.8395958,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "fd4800f6aad9f1c6ca170648424c2144769165fdad1d5affab4bc4ef95b3a974",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 624,
+          "vertices": 312,
+          "volume": 27673.64,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              22.0,
+              21.9931622,
+              46.0
+            ],
+            "min": [
+              -22.0,
+              -21.9931622,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "8bef19cade00e20ea2b0582e4316e55c5404546aad482f7ee8f15c840f06f678",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 3402,
+          "vertices": 1701,
+          "volume": 27933.2283,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Three coaxial cylinder steps that a naive fitter is tempted to merge into one cylinder of averaged radius.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "stepped-shaft-spacer",
+      "tags": [
+        "revolved",
+        "through-hole",
+        "chamfer"
+      ],
+      "title": "Stepped shaft spacer",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              169.0,
+              100.0,
+              32.0
+            ],
+            "min": [
+              -3.0,
+              0.0,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "daacb6305721f55b6c9230c345585140c7994711f80718d1cc8ca7b6cbd75c3e",
+          "sourceFormat": "stl",
+          "sourceSha256": "daacb6305721f55b6c9230c345585140c7994711f80718d1cc8ca7b6cbd75c3e",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 208,
+          "vertices": 96,
+          "volume": 71980.0,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Rectangular frame with lips, 208 triangles, planar only. Hand check: 0 holes.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "switch-stand",
+      "tags": [
+        "prismatic-multi-axis",
+        "thin-wall",
+        "slot"
+      ],
+      "title": "Switch stand v1",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            22.2925061,
+            21.8154375,
+            30.0
+          ],
+          "min": [
+            -21.8154375,
+            -22.2925061,
+            -1.38564065
+          ]
+        },
+        "edgeCount": 131,
+        "faceCount": 46,
+        "holeCount": 1,
+        "sha256": "0336133f949cdcda154f3bc0ce3a62b64d074dcc4a1f2f166ddb865ebe33c2bf",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "bspline": 3,
+          "cone": 10,
+          "cylinder": 18,
+          "plane": 15
+        },
+        "vertexCount": 87,
+        "volume": 15137.3678
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              17.0,
+              16.9717846,
+              30.0
+            ],
+            "min": [
+              -17.0,
+              -16.9717846,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "a13736558ae62d8a4da4282c4822141e900863447fb93f4048ef77b83149ec87",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 2442,
+          "vertices": 1221,
+          "volume": 15005.7628,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              17.0,
+              16.9948158,
+              30.0
+            ],
+            "min": [
+              -17.0,
+              -16.9948158,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "fb334bc69ed9a549551fd3b4b149401c01d2fcaca700fbbf16ca1cdbbb8ea6f3",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 10270,
+          "vertices": 5135,
+          "volume": 15132.8354,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A helical swept thread inside a knurl-cut cap: the thread is a genuinely non-analytic sweep surface, out of scope for prismatic reconstruction.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "threaded-pipe-cap",
+      "tags": [
+        "thread-like",
+        "revolved",
+        "circular-pattern",
+        "thin-wall",
+        "chamfer"
+      ],
+      "title": "Threaded pipe cap",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              27.5,
+              27.498024,
+              14.1000004
+            ],
+            "min": [
+              -27.5,
+              -27.498024,
+              0.100000001
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "3b77b2d61eab42d2cf4ce37efad6ad13f0e8b3a3bb11bf0a5d9ce1d8ce853b9c",
+          "sourceFormat": "stl",
+          "sourceSha256": "3b77b2d61eab42d2cf4ce37efad6ad13f0e8b3a3bb11bf0a5d9ce1d8ce853b9c",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 155762,
+          "vertices": 77881,
+          "volume": 12118.0441,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Flanged hex nut with internal thread; 156k triangles.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "thru-hull-hex-nut",
+      "tags": [
+        "prismatic-single-axis",
+        "revolved",
+        "thread-like",
+        "chamfer"
+      ],
+      "title": "Thru-hull hex nut v1.10",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              26.5,
+              26.4984455,
+              80.0
+            ],
+            "min": [
+              -26.5,
+              -26.4984455,
+              -20.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "e6a23354657c17754bec4e23d4bcbb6d070014f1a15ccc62a2fee887605bbba6",
+          "sourceFormat": "stl",
+          "sourceSha256": "e6a23354657c17754bec4e23d4bcbb6d070014f1a15ccc62a2fee887605bbba6",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 134094,
+          "vertices": 67047,
+          "volume": 33168.2049,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Threaded thru-hull with flanged head and hex socket; 134k triangles.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "thru-hull-screw",
+      "tags": [
+        "revolved",
+        "thread-like",
+        "chamfer",
+        "through-hole"
+      ],
+      "title": "Thru-hull screw v1.10",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            27.059805,
+            27.059805,
+            22.0
+          ],
+          "min": [
+            -27.059805,
+            -27.059805,
+            0.0
+          ]
+        },
+        "edgeCount": 39,
+        "faceCount": 20,
+        "holeCount": 7,
+        "sha256": "3cad95c4b164951d9ed609f310461d87980db0ccbbd3a3f3076552d387ef3047",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 1,
+          "cylinder": 9,
+          "plane": 8,
+          "torus": 2
+        },
+        "vertexCount": 25,
+        "volume": 19445.9701
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              25.0,
+              24.8177223,
+              22.0
+            ],
+            "min": [
+              -25.0,
+              -24.8177223,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "035d51a8521fe0e31d68ca46736cc612a1198f003430066b391c35700389643f",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 1796,
+          "vertices": 896,
+          "volume": 19247.3495,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              25.0,
+              24.9922295,
+              22.0
+            ],
+            "min": [
+              -25.0,
+              -24.9922295,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "7d526df1a242fdb6df1fbf09ded2d1b8e1158c6f2bf79682b5e5bafa36cf877a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 21334,
+          "vertices": 10665,
+          "volume": 19437.5618,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "A filleted boss-to-disc junction produces a torus blend face that is easy to mistake for part of the boss cylinder.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "tube-end-cap-boss",
+      "tags": [
+        "boss",
+        "blind-hole",
+        "fillet-rim",
+        "circular-pattern",
+        "chamfer",
+        "prismatic-multi-axis"
+      ],
+      "title": "Tube end cap with boss",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            38.0,
+            38.0,
+            24.0
+          ],
+          "min": [
+            -38.0,
+            -38.0,
+            0.0
+          ]
+        },
+        "edgeCount": 27,
+        "faceCount": 11,
+        "holeCount": 1,
+        "sha256": "4946c6f3ea4572de9a8ca2261f28155735816db7bba9952e07bb37afac08fc5c",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 2,
+          "cylinder": 4,
+          "plane": 5
+        },
+        "vertexCount": 17,
+        "volume": 92930.0588
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              38.0,
+              37.7629433,
+              24.0
+            ],
+            "min": [
+              -38.0,
+              -37.7629433,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "ecf5ab258b5ce8bd3e25e3dfe8bc13c13e18660f84e174a20b92365a695e6e5f",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 514,
+          "vertices": 255,
+          "volume": 92047.8183,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              38.0,
+              37.9949074,
+              24.0
+            ],
+            "min": [
+              -38.0,
+              -37.9949074,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "8006eae385ce3f14d5eed27eef63c5857acb3fa2117ad18370ee2ae904d97d9a",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 2948,
+          "vertices": 1472,
+          "volume": 92862.8725,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "The V groove is a pair of opposed cone faces meeting at a sharp circle, and the radial grub screw breaks axial symmetry.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "v-belt-pulley",
+      "tags": [
+        "revolved",
+        "taper",
+        "cone",
+        "through-hole",
+        "blind-hole",
+        "slot",
+        "prismatic-multi-axis"
+      ],
+      "title": "V-belt pulley",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            18.0,
+            23.0,
+            30.0
+          ],
+          "min": [
+            -48.5,
+            -7.98686539,
+            -5.0
+          ]
+        },
+        "edgeCount": 169,
+        "faceCount": 70,
+        "holeCount": 0,
+        "sha256": "a9a57607d793143438a09081adc604fd5ab800c972e5e96ed79f8fe41b7fea18",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 24,
+          "cylinder": 19,
+          "plane": 27
+        },
+        "vertexCount": 101,
+        "volume": 15831.4145
+      },
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              18.0,
+              23.0,
+              30.0
+            ],
+            "min": [
+              -48.5,
+              -7.9659133,
+              -5.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "03e1e650afc9ac1e993704e160e3873c74a878b4a4514f260103ac6407a8935e",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 950,
+          "vertices": 477,
+          "volume": 15809.3634,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              18.0,
+              23.0,
+              30.0
+            ],
+            "min": [
+              -48.5,
+              -7.98549461,
+              -5.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "b04cc7997b82bc98fbe53a9500434ec32ee43fc97810718527752198046f6d31",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 4906,
+          "vertices": 2455,
+          "volume": 15830.3705,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Desk-edge clip with a puck pocket. Ground truth from Fusion STEP; STLs tessellated by OCCT.",
+      "origin": "user-design",
+      "schemaVersion": 1,
+      "slug": "watch-charger-desk-clip",
+      "tags": [
+        "prismatic-multi-axis",
+        "slot",
+        "fillet-vertical",
+        "pocket"
+      ],
+      "title": "Watch charger desk clip v1.2",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": {
+        "bbox": {
+          "max": [
+            60.0,
+            60.0,
+            26.0
+          ],
+          "min": [
+            -60.0,
+            -60.0,
+            -4.48308057e-13
+          ]
+        },
+        "edgeCount": 57,
+        "faceCount": 30,
+        "holeCount": 11,
+        "sha256": "6b624f51e226db0d0f625298a2bdd826462818c42f0fdff02e4895d95931b4e8",
+        "solidCount": 1,
+        "step": "model.step",
+        "surfaceInventory": {
+          "cone": 7,
+          "cylinder": 13,
+          "plane": 8,
+          "torus": 2
+        },
+        "vertexCount": 35,
+        "volume": 137102.903
+      },
+      "license": "Apache-2.0 (repository)",
+      "meshes": [
+        {
+          "angularTolerance": 0.5,
+          "bbox": {
+            "max": [
+              60.0,
+              59.5625343,
+              26.0
+            ],
+            "min": [
+              -60.0,
+              -59.5625343,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-coarse.stl",
+          "linearTolerance": 0.5,
+          "sha256": "ac1fee1e04ea62c9bee6cee4f211eae3cf6f92a19ea4f4a3aa148312c730960c",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "coarse",
+          "triangles": 2464,
+          "vertices": 1222,
+          "volume": 135764.307,
+          "watertight": true,
+          "windingConsistent": true
+        },
+        {
+          "angularTolerance": 0.1,
+          "bbox": {
+            "max": [
+              60.0,
+              59.9813499,
+              26.0
+            ],
+            "min": [
+              -60.0,
+              -59.9813499,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-default.stl",
+          "linearTolerance": 0.1,
+          "sha256": "e954dcbbc32222f2815f0bf051d29ea1574c3c193efe2428fc2a2c9e46dbda53",
+          "sourceFormat": "step",
+          "sourceSha256": null,
+          "sourceUnit": null,
+          "tessellation": "default",
+          "triangles": 25094,
+          "vertices": 12537,
+          "volume": 137046.227,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "Five counterbored studs on an odd-count bolt circle, so no mirror symmetry can be exploited to clean up the fit.",
+      "origin": "generated",
+      "schemaVersion": 1,
+      "slug": "wheel-hub-adapter",
+      "tags": [
+        "revolved",
+        "circular-pattern",
+        "counterbore",
+        "through-hole",
+        "fillet-rim",
+        "chamfer"
+      ],
+      "title": "Wheel hub adapter",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              16.5,
+              35.6187935,
+              20.0
+            ],
+            "min": [
+              -16.5,
+              -9.20087814,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "6bec8d06b4cecf1c98f94a779b8114777b08b5b718ef19ec086337aa0c7b34fd",
+          "sourceFormat": "stl",
+          "sourceSha256": "6bec8d06b4cecf1c98f94a779b8114777b08b5b718ef19ec086337aa0c7b34fd",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 3488,
+          "vertices": 1746,
+          "volume": 12323.3065,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "C-clip with hook; coarse Fusion export (3.5k triangles). Same design family as windshield-holder-fine.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "windshield-holder-coarse",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "taper",
+        "slot"
+      ],
+      "title": "Windshield holder v2.4",
+      "units": "mm"
+    },
+    {
+      "featured": false,
+      "groundTruth": null,
+      "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+      "meshes": [
+        {
+          "angularTolerance": null,
+          "bbox": {
+            "max": [
+              16.5,
+              35.164341,
+              20.0
+            ],
+            "min": [
+              -16.5,
+              -9.20087814,
+              0.0
+            ]
+          },
+          "degenerateFaces": 0,
+          "duplicateFaces": 0,
+          "edgeManifold": true,
+          "file": "mesh-export.stl",
+          "linearTolerance": null,
+          "sha256": "c637422bc260cf07a2eaead71562016ae632343edd60da04e6d4bf62c59ba942",
+          "sourceFormat": "stl",
+          "sourceSha256": "c637422bc260cf07a2eaead71562016ae632343edd60da04e6d4bf62c59ba942",
+          "sourceUnit": null,
+          "tessellation": "export",
+          "triangles": 115670,
+          "vertices": 57837,
+          "volume": 11150.5222,
+          "watertight": true,
+          "windingConsistent": true
+        }
+      ],
+      "notes": "C-clip with hook; fine Fusion export (116k triangles), fillets everywhere.",
+      "origin": "user-export",
+      "schemaVersion": 1,
+      "slug": "windshield-holder-fine",
+      "tags": [
+        "prismatic-multi-axis",
+        "fillet-vertical",
+        "fillet-rim",
+        "taper",
+        "slot"
+      ],
+      "title": "Windshield holder v3.7",
+      "units": "mm"
+    }
+  ],
+  "schemaVersion": 1
+}

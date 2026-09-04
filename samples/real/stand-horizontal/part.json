@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          21.5917149,
+          74.7735977,
+          22.0
+        ],
+        "min": [
+          -21.5917149,
+          -1.54893959,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "cc5e0095ba123449a027adcd78cd0fc0a8e53e81894b4d91a30f30bee5ff5543",
+      "sourceFormat": "stl",
+      "sourceSha256": "cc5e0095ba123449a027adcd78cd0fc0a8e53e81894b4d91a30f30bee5ff5543",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 20020,
+      "vertices": 10010,
+      "volume": 11179.0025,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Rectangular frame with four upright posts; the missing stand.stl regression fixture referenced by the prismatic tests.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "stand-horizontal",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "through-hole"
+  ],
+  "title": "Horizontal stand",
+  "units": "mm"
+}

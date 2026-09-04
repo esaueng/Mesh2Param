@@ -1,0 +1,167 @@
+//! Minimal 3-vector plus the two solvers the fits need: a symmetric 3x3
+//! Jacobi eigen-decomposition and a small dense linear solve (n <= 4).
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct V3 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
+impl V3 {
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x, y, z }
+    }
+    pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
+
+    pub fn add(self, o: Self) -> Self {
+        Self::new(self.x + o.x, self.y + o.y, self.z + o.z)
+    }
+    pub fn sub(self, o: Self) -> Self {
+        Self::new(self.x - o.x, self.y - o.y, self.z - o.z)
+    }
+    pub fn mul(self, s: f64) -> Self {
+        Self::new(self.x * s, self.y * s, self.z * s)
+    }
+    pub fn dot(self, o: Self) -> f64 {
+        self.x.mul_add(o.x, self.y.mul_add(o.y, self.z * o.z))
+    }
+    pub fn cross(self, o: Self) -> Self {
+        Self::new(
+            self.y.mul_add(o.z, -(self.z * o.y)),
+            self.z.mul_add(o.x, -(self.x * o.z)),
+            self.x.mul_add(o.y, -(self.y * o.x)),
+        )
+    }
+    pub fn norm(self) -> f64 {
+        self.dot(self).sqrt()
+    }
+    /// `None` for a vector too short to give a meaningful direction.
+    pub fn unit(self) -> Option<Self> {
+        let n = self.norm();
+        if n > 1e-300 { Some(self.mul(1.0 / n)) } else { None }
+    }
+    pub const fn arr(self) -> [f64; 3] {
+        [self.x, self.y, self.z]
+    }
+}
+
+/// Angle in radians between two unit-ish vectors, robust at the clamp ends.
+pub fn angle_between(a: V3, b: V3) -> f64 {
+    match (a.unit(), b.unit()) {
+        (Some(u), Some(v)) => u.dot(v).clamp(-1.0, 1.0).acos(),
+        _ => 0.0,
+    }
+}
+
+/// Angle between two undirected lines (directions taken up to sign), radians.
+pub fn angle_undirected(a: V3, b: V3) -> f64 {
+    match (a.unit(), b.unit()) {
+        (Some(u), Some(v)) => u.dot(v).abs().clamp(-1.0, 1.0).acos(),
+        _ => 0.0,
+    }
+}
+
+/// Any unit vector perpendicular to `d` (assumed non-degenerate).
+pub fn perp(d: V3) -> V3 {
+    let seed = if d.x.abs() < 0.9 {
+        V3::new(1.0, 0.0, 0.0)
+    } else {
+        V3::new(0.0, 1.0, 0.0)
+    };
+    d.cross(seed).unit().unwrap_or(V3::new(0.0, 1.0, 0.0))
+}
+
+/// Cyclic Jacobi eigen-decomposition of a symmetric 3x3 matrix.
+///
+/// Returns `(eigenvalues, eigenvectors)` sorted by ascending eigenvalue;
+/// column `i` of the result is the eigenvector for `values[i]`.
+pub fn jacobi3(input: [[f64; 3]; 3]) -> ([f64; 3], [V3; 3]) {
+    let mut a = input;
+    let mut v = [[0.0_f64; 3]; 3];
+    for (i, row) in v.iter_mut().enumerate() {
+        row[i] = 1.0;
+    }
+    for _ in 0..64 {
+        let off = a[0][1].abs() + a[0][2].abs() + a[1][2].abs();
+        if off < 1e-18 {
+            break;
+        }
+        for (p, q) in [(0_usize, 1_usize), (0, 2), (1, 2)] {
+            let apq = a[p][q];
+            if apq.abs() < 1e-300 {
+                continue;
+            }
+            let theta = (a[q][q] - a[p][p]) / (2.0 * apq);
+            let t = if theta >= 0.0 {
+                1.0 / (theta + theta.mul_add(theta, 1.0).sqrt())
+            } else {
+                -1.0 / (-theta + theta.mul_add(theta, 1.0).sqrt())
+            };
+            let c = 1.0 / t.mul_add(t, 1.0).sqrt();
+            let s = t * c;
+            for k in 0..3 {
+                let akp = a[k][p];
+                let akq = a[k][q];
+                a[k][p] = c * akp - s * akq;
+                a[k][q] = s.mul_add(akp, c * akq);
+            }
+            for k in 0..3 {
+                let apk = a[p][k];
+                let aqk = a[q][k];
+                a[p][k] = c * apk - s * aqk;
+                a[q][k] = s.mul_add(apk, c * aqk);
+            }
+            for row in &mut v {
+                let vp = row[p];
+                let vq = row[q];
+                row[p] = c * vp - s * vq;
+                row[q] = s.mul_add(vp, c * vq);
+            }
+        }
+    }
+    let mut order = [0_usize, 1, 2];
+    order.sort_by(|&i, &j| a[i][i].total_cmp(&a[j][j]));
+    let values = [a[order[0]][order[0]], a[order[1]][order[1]], a[order[2]][order[2]]];
+    let vecs = [
+        V3::new(v[0][order[0]], v[1][order[0]], v[2][order[0]]),
+        V3::new(v[0][order[1]], v[1][order[1]], v[2][order[1]]),
+        V3::new(v[0][order[2]], v[1][order[2]], v[2][order[2]]),
+    ];
+    (values, vecs)
+}
+
+/// Gaussian elimination with partial pivoting for `n <= 4`. `None` if singular.
+pub fn solve_small(n: usize, m: &[[f64; 4]; 4], rhs: &[f64; 4]) -> Option<[f64; 4]> {
+    let mut a = *m;
+    let mut b = *rhs;
+    for col in 0..n {
+        let mut piv = col;
+        for r in col + 1..n {
+            if a[r][col].abs() > a[piv][col].abs() {
+                piv = r;
+            }
+        }
+        if a[piv][col].abs() < 1e-14 {
+            return None;
+        }
+        a.swap(col, piv);
+        b.swap(col, piv);
+        for r in col + 1..n {
+            let f = a[r][col] / a[col][col];
+            for c in col..n {
+                a[r][c] -= f * a[col][c];
+            }
+            b[r] -= f * b[col];
+        }
+    }
+    let mut x = [0.0_f64; 4];
+    for i in (0..n).rev() {
+        let mut acc = b[i];
+        for j in i + 1..n {
+            acc -= a[i][j] * x[j];
+        }
+        x[i] = acc / a[i][i];
+    }
+    Some(x)
+}

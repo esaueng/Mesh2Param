@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        153.951022,
+        458.435883,
+        101.6
+      ],
+      "min": [
+        -196.251022,
+        -1.0,
+        -2.54284599e-15
+      ]
+    },
+    "edgeCount": 1584,
+    "faceCount": 600,
+    "holeCount": 10,
+    "sha256": "c614026dbc217303d33f56dcc2a58809dc7bf3b648ce076ae28c0e345027ed02",
+    "solidCount": 5,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 132,
+      "cylinder": 124,
+      "extrusion": 4,
+      "plane": 306,
+      "sphere": 14,
+      "torus": 20
+    },
+    "vertexCount": 1002,
+    "volume": 572029.795
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          151.699997,
+          457.200012,
+          101.599998
+        ],
+        "min": [
+          -194.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 20,
+      "duplicateFaces": 21,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "6c63a80bd44394a7ffb304707ccaa143f5c4730bb588b7f4617e1d854b742e8b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 10366,
+      "vertices": 5113,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          151.699997,
+          457.200012,
+          101.599998
+        ],
+        "min": [
+          -194.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 34,
+      "duplicateFaces": 52,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "c92ab4a7bb369be82720d26225156ea264b40272ad8099939dabb15e3b2f299b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 107520,
+      "vertices": 53583,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Large thin-walled tray assembly body. Ground truth from Fusion STEP; the most complex STEP in the corpus.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "mailbox-tray",
+  "tags": [
+    "prismatic-multi-axis",
+    "thin-wall",
+    "pocket",
+    "fillet-vertical"
+  ],
+  "title": "Mailbox tray v2.4.5",
+  "units": "mm"
+}

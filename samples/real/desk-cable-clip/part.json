@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          29.3999996,
+          18.0,
+          25.0
+        ],
+        "min": [
+          -19.0,
+          -7.98549461,
+          -1.29999995
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "a418e1221023c2acef38acb5e826f1e9d2efe5c8144c8a93894450ed67f22d76",
+      "sourceFormat": "stl",
+      "sourceSha256": "a418e1221023c2acef38acb5e826f1e9d2efe5c8144c8a93894450ed67f22d76",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 3150,
+      "vertices": 1577,
+      "volume": 8432.73373,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "C-clip with a wedge back. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "desk-cable-clip",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "fillet-vertical",
+    "taper"
+  ],
+  "title": "Desk cable clip v1.4",
+  "units": "mm"
+}

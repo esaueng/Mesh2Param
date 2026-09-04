@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        -4.8958424,
+        25.7846913,
+        19.0574523
+      ],
+      "min": [
+        -122.74225,
+        -25.1622498,
+        7.81801901
+      ]
+    },
+    "edgeCount": 408,
+    "faceCount": 163,
+    "holeCount": 0,
+    "sha256": "913f0ba4096ae3b972360b2efdf6ca0c83d5d916677a8e9b1d41e611d069dd72",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 23,
+      "cone": 13,
+      "cylinder": 27,
+      "offset": 1,
+      "plane": 83,
+      "torus": 16
+    },
+    "vertexCount": 252,
+    "volume": 15484.6425
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          -5.30780363,
+          19.0521698,
+          16.8180199
+        ],
+        "min": [
+          -121.075829,
+          -20.1669693,
+          7.81801891
+        ]
+      },
+      "degenerateFaces": 3,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "09fea782505d01e843391dba23d5a5d684479127f2c5d7410971dea077479eca",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 3101,
+      "vertices": 1549,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          -5.30780363,
+          19.0815983,
+          16.8180199
+        ],
+        "min": [
+          -121.075829,
+          -20.1832752,
+          7.81801891
+        ]
+      },
+      "degenerateFaces": 3,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "f7a6a9756811dc9d94e7dfc3d06a7bc65bf1592bf83a5a9e971afeaaa760696e",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 33073,
+      "vertices": 16535,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Open-end spanner with splined outer profile and rim fillets; the general-parametric fixture's real origin.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "spanner-18mm",
+  "tags": [
+    "prismatic-single-axis",
+    "fillet-rim",
+    "freeform",
+    "through-hole"
+  ],
+  "title": "Spanner 18 mm",
+  "units": "mm"
+}

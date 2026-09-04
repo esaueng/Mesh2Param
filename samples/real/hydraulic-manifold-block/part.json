@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        38.0,
+        23.0,
+        38.0
+      ],
+      "min": [
+        -38.0,
+        -23.0,
+        -1.23470074e-15
+      ]
+    },
+    "edgeCount": 104,
+    "faceCount": 44,
+    "holeCount": 10,
+    "sha256": "82ea7585e6601afe2b7cd0558ebee8f7829702b764a1c636831007e818eb8a26",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 8,
+      "cylinder": 14,
+      "plane": 22
+    },
+    "vertexCount": 64,
+    "volume": 113069.371
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          38.0,
+          23.0,
+          38.0
+        ],
+        "min": [
+          -38.0,
+          -23.0,
+          -7.77156117e-16
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "b170bdbec72d3311768e656511457defb92adcba8c5aab6dd3d5d38e67fb6469",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1364,
+      "vertices": 670,
+      "volume": 113155.542,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          38.0,
+          23.0,
+          38.0
+        ],
+        "min": [
+          -38.0,
+          -23.0,
+          -7.77156117e-16
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "5d76bfad0d1ee68c8f5926be8a86fd0a4878ed2f6285c7d507a81f6ad0b46930",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 6724,
+      "vertices": 3350,
+      "volume": 113072.998,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Ports drilled from three orthogonal faces intersect inside the block, producing partial cylinder faces with curved seams.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "hydraulic-manifold-block",
+  "tags": [
+    "prismatic-multi-axis",
+    "counterbore",
+    "through-hole",
+    "blind-hole",
+    "pocket",
+    "chamfer",
+    "fillet-vertical"
+  ],
+  "title": "Hydraulic manifold block",
+  "units": "mm"
+}

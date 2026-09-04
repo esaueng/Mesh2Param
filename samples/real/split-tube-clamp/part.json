@@ -1,0 +1,106 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        28.0,
+        28.0,
+        24.0
+      ],
+      "min": [
+        -28.0,
+        -28.0,
+        -3.85824706e-12
+      ]
+    },
+    "edgeCount": 60,
+    "faceCount": 22,
+    "holeCount": 4,
+    "sha256": "4cc1e81b077143edd1bb9b386cd8defd87c2bcf56516be9de282984c4e96a039",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 6,
+      "plane": 12
+    },
+    "vertexCount": 40,
+    "volume": 43879.5631
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          27.9866314,
+          28.0,
+          24.0
+        ],
+        "min": [
+          -27.9866314,
+          -27.803793,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "d89b0604d71b613b2a7fd0c9e136970585389c2b1393bc0944722a8dfa931336",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 808,
+      "vertices": 398,
+      "volume": 43690.2864,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          27.9997063,
+          28.0,
+          24.0
+        ],
+        "min": [
+          -27.9997063,
+          -27.9913483,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "55fef242cffac5625a8fe7dacba210562b5d0f7453c15f9eefd4ef51ea43bad9",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3544,
+      "vertices": 1766,
+      "volume": 43871.2482,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A revolved sleeve with a milled split and cross-drilled pinch bolts, so the bore is only nearly closed.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "split-tube-clamp",
+  "tags": [
+    "revolved",
+    "prismatic-multi-axis",
+    "slot",
+    "through-hole",
+    "chamfer"
+  ],
+  "title": "Split tube clamp",
+  "units": "mm"
+}

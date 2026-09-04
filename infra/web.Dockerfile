@@ -18,6 +18,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/ui/package.json packages/ui/package.json
+# pnpm applies patchedDependencies from pnpm-workspace.yaml during install.
+COPY patches patches
 RUN --mount=type=cache,target=/tmp/pnpm-store \
     pnpm config set store-dir /tmp/pnpm-store \
     && pnpm install --frozen-lockfile

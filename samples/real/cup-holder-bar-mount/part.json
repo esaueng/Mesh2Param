@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          18.0,
+          25.0,
+          14.489439
+        ],
+        "min": [
+          -18.0,
+          0.0,
+          -23.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "4d61a8f483bcc33698c40c0a633f435dc0853bf52a62b249e76758f5f880c457",
+      "sourceFormat": "stl",
+      "sourceSha256": "4d61a8f483bcc33698c40c0a633f435dc0853bf52a62b249e76758f5f880c457",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 2524,
+      "vertices": 1264,
+      "volume": 13206.9994,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Snap clip with rounded arms. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "cup-holder-bar-mount",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "slot"
+  ],
+  "title": "Cup holder bar mount v1",
+  "units": "mm"
+}

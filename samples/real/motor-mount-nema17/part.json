@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        30.0,
+        30.0,
+        42.0
+      ],
+      "min": [
+        -30.0,
+        -30.0,
+        -2.1992423e-16
+      ]
+    },
+    "edgeCount": 103,
+    "faceCount": 37,
+    "holeCount": 3,
+    "sha256": "701050b47567f8e47f60ac1a43e6008fa705d7c949f5d37be123211c40f20067",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 11,
+      "plane": 22
+    },
+    "vertexCount": 66,
+    "volume": 33058.3753
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          30.0,
+          30.0,
+          42.0
+        ],
+        "min": [
+          -30.0,
+          -30.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "fd202a739909913eb322b7b3039a01c27aba52fc33ec898ab80e60c86787e002",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 642,
+      "vertices": 317,
+      "volume": 33061.9585,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          30.0,
+          30.0,
+          42.0
+        ],
+        "min": [
+          -30.0,
+          -30.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "63863bf05a806e1716356feee936a22866e4c11ed34db3515bbe270c99c5e54b",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2996,
+      "vertices": 1494,
+      "volume": 33058.5147,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Bolt pattern and pilot bore are cut along Z while the adjustment slots are cut along Y, giving two independent extrusion axes.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "motor-mount-nema17",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "pocket",
+    "slot",
+    "linear-pattern",
+    "fillet-vertical",
+    "chamfer"
+  ],
+  "title": "NEMA 17 motor mount",
+  "units": "mm"
+}

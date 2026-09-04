@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          79.3000031,
+          79.3000031,
+          30.0
+        ],
+        "min": [
+          -3.0,
+          -3.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "dd17ef20e1f3acc51252a61531d6989218ea71956b6b0a43d57639e7cc498470",
+      "sourceFormat": "stl",
+      "sourceSha256": "dd17ef20e1f3acc51252a61531d6989218ea71956b6b0a43d57639e7cc498470",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 1336,
+      "vertices": 668,
+      "volume": 34760.7091,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Square frame with sloped inner walls, planar faces only. Hand check: 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "dock-wheel-cap",
+  "tags": [
+    "prismatic-single-axis",
+    "thin-wall",
+    "taper"
+  ],
+  "title": "Dock wheel cap v1.2",
+  "units": "mm"
+}

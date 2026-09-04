@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        38.0,
+        38.0,
+        24.0
+      ],
+      "min": [
+        -38.0,
+        -38.0,
+        0.0
+      ]
+    },
+    "edgeCount": 27,
+    "faceCount": 11,
+    "holeCount": 1,
+    "sha256": "4946c6f3ea4572de9a8ca2261f28155735816db7bba9952e07bb37afac08fc5c",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 2,
+      "cylinder": 4,
+      "plane": 5
+    },
+    "vertexCount": 17,
+    "volume": 92930.0588
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          38.0,
+          37.7629433,
+          24.0
+        ],
+        "min": [
+          -38.0,
+          -37.7629433,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "ecf5ab258b5ce8bd3e25e3dfe8bc13c13e18660f84e174a20b92365a695e6e5f",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 514,
+      "vertices": 255,
+      "volume": 92047.8183,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          38.0,
+          37.9949074,
+          24.0
+        ],
+        "min": [
+          -38.0,
+          -37.9949074,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "8006eae385ce3f14d5eed27eef63c5857acb3fa2117ad18370ee2ae904d97d9a",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2948,
+      "vertices": 1472,
+      "volume": 92862.8725,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "The V groove is a pair of opposed cone faces meeting at a sharp circle, and the radial grub screw breaks axial symmetry.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "v-belt-pulley",
+  "tags": [
+    "revolved",
+    "taper",
+    "cone",
+    "through-hole",
+    "blind-hole",
+    "slot",
+    "prismatic-multi-axis"
+  ],
+  "title": "V-belt pulley",
+  "units": "mm"
+}

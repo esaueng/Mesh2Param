@@ -1,0 +1,108 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        27.059805,
+        27.059805,
+        22.0
+      ],
+      "min": [
+        -27.059805,
+        -27.059805,
+        0.0
+      ]
+    },
+    "edgeCount": 39,
+    "faceCount": 20,
+    "holeCount": 7,
+    "sha256": "3cad95c4b164951d9ed609f310461d87980db0ccbbd3a3f3076552d387ef3047",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 1,
+      "cylinder": 9,
+      "plane": 8,
+      "torus": 2
+    },
+    "vertexCount": 25,
+    "volume": 19445.9701
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          25.0,
+          24.8177223,
+          22.0
+        ],
+        "min": [
+          -25.0,
+          -24.8177223,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "035d51a8521fe0e31d68ca46736cc612a1198f003430066b391c35700389643f",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1796,
+      "vertices": 896,
+      "volume": 19247.3495,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          25.0,
+          24.9922295,
+          22.0
+        ],
+        "min": [
+          -25.0,
+          -24.9922295,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "7d526df1a242fdb6df1fbf09ded2d1b8e1158c6f2bf79682b5e5bafa36cf877a",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 21334,
+      "vertices": 10665,
+      "volume": 19437.5618,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A filleted boss-to-disc junction produces a torus blend face that is easy to mistake for part of the boss cylinder.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "tube-end-cap-boss",
+  "tags": [
+    "boss",
+    "blind-hole",
+    "fillet-rim",
+    "circular-pattern",
+    "chamfer",
+    "prismatic-multi-axis"
+  ],
+  "title": "Tube end cap with boss",
+  "units": "mm"
+}

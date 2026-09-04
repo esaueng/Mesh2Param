@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          27.5,
+          27.498024,
+          14.1000004
+        ],
+        "min": [
+          -27.5,
+          -27.498024,
+          0.100000001
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "3b77b2d61eab42d2cf4ce37efad6ad13f0e8b3a3bb11bf0a5d9ce1d8ce853b9c",
+      "sourceFormat": "stl",
+      "sourceSha256": "3b77b2d61eab42d2cf4ce37efad6ad13f0e8b3a3bb11bf0a5d9ce1d8ce853b9c",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 155762,
+      "vertices": 77881,
+      "volume": 12118.0441,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Flanged hex nut with internal thread; 156k triangles.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "thru-hull-hex-nut",
+  "tags": [
+    "prismatic-single-axis",
+    "revolved",
+    "thread-like",
+    "chamfer"
+  ],
+  "title": "Thru-hull hex nut v1.10",
+  "units": "mm"
+}

@@ -1,0 +1,48 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          15.0,
+          14.998888,
+          15.0
+        ],
+        "min": [
+          -15.0,
+          -14.998888,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "c5b6f6bb12afd87f095099ecdc18793e82705f3acc5d018f2dec40f60b927d21",
+      "sourceFormat": "stl",
+      "sourceSha256": "c5b6f6bb12afd87f095099ecdc18793e82705f3acc5d018f2dec40f60b927d21",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 13288,
+      "vertices": 6646,
+      "volume": 5468.95105,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Round cup 30 mm across. Hand check: revolve profile; 0 holes.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "pole-cap",
+  "tags": [
+    "revolved",
+    "shell",
+    "fillet-rim"
+  ],
+  "title": "Pole cap v1",
+  "units": "mm"
+}

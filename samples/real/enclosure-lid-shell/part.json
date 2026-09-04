@@ -1,0 +1,109 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        55.0,
+        35.0,
+        22.0
+      ],
+      "min": [
+        -55.0,
+        -35.0,
+        0.0
+      ]
+    },
+    "edgeCount": 140,
+    "faceCount": 55,
+    "holeCount": 4,
+    "sha256": "3a904003ea8ec7e413a5b689bc416e4ed7edb3c86632d896e9984e4d4b398c15",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 4,
+      "cylinder": 26,
+      "plane": 25
+    },
+    "vertexCount": 92,
+    "volume": 38703.3474
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          55.0,
+          35.0,
+          22.0
+        ],
+        "min": [
+          -55.0,
+          -35.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "beaa9a0127fed06b66847a48647de120636b0f3e5480e8ef56257b7346a7cb90",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1992,
+      "vertices": 980,
+      "volume": 38640.5292,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          55.0,
+          35.0,
+          22.0
+        ],
+        "min": [
+          -55.0,
+          -35.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "589b516c39e5706a630b69e14d77ded106acd626c46c9ab105362ed30b1f4854",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 10200,
+      "vertices": 5084,
+      "volume": 38700.612,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A 2.5 mm shell means inner and outer faces are offset pairs; the countersinks and vent slots then perforate the thin wall.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "enclosure-lid-shell",
+  "tags": [
+    "shell",
+    "thin-wall",
+    "boss",
+    "countersink",
+    "slot",
+    "linear-pattern",
+    "fillet-vertical",
+    "prismatic-multi-axis"
+  ],
+  "title": "Shelled enclosure lid",
+  "units": "mm"
+}

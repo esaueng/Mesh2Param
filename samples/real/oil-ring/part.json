@@ -1,0 +1,47 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          42.5,
+          42.497036,
+          1.0
+        ],
+        "min": [
+          -42.5,
+          -42.497036,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "037f1caae1684fe8413bf0d8c505b601dafdef21abba85f6d191130322eebf5a",
+      "sourceFormat": "stl",
+      "sourceSha256": "037f1caae1684fe8413bf0d8c505b601dafdef21abba85f6d191130322eebf5a",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 1040,
+      "vertices": 520,
+      "volume": 1137.82322,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Flat washer 85 mm by 1 mm. Hand check: 2 planes, 2 cylinders.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "oil-ring",
+  "tags": [
+    "revolved",
+    "thin-wall"
+  ],
+  "title": "Oil ring v1",
+  "units": "mm"
+}

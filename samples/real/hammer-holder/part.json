@@ -1,0 +1,169 @@
+{
+  "featured": true,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        49.1534908,
+        60.6534908,
+        63.735883
+      ],
+      "min": [
+        -27.1534908,
+        5.264117,
+        4.5
+      ]
+    },
+    "edgeCount": 396,
+    "faceCount": 160,
+    "holeCount": 2,
+    "sha256": "9f367ee2bde614803ae6657da86f721f66926dd527b7ef8a55b501bbbef5466a",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "bspline": 42,
+      "cone": 2,
+      "cylinder": 42,
+      "plane": 52,
+      "sphere": 8,
+      "torus": 14
+    },
+    "vertexCount": 240,
+    "volume": 50248.7436
+  },
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          48.0,
+          59.5,
+          62.5
+        ],
+        "min": [
+          -26.0,
+          6.5,
+          4.5
+        ]
+      },
+      "degenerateFaces": 8,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "017c5f80dfdf1cc4fc2817cb46e411ba0a1d27b9e5e80b9c281602dc0464767e",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 4900,
+      "vertices": 2444,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          48.0,
+          59.5,
+          62.5
+        ],
+        "min": [
+          -26.0,
+          6.5,
+          4.5
+        ]
+      },
+      "degenerateFaces": 8,
+      "duplicateFaces": 0,
+      "edgeManifold": false,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "48530cfeb0ee157d49e8d7f6ac65ca366fbd4032f8bdf9190f6e404a5f2df608",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 43364,
+      "vertices": 21676,
+      "volume": null,
+      "watertight": false,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          48.0,
+          59.5,
+          62.5
+        ],
+        "min": [
+          -26.0,
+          6.5,
+          4.5
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "3c4021824cb020aeef56e43a9169be091a41696610171d38f9b740434854afa4",
+      "sourceFormat": "stl",
+      "sourceSha256": "3c4021824cb020aeef56e43a9169be091a41696610171d38f9b740434854afa4",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 70038,
+      "vertices": 35017,
+      "volume": 50241.1025,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          48.0,
+          59.5,
+          62.5
+        ],
+        "min": [
+          -26.0,
+          6.5,
+          4.5
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export-3mf.stl",
+      "linearTolerance": null,
+      "sha256": "846da3e9cb43cf777855c14af9f1e427cc9ff62af9aa1d25367b5c9e33f11c3b",
+      "sourceFormat": "3mf",
+      "sourceSha256": "8934791706007659613d04e93ca67e60d55877f5738932bcf3edda34f1550a97",
+      "sourceUnit": "millimeter",
+      "tessellation": "export",
+      "triangles": 70038,
+      "vertices": 35017,
+      "volume": 50241.1024,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Featured part. U-shaped hook bracket for a 46 mm handle, all edges filleted, mounting holes in the back plate. Shapr3D STEP (160 faces) plus STL (70k triangles) and 3MF exports of the same revision.",
+  "origin": "user-design",
+  "schemaVersion": 1,
+  "slug": "hammer-holder",
+  "tags": [
+    "prismatic-multi-axis",
+    "fillet-vertical",
+    "fillet-rim",
+    "through-hole",
+    "slot"
+  ],
+  "title": "Hammer holder 46 mm v4",
+  "units": "mm"
+}

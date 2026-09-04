@@ -1,0 +1,104 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        45.0,
+        22.0,
+        52.0
+      ],
+      "min": [
+        -45.0,
+        -22.0,
+        -4.32957053e-17
+      ]
+    },
+    "edgeCount": 96,
+    "faceCount": 34,
+    "holeCount": 0,
+    "sha256": "c2b281cdcbb9685e65d2bd3488efa2e0716e1e6d8ddfc0232ebf36f63f3fb0eb",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 16,
+      "plane": 18
+    },
+    "vertexCount": 64,
+    "volume": 35914.6125
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          45.0,
+          22.0,
+          52.0
+        ],
+        "min": [
+          -45.0,
+          -22.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "a087cab02e6502b240a35d38087e478b2b9890ecd0523f056217ea707cba3833",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 688,
+      "vertices": 338,
+      "volume": 35915.061,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          45.0,
+          22.0,
+          52.0
+        ],
+        "min": [
+          -45.0,
+          -22.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "efb250aa3c872b18c2e38a4a8048bf33046a8dfb764db2ddbe0b91fc70608cad",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 2880,
+      "vertices": 1434,
+      "volume": 35914.5297,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Slots in both flanges are patterned on perpendicular planes, so the slot end caps are half-cylinders about two different axes.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "slotted-angle-plate",
+  "tags": [
+    "prismatic-multi-axis",
+    "slot",
+    "linear-pattern",
+    "fillet-vertical"
+  ],
+  "title": "Slotted angle plate",
+  "units": "mm"
+}

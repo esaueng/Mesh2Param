@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "CC BY-SA 4.0, Malolo, https://www.thingiverse.com/thing:4878426",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          172.761154,
+          13.9171114,
+          18.0
+        ],
+        "min": [
+          -6.29838085,
+          -6.30000019,
+          -2.93830308e-15
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "a62930aac1cd07abb57f89a7e76f612d2791d7961ce896ac3b53ee43f2449c6a",
+      "sourceFormat": "stl",
+      "sourceSha256": "a62930aac1cd07abb57f89a7e76f612d2791d7961ce896ac3b53ee43f2449c6a",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 11334,
+      "vertices": 5667,
+      "volume": 37941.3696,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Thingiverse bag clip, FreeCAD authored. CC BY-SA 4.0 by Malolo.",
+  "origin": "public",
+  "schemaVersion": 1,
+  "slug": "bag-clip-150",
+  "tags": [
+    "prismatic-single-axis",
+    "thin-wall",
+    "fillet-vertical",
+    "slot"
+  ],
+  "title": "Bag clip 150 (Thingiverse 4878426)",
+  "units": "mm"
+}

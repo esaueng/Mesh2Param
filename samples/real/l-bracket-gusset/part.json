@@ -1,0 +1,105 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        35.0,
+        25.0,
+        55.0
+      ],
+      "min": [
+        -35.0,
+        -25.0,
+        0.0
+      ]
+    },
+    "edgeCount": 60,
+    "faceCount": 22,
+    "holeCount": 7,
+    "sha256": "114b81175f3909d2b4ba7c0a6b114c01da172648e6eb20c702889e286d8b0568",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cylinder": 9,
+      "plane": 13
+    },
+    "vertexCount": 40,
+    "volume": 49324.5549
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          35.0,
+          25.0,
+          55.0
+        ],
+        "min": [
+          -35.0,
+          -25.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "c3f4df338abdb1130ece97ce4d1eac3fa3ebb42a02f32da19667f0a5f8c87c14",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 852,
+      "vertices": 414,
+      "volume": 49332.8766,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          35.0,
+          25.0,
+          55.0
+        ],
+        "min": [
+          -35.0,
+          -25.0,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "da25d259775ed30afcaf0e0950fba77f9653f9343c8255756572a74ff42ea46f",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 3852,
+      "vertices": 1914,
+      "volume": 49324.8747,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "A triangular gusset meets the base and wall at three different angles, so the tangent-plane clustering has to separate a sloped rib face from two orthogonal plates.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "l-bracket-gusset",
+  "tags": [
+    "prismatic-multi-axis",
+    "through-hole",
+    "rib",
+    "fillet-vertical",
+    "chamfer"
+  ],
+  "title": "Gusseted L bracket",
+  "units": "mm"
+}

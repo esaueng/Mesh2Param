@@ -1,0 +1,49 @@
+{
+  "featured": false,
+  "groundTruth": null,
+  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "meshes": [
+    {
+      "angularTolerance": null,
+      "bbox": {
+        "max": [
+          9.5,
+          9.49704742,
+          19.5
+        ],
+        "min": [
+          -9.5,
+          -9.49704742,
+          -59.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-export.stl",
+      "linearTolerance": null,
+      "sha256": "3a35722d087763b7b35f0fc52e1005c830fe9a2824cf2fc95b35583b622d53ed",
+      "sourceFormat": "stl",
+      "sourceSha256": "3a35722d087763b7b35f0fc52e1005c830fe9a2824cf2fc95b35583b622d53ed",
+      "sourceUnit": null,
+      "tessellation": "export",
+      "triangles": 4086,
+      "vertices": 2045,
+      "volume": 4747.04108,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Tapered ground spike with fins. Hand check: conical spike plus planar fins.",
+  "origin": "user-export",
+  "schemaVersion": 1,
+  "slug": "solar-light-post",
+  "tags": [
+    "revolved",
+    "cone",
+    "taper",
+    "prismatic-multi-axis"
+  ],
+  "title": "Solar light post v1.2",
+  "units": "mm"
+}

@@ -1,0 +1,107 @@
+{
+  "featured": false,
+  "groundTruth": {
+    "bbox": {
+      "max": [
+        21.0,
+        21.0,
+        22.0
+      ],
+      "min": [
+        -21.0,
+        -21.0,
+        0.0
+      ]
+    },
+    "edgeCount": 123,
+    "faceCount": 44,
+    "holeCount": 2,
+    "sha256": "d02728af46c1d48efeb2a7c04847bd022c8b9b7f6194bd8ddbaa952e8c70ea36",
+    "solidCount": 1,
+    "step": "model.step",
+    "surfaceInventory": {
+      "cone": 1,
+      "cylinder": 26,
+      "plane": 17
+    },
+    "vertexCount": 82,
+    "volume": 26330.7977
+  },
+  "license": "Apache-2.0 (repository)",
+  "meshes": [
+    {
+      "angularTolerance": 0.5,
+      "bbox": {
+        "max": [
+          20.8390484,
+          20.8390484,
+          22.0
+        ],
+        "min": [
+          -20.8390484,
+          -20.8390484,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-coarse.stl",
+      "linearTolerance": 0.5,
+      "sha256": "3d7453e3f2fd723c9a9cb5f0d60effae6eebfb68dc7d1944d425218d8128a573",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "coarse",
+      "triangles": 1110,
+      "vertices": 555,
+      "volume": 26293.8542,
+      "watertight": true,
+      "windingConsistent": true
+    },
+    {
+      "angularTolerance": 0.1,
+      "bbox": {
+        "max": [
+          20.8390484,
+          20.8390484,
+          22.0
+        ],
+        "min": [
+          -20.8390484,
+          -20.8390484,
+          0.0
+        ]
+      },
+      "degenerateFaces": 0,
+      "duplicateFaces": 0,
+      "edgeManifold": true,
+      "file": "mesh-default.stl",
+      "linearTolerance": 0.1,
+      "sha256": "a7055f69f45d716c23a44a57066c3b1ad7aafa101cf44a5fa230975b7cca524f",
+      "sourceFormat": "step",
+      "sourceSha256": null,
+      "sourceUnit": null,
+      "tessellation": "default",
+      "triangles": 4894,
+      "vertices": 2447,
+      "volume": 26320.5996,
+      "watertight": true,
+      "windingConsistent": true
+    }
+  ],
+  "notes": "Twelve scalloped flutes leave narrow slivers of the original cylinder between them, which mesh segmentation likes to drop.",
+  "origin": "generated",
+  "schemaVersion": 1,
+  "slug": "fluted-control-knob",
+  "tags": [
+    "revolved",
+    "circular-pattern",
+    "taper",
+    "cone",
+    "blind-hole",
+    "prismatic-multi-axis"
+  ],
+  "title": "Fluted control knob",
+  "units": "mm"
+}
