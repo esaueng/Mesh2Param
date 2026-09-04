@@ -39,3 +39,7 @@ packages/contracts/tests
 !packages/contracts/tests
 !packages/contracts/tests/fixtures
 !packages/contracts/tests/fixtures/base.cadgraph.json
+
+# Benchmark corpus and Rust spikes are not needed inside the images
+samples/real
+spikes
