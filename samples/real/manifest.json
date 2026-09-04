@@ -29,6 +29,14 @@
           "sphere": 8,
           "torus": 14
         },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 42,
+          "other": 42,
+          "plane": 52,
+          "sphere": 8,
+          "torus": 14
+        },
         "vertexCount": 240,
         "volume": 50248.7436
       },
@@ -198,6 +206,14 @@
           "plane": 8,
           "torus": 10
         },
+        "surfaceInventoryMerged": {
+          "cone": 10,
+          "cylinder": 8,
+          "other": 42,
+          "plane": 8,
+          "sphere": 0,
+          "torus": 6
+        },
         "vertexCount": 134,
         "volume": 3472.60544
       },
@@ -352,6 +368,14 @@
           "cylinder": 7,
           "plane": 12
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 7,
+          "other": 0,
+          "plane": 12,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 30,
         "volume": 50564.0403
       },
@@ -505,6 +529,14 @@
         "surfaceInventory": {
           "cylinder": 12,
           "plane": 8
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 12,
+          "other": 0,
+          "plane": 8,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 36,
         "volume": 13085.2022
@@ -807,6 +839,14 @@
           "cylinder": 4,
           "plane": 4
         },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 4,
+          "other": 0,
+          "plane": 4,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 10,
         "volume": 36948.2712
       },
@@ -960,6 +1000,14 @@
           "cone": 6,
           "cylinder": 11,
           "plane": 16
+        },
+        "surfaceInventoryMerged": {
+          "cone": 6,
+          "cylinder": 11,
+          "other": 0,
+          "plane": 16,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 56,
         "volume": 23823.8975
@@ -1310,6 +1358,14 @@
           "cylinder": 4,
           "plane": 13
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 4,
+          "other": 0,
+          "plane": 13,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 28,
         "volume": 61993.301
       },
@@ -1414,6 +1470,14 @@
           "cone": 4,
           "cylinder": 26,
           "plane": 25
+        },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 26,
+          "other": 0,
+          "plane": 25,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 92,
         "volume": 38703.3474
@@ -1523,6 +1587,14 @@
           "cylinder": 6,
           "plane": 52
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 6,
+          "other": 0,
+          "plane": 52,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 104,
         "volume": 13283.5928
       },
@@ -1626,6 +1698,14 @@
         "surfaceInventory": {
           "cylinder": 4,
           "plane": 41
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 4,
+          "other": 0,
+          "plane": 41,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 72,
         "volume": 62489.4726
@@ -1731,6 +1811,14 @@
           "cone": 2,
           "cylinder": 11,
           "plane": 7,
+          "torus": 2
+        },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 11,
+          "other": 0,
+          "plane": 7,
+          "sphere": 0,
           "torus": 2
         },
         "vertexCount": 26,
@@ -1840,6 +1928,14 @@
           "cylinder": 26,
           "plane": 17
         },
+        "surfaceInventoryMerged": {
+          "cone": 1,
+          "cylinder": 26,
+          "other": 0,
+          "plane": 17,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 82,
         "volume": 26330.7977
       },
@@ -1948,6 +2044,14 @@
           "extrusion": 1,
           "plane": 5
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 2,
+          "other": 2,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 8,
         "volume": 77148.8694
       },
@@ -2051,6 +2155,14 @@
           "cone": 2,
           "cylinder": 10,
           "plane": 5
+        },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 10,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 30,
         "volume": 69609.1662
@@ -2158,6 +2270,14 @@
           "bspline": 61,
           "cone": 2,
           "cylinder": 42,
+          "plane": 121,
+          "sphere": 8,
+          "torus": 14
+        },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 42,
+          "other": 61,
           "plane": 121,
           "sphere": 8,
           "torus": 14
@@ -2344,6 +2464,14 @@
           "cylinder": 1,
           "plane": 20
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 1,
+          "other": 0,
+          "plane": 20,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 26,
         "volume": 4310.85236
       },
@@ -2446,6 +2574,14 @@
         "surfaceInventory": {
           "cylinder": 9,
           "plane": 9
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 9,
+          "other": 0,
+          "plane": 9,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 38,
         "volume": 22719.4953
@@ -2551,6 +2687,14 @@
           "cone": 8,
           "cylinder": 14,
           "plane": 22
+        },
+        "surfaceInventoryMerged": {
+          "cone": 8,
+          "cylinder": 14,
+          "other": 0,
+          "plane": 22,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 64,
         "volume": 113069.371
@@ -2658,6 +2802,14 @@
         "surfaceInventory": {
           "cylinder": 9,
           "plane": 13
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 9,
+          "other": 0,
+          "plane": 13,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 40,
         "volume": 49324.5549
@@ -2910,6 +3062,14 @@
           "cylinder": 4,
           "plane": 12
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 4,
+          "other": 10,
+          "plane": 12,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 39,
         "volume": 34580.0789
       },
@@ -3017,6 +3177,14 @@
           "sphere": 14,
           "torus": 20
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 120,
+          "other": 136,
+          "plane": 306,
+          "sphere": 14,
+          "torus": 18
+        },
         "vertexCount": 1002,
         "volume": 572029.795
       },
@@ -3121,6 +3289,14 @@
           "cone": 4,
           "cylinder": 11,
           "plane": 22
+        },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 11,
+          "other": 0,
+          "plane": 22,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 66,
         "volume": 33058.3753
@@ -3230,6 +3406,14 @@
           "cylinder": 57,
           "plane": 80
         },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 57,
+          "other": 0,
+          "plane": 80,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 433,
         "volume": 14642823.6
       },
@@ -3332,6 +3516,14 @@
           "plane": 130,
           "sphere": 24
         },
+        "surfaceInventoryMerged": {
+          "cone": 82,
+          "cylinder": 224,
+          "other": 34,
+          "plane": 130,
+          "sphere": 24,
+          "torus": 0
+        },
         "vertexCount": 942,
         "volume": 47847994.4
       },
@@ -3431,6 +3623,14 @@
           "cylinder": 53,
           "plane": 86
         },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 53,
+          "other": 0,
+          "plane": 86,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 458,
         "volume": 331938.27
       },
@@ -3529,6 +3729,14 @@
         "surfaceInventory": {
           "cone": 116,
           "cylinder": 238,
+          "plane": 113,
+          "sphere": 22,
+          "torus": 29
+        },
+        "surfaceInventoryMerged": {
+          "cone": 64,
+          "cylinder": 178,
+          "other": 0,
           "plane": 113,
           "sphere": 22,
           "torus": 29
@@ -3636,6 +3844,14 @@
           "sphere": 4,
           "torus": 7
         },
+        "surfaceInventoryMerged": {
+          "cone": 13,
+          "cylinder": 67,
+          "other": 9,
+          "plane": 63,
+          "sphere": 4,
+          "torus": 6
+        },
         "vertexCount": 339,
         "volume": 12828991.0
       },
@@ -3734,6 +3950,14 @@
         "surfaceInventory": {
           "cone": 4,
           "cylinder": 58,
+          "plane": 71,
+          "sphere": 5,
+          "torus": 6
+        },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 58,
+          "other": 0,
           "plane": 71,
           "sphere": 5,
           "torus": 6
@@ -3841,6 +4065,14 @@
           "sphere": 18,
           "torus": 24
         },
+        "surfaceInventoryMerged": {
+          "cone": 28,
+          "cylinder": 106,
+          "other": 20,
+          "plane": 73,
+          "sphere": 18,
+          "torus": 24
+        },
         "vertexCount": 374,
         "volume": 1726247.58
       },
@@ -3938,6 +4170,14 @@
         "step": "model.step",
         "surfaceInventory": {
           "cylinder": 157,
+          "plane": 81,
+          "sphere": 20,
+          "torus": 12
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 134,
+          "other": 0,
           "plane": 81,
           "sphere": 20,
           "torus": 12
@@ -4042,6 +4282,14 @@
           "cylinder": 88,
           "plane": 62
         },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 59,
+          "other": 0,
+          "plane": 62,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 342,
         "volume": 136445.105
       },
@@ -4145,6 +4393,14 @@
           "sphere": 10,
           "torus": 39
         },
+        "surfaceInventoryMerged": {
+          "cone": 8,
+          "cylinder": 103,
+          "other": 1,
+          "plane": 53,
+          "sphere": 10,
+          "torus": 39
+        },
         "vertexCount": 306,
         "volume": 188318.067
       },
@@ -4243,6 +4499,14 @@
         "surfaceInventory": {
           "cylinder": 2,
           "plane": 2,
+          "torus": 2
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 2,
+          "other": 0,
+          "plane": 2,
+          "sphere": 0,
           "torus": 2
         },
         "vertexCount": 8,
@@ -4391,6 +4655,14 @@
           "cone": 4,
           "cylinder": 6,
           "plane": 2,
+          "torus": 1
+        },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 6,
+          "other": 0,
+          "plane": 2,
+          "sphere": 0,
           "torus": 1
         },
         "vertexCount": 16,
@@ -4645,6 +4917,14 @@
           "cylinder": 14,
           "plane": 20
         },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 14,
+          "other": 0,
+          "plane": 20,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 60,
         "volume": 11617.2171
       },
@@ -4750,6 +5030,14 @@
         "surfaceInventory": {
           "cylinder": 16,
           "plane": 18
+        },
+        "surfaceInventoryMerged": {
+          "cone": 0,
+          "cylinder": 16,
+          "other": 0,
+          "plane": 18,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 64,
         "volume": 35914.6125
@@ -4908,6 +5196,14 @@
           "plane": 83,
           "torus": 16
         },
+        "surfaceInventoryMerged": {
+          "cone": 13,
+          "cylinder": 20,
+          "other": 24,
+          "plane": 83,
+          "sphere": 0,
+          "torus": 15
+        },
         "vertexCount": 252,
         "volume": 15484.6425
       },
@@ -5013,6 +5309,14 @@
           "cylinder": 3,
           "plane": 6,
           "sphere": 1
+        },
+        "surfaceInventoryMerged": {
+          "cone": 3,
+          "cylinder": 3,
+          "other": 0,
+          "plane": 6,
+          "sphere": 1,
+          "torus": 0
         },
         "vertexCount": 16,
         "volume": 7274.30201
@@ -5120,6 +5424,14 @@
           "cone": 4,
           "cylinder": 6,
           "plane": 12
+        },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 6,
+          "other": 0,
+          "plane": 12,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 40,
         "volume": 43879.5631
@@ -5275,6 +5587,14 @@
           "cylinder": 4,
           "plane": 4
         },
+        "surfaceInventoryMerged": {
+          "cone": 4,
+          "cylinder": 4,
+          "other": 0,
+          "plane": 4,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 12,
         "volume": 27944.8436
       },
@@ -5427,6 +5747,14 @@
           "cone": 10,
           "cylinder": 18,
           "plane": 15
+        },
+        "surfaceInventoryMerged": {
+          "cone": 10,
+          "cylinder": 12,
+          "other": 3,
+          "plane": 15,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 87,
         "volume": 15137.3678
@@ -5633,6 +5961,14 @@
           "plane": 8,
           "torus": 2
         },
+        "surfaceInventoryMerged": {
+          "cone": 1,
+          "cylinder": 9,
+          "other": 0,
+          "plane": 8,
+          "sphere": 0,
+          "torus": 2
+        },
         "vertexCount": 25,
         "volume": 19445.9701
       },
@@ -5739,6 +6075,14 @@
           "cone": 2,
           "cylinder": 4,
           "plane": 5
+        },
+        "surfaceInventoryMerged": {
+          "cone": 2,
+          "cylinder": 4,
+          "other": 0,
+          "plane": 5,
+          "sphere": 0,
+          "torus": 0
         },
         "vertexCount": 17,
         "volume": 92930.0588
@@ -5848,6 +6192,14 @@
           "cylinder": 19,
           "plane": 27
         },
+        "surfaceInventoryMerged": {
+          "cone": 23,
+          "cylinder": 16,
+          "other": 0,
+          "plane": 27,
+          "sphere": 0,
+          "torus": 0
+        },
         "vertexCount": 101,
         "volume": 15831.4145
       },
@@ -5952,6 +6304,14 @@
           "cone": 7,
           "cylinder": 13,
           "plane": 8,
+          "torus": 2
+        },
+        "surfaceInventoryMerged": {
+          "cone": 7,
+          "cylinder": 13,
+          "other": 0,
+          "plane": 8,
+          "sphere": 0,
           "torus": 2
         },
         "vertexCount": 35,

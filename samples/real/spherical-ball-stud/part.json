@@ -25,6 +25,14 @@
       "plane": 6,
       "sphere": 1
     },
+    "surfaceInventoryMerged": {
+      "cone": 3,
+      "cylinder": 3,
+      "other": 0,
+      "plane": 6,
+      "sphere": 1,
+      "torus": 0
+    },
     "vertexCount": 16,
     "volume": 7274.30201
   },

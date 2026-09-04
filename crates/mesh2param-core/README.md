@@ -141,9 +141,11 @@ fillets and rounds, which is what tori are on real parts, stay well inside that.
   planes used to cover becomes `Unknown` (2.6% -> 32%), because the part's 42
   b-spline faces have no primitive to be recognised as. Only cone/torus/general
   freeform handling moves that number, not promotion policy.
-* `nist-ctc-01` is dominated by coplanar adjacent faces that STEP counts
-  separately and a surface segmenter cannot: 80 ground-truth planes come back as
-  roughly 41. No tolerance setting changes that.
+* `nist-ctc-01` reports roughly 41 planes against 80 in the ground truth. This
+  was put down to STEP splitting coplanar adjacent faces, but the merged
+  inventory measures that claim and refutes it: the part has no adjacent
+  coincident face pair at all, so its 80 planes are 80 distinct surfaces and the
+  gap is under-segmentation, not exporter bookkeeping.
 * Merging is greedy and nothing is ever un-merged. Every accepted merge is
   re-fitted on the real union, which bounds the damage but does not undo a merge
   a later one makes wrong.
@@ -155,10 +157,17 @@ The scoreboard walks `samples/real/*/part.json`, runs `faceted_step` and
 compares the outcome against the committed `scoreboard-baseline.json`.
 
 Each row carries the recognised inventory, the unknown area fraction, the STEP
-ground truth from `part.json` (`groundTruth.surfaceInventory`, b-splines and
-anything else with no primitive ignored) and `inventoryError`: the total
-absolute miscount over plane, cylinder, cone, torus and sphere. Parts with no
-STEP have no ground truth and no error.
+ground truth from `part.json` and `inventoryError`: the total absolute miscount
+over plane, cylinder, cone, torus and sphere. Parts with no STEP have no ground
+truth and no error.
+
+The ground truth is `groundTruth.surfaceInventoryMerged`, which counts analytic
+surfaces rather than STEP faces: adjacent faces sharing one carrier surface (a
+bore exported as two half cylinders) are one surface, which is what the
+segmenter grows. `groundTruth.surfaceInventory`, the raw per-face count, is used
+only for a `part.json` written before the audit grew the merged key;
+`groundTruthSource` on each row records which was used. B-splines and anything
+else with no primitive are ignored either way.
 
 ```bash
 # Subset mode: meshes up to 30,000 triangles. ~45 s. This is what CI runs.

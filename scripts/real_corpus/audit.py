@@ -7,6 +7,7 @@ audit run is reproducible from the corpus alone without rebuilding any CadQuery 
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import math
 from collections.abc import Mapping, Sequence
@@ -28,7 +29,10 @@ from OCP.GProp import GProp_GProps
 from OCP.TopAbs import TopAbs_Orientation, TopAbs_ShapeEnum
 from OCP.TopExp import TopExp
 from OCP.TopoDS import TopoDS, TopoDS_Face, TopoDS_Shape
-from OCP.TopTools import TopTools_IndexedMapOfShape
+from OCP.TopTools import (
+    TopTools_IndexedDataMapOfShapeListOfShape,
+    TopTools_IndexedMapOfShape,
+)
 
 SCHEMA_VERSION = 1
 PART_JSON = "part.json"
@@ -276,6 +280,283 @@ def count_holes(faces: Sequence[TopoDS_Face], *, tolerance: float = 1e-3) -> int
     return holes
 
 
+#: Angular slack, in degrees, when two analytic surfaces are called the same one.
+_MERGE_ANGLE_TOLERANCE_DEG = 0.5
+#: Positional slack, as a fraction of the shape's bounding-box diagonal.
+_MERGE_DISTANCE_FRACTION = 1e-4
+#: Relative slack on radii.
+_MERGE_RADIUS_FRACTION = 0.005
+
+#: Surface types a merged inventory can collapse; everything else stays per-face.
+MERGEABLE_SURFACES: tuple[str, ...] = ("plane", "cylinder", "cone", "sphere", "torus")
+MERGED_INVENTORY_KEYS: tuple[str, ...] = (*MERGEABLE_SURFACES, "other")
+
+_Vec3 = tuple[float, float, float]
+
+
+def _unit(vector: _Vec3) -> _Vec3:
+    length = math.sqrt(sum(value * value for value in vector))
+    if length == 0.0:
+        return (0.0, 0.0, 0.0)
+    return (vector[0] / length, vector[1] / length, vector[2] / length)
+
+
+def _canonical_dir(vector: _Vec3) -> _Vec3:
+    """Unit direction with a deterministic sign, so a flipped axis compares equal."""
+
+    direction = _unit(vector)
+    for value in direction:
+        if abs(value) > 1e-9:
+            if value < 0.0:
+                return (-direction[0], -direction[1], -direction[2])
+            return direction
+    return direction
+
+
+def _xyz(point: Any) -> _Vec3:
+    """Coordinates of any gp point or direction as a plain tuple."""
+
+    return (float(point.X()), float(point.Y()), float(point.Z()))
+
+
+def _dot(a: _Vec3, b: _Vec3) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _sub(a: _Vec3, b: _Vec3) -> _Vec3:
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _length(vector: _Vec3) -> float:
+    return math.sqrt(_dot(vector, vector))
+
+
+def _same_direction(a: _Vec3, b: _Vec3) -> bool:
+    """True when two directions are parallel to within the merge angle, sign ignored."""
+
+    cosine = min(1.0, abs(_dot(_unit(a), _unit(b))))
+    return math.degrees(math.acos(cosine)) <= _MERGE_ANGLE_TOLERANCE_DEG
+
+
+def _foot_on_axis(point: _Vec3, direction: _Vec3) -> _Vec3:
+    """Point of the line through ``point`` along ``direction`` that is nearest the origin."""
+
+    unit_dir = _unit(direction)
+    along = _dot(point, unit_dir)
+    return (
+        point[0] - along * unit_dir[0],
+        point[1] - along * unit_dir[1],
+        point[2] - along * unit_dir[2],
+    )
+
+
+def _distance_to_axis(point: _Vec3, axis_point: _Vec3, axis_dir: _Vec3) -> float:
+    relative = _sub(point, axis_point)
+    unit_dir = _unit(axis_dir)
+    along = _dot(relative, unit_dir)
+    return _length(
+        (
+            relative[0] - along * unit_dir[0],
+            relative[1] - along * unit_dir[1],
+            relative[2] - along * unit_dir[2],
+        )
+    )
+
+
+def _same_radius(a: float, b: float, tolerance: float) -> bool:
+    """Radii agree relatively; a shared absolute floor keeps near-zero radii comparable."""
+
+    return abs(a - b) <= max(_MERGE_RADIUS_FRACTION * max(abs(a), abs(b)), tolerance)
+
+
+@dataclass(frozen=True, slots=True)
+class _AnalyticSurface:
+    """One face's carrier surface, reduced to the parameters that identify it."""
+
+    kind: str
+    #: Plane normal or axis of revolution, canonically signed.
+    direction: _Vec3 = (0.0, 0.0, 0.0)
+    #: Plane offset along ``direction``.
+    offset: float = 0.0
+    #: Cylinder axis foot nearest the origin, cone apex, or sphere/torus centre.
+    point: _Vec3 = (0.0, 0.0, 0.0)
+    #: Cylinder or sphere radius; torus major radius.
+    radius: float = 0.0
+    #: Torus minor radius.
+    minor_radius: float = 0.0
+    #: Cone half angle, in radians.
+    half_angle: float = 0.0
+
+
+def _analytic_surface(face: TopoDS_Face) -> _AnalyticSurface | None:
+    """Return the carrier surface of ``face``, or ``None`` if its type never merges."""
+
+    adaptor = BRepAdaptor_Surface(face)
+    kind = _SURFACE_NAMES.get(adaptor.GetType(), "other")
+    if kind == "plane":
+        plane = adaptor.Plane()
+        normal = _canonical_dir(_xyz(plane.Axis().Direction()))
+        location = _xyz(plane.Axis().Location())
+        return _AnalyticSurface("plane", direction=normal, offset=_dot(normal, location))
+    if kind == "cylinder":
+        cylinder = adaptor.Cylinder()
+        axis = _canonical_dir(_xyz(cylinder.Axis().Direction()))
+        return _AnalyticSurface(
+            "cylinder",
+            direction=axis,
+            point=_foot_on_axis(_xyz(cylinder.Axis().Location()), axis),
+            radius=float(cylinder.Radius()),
+        )
+    if kind == "cone":
+        cone = adaptor.Cone()
+        axis = _canonical_dir(_xyz(cone.Axis().Direction()))
+        # The apex, the axis and the half angle pin the cone down completely; the
+        # reference radius is not compared because it is measured at the surface's own
+        # parameter origin, which two faces of one cone need not share.
+        return _AnalyticSurface(
+            "cone",
+            direction=axis,
+            point=_xyz(cone.Apex()),
+            half_angle=abs(float(cone.SemiAngle())),
+        )
+    if kind == "sphere":
+        sphere = adaptor.Sphere()
+        return _AnalyticSurface(
+            "sphere",
+            point=_xyz(sphere.Location()),
+            radius=float(sphere.Radius()),
+        )
+    if kind == "torus":
+        torus = adaptor.Torus()
+        return _AnalyticSurface(
+            "torus",
+            direction=_canonical_dir(_xyz(torus.Axis().Direction())),
+            point=_xyz(torus.Location()),
+            radius=float(torus.MajorRadius()),
+            minor_radius=float(torus.MinorRadius()),
+        )
+    return None
+
+
+def _same_analytic_surface(a: _AnalyticSurface, b: _AnalyticSurface, tolerance: float) -> bool:
+    """True when two faces lie on one and the same analytic surface."""
+
+    if a.kind != b.kind:
+        return False
+    if a.kind == "plane":
+        if not _same_direction(a.direction, b.direction):
+            return False
+        # ``_canonical_dir`` can still pick opposite signs for normals that are parallel
+        # only to within the angle tolerance, so compare the offsets in one frame.
+        flip = 1.0 if _dot(a.direction, b.direction) >= 0.0 else -1.0
+        return abs(a.offset - flip * b.offset) <= tolerance
+    if a.kind == "cylinder":
+        return (
+            _same_direction(a.direction, b.direction)
+            and _distance_to_axis(b.point, a.point, a.direction) <= tolerance
+            and _same_radius(a.radius, b.radius, tolerance)
+        )
+    if a.kind == "cone":
+        return (
+            _same_direction(a.direction, b.direction)
+            and _distance_to_axis(b.point, a.point, a.direction) <= tolerance
+            and _length(_sub(a.point, b.point)) <= tolerance
+            and math.degrees(abs(a.half_angle - b.half_angle)) <= _MERGE_ANGLE_TOLERANCE_DEG
+        )
+    if a.kind == "sphere":
+        return _length(_sub(a.point, b.point)) <= tolerance and _same_radius(
+            a.radius, b.radius, tolerance
+        )
+    if a.kind == "torus":
+        return (
+            _same_direction(a.direction, b.direction)
+            and _length(_sub(a.point, b.point)) <= tolerance
+            and _same_radius(a.radius, b.radius, tolerance)
+            and _same_radius(a.minor_radius, b.minor_radius, tolerance)
+        )
+    return False
+
+
+def _bbox_diagonal(shape: TopoDS_Shape) -> float:
+    box = Bnd_Box()
+    BRepBndLib.Add_s(shape, box)
+    box.SetGap(0.0)
+    x_min, y_min, z_min, x_max, y_max, z_max = box.Get()
+    return _length((x_max - x_min, y_max - y_min, z_max - z_min))
+
+
+class _UnionFind:
+    """Disjoint sets over face indices, with path compression."""
+
+    __slots__ = ("_parent",)
+
+    def __init__(self, size: int) -> None:
+        self._parent = list(range(size))
+
+    def find(self, item: int) -> int:
+        root = item
+        while self._parent[root] != root:
+            root = self._parent[root]
+        while self._parent[item] != root:
+            self._parent[item], item = root, self._parent[item]
+        return root
+
+    def union(self, a: int, b: int) -> None:
+        root_a, root_b = self.find(a), self.find(b)
+        if root_a != root_b:
+            self._parent[root_b] = root_a
+
+
+def merged_surface_inventory(shape: TopoDS_Shape) -> dict[str, int]:
+    """Count analytic surfaces rather than STEP faces.
+
+    Exporters routinely split one geometric surface across several faces -- a bore
+    emitted as two half cylinders, a plane cut in two by a boolean -- so a per-face
+    inventory over-counts what a segmenter is expected to find. Adjacent faces (sharing
+    at least one edge) that lie on the same carrier surface are unioned and each
+    connected component counts once. Only faces sharing an edge merge, so two coplanar
+    but disjoint pads stay two surfaces. Types with no analytic parameters (b-spline,
+    Bezier, extrusion, revolution, offset) are counted per face under ``other``.
+    """
+
+    face_map = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(shape, TopAbs_ShapeEnum.TopAbs_FACE, face_map)
+    faces = [TopoDS.Face_s(face_map.FindKey(index)) for index in range(1, face_map.Extent() + 1)]
+    surfaces = [_analytic_surface(face) for face in faces]
+    tolerance = _MERGE_DISTANCE_FRACTION * _bbox_diagonal(shape) if faces else 0.0
+
+    sets = _UnionFind(len(faces))
+    edge_faces = TopTools_IndexedDataMapOfShapeListOfShape()
+    TopExp.MapShapesAndAncestors_s(
+        shape, TopAbs_ShapeEnum.TopAbs_EDGE, TopAbs_ShapeEnum.TopAbs_FACE, edge_faces
+    )
+    for index in range(1, edge_faces.Extent() + 1):
+        neighbours = sorted(
+            {
+                found - 1
+                for found in (face_map.FindIndex(face) for face in edge_faces.FindFromIndex(index))
+                if found > 0
+            }
+        )
+        for left, right in itertools.combinations(neighbours, 2):
+            a, b = surfaces[left], surfaces[right]
+            if a is not None and b is not None and _same_analytic_surface(a, b, tolerance):
+                sets.union(left, right)
+
+    counts = dict.fromkeys(MERGED_INVENTORY_KEYS, 0)
+    seen: set[int] = set()
+    for index, surface in enumerate(surfaces):
+        if surface is None:
+            counts["other"] += 1
+            continue
+        root = sets.find(index)
+        if root in seen:
+            continue
+        seen.add(root)
+        counts[surface.kind] += 1
+    return counts
+
+
 def load_step_shape(path: Path) -> TopoDS_Shape:
     """Import a STEP file and return its raw OCCT shape."""
 
@@ -312,6 +593,7 @@ def audit_step(path: Path) -> dict[str, Any]:
         "edgeCount": len(_sub_shapes(shape, TopAbs_ShapeEnum.TopAbs_EDGE)),
         "vertexCount": len(_sub_shapes(shape, TopAbs_ShapeEnum.TopAbs_VERTEX)),
         "surfaceInventory": dict(sorted(inventory.items())),
+        "surfaceInventoryMerged": merged_surface_inventory(shape),
         "holeCount": hole_count,
         "volume": _volume(shape),
         "bbox": _bounding_box(shape),

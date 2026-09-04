@@ -46,9 +46,36 @@ struct PartJson {
 #[serde(rename_all = "camelCase")]
 struct GroundTruth {
     surface_inventory: Option<Truth>,
+    /// Faces lying on one analytic surface, counted once. This is the honest
+    /// target: the segmenter grows connected patches and has no reason to
+    /// reproduce an exporter's face splitting.
+    surface_inventory_merged: Option<Truth>,
 }
 
-/// The STEP file's own surface counts. Surfaces the segmenter has no primitive
+impl GroundTruth {
+    /// The merged inventory when the audit wrote one, else the raw face counts.
+    fn truth(&self) -> Option<(Truth, GroundTruthSource)> {
+        self.surface_inventory_merged
+            .map(|t| (t, GroundTruthSource::Merged))
+            .or_else(|| {
+                self.surface_inventory
+                    .map(|t| (t, GroundTruthSource::SurfaceInventory))
+            })
+    }
+}
+
+/// Which `part.json` key a row was scored against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum GroundTruthSource {
+    /// `groundTruth.surfaceInventoryMerged`.
+    Merged,
+    /// `groundTruth.surfaceInventory`: per-face, used only when no merged
+    /// inventory is present (a `part.json` written before the audit grew one).
+    SurfaceInventory,
+}
+
+/// Surface counts to score against. Surfaces the segmenter has no primitive
 /// for (b-splines above all) are absent on purpose: they are not scored.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct Truth {
@@ -86,6 +113,9 @@ struct Seg {
     unknown_area_fraction: f64,
     /// `None` when the part has no STEP ground truth.
     ground_truth: Option<Truth>,
+    /// Which `part.json` inventory `ground_truth` came from; `None` exactly
+    /// when `ground_truth` is.
+    ground_truth_source: Option<GroundTruthSource>,
     /// `None` exactly when `ground_truth` is.
     inventory_error: Option<u32>,
 }
@@ -165,7 +195,12 @@ fn part_files(corpus: &Path) -> Vec<PathBuf> {
     parts
 }
 
-fn run_one(dir: &Path, slug: &str, entry: &MeshEntry, truth: Option<Truth>) -> Option<Row> {
+fn run_one(
+    dir: &Path,
+    slug: &str,
+    entry: &MeshEntry,
+    truth: Option<(Truth, GroundTruthSource)>,
+) -> Option<Row> {
     let stl = dir.join(&entry.file);
     // mesh-fine.stl is opt-in and not committed; a missing file is not a failure.
     if !stl.is_file() {
@@ -215,8 +250,9 @@ fn run_one(dir: &Path, slug: &str, entry: &MeshEntry, truth: Option<Truth>) -> O
                     ms: started.elapsed().as_secs_f64() * 1000.0,
                     inventory: seg.inventory,
                     unknown_area_fraction: seg.unknown_area_fraction,
-                    ground_truth: truth,
-                    inventory_error: truth.map(|t| t.error_against(seg.inventory)),
+                    ground_truth: truth.map(|(t, _)| t),
+                    ground_truth_source: truth.map(|(_, source)| source),
+                    inventory_error: truth.map(|(t, _)| t.error_against(seg.inventory)),
                 });
             }
             Err(e) => row.seg_error = Some(short(&e)),
@@ -342,7 +378,7 @@ fn corpus_scoreboard_matches_baseline() {
             .unwrap_or_else(|e| panic!("read {}: {e}", part_file.display()));
         let part: PartJson = serde_json::from_str(&text)
             .unwrap_or_else(|e| panic!("parse {}: {e}", part_file.display()));
-        let truth = part.ground_truth.as_ref().and_then(|g| g.surface_inventory);
+        let truth = part.ground_truth.as_ref().and_then(GroundTruth::truth);
         for entry in &part.meshes {
             if !full && entry.triangles > SUBSET_MAX_TRIANGLES {
                 continue;
