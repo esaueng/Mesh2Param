@@ -7,7 +7,27 @@
     "valid": true,
     "facesImported": 3468,
     "facesUnified": 2675,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 55,
+        "cylinder": 14,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 9,
+        "unknown": 34
+      },
+      "unknownAreaFraction": 0.17283633281854707,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 8,
+        "cone": 10,
+        "torus": 6,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 76
+    }
   },
   {
     "slug": "bag-clip-150",
@@ -17,7 +37,21 @@
     "valid": true,
     "facesImported": 11334,
     "facesUnified": 6596,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 48,
+        "cylinder": 24,
+        "cone": 6,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.003292685540084913,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "bearing-block-608",
@@ -27,7 +61,27 @@
     "valid": true,
     "facesImported": 574,
     "facesUnified": 247,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 13,
+        "cylinder": 8,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 2
+    }
   },
   {
     "slug": "bearing-block-608",
@@ -37,7 +91,27 @@
     "valid": true,
     "facesImported": 2708,
     "facesUnified": 1388,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 11,
+        "cylinder": 5,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.15651076161189578,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 3
+    }
   },
   {
     "slug": "boat-lift-cap",
@@ -47,7 +121,21 @@
     "valid": true,
     "facesImported": 804,
     "facesUnified": 295,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 12,
+        "cylinder": 0,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "cable-saddle-clamp",
@@ -57,7 +145,27 @@
     "valid": true,
     "facesImported": 492,
     "facesUnified": 124,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 12,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 12,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "cable-saddle-clamp",
@@ -67,7 +175,27 @@
     "valid": true,
     "facesImported": 2204,
     "facesUnified": 937,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 6,
+        "cylinder": 10,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 12,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 4
+    }
   },
   {
     "slug": "cable-support",
@@ -77,7 +205,21 @@
     "valid": true,
     "facesImported": 2052,
     "facesUnified": 1282,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "camera-support-arm",
@@ -87,7 +229,21 @@
     "valid": true,
     "facesImported": 5448,
     "facesUnified": 3960,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 17,
+        "cylinder": 12,
+        "cone": 5,
+        "torus": 0,
+        "sphere": 1,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.008202705980770837,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "cockpit-plug",
@@ -97,7 +253,21 @@
     "valid": true,
     "facesImported": 12686,
     "facesUnified": 7941,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 7,
+        "cylinder": 73,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 7
+      },
+      "unknownAreaFraction": 0.255860008541804,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "conduit-fitting",
@@ -107,7 +277,21 @@
     "valid": true,
     "facesImported": 4088,
     "facesUnified": 2328,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 12,
+        "cylinder": 10,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "conical-funnel-adapter",
@@ -117,7 +301,27 @@
     "valid": true,
     "facesImported": 624,
     "facesUnified": 290,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "conical-funnel-adapter",
@@ -127,7 +331,27 @@
     "valid": true,
     "facesImported": 3780,
     "facesUnified": 2394,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "cooler-handle-plate",
@@ -137,7 +361,21 @@
     "valid": true,
     "facesImported": 2864,
     "facesUnified": 1825,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 16,
+        "cylinder": 8,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.18078179582932713,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "corner-brace-countersunk",
@@ -147,7 +385,27 @@
     "valid": true,
     "facesImported": 704,
     "facesUnified": 272,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 11,
+        "cylinder": 5,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 3
+      },
+      "unknownAreaFraction": 0.036709723992600696,
+      "groundTruth": {
+        "plane": 16,
+        "cylinder": 11,
+        "cone": 6,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 17
+    }
   },
   {
     "slug": "corner-brace-countersunk",
@@ -157,7 +415,27 @@
     "valid": true,
     "facesImported": 3312,
     "facesUnified": 2072,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 14,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 4
+      },
+      "unknownAreaFraction": 0.030783744830891073,
+      "groundTruth": {
+        "plane": 16,
+        "cylinder": 11,
+        "cone": 6,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 12
+    }
   },
   {
     "slug": "cup-holder-bar-mount",
@@ -167,7 +445,21 @@
     "valid": true,
     "facesImported": 2524,
     "facesUnified": 1224,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 16,
+        "cylinder": 8,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 16
+      },
+      "unknownAreaFraction": 0.0657968222772851,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "deck-cap",
@@ -177,7 +469,21 @@
     "valid": true,
     "facesImported": 3434,
     "facesUnified": 2468,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 37,
+        "cylinder": 6,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "desk-cable-clip",
@@ -187,7 +493,21 @@
     "valid": true,
     "facesImported": 3150,
     "facesUnified": 1787,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 18,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 14
+      },
+      "unknownAreaFraction": 0.02598520467967023,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "dock-side-protector-cap",
@@ -197,7 +517,21 @@
     "valid": true,
     "facesImported": 11648,
     "facesUnified": 6099,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 46,
+        "cylinder": 22,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 51
+      },
+      "unknownAreaFraction": 0.12337907980244572,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "dock-wheel-cap",
@@ -207,7 +541,21 @@
     "valid": true,
     "facesImported": 1336,
     "facesUnified": 709,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 16,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 5
+      },
+      "unknownAreaFraction": 0.021780551850308964,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "dovetail-slide-block",
@@ -217,7 +565,27 @@
     "valid": true,
     "facesImported": 356,
     "facesUnified": 91,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 13,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 13,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "dovetail-slide-block",
@@ -227,7 +595,27 @@
     "valid": true,
     "facesImported": 1556,
     "facesUnified": 905,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 11,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 4
+      },
+      "unknownAreaFraction": 0.05078901249199481,
+      "groundTruth": {
+        "plane": 13,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 4
+    }
   },
   {
     "slug": "enclosure-lid-shell",
@@ -237,7 +625,27 @@
     "valid": true,
     "facesImported": 1992,
     "facesUnified": 1313,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 33,
+        "cylinder": 18,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 25,
+        "cylinder": 26,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 16
+    }
   },
   {
     "slug": "enclosure-lid-shell",
@@ -247,7 +655,27 @@
     "valid": true,
     "facesImported": 10200,
     "facesUnified": 7528,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 23,
+        "cylinder": 18,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 10
+      },
+      "unknownAreaFraction": 0.003614736030082508,
+      "groundTruth": {
+        "plane": 25,
+        "cylinder": 26,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 10
+    }
   },
   {
     "slug": "engraved-label-plate",
@@ -257,7 +685,27 @@
     "valid": true,
     "facesImported": 504,
     "facesUnified": 190,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 27,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 52,
+        "cylinder": 6,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 29
+    }
   },
   {
     "slug": "engraved-label-plate",
@@ -267,7 +715,27 @@
     "valid": true,
     "facesImported": 1700,
     "facesUnified": 1354,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 25,
+        "cylinder": 3,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 52,
+        "cylinder": 6,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 30
+    }
   },
   {
     "slug": "finned-heat-sink",
@@ -277,7 +745,27 @@
     "valid": true,
     "facesImported": 556,
     "facesUnified": 145,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 41,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 41,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "finned-heat-sink",
@@ -287,7 +775,27 @@
     "valid": true,
     "facesImported": 2156,
     "facesUnified": 1613,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 41,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 41,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "flange-four-bolt",
@@ -297,7 +805,27 @@
     "valid": true,
     "facesImported": 1992,
     "facesUnified": 709,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 7,
+        "cylinder": 11,
+        "cone": 2,
+        "torus": 2,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 7,
+        "cylinder": 11,
+        "cone": 2,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "flange-four-bolt",
@@ -307,7 +835,27 @@
     "valid": true,
     "facesImported": 22192,
     "facesUnified": 14002,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 40,
+        "cylinder": 9,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.008751341412640067,
+      "groundTruth": {
+        "plane": 7,
+        "cylinder": 11,
+        "cone": 2,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 41
+    }
   },
   {
     "slug": "fluted-control-knob",
@@ -317,7 +865,27 @@
     "valid": true,
     "facesImported": 1110,
     "facesUnified": 824,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 29,
+        "cylinder": 14,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 17,
+        "cylinder": 26,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 24
+    }
   },
   {
     "slug": "fluted-control-knob",
@@ -327,7 +895,27 @@
     "valid": true,
     "facesImported": 4894,
     "facesUnified": 3593,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 29,
+        "cylinder": 14,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 17,
+        "cylinder": 26,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 24
+    }
   },
   {
     "slug": "freeform-palm-rest",
@@ -337,7 +925,27 @@
     "valid": true,
     "facesImported": 496,
     "facesUnified": 220,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 6,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 26
+      },
+      "unknownAreaFraction": 0.5511008942192913,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 2
+    }
   },
   {
     "slug": "freeform-palm-rest",
@@ -347,7 +955,27 @@
     "valid": true,
     "facesImported": 4270,
     "facesUnified": 3593,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 11,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 26
+      },
+      "unknownAreaFraction": 0.4358615639895763,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 10
+    }
   },
   {
     "slug": "gear-blank-disc",
@@ -357,7 +985,27 @@
     "valid": true,
     "facesImported": 1244,
     "facesUnified": 1002,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 6,
+        "cylinder": 10,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 10,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 1
+    }
   },
   {
     "slug": "gear-blank-disc",
@@ -367,7 +1015,27 @@
     "valid": true,
     "facesImported": 5908,
     "facesUnified": 4549,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 5,
+        "cylinder": 10,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 10,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "hammer-holder-v1",
@@ -377,7 +1045,27 @@
     "valid": true,
     "facesImported": 5314,
     "facesUnified": 3078,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 210,
+        "cylinder": 27,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 7,
+        "unknown": 92
+      },
+      "unknownAreaFraction": 0.1646628758836658,
+      "groundTruth": {
+        "plane": 121,
+        "cylinder": 42,
+        "cone": 2,
+        "torus": 14,
+        "sphere": 8
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 119
+    }
   },
   {
     "slug": "hammer-holder",
@@ -387,7 +1075,27 @@
     "valid": true,
     "facesImported": 4892,
     "facesUnified": 3036,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 121,
+        "cylinder": 15,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 14,
+        "unknown": 50
+      },
+      "unknownAreaFraction": 0.1167873014596418,
+      "groundTruth": {
+        "plane": 52,
+        "cylinder": 42,
+        "cone": 2,
+        "torus": 14,
+        "sphere": 8
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 116
+    }
   },
   {
     "slug": "handle-test",
@@ -397,7 +1105,21 @@
     "valid": true,
     "facesImported": 3564,
     "facesUnified": 1784,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 40,
+        "cylinder": 2,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 1,
+        "unknown": 47
+      },
+      "unknownAreaFraction": 0.019560639973268207,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "hex-standoff-spacer",
@@ -407,7 +1129,27 @@
     "valid": true,
     "facesImported": 152,
     "facesUnified": 46,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 20,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 14
+    }
   },
   {
     "slug": "hex-standoff-spacer",
@@ -417,7 +1159,27 @@
     "valid": true,
     "facesImported": 552,
     "facesUnified": 146,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 20,
+        "cylinder": 1,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 14
+    }
   },
   {
     "slug": "hinge-half-knuckle",
@@ -427,7 +1189,27 @@
     "valid": true,
     "facesImported": 856,
     "facesUnified": 254,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 8,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 9,
+        "cylinder": 9,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 2
+    }
   },
   {
     "slug": "hinge-half-knuckle",
@@ -437,7 +1219,27 @@
     "valid": true,
     "facesImported": 3916,
     "facesUnified": 2722,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 9,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.0033784648446568903,
+      "groundTruth": {
+        "plane": 9,
+        "cylinder": 9,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 2
+    }
   },
   {
     "slug": "hydraulic-manifold-block",
@@ -447,7 +1249,27 @@
     "valid": true,
     "facesImported": 1364,
     "facesUnified": 511,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 16,
+        "cylinder": 11,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 4
+      },
+      "unknownAreaFraction": 0.008961692201031697,
+      "groundTruth": {
+        "plane": 22,
+        "cylinder": 14,
+        "cone": 8,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 17
+    }
   },
   {
     "slug": "hydraulic-manifold-block",
@@ -457,7 +1279,27 @@
     "valid": true,
     "facesImported": 6724,
     "facesUnified": 4991,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 18,
+        "cylinder": 14,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.2402827716033668,
+      "groundTruth": {
+        "plane": 22,
+        "cylinder": 14,
+        "cone": 8,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 12
+    }
   },
   {
     "slug": "l-bracket-gusset",
@@ -467,7 +1309,27 @@
     "valid": true,
     "facesImported": 852,
     "facesUnified": 209,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 10,
+        "cylinder": 8,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.021344239652316282,
+      "groundTruth": {
+        "plane": 13,
+        "cylinder": 9,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 4
+    }
   },
   {
     "slug": "l-bracket-gusset",
@@ -477,7 +1339,27 @@
     "valid": true,
     "facesImported": 3852,
     "facesUnified": 2891,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 11,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.003785681192051791,
+      "groundTruth": {
+        "plane": 13,
+        "cylinder": 9,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 4
+    }
   },
   {
     "slug": "ladder-cap",
@@ -487,7 +1369,21 @@
     "valid": true,
     "facesImported": 13530,
     "facesUnified": 8149,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 3,
+        "cylinder": 10,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 3,
+        "unknown": 9
+      },
+      "unknownAreaFraction": 0.019640457282708176,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "lamp-cover",
@@ -497,7 +1393,21 @@
     "valid": true,
     "facesImported": 1008,
     "facesUnified": 756,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 2,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "laser-rail",
@@ -507,7 +1417,21 @@
     "valid": true,
     "facesImported": 7080,
     "facesUnified": 5828,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 9,
+        "cylinder": 28,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 5,
+        "unknown": 29
+      },
+      "unknownAreaFraction": 0.2932420341552227,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "lofted-pull-handle",
@@ -517,7 +1441,27 @@
     "valid": true,
     "facesImported": 558,
     "facesUnified": 194,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 30,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.02979926444816743,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 20
+    }
   },
   {
     "slug": "lofted-pull-handle",
@@ -527,7 +1471,27 @@
     "valid": true,
     "facesImported": 5512,
     "facesUnified": 4969,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 30,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 1,
+        "unknown": 23
+      },
+      "unknownAreaFraction": 0.2111782922069542,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 19
+    }
   },
   {
     "slug": "mailbox-tray",
@@ -537,7 +1501,27 @@
     "valid": false,
     "facesImported": 0,
     "facesUnified": 0,
-    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i..."
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i...",
+    "segmentation": {
+      "inventory": {
+        "plane": 324,
+        "cylinder": 41,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 24,
+        "unknown": 80
+      },
+      "unknownAreaFraction": 0.17864884745964155,
+      "groundTruth": {
+        "plane": 306,
+        "cylinder": 120,
+        "cone": 0,
+        "torus": 18,
+        "sphere": 14
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 125
+    }
   },
   {
     "slug": "motor-mount-nema17",
@@ -547,7 +1531,27 @@
     "valid": true,
     "facesImported": 642,
     "facesUnified": 281,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 12,
+        "cylinder": 4,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 3
+      },
+      "unknownAreaFraction": 0.24035934094079164,
+      "groundTruth": {
+        "plane": 22,
+        "cylinder": 11,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 21
+    }
   },
   {
     "slug": "motor-mount-nema17",
@@ -557,7 +1561,27 @@
     "valid": true,
     "facesImported": 2996,
     "facesUnified": 2255,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 21,
+        "cylinder": 9,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 5
+      },
+      "unknownAreaFraction": 0.14525477814436955,
+      "groundTruth": {
+        "plane": 22,
+        "cylinder": 11,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 7
+    }
   },
   {
     "slug": "nist-ctc-01",
@@ -567,7 +1591,27 @@
     "valid": true,
     "facesImported": 2830,
     "facesUnified": 1645,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 59,
+        "cylinder": 32,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 7
+      },
+      "unknownAreaFraction": 0.060532176462915914,
+      "groundTruth": {
+        "plane": 80,
+        "cylinder": 57,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 48
+    }
   },
   {
     "slug": "nist-ctc-01",
@@ -577,7 +1621,27 @@
     "valid": true,
     "facesImported": 13048,
     "facesUnified": 8531,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 41,
+        "cylinder": 36,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 20
+      },
+      "unknownAreaFraction": 0.0621855044924961,
+      "groundTruth": {
+        "plane": 80,
+        "cylinder": 57,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 64
+    }
   },
   {
     "slug": "nist-ctc-02",
@@ -587,7 +1651,27 @@
     "valid": false,
     "facesImported": 0,
     "facesUnified": 0,
-    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i..."
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i...",
+    "segmentation": {
+      "inventory": {
+        "plane": 404,
+        "cylinder": 145,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 7,
+        "unknown": 341
+      },
+      "unknownAreaFraction": 0.09086979412732048,
+      "groundTruth": {
+        "plane": 130,
+        "cylinder": 224,
+        "cone": 82,
+        "torus": 0,
+        "sphere": 24
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 452
+    }
   },
   {
     "slug": "nist-ctc-03",
@@ -597,7 +1681,27 @@
     "valid": true,
     "facesImported": 3224,
     "facesUnified": 1551,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 58,
+        "cylinder": 31,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 6,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 86,
+        "cylinder": 53,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 56
+    }
   },
   {
     "slug": "nist-ctc-03",
@@ -607,7 +1711,27 @@
     "valid": true,
     "facesImported": 13938,
     "facesUnified": 10025,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 47,
+        "cylinder": 39,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 6,
+        "unknown": 7
+      },
+      "unknownAreaFraction": 0.0011331311741656245,
+      "groundTruth": {
+        "plane": 86,
+        "cylinder": 53,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 59
+    }
   },
   {
     "slug": "nist-ctc-04",
@@ -617,7 +1741,27 @@
     "valid": false,
     "facesImported": 15602,
     "facesUnified": 10074,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 153,
+        "cylinder": 96,
+        "cone": 30,
+        "torus": 0,
+        "sphere": 7,
+        "unknown": 129
+      },
+      "unknownAreaFraction": 0.04274839222426995,
+      "groundTruth": {
+        "plane": 113,
+        "cylinder": 178,
+        "cone": 64,
+        "torus": 29,
+        "sphere": 22
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 200
+    }
   },
   {
     "slug": "nist-ctc-05",
@@ -627,7 +1771,27 @@
     "valid": false,
     "facesImported": 6408,
     "facesUnified": 3039,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 81,
+        "cylinder": 44,
+        "cone": 3,
+        "torus": 1,
+        "sphere": 7,
+        "unknown": 54
+      },
+      "unknownAreaFraction": 0.07128154043737848,
+      "groundTruth": {
+        "plane": 63,
+        "cylinder": 67,
+        "cone": 13,
+        "torus": 6,
+        "sphere": 4
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 59
+    }
   },
   {
     "slug": "nist-ftc-06",
@@ -637,7 +1801,27 @@
     "valid": true,
     "facesImported": 7116,
     "facesUnified": 4008,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 140,
+        "cylinder": 42,
+        "cone": 3,
+        "torus": 2,
+        "sphere": 3,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.00003724027889587364,
+      "groundTruth": {
+        "plane": 71,
+        "cylinder": 58,
+        "cone": 4,
+        "torus": 6,
+        "sphere": 5
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 92
+    }
   },
   {
     "slug": "nist-ftc-07",
@@ -647,7 +1831,27 @@
     "valid": false,
     "facesImported": 8140,
     "facesUnified": 4790,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 81,
+        "cylinder": 32,
+        "cone": 8,
+        "torus": 0,
+        "sphere": 6,
+        "unknown": 19
+      },
+      "unknownAreaFraction": 0.0021313852657128462,
+      "groundTruth": {
+        "plane": 73,
+        "cylinder": 106,
+        "cone": 28,
+        "torus": 24,
+        "sphere": 18
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 138
+    }
   },
   {
     "slug": "nist-ftc-08",
@@ -657,7 +1861,27 @@
     "valid": true,
     "facesImported": 7082,
     "facesUnified": 4696,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 89,
+        "cylinder": 68,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 1,
+        "unknown": 3
+      },
+      "unknownAreaFraction": 0.003942191275738152,
+      "groundTruth": {
+        "plane": 81,
+        "cylinder": 134,
+        "cone": 0,
+        "torus": 12,
+        "sphere": 20
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 105
+    }
   },
   {
     "slug": "nist-ftc-09",
@@ -667,7 +1891,27 @@
     "valid": true,
     "facesImported": 4892,
     "facesUnified": 3532,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 32,
+        "cylinder": 47,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 62,
+        "cylinder": 59,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 42
+    }
   },
   {
     "slug": "nist-ftc-09",
@@ -677,7 +1921,27 @@
     "valid": true,
     "facesImported": 23244,
     "facesUnified": 17804,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 20,
+        "cylinder": 39,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 14
+      },
+      "unknownAreaFraction": 0.004556350729793082,
+      "groundTruth": {
+        "plane": 62,
+        "cylinder": 59,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 66
+    }
   },
   {
     "slug": "nist-ftc-10",
@@ -687,7 +1951,27 @@
     "valid": true,
     "facesImported": 11408,
     "facesUnified": 6168,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 86,
+        "cylinder": 49,
+        "cone": 8,
+        "torus": 0,
+        "sphere": 12,
+        "unknown": 8
+      },
+      "unknownAreaFraction": 0.030278708126679925,
+      "groundTruth": {
+        "plane": 53,
+        "cylinder": 103,
+        "cone": 8,
+        "torus": 39,
+        "sphere": 10
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 128
+    }
   },
   {
     "slug": "nist-ftc-11",
@@ -697,7 +1981,27 @@
     "valid": true,
     "facesImported": 2014,
     "facesUnified": 1092,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 59,
+        "cylinder": 7,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 10,
+        "unknown": 30
+      },
+      "unknownAreaFraction": 0.34485579248093134,
+      "groundTruth": {
+        "plane": 2,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 74
+    }
   },
   {
     "slug": "oil-ring",
@@ -707,7 +2011,21 @@
     "valid": true,
     "facesImported": 1040,
     "facesUnified": 780,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 2,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "oring-gland-ring",
@@ -717,7 +2035,27 @@
     "valid": true,
     "facesImported": 1624,
     "facesUnified": 628,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 6,
+        "cone": 6,
+        "torus": 2,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 2,
+        "cylinder": 6,
+        "cone": 4,
+        "torus": 1,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 5
+    }
   },
   {
     "slug": "oring-gland-ring",
@@ -727,7 +2065,27 @@
     "valid": true,
     "facesImported": 23700,
     "facesUnified": 15510,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 132,
+        "cone": 8,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 2,
+        "cylinder": 6,
+        "cone": 4,
+        "torus": 1,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 133
+    }
   },
   {
     "slug": "pole-cap",
@@ -737,7 +2095,21 @@
     "valid": true,
     "facesImported": 13288,
     "facesUnified": 8700,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 6,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 186
+      },
+      "unknownAreaFraction": 0.0442066876343607,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "sensor-mount-bracket",
@@ -747,7 +2119,27 @@
     "valid": true,
     "facesImported": 740,
     "facesUnified": 262,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 17,
+        "cylinder": 10,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 3
+      },
+      "unknownAreaFraction": 0.014247065982761015,
+      "groundTruth": {
+        "plane": 20,
+        "cylinder": 14,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 11
+    }
   },
   {
     "slug": "sensor-mount-bracket",
@@ -757,7 +2149,27 @@
     "valid": true,
     "facesImported": 3520,
     "facesUnified": 2038,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 22,
+        "cylinder": 10,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 4
+      },
+      "unknownAreaFraction": 0.0433695466645042,
+      "groundTruth": {
+        "plane": 20,
+        "cylinder": 14,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 10
+    }
   },
   {
     "slug": "slotted-angle-plate",
@@ -767,7 +2179,27 @@
     "valid": true,
     "facesImported": 688,
     "facesUnified": 190,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 15,
+        "cylinder": 11,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 18,
+        "cylinder": 16,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 8
+    }
   },
   {
     "slug": "slotted-angle-plate",
@@ -777,7 +2209,27 @@
     "valid": true,
     "facesImported": 2880,
     "facesUnified": 2098,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 7,
+        "cylinder": 2,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 20
+      },
+      "unknownAreaFraction": 0.15290209988661507,
+      "groundTruth": {
+        "plane": 18,
+        "cylinder": 16,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 25
+    }
   },
   {
     "slug": "solar-light-post",
@@ -787,7 +2239,21 @@
     "valid": true,
     "facesImported": 4086,
     "facesUnified": 2645,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 41,
+        "cylinder": 5,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 3
+      },
+      "unknownAreaFraction": 0.05317954818186639,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "spanner-18mm",
@@ -797,7 +2263,27 @@
     "valid": true,
     "facesImported": 3098,
     "facesUnified": 1700,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 67,
+        "cylinder": 16,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 13,
+        "unknown": 30
+      },
+      "unknownAreaFraction": 0.203456216410071,
+      "groundTruth": {
+        "plane": 83,
+        "cylinder": 20,
+        "cone": 13,
+        "torus": 15,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 61
+    }
   },
   {
     "slug": "spherical-ball-stud",
@@ -807,7 +2293,27 @@
     "valid": true,
     "facesImported": 514,
     "facesUnified": 406,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 8,
+        "cylinder": 3,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 3,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 6,
+        "cylinder": 3,
+        "cone": 3,
+        "torus": 0,
+        "sphere": 1
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 6
+    }
   },
   {
     "slug": "spherical-ball-stud",
@@ -817,7 +2323,27 @@
     "valid": true,
     "facesImported": 6968,
     "facesUnified": 6096,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 6,
+        "cylinder": 3,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 3,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 6,
+        "cylinder": 3,
+        "cone": 3,
+        "torus": 0,
+        "sphere": 1
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 4
+    }
   },
   {
     "slug": "split-tube-clamp",
@@ -827,7 +2353,27 @@
     "valid": true,
     "facesImported": 808,
     "facesUnified": 317,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 12,
+        "cylinder": 6,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 6,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 8
+    }
   },
   {
     "slug": "split-tube-clamp",
@@ -837,7 +2383,27 @@
     "valid": true,
     "facesImported": 3544,
     "facesUnified": 2446,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 12,
+        "cylinder": 6,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 4,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 12,
+        "cylinder": 6,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 8
+    }
   },
   {
     "slug": "stand-horizontal",
@@ -847,7 +2413,21 @@
     "valid": true,
     "facesImported": 20020,
     "facesUnified": 17777,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 72,
+        "cylinder": 19,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 12,
+        "unknown": 47
+      },
+      "unknownAreaFraction": 0.34187113293298244,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "stepped-shaft-spacer",
@@ -857,7 +2437,27 @@
     "valid": true,
     "facesImported": 624,
     "facesUnified": 212,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "stepped-shaft-spacer",
@@ -867,7 +2467,27 @@
     "valid": true,
     "facesImported": 3402,
     "facesUnified": 2772,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 4,
+        "cylinder": 4,
+        "cone": 4,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "switch-stand",
@@ -877,7 +2497,21 @@
     "valid": true,
     "facesImported": 208,
     "facesUnified": 42,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 34,
+        "cylinder": 0,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   },
   {
     "slug": "threaded-pipe-cap",
@@ -887,7 +2521,27 @@
     "valid": true,
     "facesImported": 2442,
     "facesUnified": 2069,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 24,
+        "cylinder": 22,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 23,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.0026232454440416448,
+      "groundTruth": {
+        "plane": 15,
+        "cylinder": 12,
+        "cone": 10,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 52
+    }
   },
   {
     "slug": "threaded-pipe-cap",
@@ -897,7 +2551,27 @@
     "valid": true,
     "facesImported": 10270,
     "facesUnified": 8998,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 29,
+        "cylinder": 26,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 21,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.0019736971486787594,
+      "groundTruth": {
+        "plane": 15,
+        "cylinder": 12,
+        "cone": 10,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 59
+    }
   },
   {
     "slug": "tube-end-cap-boss",
@@ -907,7 +2581,27 @@
     "valid": true,
     "facesImported": 1796,
     "facesUnified": 890,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 9,
+        "cylinder": 10,
+        "cone": 2,
+        "torus": 1,
+        "sphere": 1,
+        "unknown": 2
+      },
+      "unknownAreaFraction": 0.022548756842009795,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 9,
+        "cone": 1,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 5
+    }
   },
   {
     "slug": "tube-end-cap-boss",
@@ -917,7 +2611,27 @@
     "valid": true,
     "facesImported": 21334,
     "facesUnified": 12934,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 38,
+        "cylinder": 25,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 2,
+        "unknown": 73
+      },
+      "unknownAreaFraction": 0.08720908108535111,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 9,
+        "cone": 1,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 51
+    }
   },
   {
     "slug": "v-belt-pulley",
@@ -927,7 +2641,27 @@
     "valid": true,
     "facesImported": 514,
     "facesUnified": 335,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 5,
+        "cylinder": 3,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.023142564983146225,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 1
+    }
   },
   {
     "slug": "v-belt-pulley",
@@ -937,7 +2671,27 @@
     "valid": true,
     "facesImported": 2948,
     "facesUnified": 2348,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 5,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 0
+      },
+      "unknownAreaFraction": 0.0,
+      "groundTruth": {
+        "plane": 5,
+        "cylinder": 4,
+        "cone": 2,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 0
+    }
   },
   {
     "slug": "watch-charger-desk-clip",
@@ -947,7 +2701,27 @@
     "valid": true,
     "facesImported": 950,
     "facesUnified": 491,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 19,
+        "cylinder": 10,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 11,
+        "unknown": 12
+      },
+      "unknownAreaFraction": 0.033195749037009274,
+      "groundTruth": {
+        "plane": 27,
+        "cylinder": 16,
+        "cone": 23,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 47
+    }
   },
   {
     "slug": "watch-charger-desk-clip",
@@ -957,7 +2731,27 @@
     "valid": true,
     "facesImported": 4906,
     "facesUnified": 3478,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 26,
+        "cylinder": 13,
+        "cone": 1,
+        "torus": 0,
+        "sphere": 8,
+        "unknown": 8
+      },
+      "unknownAreaFraction": 0.017303689535701685,
+      "groundTruth": {
+        "plane": 27,
+        "cylinder": 16,
+        "cone": 23,
+        "torus": 0,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 34
+    }
   },
   {
     "slug": "wheel-hub-adapter",
@@ -967,7 +2761,27 @@
     "valid": true,
     "facesImported": 2464,
     "facesUnified": 892,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 7,
+        "cylinder": 13,
+        "cone": 7,
+        "torus": 1,
+        "sphere": 0,
+        "unknown": 1
+      },
+      "unknownAreaFraction": 0.085519957726964,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 13,
+        "cone": 7,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 2
+    }
   },
   {
     "slug": "wheel-hub-adapter",
@@ -977,7 +2791,27 @@
     "valid": true,
     "facesImported": 25094,
     "facesUnified": 16652,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 84,
+        "cylinder": 26,
+        "cone": 7,
+        "torus": 0,
+        "sphere": 9,
+        "unknown": 28
+      },
+      "unknownAreaFraction": 0.047857975168464705,
+      "groundTruth": {
+        "plane": 8,
+        "cylinder": 13,
+        "cone": 7,
+        "torus": 2,
+        "sphere": 0
+      },
+      "groundTruthSource": "merged",
+      "inventoryError": 100
+    }
   },
   {
     "slug": "windshield-holder-coarse",
@@ -987,6 +2821,20 @@
     "valid": true,
     "facesImported": 3488,
     "facesUnified": 1577,
-    "error": null
+    "error": null,
+    "segmentation": {
+      "inventory": {
+        "plane": 15,
+        "cylinder": 5,
+        "cone": 0,
+        "torus": 0,
+        "sphere": 0,
+        "unknown": 20
+      },
+      "unknownAreaFraction": 0.23909707112358888,
+      "groundTruth": null,
+      "groundTruthSource": null,
+      "inventoryError": null
+    }
   }
 ]

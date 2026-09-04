@@ -76,3 +76,11 @@ opt-level = 2
 [profile.test.package."*"]
 debug = false
 opt-level = 2
+
+# The scoreboard now also runs segmentation, which is this crate's own code and
+# so was not covered by the dependency profile above: unoptimized it turns a
+# four-minute subset run into most of half an hour on the full corpus. Debug
+# assertions and overflow checks stay on; only codegen quality changes.
+[profile.test.package.mesh2param-core]
+debug = false
+opt-level = 2

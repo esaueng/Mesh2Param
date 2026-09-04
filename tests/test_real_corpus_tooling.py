@@ -123,6 +123,26 @@ def test_split_bore_counts_as_one_hole(tmp_path: Path) -> None:
 
 
 @pytest.mark.geometry
+def test_merged_inventory_collapses_split_faces(tmp_path: Path) -> None:
+    """Split faces are one analytic surface each: the merged inventory says so."""
+
+    from scripts.real_corpus.audit import audit_step
+
+    step_path = tmp_path / "model.step"
+    corpus.export_step(build_split_bore_plate(), step_path)
+    ground_truth = audit_step(step_path)
+
+    raw = ground_truth["surfaceInventory"]
+    merged = ground_truth["surfaceInventoryMerged"]
+    assert raw["cylinder"] == 2, "fixture must keep the bore split in two faces"
+    assert merged["cylinder"] == 1
+    # The split runs through the whole plate, so its planar faces are split too.
+    assert raw["plane"] > 6
+    assert merged["plane"] == 6
+    assert merged["cone"] == merged["sphere"] == merged["torus"] == merged["other"] == 0
+
+
+@pytest.mark.geometry
 def test_coaxial_holes_through_separate_walls_count_separately() -> None:
     from OCP.TopAbs import TopAbs_ShapeEnum
     from OCP.TopoDS import TopoDS

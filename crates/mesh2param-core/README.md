@@ -34,14 +34,143 @@ A solid that is produced but invalid is not an error — it comes back with
 `valid: false` and its issues. The scoreboard needs to tell "the kernel refused"
 apart from "the kernel produced something questionable".
 
+## Segmentation
+
+`segment` is *recognition*, not reconstruction: a mesh in, a set of patches out,
+each named as a plane, cylinder, cone, torus, sphere, or `Unknown`. It builds
+nothing. The analytic and mixed rungs are what will consume it.
+
+`MeshData::welded` → dihedral over-segmentation → fit → merge → boundary
+refinement. The fits run on each patch's **vertices**, weighted by incident
+area: a tessellation samples the analytic surface at its vertices, so a coarse
+cylinder's radius is only recoverable there — a centroid fit under-reports it by
+`cos(facet / 2)`, 3.4% on a 12-facet cylinder. The circle fit behind the
+cylinder and the torus is Kåsa refined by Gauss-Newton on the true
+point-to-circle distance, because the algebraic fit is biased on exactly the
+short arcs that partial cylinders and fillet bands produce.
+
+Primitives are tried simplest first — plane, cylinder, cone, sphere, torus — and
+the **first** one inside tolerance wins. Smallest residual is the wrong rule: a
+sphere has one more free parameter than a cylinder and a torus two more, so they
+never fit worse, and a short cylindrical band would always be reported as a
+large sphere.
+
+### Options and defaults
+
+| option | default | what it is for |
+| --- | ---: | --- |
+| `angleDeg` | 12 | dihedral threshold for the first over-segmentation |
+| `tolChordFactor` | 0.35 | tolerance as a multiple of **each patch's own** median edge length |
+| `tolMinFrac` / `tolMaxFrac` | 1e-4 / 0.05 | clamps on that tolerance, as fractions of the bbox diagonal |
+| `minSpreadDeg` | 8 | a flat patch must never become a huge-radius cylinder |
+| `maxFacetDeg` | 40 | a hex prism puts its vertices on a circle too; only the step size separates it from a coarse cylinder |
+| `maxNormalDevDeg` | 12 | a cone or torus band sits inside some sphere's distance budget; only its normals give it away |
+| `radiusTolFrac` | 0.002 | residual budget relative to a curved fit's own radius |
+| `minMinorSweepDeg` | 20 | a torus must sweep a real arc of its tube, or a cylinder fits as a huge-major-radius torus |
+| `mergeAngleDeg` / `mergeHalfAngleDeg` | 1 / 1 | when two fitted primitives are declared the same |
+| `mergeRadiusFrac` / `mergeTorusRadiusFrac` | 0.01 / 0.02 | radius slack for the same |
+| `maxMergeRounds` / `refineRounds` / `splitLevels` | 12 / 2 / 3 | stage caps |
+| `minPatchFaces` / `shardFactor` | 6 / 5 | promotion floor for a patch carved out of an unfittable region: face count, and span in units of its own tolerance |
+| `minPatchAreaFraction` | 0 | optional extra promotion floor, as a share of the whole part; off by default |
+| `fitOnCentroids` | false | reproduce the old centroid-fit behaviour |
+
+Three of these carry the fixes the Phase 0 spike
+(`docs/notes/segmentation-spike-2026-09-03.md`) asked for.
+
+**The tolerance follows feature size, not part size — and feature size varies
+within one part.** A fraction of the bbox diagonal is 1.9 mm on the 930 mm NIST
+part, enough to merge two tangent 50 mm bosses, and far too tight on a part
+measured in centimetres; a mesh-wide median edge is 3.7 mm there and merges the
+same bosses. So the tolerance is derived **per patch**, from that patch's own
+median edge length, and a decision spanning two patches (a merge, a boundary
+face moving) uses the looser of the two. A patch with fewer than two triangles
+falls back to the mesh-wide value.
+
+It is capped at the mesh-wide value, never above it. A patch's chords are long
+either because the surface is finely modelled and gently curved, or because it
+is flat and the tessellator spent two triangles on it — and the second case is
+the common one, where slack buys nothing. Uncapped, a coarse flat claims a
+proportionally huge budget and boundary refinement pulls half the part into it:
+on the NIST plate that is a single `Unknown` blob over 53% of the area. The
+useful signal is downward, where a finely tessellated boss gets the tight budget
+that keeps it off its neighbour.
+
+**A shard carved out of an unfittable region has to earn its promotion.**
+Splitting such a region far enough eventually makes every triangle pair look
+planar, which is how a freeform part shatters into hundreds of tiny "planes". A
+patch that descends only from such splits is promoted only when it clears all of
+
+* `minPatchFaces` triangles,
+* an area of at least `(shardFactor * tol)²` — span measured in its own chords,
+  because a real planar face on a CAD export is tessellated with many triangles
+  across it while a shard carved from a curved region spans only the few chords
+  it took to bend past the split angle,
+* `minPatchAreaFraction` of the part, off by default, and
+* a fit residual below a quarter of its tolerance, since a shard of a smooth
+  surface fits a plane "well" only because it is small: over a short span the
+  sagitta is far under the budget whatever the curvature.
+
+Anything else stays `Unknown`, which is the honest answer; it may still be
+absorbed later by an adjacent patch of the same primitive. A patch that merges
+with a normally fitted neighbour loses the carved provenance entirely.
+
+**Cones and tori are fitted, not left to reappear as spurious spheres.** Both
+take their axis from the covariance of the face normals *about their mean*,
+where a cone's `n . axis` is exactly constant. A cone then fits apex and half
+angle by least squares on the `(axial position, radial distance)` pairs, which
+are collinear for a true cone; a torus fits its tube by the same circle fit the
+cylinder uses, in the `(radial distance, axial offset)` half-plane. A torus
+swept more than about 140 degrees around its tube defeats the axis estimator —
+fillets and rounds, which is what tori are on real parts, stay well inside that.
+
+### Known limits
+
+* A **coarse** cone or torus whose facet step exceeds `angleDeg` is not
+  recovered: the merge stage grows patches pairwise, and two facets do not
+  determine a cone axis the way they determine a cylinder axis.
+* The span gate (`shardFactor`) does not separate shards from real faces as
+  cleanly as intended, and its default is set by that. On `hammer-holder`'s
+  freeform the surviving shards have a median area of about 100 of their own
+  chords squared — they are large pieces, not slivers — so cutting them needs
+  `shardFactor` near 30, while on a coarse mesh such as `cable-saddle-clamp`
+  anything above 5 starts demoting genuine faces, whose whole area is only a few
+  hundred chords squared. 5 is the largest value that costs nothing on the
+  coarse corpus meshes. The residual gate is what actually does the work.
+* Freeform stays the largest single error. Refusing to invent planes on
+  `hammer-holder` cuts its inventory error from 273 to 205, but the area those
+  planes used to cover becomes `Unknown` (2.6% -> 32%), because the part's 42
+  b-spline faces have no primitive to be recognised as. Only cone/torus/general
+  freeform handling moves that number, not promotion policy.
+* `nist-ctc-01` reports roughly 41 planes against 80 in the ground truth. This
+  was put down to STEP splitting coplanar adjacent faces, but the merged
+  inventory measures that claim and refutes it: the part has no adjacent
+  coincident face pair at all, so its 80 planes are 80 distinct surfaces and the
+  gap is under-segmentation, not exporter bookkeeping.
+* Merging is greedy and nothing is ever un-merged. Every accepted merge is
+  re-fitted on the real union, which bounds the damage but does not undo a merge
+  a later one makes wrong.
+
 ## Running the scoreboard
 
-The scoreboard walks `samples/real/*/part.json`, runs `faceted_step` on every
-mesh, writes `target/scoreboard.json`, prints a table, and compares the outcome
-against the committed `scoreboard-baseline.json`.
+The scoreboard walks `samples/real/*/part.json`, runs `faceted_step` and
+`segment` on every mesh, writes `target/scoreboard.json`, prints a table, and
+compares the outcome against the committed `scoreboard-baseline.json`.
+
+Each row carries the recognised inventory, the unknown area fraction, the STEP
+ground truth from `part.json` and `inventoryError`: the total absolute miscount
+over plane, cylinder, cone, torus and sphere. Parts with no STEP have no ground
+truth and no error.
+
+The ground truth is `groundTruth.surfaceInventoryMerged`, which counts analytic
+surfaces rather than STEP faces: adjacent faces sharing one carrier surface (a
+bore exported as two half cylinders) are one surface, which is what the
+segmenter grows. `groundTruth.surfaceInventory`, the raw per-face count, is used
+only for a `part.json` written before the audit grew the merged key;
+`groundTruthSource` on each row records which was used. B-splines and anything
+else with no primitive are ignored either way.
 
 ```bash
-# Subset mode: meshes up to 30,000 triangles. ~30 s. This is what CI runs.
+# Subset mode: meshes up to 30,000 triangles. ~45 s. This is what CI runs.
 cargo test -p mesh2param-core --test scoreboard -- --nocapture
 
 # Everything, including the 150k-triangle exports. Minutes.
@@ -52,9 +181,12 @@ Without `--nocapture` the table is only printed when the test fails;
 `target/scoreboard.json` is written either way.
 
 The comparison fails when a mesh that was `valid` in the baseline is not valid
-now, when a mesh that did not error now errors, or when a baseline mesh is
-missing from the run. Meshes not in the baseline are reported, not failed, so
-adding a corpus part does not break the build.
+now, when a mesh that did not error now errors, when a mesh's `inventoryError`
+grows by more than 20% against the baseline, or when a baseline mesh is missing
+from the run. Meshes not in the baseline are reported, not failed, so adding a
+corpus part does not break the build. Recognition is scored separately from the
+faceted tier on purpose: a mesh can still build a valid solid while the
+segmenter has started reporting the wrong surfaces.
 
 ### Re-blessing the baseline
 

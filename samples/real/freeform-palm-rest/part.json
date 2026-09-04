@@ -25,6 +25,14 @@
       "extrusion": 1,
       "plane": 5
     },
+    "surfaceInventoryMerged": {
+      "cone": 0,
+      "cylinder": 2,
+      "other": 2,
+      "plane": 5,
+      "sphere": 0,
+      "torus": 0
+    },
     "vertexCount": 8,
     "volume": 77148.8694
   },

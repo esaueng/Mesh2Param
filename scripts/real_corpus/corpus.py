@@ -11,7 +11,7 @@ import importlib
 import os
 import re
 import shutil
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -369,14 +369,31 @@ def audit_all(root: Path, only: str | None = None) -> list[str]:
     return slugs
 
 
+def _format_inventory(inventory: Mapping[str, int]) -> str:
+    ordered = sorted(
+        ((name, count) for name, count in inventory.items() if count),
+        key=lambda item: (-item[1], item[0]),
+    )
+    return ", ".join(f"{name} {count}" for name, count in ordered) or "-"
+
+
 def _surface_summary(ground_truth: dict[str, Any] | None) -> str:
+    """Merged analytic surfaces: what a segmenter is actually expected to recover."""
+
     if not ground_truth:
         return "-"
-    inventory: dict[str, int] = ground_truth.get("surfaceInventory", {})
-    if not inventory:
+    inventory: dict[str, int] = ground_truth.get(
+        "surfaceInventoryMerged", ground_truth.get("surfaceInventory", {})
+    )
+    return _format_inventory(inventory)
+
+
+def _raw_surface_summary(ground_truth: dict[str, Any] | None) -> str:
+    """Per-face surface types, exactly as the STEP file splits them."""
+
+    if not ground_truth:
         return "-"
-    ordered = sorted(inventory.items(), key=lambda item: (-item[1], item[0]))
-    return ", ".join(f"{name} {count}" for name, count in ordered)
+    return _format_inventory(ground_truth.get("surfaceInventory", {}))
 
 
 def _mesh_label(mesh: dict[str, Any]) -> str:
@@ -441,6 +458,14 @@ run. Where that happens the topology counts, surface inventory and triangle coun
 unchanged -- only the SHA-256 moves -- so compare those, not the bytes, when checking a
 regeneration.
 
+The `surfaces` column counts *analytic surfaces*, not STEP faces: adjacent faces that
+share one carrier surface (a bore emitted as two half cylinders, a plane a boolean cut in
+two) are merged, which is what `groundTruth.surfaceInventoryMerged` records and what a
+segmenter is expected to recover. `raw surfaces` is the unmerged per-face inventory
+(`groundTruth.surfaceInventory`). Merging needs a shared edge, so two coplanar but
+disjoint pads stay two surfaces; b-splines and the other free-form types are never merged
+and are counted together under `other`.
+
 `holeCount` is a corpus statistic, not a feature recognizer. Inward-facing cylindrical
 faces (surface normal, flipped for a `REVERSED` face, pointing back toward the axis) are
 grouped by axis and radius; faces whose axial extents overlap are merged, and each merged
@@ -463,21 +488,23 @@ def _featured_section(records: Sequence[dict[str, Any]]) -> str:
 
 def render_readme(records: Sequence[dict[str, Any]]) -> str:
     rows = [
-        "| slug | origin | license | tags | faces | surfaces | holes | triangles | manifold |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| slug | origin | license | tags | faces | surfaces | raw surfaces | holes "
+        "| triangles | manifold |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for record in records:
         ground_truth: dict[str, Any] | None = record.get("groundTruth")
         meshes: list[dict[str, Any]] = record.get("meshes", [])
         rows.append(
-            "| {slug} | {origin} | {license} | {tags} | {faces} | {surfaces} | {holes} "
-            "| {triangles} | {manifold} |".format(
+            "| {slug} | {origin} | {license} | {tags} | {faces} | {surfaces} | {raw_surfaces} "
+            "| {holes} | {triangles} | {manifold} |".format(
                 slug=f"**{record['slug']}**" if record.get("featured") else record["slug"],
                 origin=record["origin"],
                 license=record["license"],
                 tags=", ".join(record.get("tags", ())) or "-",
                 faces=ground_truth["faceCount"] if ground_truth else "-",
                 surfaces=_surface_summary(ground_truth),
+                raw_surfaces=_raw_surface_summary(ground_truth),
                 holes=ground_truth["holeCount"] if ground_truth else "-",
                 triangles=_triangle_summary(meshes),
                 manifold=_manifold_summary(meshes),

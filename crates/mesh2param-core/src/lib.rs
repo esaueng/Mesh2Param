@@ -21,6 +21,12 @@
 //! Only the faceted rung exists today. The corpus scoreboard
 //! (`tests/scoreboard.rs`) is what says whether a new rung is an improvement.
 //!
+//! # Recognition
+//!
+//! [`segment`] is the stage the analytic and mixed rungs are waiting on: it
+//! groups a mesh's triangles into patches and names the analytic surface each
+//! one lies on, or leaves it [`PatchKind::Unknown`]. It builds nothing.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -38,7 +44,9 @@
 pub mod error;
 pub mod faceted;
 pub mod mesh;
+pub mod segment;
 
 pub use error::{CoreError, Result};
 pub use faceted::{FacetedOptions, FacetedResult, Tier, faceted_step};
-pub use mesh::{Bbox, MeshData, MeshFormat, load_mesh};
+pub use mesh::{Bbox, MeshData, MeshFormat, WeldedMesh, load_mesh};
+pub use segment::{Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, segment};
