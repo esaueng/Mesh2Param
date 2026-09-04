@@ -1,5 +1,6 @@
-//! Corpus scoreboard: run the faceted tier over every real-world sample mesh
-//! and compare the outcome against a committed baseline.
+//! Corpus scoreboard: run the faceted tier and the segmentation stage over
+//! every real-world sample mesh and compare the outcome against a committed
+//! baseline.
 //!
 //! This is the only thing that says whether a change to the core, or a bump of
 //! the kernel pin, is an improvement. It runs before any face construction work
@@ -18,17 +19,75 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use mesh2param_core::{CoreError, FacetedOptions, MeshFormat, faceted_step, load_mesh};
+use mesh2param_core::{
+    CoreError, FacetedOptions, Inventory, MeshFormat, SegmentOptions, faceted_step, load_mesh,
+    segment,
+};
 use serde::{Deserialize, Serialize};
 
 /// Meshes above this triangle count are skipped unless `MESH2PARAM_SCOREBOARD=full`.
 /// Keeps the default run to a couple of minutes so it can sit in CI.
 const SUBSET_MAX_TRIANGLES: usize = 30_000;
 
+/// A mesh's `inventory_error` may not grow by more than this fraction against
+/// the baseline. Recognition counts move by one or two when a fit is retuned;
+/// a fifth of the error is a change of behaviour, not of numerics.
+const MAX_INVENTORY_ERROR_GROWTH: f64 = 0.20;
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PartJson {
     slug: String,
     meshes: Vec<MeshEntry>,
+    ground_truth: Option<GroundTruth>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GroundTruth {
+    surface_inventory: Option<Truth>,
+}
+
+/// The STEP file's own surface counts. Surfaces the segmenter has no primitive
+/// for (b-splines above all) are absent on purpose: they are not scored.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct Truth {
+    #[serde(default)]
+    plane: u32,
+    #[serde(default)]
+    cylinder: u32,
+    #[serde(default)]
+    cone: u32,
+    #[serde(default)]
+    torus: u32,
+    #[serde(default)]
+    sphere: u32,
+}
+
+impl Truth {
+    /// Total absolute miscount over the five recognised surface types.
+    fn error_against(self, got: Inventory) -> u32 {
+        u32::abs_diff(got.plane, self.plane)
+            + u32::abs_diff(got.cylinder, self.cylinder)
+            + u32::abs_diff(got.cone, self.cone)
+            + u32::abs_diff(got.torus, self.torus)
+            + u32::abs_diff(got.sphere, self.sphere)
+    }
+}
+
+/// The segmentation half of a row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Seg {
+    /// Wall clock for the segmentation alone. Omitted from the baseline.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    ms: f64,
+    inventory: Inventory,
+    unknown_area_fraction: f64,
+    /// `None` when the part has no STEP ground truth.
+    ground_truth: Option<Truth>,
+    /// `None` exactly when `ground_truth` is.
+    inventory_error: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +112,11 @@ struct Row {
     #[serde(default, skip_serializing_if = "is_zero")]
     ms: f64,
     error: Option<String>,
+    /// `None` when segmentation itself failed; `segError` then says why. Kept
+    /// out of `error`, which stays the faceted tier's own outcome.
+    segmentation: Option<Seg>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    seg_error: Option<String>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde requires the &T signature
@@ -70,8 +134,16 @@ impl Row {
     fn without_timing(&self) -> Self {
         Self {
             ms: 0.0,
+            segmentation: self.segmentation.as_ref().map(|s| Seg {
+                ms: 0.0,
+                ..s.clone()
+            }),
             ..self.clone()
         }
+    }
+
+    fn inventory_error(&self) -> Option<u32> {
+        self.segmentation.as_ref().and_then(|s| s.inventory_error)
     }
 }
 
@@ -93,7 +165,7 @@ fn part_files(corpus: &Path) -> Vec<PathBuf> {
     parts
 }
 
-fn run_one(dir: &Path, slug: &str, entry: &MeshEntry) -> Option<Row> {
+fn run_one(dir: &Path, slug: &str, entry: &MeshEntry, truth: Option<Truth>) -> Option<Row> {
     let stl = dir.join(&entry.file);
     // mesh-fine.stl is opt-in and not committed; a missing file is not a failure.
     if !stl.is_file() {
@@ -115,6 +187,8 @@ fn run_one(dir: &Path, slug: &str, entry: &MeshEntry) -> Option<Row> {
         faces_unified: 0,
         ms: 0.0,
         error: None,
+        segmentation: None,
+        seg_error: None,
     };
 
     let bytes = match fs::read(&stl) {
@@ -126,9 +200,28 @@ fn run_one(dir: &Path, slug: &str, entry: &MeshEntry) -> Option<Row> {
     };
 
     let started = Instant::now();
-    let outcome = load_mesh(&bytes, MeshFormat::Stl)
-        .and_then(|mesh| faceted_step(&mesh, &FacetedOptions::default()));
+    let loaded = load_mesh(&bytes, MeshFormat::Stl);
+    let outcome = loaded
+        .as_ref()
+        .map_err(short)
+        .and_then(|mesh| faceted_step(mesh, &FacetedOptions::default()).map_err(|e| short(&e)));
     row.ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    if let Ok(mesh) = &loaded {
+        let started = Instant::now();
+        match segment(mesh, &SegmentOptions::default()) {
+            Ok(seg) => {
+                row.segmentation = Some(Seg {
+                    ms: started.elapsed().as_secs_f64() * 1000.0,
+                    inventory: seg.inventory,
+                    unknown_area_fraction: seg.unknown_area_fraction,
+                    ground_truth: truth,
+                    inventory_error: truth.map(|t| t.error_against(seg.inventory)),
+                });
+            }
+            Err(e) => row.seg_error = Some(short(&e)),
+        }
+    }
 
     match outcome {
         Ok(result) => {
@@ -143,7 +236,7 @@ fn run_one(dir: &Path, slug: &str, entry: &MeshEntry) -> Option<Row> {
             row.faces_imported = result.faces_imported;
             row.faces_unified = result.faces_unified;
         }
-        Err(e) => row.error = Some(short(&e)),
+        Err(e) => row.error = Some(e),
     }
     Some(row)
 }
@@ -161,31 +254,78 @@ fn short(e: &CoreError) -> String {
 
 fn print_table(rows: &[Row]) {
     println!(
-        "\n{:<28} {:<18} {:>8} {:>8} {:>8} {:>6} {:>9}  error",
-        "slug", "mesh", "tris", "faces", "unified", "valid", "ms"
+        "\n{:<26} {:<16} {:>7} {:>7} {:>5} {:>8} | {:>8} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7} {:>6}  notes",
+        "slug",
+        "mesh",
+        "tris",
+        "unified",
+        "valid",
+        "ms",
+        "seg ms",
+        "pl",
+        "cy",
+        "co",
+        "to",
+        "sp",
+        "unk",
+        "unkArea",
+        "invErr"
     );
-    println!("{}", "-".repeat(110));
+    println!("{}", "-".repeat(155));
     for r in rows {
+        let (seg_ms, inv, unk, err) = r.segmentation.as_ref().map_or_else(
+            || (f64::NAN, Inventory::default(), f64::NAN, None),
+            |s| {
+                (
+                    s.ms,
+                    s.inventory,
+                    s.unknown_area_fraction,
+                    s.inventory_error,
+                )
+            },
+        );
+        let notes = match (r.error.as_deref(), r.seg_error.as_deref()) {
+            (Some(e), Some(s)) => format!("{e} | seg: {s}"),
+            (Some(e), None) => e.to_string(),
+            (None, Some(s)) => format!("seg: {s}"),
+            (None, None) => String::new(),
+        };
         println!(
-            "{:<28} {:<18} {:>8} {:>8} {:>8} {:>6} {:>9.1}  {}",
+            "{:<26} {:<16} {:>7} {:>7} {:>5} {:>8.1} | {:>8.1} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7.3} {:>6}  {}",
             r.slug,
             r.mesh,
             r.triangles,
-            r.faces_imported,
             r.faces_unified,
             if r.valid { "yes" } else { "no" },
             r.ms,
-            r.error.as_deref().unwrap_or("")
+            seg_ms,
+            inv.plane,
+            inv.cylinder,
+            inv.cone,
+            inv.torus,
+            inv.sphere,
+            inv.unknown,
+            unk,
+            err.map_or_else(|| "-".to_string(), |e| e.to_string()),
+            notes
         );
     }
     let valid = rows.iter().filter(|r| r.valid).count();
     let errored = rows.iter().filter(|r| r.error.is_some()).count();
+    let scored: Vec<u32> = rows.iter().filter_map(Row::inventory_error).collect();
+    let mean_err = if scored.is_empty() {
+        0.0
+    } else {
+        f64::from(scored.iter().sum::<u32>()) / scored.len() as f64
+    };
     println!(
-        "{}\n{} meshes, {} valid, {} errored\n",
-        "-".repeat(110),
+        "{}\n{} meshes, {} valid, {} errored; {} scored against STEP ground truth, mean inventory error {:.1}\n",
+        "-".repeat(155),
         rows.len(),
         valid,
-        errored
+        errored,
+        scored.len(),
+        mean_err
     );
 }
 
@@ -202,11 +342,12 @@ fn corpus_scoreboard_matches_baseline() {
             .unwrap_or_else(|e| panic!("read {}: {e}", part_file.display()));
         let part: PartJson = serde_json::from_str(&text)
             .unwrap_or_else(|e| panic!("parse {}: {e}", part_file.display()));
+        let truth = part.ground_truth.as_ref().and_then(|g| g.surface_inventory);
         for entry in &part.meshes {
             if !full && entry.triangles > SUBSET_MAX_TRIANGLES {
                 continue;
             }
-            if let Some(row) = run_one(&dir, &part.slug, entry) {
+            if let Some(row) = run_one(&dir, &part.slug, entry, truth) {
                 rows.push(row);
             }
         }
@@ -269,6 +410,20 @@ fn corpus_scoreboard_matches_baseline() {
         if !before.valid && row.valid {
             improvements.push(row.key());
         }
+        // Recognition regressions are counted separately from the faceted
+        // tier's: a mesh can still build a valid solid while the segmenter has
+        // started reporting the wrong surfaces.
+        if let (Some(was), Some(now)) = (before.inventory_error(), row.inventory_error()) {
+            if f64::from(now) > f64::from(was) * (1.0 + MAX_INVENTORY_ERROR_GROWTH) {
+                regressions.push(format!(
+                    "{}: inventory error {was} -> {now}, over the {:.0}% growth budget",
+                    row.key(),
+                    MAX_INVENTORY_ERROR_GROWTH * 100.0
+                ));
+            } else if now < was {
+                improvements.push(format!("{}: inventory error {was} -> {now}", row.key()));
+            }
+        }
     }
     // A mesh present in the baseline but absent now means the corpus shrank or
     // a file stopped being read: worth failing on, not silently passing.
@@ -285,7 +440,7 @@ fn corpus_scoreboard_matches_baseline() {
         }
     }
     if !improvements.is_empty() {
-        println!("improved to valid ({}):", improvements.len());
+        println!("improvements ({}):", improvements.len());
         for k in &improvements {
             println!("  ^ {k}");
         }
