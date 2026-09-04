@@ -20,11 +20,12 @@ use remus_topology::vertex::{Vertex as KernelVertex, VertexId};
 use remus_topology::wire::{OrientedEdge, Wire};
 
 use super::geom::{MeshGeom, polygon_normal};
+use super::periodic;
 use crate::error::{CoreError, Result};
 use crate::segment::linalg::V3;
 use crate::segment::{Patch, PatchKind, Primitive, Segmentation};
 use crate::topology::chains::Chain;
-use crate::topology::{Curve, Topology as PatchTopology};
+use crate::topology::{Curve, EdgeSource, Topology as PatchTopology};
 
 /// How far, in run tolerances, an arc's end vertex may sit off the circle it
 /// is trimmed on before the fitted curve is refused and the mesh chain used
@@ -56,6 +57,29 @@ struct Walked {
     wire: Vec<OrientedEdge>,
     /// The recovered edges it walks, with the direction each is walked in.
     order: Vec<(u32, bool)>,
+}
+
+/// A full-turn rim: one closed circular edge carrying its own seam vertex.
+#[derive(Debug, Clone, Copy)]
+struct Rim {
+    /// The kernel vertex the closed edge opens and closes at.
+    seam: VertexId,
+    /// Where that vertex sits.
+    point: V3,
+}
+
+/// One of a face's loops as kernel topology, with the rim it is when it is
+/// one.
+#[derive(Clone)]
+struct BuiltLoop {
+    /// The area vector of the loop's own mesh polygon, for ranking.
+    normal: V3,
+    /// The kernel vertex the wire starts and ends at.
+    entry: VertexId,
+    /// The wire, in the face's outward sense.
+    wire: Vec<OrientedEdge>,
+    /// Set when the loop is a single full-turn rim of this face's surface.
+    rim: Option<Rim>,
 }
 
 /// One topology edge as kernel topology, oriented along its chain.
@@ -184,7 +208,10 @@ impl<'a> Context<'a> {
         let Some(loops) = self.patch_topo.patch_loops.get(patch.id as usize) else {
             return Some("no loops recovered");
         };
-        if loops.loops.is_empty() {
+        // A surface closed in both parameter directions has no boundary to
+        // recover: a whole doughnut is one face bounded by a fundamental
+        // polygon, not by any loop the mesh can hand over.
+        if loops.loops.is_empty() && !periodic::is_closed_periodic(patch.primitive) {
             return Some("no loops recovered");
         }
         if loops.open_loops > 0 {
@@ -544,6 +571,22 @@ impl<'a> Builder<'a> {
             } => self.circle_run(index, *center, *axis, *radius, *start_angle, *end_angle),
             Curve::Polyline { points } => {
                 let pts: Vec<V3> = points.iter().map(|p| V3::from_arr(*p)).collect();
+                // A rim the marcher could only sample is still a rim: read the
+                // circle back out of it rather than laying a thousand straight
+                // edges down the boundary of a periodic face. Only a marched
+                // ring — a real intersection with no closed form — is read
+                // back; a ring that fell back to the mesh's own samples is the
+                // mesh's answer and stays it.
+                if edge.vertices.is_none()
+                    && edge.source == EdgeSource::Marching
+                    && let Some((center, axis, radius)) =
+                        periodic::ring_as_circle(&pts, self.ctx.tol)
+                    && self.rim_needs_marching(edge.patches, center, axis, radius)
+                    && let Ok(circle) = Circle3D::new(point(center), vector(axis), radius)
+                    && let Some(run) = self.rim_edge(chain, circle)
+                {
+                    return Some(run);
+                }
                 self.polyline_run(&pts, chain.closed, edge.vertices)
             }
         }
@@ -572,26 +615,7 @@ impl<'a> Builder<'a> {
         let chain = self.ctx.chains.get(index)?;
 
         match edge.vertices {
-            None => {
-                // A rim: one closed edge with a seam vertex of its own. The
-                // curve runs counter-clockwise about its own axis, which need
-                // not be the chain's direction, so the run records the flip.
-                let seam = from_point(circle.evaluate(start_angle));
-                let tangent = from_point(circle.evaluate(start_angle + 1e-6)).sub(seam);
-                let v = self.add_vertex(seam);
-                let mut e =
-                    KernelEdge::with_tolerance(v, v, EdgeCurve::Circle(circle), Some(self.ctx.tol));
-                e.set_trim(Some((0.0, std::f64::consts::TAU)));
-                let eid = self.topo.add_edge(e);
-                let forward =
-                    chain_direction_at(self.ctx, chain, seam).is_none_or(|d| tangent.dot(d) >= 0.0);
-                Some(EdgeRun {
-                    segments: vec![(eid, forward)],
-                    start: v,
-                    end: v,
-                    kind: RunKind::Circle,
-                })
-            }
+            None => self.rim_edge(chain, circle),
             Some((a, b)) => {
                 let (va, vb) = (self.topo_vertex_of(a)?, self.topo_vertex_of(b)?);
                 if va == vb {
@@ -627,6 +651,60 @@ impl<'a> Builder<'a> {
                 })
             }
         }
+    }
+
+    /// Whether a marched ring is a rim the marcher was the **only** route to.
+    ///
+    /// Both sides have to be quadrics, and the circle has to be a rim of one
+    /// of them. A plane against a quadric has a closed-form arm
+    /// (`exact_plane_analytic_bounded`, which returns the circle directly), so
+    /// a plane-bounded ring that came back marched is one where that arm was
+    /// tried and *rejected* — the fit disagreed with the chain — and the
+    /// samples are then the better answer than any circle drawn through them.
+    /// Measured: promoting those costs `l-bracket-gusset/mesh-coarse`,
+    /// `bearing-block-608/mesh-default` and `freeform-palm-rest/mesh-coarse`
+    /// their tier, all three on plane-against-cylinder bolt-hole rims.
+    fn rim_needs_marching(&self, patches: (u32, u32), center: V3, axis: V3, radius: f64) -> bool {
+        let prims: Vec<Primitive> = [patches.0, patches.1]
+            .iter()
+            .filter_map(|p| self.ctx.seg.patches.get(*p as usize).map(|x| x.primitive))
+            .collect();
+        prims.len() == 2
+            && prims.iter().all(|p| periodic::is_periodic(*p))
+            && prims
+                .iter()
+                .any(|p| periodic::is_rim_of(*p, center, axis, radius, self.ctx.tol))
+    }
+
+    /// A rim as the kernel wants it: **one** closed circular edge carrying its
+    /// own seam vertex, not a pair of half-arcs.
+    ///
+    /// The seam vertex is put on the meridian every ring about this axis line
+    /// seams at. Two rims of one cylinder each come from their own
+    /// intersection and their circle normals can point opposite ways along the
+    /// shared axis, and `Frame3::from_normal` builds `x` as `z x candidate`,
+    /// which flips with `z`: anchored at each circle's own `evaluate(0)` the
+    /// two would seam half a turn apart and the seam between them would cut
+    /// across the body instead of running along it.
+    fn rim_edge(&mut self, chain: &Chain, circle: Circle3D) -> Option<EdgeRun> {
+        let axis = from_vector(circle.normal());
+        let anchor = periodic::seam_reference(axis)
+            .map(|r| from_point(circle.center()).add(r.mul(circle.radius())))?;
+        let at = circle.project(point(anchor));
+        let seam = from_point(circle.evaluate(at));
+        let tangent = from_point(circle.evaluate(at + 1e-6)).sub(seam);
+        let v = self.add_vertex(seam);
+        let mut e = KernelEdge::with_tolerance(v, v, EdgeCurve::Circle(circle), Some(self.ctx.tol));
+        e.set_trim(Some((at, at + std::f64::consts::TAU)));
+        let eid = self.topo.add_edge(e);
+        let forward =
+            chain_direction_at(self.ctx, chain, seam).is_none_or(|d| tangent.dot(d) >= 0.0);
+        Some(EdgeRun {
+            segments: vec![(eid, forward)],
+            start: v,
+            end: v,
+            kind: RunKind::Circle,
+        })
     }
 
     fn polyline_run(
@@ -767,26 +845,36 @@ impl<'a> Builder<'a> {
             .get(patch.id as usize)
             .ok_or("no loops recovered")?;
 
-        let mut built: Vec<(V3, VertexId, Vec<OrientedEdge>)> =
-            Vec::with_capacity(loops.loops.len());
+        let mut built: Vec<BuiltLoop> = Vec::with_capacity(loops.loops.len());
         for l in &loops.loops {
             let ids: Vec<u32> = l.edges.iter().map(|&(e, _)| e).collect();
             let walked = self.walk_loop(patch.id, &ids)?;
-            built.push((self.loop_normal(&walked.order), walked.entry, walked.wire));
-        }
-        if built.is_empty() {
-            return Err("no loops recovered");
+            let rim = self.rim_of(patch, &walked);
+            built.push(BuiltLoop {
+                normal: self.loop_normal(&walked.order),
+                entry: walked.entry,
+                wire: walked.wire,
+                rim,
+            });
         }
 
-        // A periodic face bounded by two rims is not an outer wire with a
-        // hole in it: the kernel expects one wire that runs down a doubled
-        // seam line between the rims, and every structured tessellation path
-        // declines a curved face that has inner wires at all.
-        if !surface.is_planar()
-            && built.len() == 2
-            && let Some(seam) = self.seam_wire(&built)
-        {
-            built = vec![(V3::ZERO, built[0].1, seam)];
+        // A periodic face is not an outer rim with the other rim as a hole:
+        // the kernel expects one wire running down a doubled seam, and every
+        // structured tessellation path declines a curved face that has inner
+        // wires at all. Any loop that is not one of the seamed rims — a bore
+        // through a cylinder wall — stays an inner wire.
+        let seamed = if surface.is_planar() {
+            None
+        } else {
+            self.periodic_loops(patch, &surface, &built)
+        };
+        // The seamed wire is put first and is the outer one by construction.
+        let mut forced_outer = None;
+        if let Some(next) = seamed {
+            built = next;
+            forced_outer = Some(0);
+        } else if built.is_empty() {
+            return Err("no loops recovered");
         }
 
         // On a plane the loop's own winding says whether it bounds material
@@ -794,7 +882,9 @@ impl<'a> Builder<'a> {
         // one against it. Two loops winding with it is not a face with a hole
         // at all — it is a patch the segmenter merged out of two disjoint
         // regions of the same plane, and one face cannot bound both.
-        let outer = if surface.is_planar() {
+        let outer = if let Some(at) = forced_outer {
+            at
+        } else if surface.is_planar() {
             let normal = match &surface {
                 FaceSurface::Plane { normal, .. } => from_vector(*normal),
                 _ => V3::ZERO,
@@ -802,7 +892,7 @@ impl<'a> Builder<'a> {
             let positive: Vec<usize> = built
                 .iter()
                 .enumerate()
-                .filter(|(_, (n, _, _))| n.dot(normal) > 0.0)
+                .filter(|(_, l)| l.normal.dot(normal) > 0.0)
                 .map(|(i, _)| i)
                 .collect();
             match positive.as_slice() {
@@ -814,14 +904,14 @@ impl<'a> Builder<'a> {
             built
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.0.norm().total_cmp(&b.1.0.norm()))
+                .max_by(|a, b| a.1.normal.norm().total_cmp(&b.1.normal.norm()))
                 .map(|(i, _)| i)
                 .ok_or("no loops recovered")?
         };
 
         let mut outer_wire = None;
         let mut inner_wires = Vec::new();
-        for (i, (_, _, edges)) in built.into_iter().enumerate() {
+        for (i, BuiltLoop { wire: edges, .. }) in built.into_iter().enumerate() {
             // A face's stored winding follows its stored surface normal; a
             // reversed face carries the geometric normal, so its stored loops
             // run the other way round.
@@ -854,24 +944,164 @@ impl<'a> Builder<'a> {
         Ok(fid)
     }
 
-    /// One wire for a two-rim periodic face: the first rim, the seam line to
-    /// the second rim, the second rim, and the seam line back.
+    /// Whether a walked loop is a **rim** of this face's surface: a boundary
+    /// that winds the surface's periodic parameter a full turn.
     ///
-    /// The seam edge is used twice by the one face, which is the B-Rep
-    /// convention the kernel's own checks and its band tessellator both read.
-    fn seam_wire(
+    /// Measured on the loop's own mesh polygon rather than on the edges under
+    /// it, because a rim arrives as one closed circle only when nothing lands
+    /// on it: a vertex anywhere on the rim splits it into a chain of arcs, and
+    /// the kernel's band mesher takes either. What the winding excludes is a
+    /// bore through the wall, which is closed but winds nothing.
+    fn rim_of(&self, patch: &Patch, walked: &Walked) -> Option<Rim> {
+        let points = self.loop_points(&walked.order);
+        let (origin, dir) = periodic::rim_axis(patch.primitive, &points)?;
+        if !periodic::winds_full_turn(&points, origin, dir) {
+            return None;
+        }
+        Some(Rim {
+            seam: walked.entry,
+            point: self.point_of(walked.entry),
+        })
+    }
+
+    /// A periodic face's loops re-expressed the way the kernel builds them,
+    /// with the seamed wire first. `None` leaves the face on the ordinary
+    /// outer-plus-inner path.
+    ///
+    /// * two rims -> `[rim, seam, rim⁻¹, seam⁻¹]`, every other loop kept as an
+    ///   inner wire (a bore through a cylinder wall stays a hole);
+    /// * one rim on a surface that closes to a point -> `[rim, seam, seam⁻¹]`,
+    ///   the seam doubled out to the cone's apex;
+    /// * no boundary at all on a doubly closed surface -> the fundamental
+    ///   polygon `a b a⁻¹ b⁻¹` on two degenerate seam edges.
+    fn periodic_loops(
         &mut self,
-        built: &[(V3, VertexId, Vec<OrientedEdge>)],
-    ) -> Option<Vec<OrientedEdge>> {
-        let [(_, v0, first), (_, v1, second)] = built else {
+        patch: &Patch,
+        surface: &FaceSurface,
+        built: &[BuiltLoop],
+    ) -> Option<Vec<BuiltLoop>> {
+        let rims: Vec<usize> = built
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| l.rim.is_some())
+            .map(|(i, _)| i)
+            .collect();
+        match rims.as_slice() {
+            [] if built.is_empty() => self.closed_periodic_loop(surface),
+            [only] if built.len() == 1 => self.pole_seamed_loop(patch, built, *only),
+            [a, b] => self.rim_seamed_loop(patch, built, *a, *b),
+            _ => None,
+        }
+    }
+
+    /// `[rim, seam, rim⁻¹, seam⁻¹]`: the one wire a band between two rims has.
+    fn rim_seamed_loop(
+        &mut self,
+        patch: &Patch,
+        built: &[BuiltLoop],
+        a: usize,
+        b: usize,
+    ) -> Option<Vec<BuiltLoop>> {
+        let (first, second) = (built.get(a)?, built.get(b)?);
+        let (r0, r1) = (first.rim?, second.rim?);
+        let (seam, forward) = self.seam_edge(patch, r0.seam, r1.seam)?;
+
+        let mut wire = first.wire.clone();
+        wire.push(OrientedEdge::new(seam, forward));
+        wire.extend(second.wire.iter().copied());
+        wire.push(OrientedEdge::new(seam, !forward));
+
+        let mut out = vec![BuiltLoop {
+            normal: V3::ZERO,
+            entry: first.entry,
+            wire,
+            rim: None,
+        }];
+        out.extend(
+            built
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| *i != a && *i != b)
+                .map(|(_, l)| l.clone()),
+        );
+        Some(out)
+    }
+
+    /// `[rim, seam, seam⁻¹]`: a wall that runs out to a point, which is what a
+    /// cone closed at its apex is. A sphere's pole is deliberately left alone —
+    /// see [`periodic::degenerate_point`].
+    fn pole_seamed_loop(
+        &mut self,
+        patch: &Patch,
+        built: &[BuiltLoop],
+        at: usize,
+    ) -> Option<Vec<BuiltLoop>> {
+        let loop_ = built.get(at)?;
+        let rim = loop_.rim?;
+        let pole = periodic::degenerate_point(patch.primitive)?;
+        // A pole that is not comfortably clear of the rim is not a pole this
+        // face runs out to; it is the rim itself, seen twice.
+        if pole.sub(rim.point).norm() <= self.ctx.tol {
+            return None;
+        }
+        let v = self.add_vertex(pole);
+        let (seam, forward) = self.seam_edge(patch, rim.seam, v)?;
+
+        let mut wire = loop_.wire.clone();
+        wire.push(OrientedEdge::new(seam, forward));
+        wire.push(OrientedEdge::new(seam, !forward));
+        Some(vec![BuiltLoop {
+            normal: V3::ZERO,
+            entry: loop_.entry,
+            wire,
+            rim: None,
+        }])
+    }
+
+    /// The fundamental polygon `a b a⁻¹ b⁻¹` a doubly closed surface is
+    /// bounded by: a whole doughnut, which has no rim to seam to.
+    fn closed_periodic_loop(&mut self, surface: &FaceSurface) -> Option<Vec<BuiltLoop>> {
+        let FaceSurface::Torus(torus) = surface else {
             return None;
         };
-        let (seam, forward) = self.own_edge(*v0, *v1)?;
-        let mut out = first.clone();
-        out.push(OrientedEdge::new(seam, forward));
-        out.extend(second.iter().copied());
-        out.push(OrientedEdge::new(seam, !forward));
-        Some(out)
+        let v = self.add_vertex(from_point(torus.evaluate(0.0, 0.0)));
+        let a = self.topo.add_edge(KernelEdge::new(v, v, EdgeCurve::Line));
+        let b = self.topo.add_edge(KernelEdge::new(v, v, EdgeCurve::Line));
+        Some(vec![BuiltLoop {
+            normal: V3::ZERO,
+            entry: v,
+            wire: vec![
+                OrientedEdge::new(a, true),
+                OrientedEdge::new(b, true),
+                OrientedEdge::new(a, false),
+                OrientedEdge::new(b, false),
+            ],
+            rim: None,
+        }])
+    }
+
+    /// The seam edge between two points on a periodic surface.
+    ///
+    /// A **straight** edge, whatever the surface. `revolve` seams its walls
+    /// with the original profile — an arc on a torus — but the
+    /// tessellator does not require that: its two-rim torus band takes "the
+    /// one OPEN edge used exactly twice" of any curve type and reads only its
+    /// ends and its midpoint
+    /// (`crates/operations/src/tessellate/nonplanar.rs:683-702`), and its
+    /// cylinder/cone band wants a line outright (`nonplanar.rs:329-333`).
+    /// Drawing the meridian arc instead was measured and is worse: it costs
+    /// `cockpit-plug/mesh-export` its mixed tier, because two rims recovered
+    /// as arc chains meet at corners the mesh put wherever it liked and the
+    /// meridian through one is not the meridian through the other.
+    ///
+    /// Returns the edge with the flag that traverses it from `v0` to `v1`. It
+    /// is created once and used twice by this one face, which is the B-Rep
+    /// convention the kernel's own builders and its band tessellator both
+    /// read.
+    fn seam_edge(&mut self, patch: &Patch, v0: VertexId, v1: VertexId) -> Option<(EdgeId, bool)> {
+        periodic::is_periodic(patch.primitive)
+            .then(|| self.own_edge(v0, v1))
+            .flatten()
     }
 
     /// Chain a patch's loop into a wire, in the face's outward sense.
@@ -939,6 +1169,11 @@ impl<'a> Builder<'a> {
     /// polygon at all: a loop's chains concatenated in discovery order enclose
     /// nothing, which ranks a face's outer boundary below its holes.
     fn loop_normal(&self, order: &[(u32, bool)]) -> V3 {
+        polygon_normal(&self.loop_points(order))
+    }
+
+    /// The loop's mesh vertices, in the order the wire walks them.
+    fn loop_points(&self, order: &[(u32, bool)]) -> Vec<V3> {
         let mut pts: Vec<V3> = Vec::new();
         for &(id, forward) in order {
             let Some(chain) = self.ctx.chains.get(id as usize) else {
@@ -958,7 +1193,7 @@ impl<'a> Builder<'a> {
             }
             pts.extend(run);
         }
-        polygon_normal(&pts)
+        pts
     }
 
     /// Whether the fitted surface's own normal points out of the body.

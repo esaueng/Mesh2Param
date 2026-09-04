@@ -9,6 +9,7 @@ use core::f64::consts::TAU;
 
 use super::*;
 use crate::mesh::MeshData;
+use crate::segment::{Inventory, Patch, Primitive};
 
 /// A triangle soup under construction, in the winding the mesh will keep.
 #[derive(Default)]
@@ -75,6 +76,92 @@ fn capped_cylinder(radius: f64, height: f64, facets: usize) -> MeshData {
         s.quad(at(k, 0.0), at(k + 1, 0.0), at(k + 1, height), at(k, height));
         s.tri([0.0, 0.0, 0.0], at(k + 1, 0.0), at(k, 0.0));
         s.tri([0.0, 0.0, height], at(k, height), at(k + 1, height));
+    }
+    s.mesh()
+}
+
+/// A capped cone frustum about the z axis.
+fn capped_frustum(bottom: f64, top: f64, height: f64, facets: usize) -> MeshData {
+    let mut s = Soup::default();
+    let at = |k: usize, r: f64, z: f64| {
+        let a = TAU * (k % facets) as f64 / facets as f64;
+        [r * a.cos(), r * a.sin(), z]
+    };
+    for k in 0..facets {
+        s.quad(
+            at(k, bottom, 0.0),
+            at(k + 1, bottom, 0.0),
+            at(k + 1, top, height),
+            at(k, top, height),
+        );
+        s.tri([0.0, 0.0, 0.0], at(k + 1, bottom, 0.0), at(k, bottom, 0.0));
+        s.tri(
+            [0.0, 0.0, height],
+            at(k, top, height),
+            at(k + 1, top, height),
+        );
+    }
+    s.mesh()
+}
+
+/// A cone closed at its apex, on a flat base.
+fn pointed_cone(radius: f64, height: f64, facets: usize) -> MeshData {
+    let mut s = Soup::default();
+    let apex = [0.0, 0.0, height];
+    let at = |k: usize| {
+        let a = TAU * (k % facets) as f64 / facets as f64;
+        [radius * a.cos(), radius * a.sin(), 0.0]
+    };
+    for k in 0..facets {
+        s.tri(at(k), at(k + 1), apex);
+        s.tri([0.0, 0.0, 0.0], at(k + 1), at(k));
+    }
+    s.mesh()
+}
+
+/// A whole doughnut about the z axis: one closed periodic surface with no
+/// boundary anywhere on it.
+fn torus_ring(major: f64, minor: f64, around: usize, across: usize) -> MeshData {
+    let mut s = Soup::default();
+    let at = |i: usize, j: usize| {
+        let th = TAU * (i % around) as f64 / around as f64;
+        let ph = TAU * (j % across) as f64 / across as f64;
+        let rho = minor.mul_add(ph.cos(), major);
+        [rho * th.cos(), rho * th.sin(), minor * ph.sin()]
+    };
+    for i in 0..around {
+        for j in 0..across {
+            s.tri(at(i, j), at(i + 1, j), at(i, j + 1));
+            s.tri(at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));
+        }
+    }
+    s.mesh()
+}
+
+/// A ball with one flat cut off it, the shape a ball stud ends in: a sphere of
+/// radius `radius` truncated at `z = cut`, capped by the disc that leaves.
+fn ball_with_flat(radius: f64, cut: f64, facets: usize, rings: usize) -> MeshData {
+    let mut s = Soup::default();
+    let phi_top = (cut / radius).asin();
+    let phi = |j: usize| {
+        let t = j as f64 / rings as f64;
+        (-core::f64::consts::FRAC_PI_2).mul_add(1.0 - t, phi_top * t)
+    };
+    let at = |i: usize, j: usize| {
+        let a = TAU * (i % facets) as f64 / facets as f64;
+        let p = phi(j);
+        let r = radius * p.cos();
+        [r * a.cos(), r * a.sin(), radius * p.sin()]
+    };
+    let pole = [0.0, 0.0, -radius];
+    for i in 0..facets {
+        // The south pole fan, then the latitude bands up to the cut.
+        s.tri(pole, at(i + 1, 1), at(i, 1));
+        for j in 1..rings {
+            s.quad(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));
+        }
+        // The flat, facing +z.
+        s.tri([0.0, 0.0, cut], at(i, rings), at(i + 1, rings));
     }
     s.mesh()
 }
@@ -230,6 +317,146 @@ fn a_capped_cylinder_becomes_three_analytic_faces() {
         (b.volume - exact).abs() / exact < 0.01,
         "volume {} against {exact}",
         b.volume
+    );
+}
+
+/// The volume a periodic face has to reproduce, within half a percent.
+///
+/// The mesh under-reports a curved body by its own chord sagitta, so the
+/// analytic solid is measured against the closed-form volume rather than
+/// against the mesh: a face built as two rim wires instead of one seamed wire
+/// tessellates to roughly a third of it.
+#[track_caller]
+fn assert_volume(build: &BuildResult, exact: f64) {
+    assert!(build.valid, "issues: {:?}", build.issues);
+    assert!(
+        (build.volume - exact).abs() / exact < 0.005,
+        "volume {} against {exact} ({:.1}% off), tier {:?}, failures {:?}",
+        build.volume,
+        (build.volume - exact).abs() / exact * 100.0,
+        build.tier,
+        build.face_failures,
+    );
+}
+
+#[test]
+fn a_seamed_cylinder_tessellates_to_its_own_volume() {
+    let mesh = capped_cylinder(1.0, 2.0, 96);
+    let out = run(&mesh);
+    assert_eq!(out.build.tier, Tier::Analytic);
+    assert_volume(&out.build, core::f64::consts::PI * 2.0);
+}
+
+#[test]
+fn a_seamed_cone_frustum_tessellates_to_its_own_volume() {
+    let mesh = capped_frustum(2.0, 1.0, 3.0, 96);
+    let out = run(&mesh);
+    let b = &out.build;
+    assert_eq!(b.tier, Tier::Analytic, "failures: {:?}", b.face_failures);
+    assert_eq!(b.faces_analytic, 3, "failures: {:?}", b.face_failures);
+    let exact = core::f64::consts::PI * 3.0 * (4.0 + 2.0 + 1.0) / 3.0;
+    assert_volume(b, exact);
+}
+
+#[test]
+fn a_pointed_cone_seams_its_wall_out_to_the_apex() {
+    let mesh = pointed_cone(2.0, 4.0, 96);
+    let out = run(&mesh);
+    let b = &out.build;
+    assert_eq!(b.tier, Tier::Analytic, "failures: {:?}", b.face_failures);
+    // One cone and its base disc: the wall is `rim, seam, seam⁻¹`, the seam
+    // line doubled out to the apex, which is the only wire the kernel's apex
+    // fan accepts.
+    assert_eq!(b.faces_analytic, 2, "failures: {:?}", b.face_failures);
+    assert_volume(b, core::f64::consts::PI * 4.0 * 4.0 / 3.0);
+}
+
+/// A whole doughnut, built straight from a hand-written single-torus
+/// segmentation.
+///
+/// It cannot be reached through [`reconstruct`]: a torus swept a full turn
+/// around its tube defeats the axis estimator, and the segmenter breaks the
+/// mesh into eight patches instead of one (see the segmentation stage's known
+/// limits). What is under test here is the face, not the recognition — a
+/// closed periodic surface has no rim to seam to and is bounded by the
+/// fundamental polygon instead.
+#[test]
+fn a_whole_torus_is_one_face_on_a_fundamental_polygon() {
+    let (major, minor) = (5.0, 1.5);
+    let mesh = torus_ring(major, minor, 96, 48);
+    let welded = mesh.welded().unwrap();
+    let seg = Segmentation {
+        patches: vec![Patch {
+            id: 0,
+            kind: PatchKind::Torus,
+            faces: (0..welded.triangles.len() as u32).collect(),
+            area: 0.0,
+            rms_residual: Some(0.0),
+            max_residual: Some(0.0),
+            primitive: Primitive::Torus {
+                center: [0.0, 0.0, 0.0],
+                axis_dir: [0.0, 0.0, 1.0],
+                major_radius: major,
+                minor_radius: minor,
+            },
+        }],
+        face_patch: vec![0; welded.triangles.len()],
+        inventory: Inventory {
+            torus: 1,
+            ..Inventory::default()
+        },
+        unknown_area_fraction: 0.0,
+        tolerance: 0.01,
+    };
+    let topo = recover(&mesh, &seg, &TopologyOptions::default()).unwrap();
+    assert_eq!(topo.edges.len(), 0, "a whole torus has no boundary");
+
+    let b = build_solid(&mesh, &seg, &topo, &BuildOptions::default()).unwrap();
+    assert_eq!(b.tier, Tier::Analytic, "failures: {:?}", b.face_failures);
+    assert_eq!(b.faces_analytic, 1, "failures: {:?}", b.face_failures);
+    assert_volume(
+        &b,
+        2.0 * core::f64::consts::PI.powi(2) * major * minor * minor,
+    );
+}
+
+/// A spherical dome on a flat: one rim, no seam, and the kernel's cap web
+/// meshes it.
+#[test]
+fn a_spherical_dome_tessellates_to_its_own_volume() {
+    let (radius, cut) = (2.0, -1.4);
+    let mesh = ball_with_flat(radius, cut, 96, 24);
+    let out = run(&mesh);
+    let b = &out.build;
+    assert_eq!(b.tier, Tier::Analytic, "failures: {:?}", b.face_failures);
+    assert_eq!(b.faces_analytic, 2, "failures: {:?}", b.face_failures);
+    let height = radius + cut;
+    let exact = core::f64::consts::PI * height * height * 3.0f64.mul_add(radius, -height) / 3.0;
+    assert_volume(b, exact);
+}
+
+/// The ball stud shape — a sphere with one flat cut off it — is still refused,
+/// and the refusal is the kernel's, not this stage's.
+///
+/// A spherical face wider than about 80 degrees has no structured
+/// tessellation path: `fill_sphere_cap_web` declines it outright
+/// (`crates/operations/src/tessellate/nonplanar.rs:2604`) and the latitude-cap
+/// path needs a **second** trimmed face on the same sphere, which a single
+/// ball has not got. The CDT fallback then meshes the wrong side of the rim.
+/// Seaming the face out to its pole, the way a cone's wall is seamed to its
+/// apex, measures worse rather than better, so it is not done.
+#[test]
+fn a_ball_with_a_flat_is_refused_by_the_tessellator() {
+    let (radius, cut) = (2.0, 1.0);
+    let mesh = ball_with_flat(radius, cut, 96, 32);
+    let out = run(&mesh);
+    let b = &out.build;
+    assert!(b.valid, "the solid itself is sound: {:?}", b.issues);
+    assert_eq!(b.tier, Tier::Faceted);
+    let reason = b.fallback_reason.as_deref().unwrap_or_default();
+    assert!(
+        reason.contains("failed verification"),
+        "expected the volume gate to catch it, got {reason:?}"
     );
 }
 
