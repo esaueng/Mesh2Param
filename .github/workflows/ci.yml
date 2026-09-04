@@ -142,6 +142,66 @@ jobs:
             artifacts/acceptance
             artifacts/geometry-acceptance
 
+  rust:
+    name: Rust core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # rust-toolchain.toml is the single source of truth for the pin. The
+      # install action needs the values as inputs, so read them out of the file
+      # rather than restating the channel here and letting the two drift.
+      - name: Read the pinned toolchain
+        id: toolchain
+        run: |
+          read_field() {
+            sed -n "s/^$1 *= *\"\\(.*\\)\"$/\\1/p" rust-toolchain.toml
+          }
+          read_list() {
+            sed -n "s/^$1 *= *\\[\\(.*\\)\\]$/\\1/p" rust-toolchain.toml \
+              | tr -d '" '
+          }
+          {
+            echo "channel=$(read_field channel)"
+            echo "components=$(read_list components)"
+            echo "targets=$(read_list targets)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master @ 2026-09-03
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: ${{ steps.toolchain.outputs.components }}
+          targets: ${{ steps.toolchain.outputs.targets }}
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build for the browser target
+        run: cargo build -p mesh2param-core --target wasm32-unknown-unknown
+
+      # Runs the corpus scoreboard in subset mode (meshes up to 30k triangles)
+      # against crates/mesh2param-core/scoreboard-baseline.json.
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Upload the scoreboard
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rust-scoreboard-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: target/scoreboard.json
+
   containers:
     name: Containers
     runs-on: ubuntu-24.04

@@ -1,0 +1,23 @@
+[package]
+name = "mesh2param-core"
+version = "0.1.0"
+description = "Mesh-to-B-Rep reconstruction core: mesh in, STEP out"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+# The kernel is pinned by revision, never by branch. Product and kernel move at
+# different speeds: picking up a kernel change is a deliberate pin bump with the
+# corpus scoreboard rerun, not implicit drift. See README.md for the procedure.
+[dependencies]
+remus-io = {git = "https://github.com/esaueng/remus", rev = "cbd1382f8ee3113ce1c42415308ab3488e641625"}
+remus-math = {git = "https://github.com/esaueng/remus", rev = "cbd1382f8ee3113ce1c42415308ab3488e641625"}
+remus-operations = {git = "https://github.com/esaueng/remus", rev = "cbd1382f8ee3113ce1c42415308ab3488e641625"}
+remus-topology = {git = "https://github.com/esaueng/remus", rev = "cbd1382f8ee3113ce1c42415308ab3488e641625"}
+serde = {version = "1", features = ["derive"]}
+serde_json = "1"
+thiserror = "2"
+
+[lints]
+workspace = true

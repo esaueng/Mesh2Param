@@ -1,0 +1,78 @@
+[workspace]
+members = ["crates/mesh2param-core"]
+resolver = "3"
+
+# The spikes are throwaway measurement packages with their own pinned
+# dependency graphs (path dependencies into a sibling checkout). Keeping them
+# out of the workspace stops Cargo from adopting them and keeps their builds
+# independent of the product lock file.
+exclude = ["spikes/remus-floor", "spikes/segmentation"]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.88"
+
+# Lint policy mirrors the kernel's, so a crate that moves between the two does
+# not change meaning. Keep in sync when the kernel pin is bumped.
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = {level = "deny", priority = -1}
+dbg_macro = "deny"
+expect_used = "warn"
+nursery = {level = "warn", priority = -1}
+panic = "warn"
+pedantic = {level = "warn", priority = -1}
+print_stderr = "deny"
+todo = "warn"
+unwrap_used = "warn"
+# Numeric/geometry code commonly needs these
+bool_to_int_with_if = "allow"
+branches_sharing_code = "allow"
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+derive_partial_eq_without_eq = "allow"
+doc_markdown = "allow"
+if_same_then_else = "allow"
+imprecise_flops = "allow"
+iter_over_hash_type = "allow"
+manual_let_else = "allow"
+manual_slice_fill = "allow"
+many_single_char_names = "allow"
+map_unwrap_or = "allow"
+match_same_arms = "allow"
+missing_const_for_fn = "allow"
+module_name_repetitions = "allow"
+needless_pass_by_value = "allow"
+needless_range_loop = "allow"
+option_if_let_else = "allow"
+redundant_else = "allow"
+similar_names = "allow"
+suboptimal_flops = "allow"
+suspicious_operation_groupings = "allow"
+too_many_lines = "allow"
+tuple_array_conversions = "allow"
+uninlined_format_args = "allow"
+used_underscore_binding = "allow"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+
+# The corpus scoreboard spends nearly all its time inside the kernel, so an
+# unoptimized dependency build dominates the run: the subset scoreboard takes
+# ~9 minutes at opt-level 0 and well under two at opt-level 2. Debug assertions
+# and overflow checks stay on; only the codegen quality of dependencies changes.
+[profile.dev.package."*"]
+debug = false
+opt-level = 2
+
+[profile.test.package."*"]
+debug = false
+opt-level = 2
