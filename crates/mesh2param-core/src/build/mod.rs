@@ -36,6 +36,7 @@
 
 mod assemble;
 mod geom;
+mod periodic;
 #[cfg(test)]
 mod tests;
 mod verify;

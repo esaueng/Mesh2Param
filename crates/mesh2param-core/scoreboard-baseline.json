@@ -151,7 +151,7 @@
       "facesFinal": 640,
       "facesTriangle": 1108,
       "fallbackReason": "first solid was invalid (edge 246 has near-zero length (2.72e-15 < 1.00e-7)); retried with the reported faces demoted",
-      "stepBytes": 1012549,
+      "stepBytes": 1012555,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.0011056573070445258
@@ -340,7 +340,7 @@
       "facesAnalytic": 12,
       "facesFinal": 12,
       "facesTriangle": 0,
-      "stepBytes": 22307,
+      "stepBytes": 22319,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.0008311590899904764
@@ -426,7 +426,7 @@
       "facesFinal": 2682,
       "facesTriangle": 4309,
       "fallbackReason": "first solid was invalid (edge 1070 has near-zero length (6.11e-16 < 1.00e-7)); retried with the reported faces demoted",
-      "stepBytes": 4754461,
+      "stepBytes": 4754463,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 3.138648122023782e-05
@@ -507,15 +507,14 @@
     "facesUnified": 290,
     "mesh": "mesh-coarse",
     "reconstruct": {
-      "deviationP95": null,
-      "facesAnalytic": 0,
-      "facesFinal": 290,
-      "facesTriangle": 624,
-      "fallbackReason": "reconstruction failed verification: volume off by 12.0% (budget 5.0%), deviation p95 2.8973 (budget 2.8478)",
-      "stepBytes": 418128,
-      "tier": "faceted",
+      "deviationP95": 0.4027232136277137,
+      "facesAnalytic": 10,
+      "facesFinal": 10,
+      "facesTriangle": 0,
+      "stepBytes": 16445,
+      "tier": "analytic",
       "valid": true,
-      "volumeRelErr": 0.0
+      "volumeRelErr": 0.012788685504613371
     },
     "segmentation": {
       "groundTruth": {
@@ -556,15 +555,14 @@
     "facesUnified": 2394,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": null,
-      "facesAnalytic": 0,
-      "facesFinal": 2394,
-      "facesTriangle": 3780,
-      "fallbackReason": "reconstruction failed verification: volume off by 45.4% (budget 5.0%), deviation p95 3.3927 (budget 2.8554)",
-      "stepBytes": 3127640,
-      "tier": "faceted",
+      "deviationP95": 0.12145109190759498,
+      "facesAnalytic": 10,
+      "facesFinal": 10,
+      "facesTriangle": 0,
+      "stepBytes": 16186,
+      "tier": "analytic",
       "valid": true,
-      "volumeRelErr": 0.0
+      "volumeRelErr": 0.0023879511848243586
     },
     "segmentation": {
       "groundTruth": {
@@ -701,7 +699,7 @@
       "facesAnalytic": 21,
       "facesFinal": 190,
       "facesTriangle": 257,
-      "stepBytes": 308932,
+      "stepBytes": 308966,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.004548992189501288
@@ -792,7 +790,7 @@
       "facesAnalytic": 44,
       "facesFinal": 44,
       "facesTriangle": 0,
-      "stepBytes": 79873,
+      "stepBytes": 79909,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.00040758615736675557
@@ -877,7 +875,7 @@
       "facesAnalytic": 42,
       "facesFinal": 4004,
       "facesTriangle": 7848,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = -9 is invalid (expected V-E+F = 2+L with L=6 inner loops, got V=3299, E=5817, F=2509)); retried with the reported faces demoted",
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = -7 is invalid (expected V-E+F = 2+L with L=8 inner loops, got V=3299, E=5815, F=2509)); retried with the reported faces demoted",
       "stepBytes": 6374845,
       "tier": "mixed",
       "valid": true,
@@ -1012,7 +1010,7 @@
       "facesAnalytic": 13,
       "facesFinal": 141,
       "facesTriangle": 256,
-      "stepBytes": 265532,
+      "stepBytes": 265536,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.00025247051377271065
@@ -1060,7 +1058,7 @@
       "facesAnalytic": 33,
       "facesFinal": 667,
       "facesTriangle": 936,
-      "fallbackReason": "first solid was invalid (the outer shell is inside out: it encloses a signed volume of -657656.3140626017, so every face points into the body); retried with the reported faces demoted",
+      "fallbackReason": "first solid was invalid (the outer shell is inside out: it encloses a signed volume of -658331.8069534274, so every face points into the body); retried with the reported faces demoted",
       "stepBytes": 1044440,
       "tier": "mixed",
       "valid": true,
@@ -1109,7 +1107,7 @@
       "facesAnalytic": 0,
       "facesFinal": 7528,
       "facesTriangle": 10200,
-      "fallbackReason": "reconstruction failed verification: volume off by 1546215.0% (budget 5.0%), deviation p95 0.9767 (budget 2.6445)",
+      "fallbackReason": "reconstruction failed verification: volume off by 1546215.7% (budget 5.0%), deviation p95 0.0987 (budget 2.6445)",
       "stepBytes": 9430653,
       "tier": "faceted",
       "valid": true,
@@ -1256,7 +1254,7 @@
       "facesAnalytic": 45,
       "facesFinal": 45,
       "facesTriangle": 0,
-      "stepBytes": 72222,
+      "stepBytes": 72230,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 6.119497345660852e-05
@@ -1304,7 +1302,7 @@
       "facesAnalytic": 45,
       "facesFinal": 45,
       "facesTriangle": 0,
-      "stepBytes": 72222,
+      "stepBytes": 72230,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.00011545341309103551
@@ -1352,7 +1350,7 @@
       "facesAnalytic": 22,
       "facesFinal": 22,
       "facesTriangle": 0,
-      "stepBytes": 237264,
+      "stepBytes": 237284,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.0036302090638900665
@@ -1400,7 +1398,7 @@
       "facesAnalytic": 0,
       "facesFinal": 14002,
       "facesTriangle": 22192,
-      "fallbackReason": "solid invalid after retry: edge 881 is shared by 4 faces (non-manifold, expected 2)",
+      "fallbackReason": "solid invalid after retry: edge 2945 is shared by 4 faces (non-manifold, expected 2)",
       "stepBytes": 19461529,
       "tier": "faceted",
       "valid": true,
@@ -1449,7 +1447,7 @@
       "facesAnalytic": 32,
       "facesFinal": 426,
       "facesTriangle": 420,
-      "stepBytes": 950854,
+      "stepBytes": 951213,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 1.0
@@ -1497,7 +1495,7 @@
       "facesAnalytic": 0,
       "facesFinal": 3593,
       "facesTriangle": 4894,
-      "fallbackReason": "reconstruction failed verification: volume off by 2462076.2% (budget 5.0%), deviation p95 594615.5742 (budget 1.2583)",
+      "fallbackReason": "reconstruction failed verification: volume off by 2461926.0% (budget 5.0%), deviation p95 591008.8581 (budget 1.2583)",
       "stepBytes": 4568882,
       "tier": "faceted",
       "valid": true,
@@ -1595,7 +1593,7 @@
       "facesAnalytic": 17,
       "facesFinal": 1936,
       "facesTriangle": 1935,
-      "stepBytes": 2561917,
+      "stepBytes": 2561923,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.0010639059616628446
@@ -1643,7 +1641,7 @@
       "facesAnalytic": 0,
       "facesFinal": 1002,
       "facesTriangle": 1244,
-      "fallbackReason": "reconstruction failed verification: volume off by 2062082.4% (budget 5.0%), deviation p95 665030.3038 (budget 2.5517)",
+      "fallbackReason": "reconstruction failed verification: volume off by 894020.5% (budget 5.0%), deviation p95 284833.2922 (budget 2.5517)",
       "stepBytes": 1186523,
       "tier": "faceted",
       "valid": true,
@@ -1692,7 +1690,7 @@
       "facesAnalytic": 0,
       "facesFinal": 4549,
       "facesTriangle": 5908,
-      "fallbackReason": "reconstruction failed verification: volume off by 61855695.5% (budget 5.0%), deviation p95 3.6667 (budget 2.5605)",
+      "fallbackReason": "reconstruction failed verification: volume off by 67770109.0% (budget 5.0%), deviation p95 0.5703 (budget 2.5605)",
       "stepBytes": 5552540,
       "tier": "faceted",
       "valid": true,
@@ -1741,7 +1739,7 @@
       "facesAnalytic": 0,
       "facesFinal": 3078,
       "facesTriangle": 5314,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -3 is invalid (expected V-E+F = 2+L with L=14 inner loops, got V=4376, E=6239, F=1860)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -3 is invalid (expected V-E+F = 2+L with L=14 inner loops, got V=2376, E=4239, F=1860)",
       "stepBytes": 4168346,
       "tier": "faceted",
       "valid": true,
@@ -1790,7 +1788,7 @@
       "facesAnalytic": 0,
       "facesFinal": 3036,
       "facesTriangle": 4892,
-      "fallbackReason": "solid invalid after retry: edge 2888 is shared by 4 faces (non-manifold, expected 2)",
+      "fallbackReason": "solid invalid after retry: edge 1888 is shared by 4 faces (non-manifold, expected 2)",
       "stepBytes": 4143964,
       "tier": "faceted",
       "valid": true,
@@ -1839,7 +1837,7 @@
       "facesAnalytic": 0,
       "facesFinal": 1784,
       "facesTriangle": 3564,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=10 inner loops, got V=1807, E=2764, F=958)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=10 inner loops, got V=807, E=1764, F=958)",
       "stepBytes": 2606496,
       "tier": "faceted",
       "valid": true,
@@ -2030,7 +2028,7 @@
       "facesFinal": 628,
       "facesTriangle": 726,
       "fallbackReason": "first solid was invalid (edge 250 has near-zero length (8.88e-16 < 1.00e-7)); retried with the reported faces demoted",
-      "stepBytes": 939070,
+      "stepBytes": 939082,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.0002859780498384378
@@ -2123,14 +2121,14 @@
     "facesUnified": 4991,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": 0.9275808615318686,
+      "deviationP95": 0.745489277849267,
       "facesAnalytic": 30,
       "facesFinal": 221,
       "facesTriangle": 416,
-      "stepBytes": 674079,
+      "stepBytes": 674480,
       "tier": "mixed",
       "valid": true,
-      "volumeRelErr": 0.001946484055420713
+      "volumeRelErr": 0.006869058310568231
     },
     "segmentation": {
       "groundTruth": {
@@ -2269,15 +2267,14 @@
     "facesUnified": 8149,
     "mesh": "mesh-export",
     "reconstruct": {
-      "deviationP95": 0.036777496337890625,
-      "facesAnalytic": 13,
-      "facesFinal": 6353,
-      "facesTriangle": 11281,
-      "fallbackReason": "first solid was invalid (edge 304 has near-zero length (2.62e-15 < 1.00e-7)); retried with the reported faces demoted",
-      "stepBytes": 9536453,
+      "deviationP95": 0.033617124528926984,
+      "facesAnalytic": 16,
+      "facesFinal": 34,
+      "facesTriangle": 27,
+      "stepBytes": 265000,
       "tier": "mixed",
       "valid": true,
-      "volumeRelErr": 0.0026991463318125717
+      "volumeRelErr": 0.02712778876892176
     },
     "segmentation": {
       "groundTruth": null,
@@ -2316,7 +2313,7 @@
       "facesAnalytic": 4,
       "facesFinal": 4,
       "facesTriangle": 0,
-      "stepBytes": 6929,
+      "stepBytes": 6935,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.00012827322271311245
@@ -2545,14 +2542,14 @@
     "facesUnified": 281,
     "mesh": "mesh-coarse",
     "reconstruct": {
-      "deviationP95": 0.613572513454181,
+      "deviationP95": 0.3558292507975376,
       "facesAnalytic": 5,
       "facesFinal": 210,
       "facesTriangle": 398,
-      "stepBytes": 378317,
+      "stepBytes": 378685,
       "tier": "mixed",
       "valid": true,
-      "volumeRelErr": 0.006043076966302246
+      "volumeRelErr": 0.006876913044439229
     },
     "segmentation": {
       "groundTruth": {
@@ -2695,7 +2692,7 @@
       "facesAnalytic": 0,
       "facesFinal": 8531,
       "facesTriangle": 13048,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=25 inner loops, got V=5415, E=6927, F=1512)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=25 inner loops, got V=5809, E=9770, F=3961)",
       "stepBytes": 11035794,
       "tier": "faceted",
       "valid": true,
@@ -2891,7 +2888,7 @@
       "facesAnalytic": 0,
       "facesFinal": 10074,
       "facesTriangle": 15602,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -5 is invalid for shell component 0 (expected V-E+F = 2+L with L=74 inner loops, got V=36709, E=40398, F=3684)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -2 is invalid for shell component 0 (expected V-E+F = 2+L with L=77 inner loops, got V=6709, E=10395, F=3684)",
       "stepBytes": 13652933,
       "tier": "faceted",
       "valid": false,
@@ -2989,7 +2986,7 @@
       "facesAnalytic": 0,
       "facesFinal": 4008,
       "facesTriangle": 7116,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=50 inner loops, got V=10058, E=10441, F=384)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=50 inner loops, got V=10060, E=10443, F=384)",
       "stepBytes": 5601820,
       "tier": "faceted",
       "valid": true,
@@ -3038,7 +3035,7 @@
       "facesAnalytic": 0,
       "facesFinal": 4790,
       "facesTriangle": 8140,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 8 is invalid (expected V-E+F = 2+L with L=45 inner loops, got V=7281, E=9071, F=1798)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 8 is invalid (expected V-E+F = 2+L with L=45 inner loops, got V=3289, E=5079, F=1798)",
       "stepBytes": 6789736,
       "tier": "faceted",
       "valid": false,
@@ -3087,7 +3084,7 @@
       "facesAnalytic": 0,
       "facesFinal": 4696,
       "facesTriangle": 7082,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -13 is invalid (expected V-E+F = 2+L with L=38 inner loops, got V=5984, E=7507, F=1510)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -14 is invalid (expected V-E+F = 2+L with L=37 inner loops, got V=5984, E=7508, F=1510)",
       "stepBytes": 6057060,
       "tier": "faceted",
       "valid": true,
@@ -3136,7 +3133,7 @@
       "facesAnalytic": 0,
       "facesFinal": 3532,
       "facesTriangle": 4892,
-      "fallbackReason": "solid invalid after retry: the outer shell is inside out: it encloses a signed volume of -4116196.446861457, so every face points into the body",
+      "fallbackReason": "solid invalid after retry: the outer shell is inside out: it encloses a signed volume of -4116692.73482506, so every face points into the body",
       "stepBytes": 4204292,
       "tier": "faceted",
       "valid": true,
@@ -3185,7 +3182,7 @@
       "facesAnalytic": 0,
       "facesFinal": 17804,
       "facesTriangle": 23244,
-      "fallbackReason": "reconstruction failed verification: volume off by 1213802.3% (budget 5.0%), deviation p95 0.7686 (budget 6.7635)",
+      "fallbackReason": "reconstruction failed verification: volume off by 1213816.4% (budget 5.0%), deviation p95 0.6900 (budget 6.7635)",
       "stepBytes": 21751232,
       "tier": "faceted",
       "valid": true,
@@ -3234,7 +3231,7 @@
       "facesAnalytic": 0,
       "facesFinal": 6168,
       "facesTriangle": 11408,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 14 is invalid (expected V-E+F = 2+L with L=79 inner loops, got V=6263, E=8138, F=1889)",
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 10 is invalid (expected V-E+F = 2+L with L=75 inner loops, got V=6271, E=8150, F=1889)",
       "stepBytes": 8953058,
       "tier": "faceted",
       "valid": true,
@@ -3332,7 +3329,7 @@
       "facesAnalytic": 4,
       "facesFinal": 4,
       "facesTriangle": 0,
-      "stepBytes": 6887,
+      "stepBytes": 6891,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.002013596559820821
@@ -3374,7 +3371,7 @@
       "facesAnalytic": 0,
       "facesFinal": 628,
       "facesTriangle": 1624,
-      "fallbackReason": "reconstruction failed verification: volume off by 41.7% (budget 5.0%), deviation p95 2.1014 (budget 1.9313)",
+      "fallbackReason": "reconstruction failed verification: volume off by 24.3% (budget 5.0%), deviation p95 2.1448 (budget 1.9313)",
       "stepBytes": 1002400,
       "tier": "faceted",
       "valid": true,
@@ -3419,14 +3416,14 @@
     "facesUnified": 15510,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": 0.06573404513844269,
+      "deviationP95": 0.06689399631106116,
       "facesAnalytic": 144,
       "facesFinal": 144,
       "facesTriangle": 0,
-      "stepBytes": 3811465,
+      "stepBytes": 3811489,
       "tier": "analytic",
       "valid": true,
-      "volumeRelErr": 0.023787247368572715
+      "volumeRelErr": 0.022952716437550334
     },
     "segmentation": {
       "groundTruth": {
@@ -3471,7 +3468,7 @@
       "facesAnalytic": 12,
       "facesFinal": 3532,
       "facesTriangle": 6669,
-      "stepBytes": 6896060,
+      "stepBytes": 6896068,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.0021267776353956496
@@ -3513,7 +3510,7 @@
       "facesAnalytic": 13,
       "facesFinal": 226,
       "facesTriangle": 470,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=5 inner loops, got V=321, E=400, F=81)); retried with the reported faces demoted",
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 3 is invalid (expected V-E+F = 2+L with L=6 inner loops, got V=321, E=399, F=81)); retried with the reported faces demoted",
       "stepBytes": 378659,
       "tier": "mixed",
       "valid": true,
@@ -3562,7 +3559,7 @@
       "facesAnalytic": 31,
       "facesFinal": 255,
       "facesTriangle": 322,
-      "stepBytes": 395519,
+      "stepBytes": 395530,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.0073176801756049134
@@ -3751,7 +3748,7 @@
       "facesAnalytic": 0,
       "facesFinal": 1700,
       "facesTriangle": 3098,
-      "fallbackReason": "solid invalid after retry: edge 3236 is shared by 4 faces (non-manifold, expected 2)",
+      "fallbackReason": "solid invalid after retry: edge 3235 is shared by 4 faces (non-manifold, expected 2)",
       "stepBytes": 2394827,
       "tier": "faceted",
       "valid": true,
@@ -3800,7 +3797,7 @@
       "facesAnalytic": 0,
       "facesFinal": 406,
       "facesTriangle": 514,
-      "fallbackReason": "reconstruction failed verification: volume off by 49.4% (budget 5.0%), deviation p95 2.8263 (budget 0.9882)",
+      "fallbackReason": "reconstruction failed verification: volume off by 29.5% (budget 5.0%), deviation p95 3.6342 (budget 0.9882)",
       "stepBytes": 503931,
       "tier": "faceted",
       "valid": true,
@@ -3845,15 +3842,14 @@
     "facesUnified": 6096,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": null,
-      "facesAnalytic": 0,
-      "facesFinal": 6096,
-      "facesTriangle": 6968,
-      "fallbackReason": "reconstruction failed verification: volume off by 22.0% (budget 5.0%), deviation p95 0.6164 (budget 0.9899)",
-      "stepBytes": 7770325,
-      "tier": "faceted",
+      "deviationP95": 0.01909132219358426,
+      "facesAnalytic": 13,
+      "facesFinal": 13,
+      "facesTriangle": 0,
+      "stepBytes": 1318167,
+      "tier": "analytic",
       "valid": true,
-      "volumeRelErr": 0.0
+      "volumeRelErr": 0.004821727896676015
     },
     "segmentation": {
       "groundTruth": {
@@ -4039,7 +4035,7 @@
       "facesAnalytic": 12,
       "facesFinal": 12,
       "facesTriangle": 0,
-      "stepBytes": 19639,
+      "stepBytes": 19652,
       "tier": "analytic",
       "valid": true,
       "volumeRelErr": 0.004542014799632539
@@ -4083,15 +4079,14 @@
     "facesUnified": 2772,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": null,
-      "facesAnalytic": 0,
-      "facesFinal": 2772,
-      "facesTriangle": 3402,
-      "fallbackReason": "reconstruction failed verification: volume off by 14.5% (budget 5.0%), deviation p95 0.2447 (budget 1.5475)",
-      "stepBytes": 3372972,
-      "tier": "faceted",
+      "deviationP95": 0.06852414970695134,
+      "facesAnalytic": 12,
+      "facesFinal": 12,
+      "facesTriangle": 0,
+      "stepBytes": 19631,
+      "tier": "analytic",
       "valid": true,
-      "volumeRelErr": 0.0
+      "volumeRelErr": 0.0047933588821357995
     },
     "segmentation": {
       "groundTruth": {
@@ -4228,7 +4223,7 @@
       "facesAnalytic": 0,
       "facesFinal": 8998,
       "facesTriangle": 10270,
-      "fallbackReason": "solid invalid after retry: edge 11597 is shared by 4 faces (non-manifold, expected 2)",
+      "fallbackReason": "solid invalid after retry: edge 11596 is shared by 4 faces (non-manifold, expected 2)",
       "stepBytes": 11560903,
       "tier": "faceted",
       "valid": true,
@@ -4277,7 +4272,7 @@
       "facesAnalytic": 0,
       "facesFinal": 890,
       "facesTriangle": 1796,
-      "fallbackReason": "reconstruction failed verification: volume off by 6041.0% (budget 5.0%), deviation p95 1.5585 (budget 1.4762)",
+      "fallbackReason": "reconstruction failed verification: volume off by 6509.3% (budget 5.0%), deviation p95 1.4090 (budget 1.4762)",
       "stepBytes": 1301537,
       "tier": "faceted",
       "valid": true,
@@ -4420,15 +4415,14 @@
     "facesUnified": 2348,
     "mesh": "mesh-default",
     "reconstruct": {
-      "deviationP95": null,
-      "facesAnalytic": 0,
-      "facesFinal": 2348,
-      "facesTriangle": 2948,
-      "fallbackReason": "reconstruction failed verification: volume off by 5.4% (budget 5.0%), deviation p95 1.3232 (budget 2.2024)",
-      "stepBytes": 2940162,
-      "tier": "faceted",
+      "deviationP95": 1.1725472660685086,
+      "facesAnalytic": 7,
+      "facesFinal": 493,
+      "facesTriangle": 486,
+      "stepBytes": 902714,
+      "tier": "mixed",
       "valid": true,
-      "volumeRelErr": 0.0
+      "volumeRelErr": 0.01939547030789
     },
     "segmentation": {
       "groundTruth": {
@@ -4571,7 +4565,7 @@
       "facesAnalytic": 28,
       "facesFinal": 211,
       "facesTriangle": 416,
-      "stepBytes": 422653,
+      "stepBytes": 422685,
       "tier": "mixed",
       "valid": true,
       "volumeRelErr": 0.020065501770053507

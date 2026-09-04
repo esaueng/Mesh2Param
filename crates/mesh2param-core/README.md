@@ -326,13 +326,69 @@ not a face with a hole — it is a patch the segmenter merged out of two disjoin
 regions of the same plane, and one face cannot bound both, so the patch is
 demoted.
 
-**Periodic faces** bounded by two rims — a full cylinder, a cone frustum, a
-torus band — are not an outer wire with a hole in it. The kernel expects one
-wire that runs `rim, seam, rim, seam` down a doubled seam line, and every
-structured tessellation path in `remus_operations::tessellate` declines a curved
-face that has inner wires at all. Built as an outer plus an inner rim the
-capped cylinder is valid and tessellates to a third of its volume; built with
-the seam it tessellates to within 0.5% of it.
+**Periodic faces are seamed, not holed.** A face on a cylinder, a cone, a torus
+or a sphere is never an outer rim with the other rim as a hole: every structured
+tessellation path in `remus_operations::tessellate` declines a curved face that
+has inner wires at all, so the outer-plus-inner form validates clean and
+tessellates to about a third of its volume. The conventions are the kernel's
+own, read off its builders and its tessellator:
+
+* **The wire is `rim, seam, rim⁻¹, seam⁻¹`**, both rims still whole. That is
+  `extrude`'s side face over a full-circle profile
+  (`crates/operations/src/extrude.rs:1198-1214`) and `revolve`'s analytic wall
+  (`revolve.rs:1002-1009`). A rim is not halved to give the seam somewhere to
+  land: what the band mesher reads is a cycle that winds a full turn, either one
+  closed circle or a chain of arcs summing to one
+  (`tessellate/nonplanar.rs:292-299`).
+* **A rim is what winds, not what is round.** Which of a face's loops are rims
+  is decided by net winding about the surface's own axis, measured on the loop's
+  mesh polygon — the same question the kernel asks of its tessellation
+  candidates. A rim arrives as one closed circle when nothing lands on it and as
+  a chain of arcs when something does; a bore through the wall is closed and
+  winds nothing, so it stays an inner wire.
+* **Both rims seam on one meridian.** Each rim's circle comes from its own
+  intersection and its normal can point either way along the shared axis, and
+  `Frame3::from_normal` builds `x` as `z x candidate`, which flips with `z`: a
+  rim anchored at its own `evaluate(0)` can sit half a turn from its neighbour
+  and the seam between them then cuts across the body instead of running along
+  it. The anchor is taken from the axis **line**, sign canonicalised.
+* **The seam is a straight edge**, created once and used twice. `revolve` seams
+  its walls with the original profile — an arc on a torus or a sphere — but the
+  tessellator does not require that: its two-rim torus band takes "the one OPEN
+  edge used exactly twice" of any curve type and reads only its ends and its
+  midpoint (`nonplanar.rs:683-702`). Drawing the meridian arc instead was
+  measured and is worse, because two rims recovered as arc chains meet at
+  corners the mesh put wherever it liked and the meridian through one is not the
+  meridian through the other.
+* **A wall that runs out to a point** is `rim, seam, seam⁻¹`, the seam doubled
+  between the rim and a cone's apex — the only wire
+  `tessellate_cone_apex_fan_shared` accepts (`nonplanar.rs:507`).
+* **A surface closed in both directions** — a whole doughnut — has no rim at all
+  and is bounded by the fundamental polygon `a b a⁻¹ b⁻¹` on two degenerate seam
+  edges at one vertex, as `revolve` builds one (`revolve.rs:1181-1199`).
+
+**A marched rim is read back as the circle it is.** Topology recovery hands a
+rim over as a `Curve::Circle` when the kernel had a closed form for it and as a
+sampled `Curve::Polyline` when only the marcher did — a cone against a coaxial
+cylinder is exactly a circle and still comes back as a thousand points. Built
+literally that rim is a thousand `EdgeCurve::Line` edges, and the band mesher
+counts only circles and NURBS as rim candidates and reads every line as a seam:
+the band declines and the CDT fallback meshes the wrong region.
+`stepped-shaft-spacer/mesh-default` is 14.5% off its own volume that way and
+0.5% off with the rim read back. Three gates keep the fit honest — every sample
+within a quarter tolerance of the circle and of its plane, a radius no more than
+four times the ring's own extent, and a full turn of winding — and it is only
+attempted where **the marcher was the only route**: both sides quadrics, and the
+circle coaxial with one of them. A plane against a quadric has a closed-form arm
+that returns the circle directly, so a plane-bounded ring that came back marched
+is one where that arm was tried and rejected, and the samples are then the
+better answer than any circle drawn through them.
+
+Measured: the capped cylinder, the cone frustum, the pointed cone and the whole
+torus each tessellate to within 0.5% of their closed-form volume, and the corpus
+histogram moves from 9 analytic / 24 mixed / 66 faceted to 13 / 25 / 61.
+esaueng/remus#264 stays **open**: the workaround is here, not upstream, and
+`validate_solid` still accepts the inner-wire form without a word.
 
 **Unknown and open patches become triangles**, one planar face per mesh
 triangle, on the same shared vertices and edges, so the shell still closes.
@@ -385,12 +441,29 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 
 ### Known limits
 
-* **Recognition, not assembly, is what caps the tier.** Of 93 corpus meshes
-  that reach this stage, 9 come back `Analytic`, 24 `Mixed` and 66 `Faceted`.
-  21 of the 66 are solids that built and validated and then failed
+* **Recognition, not assembly, is what caps the tier.** Of 99 corpus meshes
+  that reach this stage, 13 come back `Analytic`, 25 `Mixed` and 61 `Faceted`.
+  Most of the 61 are solids that built and validated and then failed
   verification — the shape is wrong, not the topology — and the biggest of
   those are gross: `cable-saddle-clamp/mesh-default` builds a valid 16-face
-  analytic solid whose volume is 960x the mesh's.
+  analytic solid whose volume is 960x the mesh's, and `hex-standoff-spacer`
+  reports 8 planes and 2 spheres against a ground truth of 20 planes and no
+  sphere. Those are recognition failures with nothing periodic about them: the
+  seam work above moved five meshes and none of the hex-prism-as-cylinder
+  class.
+* **A spherical face wider than about 80 degrees has no structured
+  tessellation path.** `fill_sphere_cap_web` declines it outright
+  (`tessellate/nonplanar.rs:2604`) and the latitude-cap path needs a second
+  trimmed face on the same sphere, which a lone ball has not got — so the ball
+  stud shape (a sphere with one flat cut off it) builds a valid solid that
+  tessellates 59% under its volume and drops to `Faceted`. Seaming it out to
+  its pole the way a cone's wall is seamed to its apex measures **worse**, 82%,
+  so it is not done; a spherical dome inside the 80 degrees meshes fine.
+* **A whole doughnut cannot be reached through `reconstruct`.** The face is
+  built and measured (`build_solid` on a hand-written single-torus
+  segmentation), but a torus swept a full turn around its tube defeats the
+  segmenter's axis estimator, which breaks the mesh into eight patches instead
+  of one.
 * **The retry is all-or-nothing.** A solid that fails verification falls
   straight to the faceted tier rather than demoting the faces responsible and
   rebuilding, because the deviation is measured per part and not per face. A
@@ -430,7 +503,18 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 * Every structured tessellation path declines a curved face with inner wires,
   so a periodic band has to be expressed with a doubled seam edge. That is a
   reasonable convention, but `validate_solid` accepts the inner-wire form
-  without a word and only the geometry gives it away.
+  without a word and only the geometry gives it away. Filed as
+  **esaueng/remus#264**, and left open: the seam is built here now (see
+  "Periodic faces are seamed, not holed" above), but nothing upstream yet
+  either accepts the two-rim form or rejects it with a message, so the next
+  caller will find it the same way this one did.
+* A spherical face wider than about 80 degrees has no structured tessellation
+  path, and the CDT fallback meshes the wrong side of the rim. The latitude-cap
+  path could take it, but is gated on a second trimmed face existing on the
+  same sphere.
+* The general marcher's output is a fitted NURBS, never a circle, even where
+  the intersection is exactly one. Every caller that needs a rim has to
+  recognise the circle back out of the samples itself.
 * A NURBS boundary edge on a cylindrical face is treated as a rim candidate by
   the band tessellator, which then sweeps a band that is not there.
 
