@@ -123,8 +123,15 @@ jobs:
           --cov-report=term-missing
           --cov-report=xml:coverage-backend.xml
 
+      # The viewer perf budgets are written for a machine with a GPU. This
+      # runner has none, so headless Chromium rasterizes through SwiftShader on
+      # the same shared vCPUs the measured JavaScript runs on;
+      # docs/viewer-performance.md records the measured spread. The gate stays
+      # in force here, just scaled — see tests/browser/support/perfBudget.ts.
       - name: Run browser acceptance
         if: matrix.task == 'browser'
+        env:
+          MESH2PARAM_E2E_PERF_SCALE: "3"
         run: pnpm test:e2e
 
       - name: Upload verification evidence

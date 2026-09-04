@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { perfBudgetMs } from "./support/perfBudget";
 
 interface GlbAccessor {
   componentType: number;
@@ -21,6 +22,10 @@ interface GlbDocument {
   }>;
   nodes: Array<{ scale?: number[]; translation?: number[] }>;
 }
+
+// Same scene-build gate as viewer-scene-build.spec.ts, scaled for the GPU-less
+// CI runner. See docs/viewer-performance.md.
+const SCENE_BUILD_BUDGET_MS = perfBudgetMs(100);
 
 const CYLINDER_SAMPLES = [
   { id: "spacer", diameter: 24, maxGlbBytes: 100_000 },
@@ -126,7 +131,7 @@ async function assertNormalAndCloseRender(
     performance.getEntriesByName("mesh2param:artifact-build", "measure")
       .map((entry) => entry.duration));
   expect(sceneBuilds.length).toBeGreaterThan(0);
-  expect(Math.max(...sceneBuilds)).toBeLessThan(100);
+  expect(Math.max(...sceneBuilds)).toBeLessThan(SCENE_BUILD_BUDGET_MS);
 }
 
 test("exact cylinders stay smooth across diameters at normal and close zoom", async ({

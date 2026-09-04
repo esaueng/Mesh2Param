@@ -20,6 +20,7 @@ import type {
   Units,
 } from "../state/types";
 import { blobKey } from "./db";
+import { releaseAfterDownloadStarts } from "./objectUrl";
 import {
   MAX_EMBEDDED_SOURCE_BYTES,
   ProjectFileError,
@@ -1002,8 +1003,10 @@ export async function saveProjectFile(
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
-  } finally {
+  } catch (cause) {
     URL.revokeObjectURL(url);
+    throw cause;
   }
+  releaseAfterDownloadStarts(url);
   return { method: "download", handle: null };
 }
