@@ -1,4 +1,4 @@
-"""Audit installed Python and pnpm dependency licenses against repository policy."""
+"""Audit Python, pnpm, and Cargo dependency licenses against repository policy."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import hashlib
 import importlib.metadata
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
@@ -19,6 +20,10 @@ DEFAULT_POLICY = ROOT / "licenses" / "overrides.toml"
 DEFAULT_NOTICES = ROOT / "THIRD_PARTY_NOTICES.md"
 INVENTORY_START = "<!-- BEGIN GENERATED DEPENDENCY INVENTORY -->"
 INVENTORY_END = "<!-- END GENERATED DEPENDENCY INVENTORY -->"
+RUST_INVENTORY_START = "<!-- BEGIN GENERATED RUST DEPENDENCY INVENTORY -->"
+RUST_INVENTORY_END = "<!-- END GENERATED RUST DEPENDENCY INVENTORY -->"
+CRATES_IO_REGISTRY = "registry+https://github.com/rust-lang/crates.io-index"
+UNKNOWN_LICENSE = "UNKNOWN"
 
 
 @dataclass(frozen=True, order=True)
@@ -28,6 +33,8 @@ class LicenseRecord:
     version: str
     license: str
     platform_constrained: bool = False
+    source: str = ""
+    repository: str = ""
 
     @property
     def package_key(self) -> str:
@@ -447,6 +454,144 @@ def _javascript_license_file_text(package_directory: Path) -> str | None:
     return None
 
 
+def load_cargo_metadata(*, root: Path = ROOT) -> tuple[Mapping[str, Any] | None, list[str]]:
+    """Resolve the Cargo dependency graph.
+
+    A missing toolchain is an audit failure, never a silent skip: the Rust core
+    ships in the same artifacts as the Python and browser code, so an inventory
+    that quietly omits it would understate the obligations of whoever
+    redistributes it.
+    """
+
+    command = [
+        "cargo",
+        "metadata",
+        "--format-version",
+        "1",
+        "--locked",
+        "--manifest-path",
+        str(root / "Cargo.toml"),
+    ]
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        return None, [
+            "cannot inventory Rust dependencies: `cargo` could not be run "
+            f"({exc}). Install the toolchain pinned in rust-toolchain.toml and "
+            "put cargo on PATH."
+        ]
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip().splitlines()
+        tail = detail[-1] if detail else f"exit status {completed.returncode}"
+        return None, [f"cannot inventory Rust dependencies: `cargo metadata` failed: {tail}"]
+    try:
+        document = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return None, [
+            f"cannot inventory Rust dependencies: `cargo metadata` output is not JSON: {exc}"
+        ]
+    if not isinstance(document, dict):
+        return None, [
+            "cannot inventory Rust dependencies: `cargo metadata` output is not an object"
+        ]
+    return document, []
+
+
+def _rust_source(package: Mapping[str, object]) -> str:
+    source = package.get("source")
+    if not isinstance(source, str) or not source.strip():
+        return "workspace path"
+    if source == CRATES_IO_REGISTRY or source.startswith(f"{CRATES_IO_REGISTRY}#"):
+        return "crates.io"
+    if source.startswith("git+"):
+        locator = source.removeprefix("git+")
+        url, _, revision = locator.partition("#")
+        url = url.partition("?")[0]
+        # The fragment carries the resolved commit even when the manifest pinned
+        # a branch or tag, so it is the only reproducible identifier here.
+        return f"git+{url}#{revision}" if revision else f"git+{url}"
+    return source
+
+
+def _rust_license_file_expression(package: Mapping[str, object]) -> str | None:
+    license_file = package.get("license_file")
+    manifest_path = package.get("manifest_path")
+    if not isinstance(license_file, str) or not isinstance(manifest_path, str):
+        return None
+    candidate = Path(manifest_path).parent / license_file
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    return normalize_license(None, text, [])
+
+
+def rust_records(
+    policy: LicensePolicy,
+    *,
+    root: Path = ROOT,
+    metadata: Mapping[str, Any] | None = None,
+) -> tuple[list[LicenseRecord], list[str]]:
+    """Inventory every resolved Cargo package that is not a workspace member."""
+
+    errors: list[str] = []
+    if metadata is None:
+        metadata, errors = load_cargo_metadata(root=root)
+        if metadata is None:
+            return [], errors
+
+    packages = metadata.get("packages")
+    if not isinstance(packages, list):
+        return [], ["cannot inventory Rust dependencies: `cargo metadata` has no package list"]
+    members = metadata.get("workspace_members")
+    member_ids: frozenset[str] = frozenset()
+    if isinstance(members, list):
+        member_ids = frozenset(item for item in members if isinstance(item, str))
+
+    records: dict[tuple[str, str], LicenseRecord] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            errors.append("Rust package metadata entry is not an object")
+            continue
+        identifier = package.get("id")
+        if isinstance(identifier, str) and identifier in member_ids:
+            continue
+        name = package.get("name")
+        version = package.get("version")
+        if not isinstance(name, str) or not name.strip():
+            errors.append("Rust package has no valid name")
+            continue
+        if not isinstance(version, str) or not version.strip():
+            errors.append(f"Rust package {name} has no valid version")
+            continue
+
+        package_key = f"rust:{name.casefold()}"
+        if package_key in policy.ignored_packages:
+            continue
+        override = policy.overrides.get(package_key)
+        if override is not None:
+            resolved = override.license
+        else:
+            declared = package.get("license")
+            expression = (
+                declared.strip() if isinstance(declared, str) and declared.strip() else None
+            )
+            # A crate with only `license-file` states its terms in prose; record
+            # the SPDX id only when the text is unambiguous, never a guess.
+            resolved = expression or _rust_license_file_expression(package) or UNKNOWN_LICENSE
+
+        repository = package.get("repository")
+        records[(name.casefold(), version)] = LicenseRecord(
+            "rust",
+            name,
+            version,
+            resolved,
+            source=_rust_source(package),
+            repository=repository if isinstance(repository, str) else "",
+        )
+    return sorted(records.values()), errors
+
+
 def policy_errors(
     records: Iterable[LicenseRecord],
     policy: LicensePolicy,
@@ -515,25 +660,75 @@ def dependency_configuration_errors(*, root: Path = ROOT) -> list[str]:
     return errors
 
 
-def render_inventory(records: Iterable[LicenseRecord]) -> str:
-    rows = [
-        INVENTORY_START,
+def _render_table(
+    start_marker: str,
+    end_marker: str,
+    header: Sequence[str],
+    rows: Iterable[Sequence[str]],
+) -> str:
+    lines = [
+        start_marker,
         "",
-        "| Ecosystem | Package | Version | Declared/effective license |",
-        "| --- | --- | --- | --- |",
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
     ]
-    for record in sorted(
-        {record for record in records if not record.platform_constrained}
-    ):
-        values = (
-            record.ecosystem,
-            record.name,
-            record.version,
-            record.license,
-        )
-        rows.append("| " + " | ".join(value.replace("|", "\\|") for value in values) + " |")
-    rows.extend(("", INVENTORY_END))
-    return "\n".join(rows)
+    lines.extend(
+        "| " + " | ".join(value.replace("|", "\\|") for value in row) + " |" for row in rows
+    )
+    lines.extend(("", end_marker))
+    return "\n".join(lines)
+
+
+def render_inventory(records: Iterable[LicenseRecord]) -> str:
+    selected = sorted(
+        {
+            record
+            for record in records
+            if not record.platform_constrained and record.ecosystem != "rust"
+        }
+    )
+    return _render_table(
+        INVENTORY_START,
+        INVENTORY_END,
+        ("Ecosystem", "Package", "Version", "Declared/effective license"),
+        (
+            (record.ecosystem, record.name, record.version, record.license)
+            for record in selected
+        ),
+    )
+
+
+def render_rust_inventory(records: Iterable[LicenseRecord]) -> str:
+    selected = sorted(
+        {
+            record
+            for record in records
+            if record.ecosystem == "rust" and not record.platform_constrained
+        }
+    )
+    return _render_table(
+        RUST_INVENTORY_START,
+        RUST_INVENTORY_END,
+        ("Crate", "Version", "Declared/effective license", "Source", "Repository"),
+        (
+            (
+                record.name,
+                record.version,
+                record.license,
+                record.source,
+                record.repository or "—",
+            )
+            for record in selected
+        ),
+    )
+
+
+def _replace_block(text: str, start_marker: str, end_marker: str, replacement: str) -> str | None:
+    start = text.find(start_marker)
+    end = text.find(end_marker)
+    if start < 0 or end < start:
+        return None
+    return text[:start] + replacement + text[end + len(end_marker) :]
 
 
 def inventory_errors(
@@ -542,44 +737,54 @@ def inventory_errors(
     if not notices_path.is_file():
         return [f"third-party notice file is missing: {notices_path.relative_to(ROOT)}"]
     text = notices_path.read_text(encoding="utf-8")
-    expected = render_inventory(records)
-    start = text.find(INVENTORY_START)
-    end = text.find(INVENTORY_END)
-    if start < 0 or end < start:
-        return ["THIRD_PARTY_NOTICES.md is missing generated inventory markers"]
-    actual = text[start : end + len(INVENTORY_END)]
-    if actual != expected:
-        return [
-            "THIRD_PARTY_NOTICES.md dependency inventory is stale; run "
-            "`uv run --extra dev python scripts/check_licenses.py --write-notices`"
-        ]
-    return []
+    records_list = list(records)
+    errors: list[str] = []
+    for start_marker, end_marker, expected in (
+        (INVENTORY_START, INVENTORY_END, render_inventory(records_list)),
+        (RUST_INVENTORY_START, RUST_INVENTORY_END, render_rust_inventory(records_list)),
+    ):
+        start = text.find(start_marker)
+        end = text.find(end_marker)
+        if start < 0 or end < start:
+            errors.append(f"THIRD_PARTY_NOTICES.md is missing the {start_marker} markers")
+            continue
+        if text[start : end + len(end_marker)] != expected:
+            errors.append(
+                "THIRD_PARTY_NOTICES.md dependency inventory is stale; run "
+                "`uv run --extra dev python scripts/check_licenses.py --write-notices`"
+            )
+    return errors
 
 
 def write_inventory(
     records: Iterable[LicenseRecord], *, notices_path: Path = DEFAULT_NOTICES
 ) -> None:
     text = notices_path.read_text(encoding="utf-8")
-    start = text.find(INVENTORY_START)
-    end = text.find(INVENTORY_END)
-    if start < 0 or end < start:
-        raise ValueError("THIRD_PARTY_NOTICES.md is missing generated inventory markers")
-    end += len(INVENTORY_END)
-    replacement = render_inventory(records)
-    notices_path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+    records_list = list(records)
+    for start_marker, end_marker, replacement in (
+        (INVENTORY_START, INVENTORY_END, render_inventory(records_list)),
+        (RUST_INVENTORY_START, RUST_INVENTORY_END, render_rust_inventory(records_list)),
+    ):
+        updated = _replace_block(text, start_marker, end_marker, replacement)
+        if updated is None:
+            raise ValueError(f"THIRD_PARTY_NOTICES.md is missing the {start_marker} markers")
+        text = updated
+    notices_path.write_text(text, encoding="utf-8")
 
 
 def run(*, write_notices: bool = False) -> int:
     policy = load_policy()
     python, python_errors = python_records(policy)
     javascript, javascript_errors = javascript_records(policy)
-    errors = python_errors + javascript_errors
-    records = sorted(set(python + javascript))
+    rust, rust_errors = rust_records(policy)
+    errors = python_errors + javascript_errors + rust_errors
+    records = sorted(set(python + javascript + rust))
     unavailable_ecosystems = frozenset(
         ecosystem
         for ecosystem, ecosystem_errors in (
             ("python", python_errors),
             ("javascript", javascript_errors),
+            ("rust", rust_errors),
         )
         if ecosystem_errors
     )
@@ -594,15 +799,15 @@ def run(*, write_notices: bool = False) -> int:
     errors.extend(dependency_configuration_errors())
     if write_notices and not errors:
         write_inventory(records)
-    if not python_errors and not javascript_errors:
+    if not python_errors and not javascript_errors and not rust_errors:
         errors.extend(inventory_errors(records))
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     print(
-        f"License audit passed: {len(python)} Python and "
-        f"{len(javascript)} JavaScript package/version records"
+        f"License audit passed: {len(python)} Python, "
+        f"{len(javascript)} JavaScript, and {len(rust)} Rust package/version records"
     )
     return 0
 

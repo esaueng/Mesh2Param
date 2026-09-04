@@ -54,6 +54,25 @@ jobs:
         with:
           node-version: 22.22.0
 
+      # `pnpm licenses:check` inventories the Cargo dependency graph through
+      # `cargo metadata` and fails loudly when the toolchain is absent, so the
+      # static task needs cargo even though it never builds the Rust core. The
+      # pin is read the same way the Rust job reads it.
+      - name: Read the pinned toolchain
+        if: matrix.task == 'static'
+        id: toolchain
+        run: |
+          read_field() {
+            sed -n "s/^$1 *= *\"\\(.*\\)\"$/\\1/p" rust-toolchain.toml
+          }
+          echo "channel=$(read_field channel)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        if: matrix.task == 'static'
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master @ 2026-09-03
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+
       - name: Set up uv
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:

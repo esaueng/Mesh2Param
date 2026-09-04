@@ -39,6 +39,7 @@ engineering, and modification requirements. Mesh2Param does not modify these com
 | API/runtime | FastAPI, Pydantic Settings, SQLAlchemy, Uvicorn | MIT and BSD-3-Clause |
 | Browser/runtime | React, React DOM, Three.js, R3F, Drei, Dexie, Immer, Lucide, Zustand, occt-wasm | MIT, Apache-2.0, ISC, and embedded OCCT LGPL-2.1 |
 | Fonts | IBM Plex Sans and IBM Plex Mono through `@fontsource` | SIL Open Font License 1.1 |
+| Rust core | Remus kernel crates (`remus-io`, `remus-math`, `remus-operations`, `remus-topology`), serde, serde_json, thiserror | Apache-2.0 and MIT OR Apache-2.0 |
 | Schema/runtime | Ajv, ajv-formats | MIT |
 | Development/test | Vite, TypeScript, ESLint, Vitest, Testing Library, Playwright, pytest, mypy, Ruff, jsonschema | MIT, Apache-2.0, BSD-family, and MPL-2.0 transitive components |
 
@@ -523,7 +524,77 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 
 <!-- END GENERATED DEPENDENCY INVENTORY -->
 
-To refresh and verify the inventory after changing either lockfile:
+## Rust
+
+`crates/mesh2param-core` resolves its dependency graph through the committed `Cargo.lock`. The table
+below is generated from `cargo metadata` and lists every resolved package except the workspace
+members themselves, with the source Cargo resolved it from. Crates.io packages are identified by
+name and version; git packages carry the exact commit Cargo pinned, not the branch or tag that
+selected it.
+
+The Remus geometry kernel crates (`remus-*`) come from
+[esaueng/remus](https://github.com/esaueng/remus) at the revision pinned in
+[`crates/mesh2param-core/Cargo.toml`](crates/mesh2param-core/Cargo.toml) and are Apache-2.0, the
+same license as Mesh2Param's own source. Unlike OCCT, the Rust core links no LGPL component: every
+crate below is under a permissive license. A crate that declares its terms only through a
+`license-file` is recorded as `UNKNOWN` and fails the audit until it is reviewed and given an
+override in [`licenses/overrides.toml`](licenses/overrides.toml).
+
+<!-- BEGIN GENERATED RUST DEPENDENCY INVENTORY -->
+
+| Crate | Version | Declared/effective license | Source | Repository |
+| --- | --- | --- | --- | --- |
+| bitflags | 2.13.1 | MIT OR Apache-2.0 | crates.io | https://github.com/bitflags/bitflags |
+| bumpalo | 3.20.3 | MIT OR Apache-2.0 | crates.io | https://github.com/fitzgen/bumpalo |
+| cfg-if | 1.0.4 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/cfg-if |
+| crc32fast | 1.5.1 | MIT OR Apache-2.0 | crates.io | https://github.com/srijs/rust-crc32fast |
+| crossbeam-deque | 0.8.7 | MIT OR Apache-2.0 | crates.io | https://github.com/crossbeam-rs/crossbeam |
+| crossbeam-epoch | 0.9.20 | MIT OR Apache-2.0 | crates.io | https://github.com/crossbeam-rs/crossbeam |
+| crossbeam-utils | 0.8.22 | MIT OR Apache-2.0 | crates.io | https://github.com/crossbeam-rs/crossbeam |
+| either | 1.18.0 | MIT OR Apache-2.0 | crates.io | https://github.com/rayon-rs/either |
+| equivalent | 1.0.2 | Apache-2.0 OR MIT | crates.io | https://github.com/indexmap-rs/equivalent |
+| flate2 | 1.1.10 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/flate2-rs |
+| hashbrown | 0.17.1 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/hashbrown |
+| indexmap | 2.14.1 | Apache-2.0 OR MIT | crates.io | https://github.com/indexmap-rs/indexmap |
+| itoa | 1.0.18 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/itoa |
+| log | 0.4.34 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/log |
+| memchr | 2.8.3 | Unlicense OR MIT | crates.io | https://github.com/BurntSushi/memchr |
+| proc-macro2 | 1.0.107 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/proc-macro2 |
+| quick-xml | 0.41.0 | MIT | crates.io | https://github.com/tafia/quick-xml |
+| quote | 1.0.47 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/quote |
+| rayon | 1.12.0 | MIT OR Apache-2.0 | crates.io | https://github.com/rayon-rs/rayon |
+| rayon-core | 1.13.0 | MIT OR Apache-2.0 | crates.io | https://github.com/rayon-rs/rayon |
+| remus-algo | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-blend | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-check | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-geometry | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-heal | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-io | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-math | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-offset | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-operations | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-sketch | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| remus-topology | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
+| robust | 1.2.0 | MIT OR Apache-2.0 | crates.io | https://github.com/georust/robust |
+| serde | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
+| serde_core | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
+| serde_derive | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
+| serde_json | 1.0.151 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/json |
+| simd-adler32 | 0.3.10 | MIT | crates.io | https://github.com/mcountryman/simd-adler32 |
+| smallvec | 1.16.0 | MIT OR Apache-2.0 | crates.io | https://github.com/servo/rust-smallvec |
+| syn | 3.0.4 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/syn |
+| thiserror | 2.0.20 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/thiserror |
+| thiserror-impl | 2.0.20 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/thiserror |
+| typed-path | 0.12.3 | MIT OR Apache-2.0 | crates.io | https://github.com/chipsenkbeil/typed-path |
+| unicode-ident | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 | crates.io | https://github.com/dtolnay/unicode-ident |
+| zip | 8.6.0 | MIT | crates.io | https://github.com/zip-rs/zip2 |
+| zlib-rs | 0.6.7 | Zlib | crates.io | https://github.com/trifectatechfoundation/zlib-rs |
+| zmij | 1.0.23 | MIT | crates.io | https://github.com/dtolnay/zmij |
+| zopfli | 0.8.3 | Apache-2.0 | crates.io | https://github.com/zopfli-rs/zopfli |
+
+<!-- END GENERATED RUST DEPENDENCY INVENTORY -->
+
+To refresh and verify the inventory after changing any lockfile:
 
 ```sh
 uv sync --extra dev
@@ -531,3 +602,6 @@ pnpm install --frozen-lockfile
 uv run --extra dev python scripts/check_licenses.py --write-notices
 uv run --extra dev python scripts/check_licenses.py
 ```
+
+The checker shells out to `cargo metadata`; the Rust toolchain pinned in `rust-toolchain.toml` must
+be on `PATH` or the audit fails rather than skipping the Rust ecosystem.

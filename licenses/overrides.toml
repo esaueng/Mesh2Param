@@ -68,6 +68,10 @@ required_notice_packages = [
   "javascript:react",
   "javascript:three",
   "javascript:vite",
+  "rust:remus-io",
+  "rust:remus-math",
+  "rust:remus-operations",
+  "rust:remus-topology",
 ]
 
 [[overrides]]
