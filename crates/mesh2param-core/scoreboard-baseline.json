@@ -1,3632 +1,4704 @@
 [
   {
-    "slug": "airtag-keychain",
-    "mesh": "mesh-coarse",
-    "triangles": 3468,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3468,
     "facesUnified": 2675,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2675,
+      "facesTriangle": 3468,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -5 is invalid (expected V-E+F = 2+L with L=4 inner loops, got V=3049, E=4484, F=1430)",
+      "stepBytes": 3503792,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 10,
+        "cylinder": 8,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 6
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 55,
-        "cylinder": 14,
         "cone": 2,
-        "torus": 0,
+        "cylinder": 14,
+        "plane": 55,
         "sphere": 9,
+        "torus": 0,
         "unknown": 34
       },
-      "unknownAreaFraction": 0.17283633281854707,
-      "groundTruth": {
-        "plane": 8,
-        "cylinder": 8,
-        "cone": 10,
-        "torus": 6,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 76
+      "inventoryError": 76,
+      "unknownAreaFraction": 0.17283633281854707
     },
+    "slug": "airtag-keychain",
+    "tier": "faceted",
     "topology": {
-      "edges": 323,
       "analyticFraction": 0.3684210526315789,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 323,
+      "error": null,
       "maxEdgeDeviation": 1.022529547827572,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3468,
+    "valid": true
   },
   {
-    "slug": "bag-clip-150",
-    "mesh": "mesh-export",
-    "triangles": 11334,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 11334,
     "facesUnified": 6596,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.02519496339589455,
+      "facesAnalytic": 48,
+      "facesFinal": 4153,
+      "facesTriangle": 7831,
+      "fallbackReason": "first solid was invalid (192 boundary edge(s) found (shell is not closed)); retried with the reported faces demoted",
+      "stepBytes": 6681205,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.019035805919228054
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 48,
-        "cylinder": 24,
-        "cone": 6,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.003292685540084913,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 6,
+        "cylinder": 24,
+        "plane": 48,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.003292685540084913
     },
+    "slug": "bag-clip-150",
+    "tier": "faceted",
     "topology": {
-      "edges": 191,
       "analyticFraction": 0.8795811518324608,
-      "tangentEdges": 7,
       "closedPatchFraction": 1.0,
+      "edges": 191,
+      "error": null,
       "maxEdgeDeviation": 0.6364557105485197,
-      "error": null
-    }
+      "tangentEdges": 7
+    },
+    "triangles": 11334,
+    "valid": true
   },
   {
-    "slug": "bearing-block-608",
-    "mesh": "mesh-coarse",
-    "triangles": 574,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 574,
     "facesUnified": 247,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 247,
+      "facesTriangle": 574,
+      "fallbackReason": "solid invalid after retry: the outer shell is inside out: it encloses a signed volume of -2644810.639440307, so every face points into the body",
+      "stepBytes": 369912,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 13,
-        "cylinder": 8,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 12,
-        "cylinder": 7,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 7,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventory": {
+        "cone": 0,
+        "cylinder": 8,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 2,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "bearing-block-608",
+    "tier": "faceted",
     "topology": {
-      "edges": 48,
       "analyticFraction": 0.8541666666666666,
-      "tangentEdges": 3,
       "closedPatchFraction": 1.0,
+      "edges": 48,
+      "error": null,
       "maxEdgeDeviation": 5.450385191412242,
-      "error": null
-    }
+      "tangentEdges": 3
+    },
+    "triangles": 574,
+    "valid": true
   },
   {
-    "slug": "bearing-block-608",
-    "mesh": "mesh-default",
-    "triangles": 2708,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2708,
     "facesUnified": 1388,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.048766699465982555,
+      "facesAnalytic": 12,
+      "facesFinal": 640,
+      "facesTriangle": 1108,
+      "fallbackReason": "first solid was invalid (edge 246 has near-zero length (2.72e-15 < 1.00e-7)); retried with the reported faces demoted",
+      "stepBytes": 1012549,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0011056573070445258
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 11,
-        "cylinder": 5,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 2
-      },
-      "unknownAreaFraction": 0.15651076161189578,
       "groundTruth": {
-        "plane": 12,
-        "cylinder": 7,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 7,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 3
+      "inventory": {
+        "cone": 0,
+        "cylinder": 5,
+        "plane": 11,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 2
+      },
+      "inventoryError": 3,
+      "unknownAreaFraction": 0.15651076161189578
     },
+    "slug": "bearing-block-608",
+    "tier": "faceted",
     "topology": {
-      "edges": 34,
       "analyticFraction": 0.5588235294117647,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 34,
+      "error": null,
       "maxEdgeDeviation": 1.7575643236289342,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2708,
+    "valid": true
   },
   {
-    "slug": "boat-lift-cap",
-    "mesh": "mesh-export",
-    "triangles": 804,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 804,
     "facesUnified": 295,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 295,
+      "facesTriangle": 804,
+      "fallbackReason": "reconstruction failed verification: volume off by 19.0% (budget 5.0%), deviation p95 1.0000 (budget 1.7935)",
+      "stepBytes": 468400,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 12,
-        "cylinder": 0,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 0,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "boat-lift-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 27,
       "analyticFraction": 0.8888888888888888,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 27,
+      "error": null,
       "maxEdgeDeviation": 1.304602932854954,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 804,
+    "valid": true
   },
   {
-    "slug": "cable-saddle-clamp",
-    "mesh": "mesh-coarse",
-    "triangles": 492,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 492,
     "facesUnified": 124,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 124,
+      "facesTriangle": 492,
+      "fallbackReason": "reconstruction failed verification: volume off by 34408.4% (budget 5.0%), deviation p95 10806.9917 (budget 1.3070)",
+      "stepBytes": 228842,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 12,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 8,
-        "cylinder": 12,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 12,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 0,
+        "cylinder": 12,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "cable-saddle-clamp",
+    "tier": "faceted",
     "topology": {
-      "edges": 52,
       "analyticFraction": 0.9230769230769231,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 52,
+      "error": null,
       "maxEdgeDeviation": 1.9019280263269172,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 492,
+    "valid": true
   },
   {
-    "slug": "cable-saddle-clamp",
-    "mesh": "mesh-default",
-    "triangles": 2204,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2204,
     "facesUnified": 937,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 937,
+      "facesTriangle": 2204,
+      "fallbackReason": "reconstruction failed verification: volume off by 96415.8% (budget 5.0%), deviation p95 2796.2928 (budget 1.3070)",
+      "stepBytes": 1356256,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 6,
-        "cylinder": 10,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 8,
-        "cylinder": 12,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 12,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 4
+      "inventory": {
+        "cone": 0,
+        "cylinder": 10,
+        "plane": 6,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 4,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "cable-saddle-clamp",
+    "tier": "faceted",
     "topology": {
-      "edges": 40,
       "analyticFraction": 0.9,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 40,
+      "error": null,
       "maxEdgeDeviation": 2.0249065286096353,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2204,
+    "valid": true
   },
   {
-    "slug": "cable-support",
-    "mesh": "mesh-export",
-    "triangles": 2052,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2052,
     "facesUnified": 1282,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.01795441500567367,
+      "facesAnalytic": 12,
+      "facesFinal": 12,
+      "facesTriangle": 0,
+      "stepBytes": 22307,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.0008311590899904764
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "cable-support",
+    "tier": "faceted",
     "topology": {
-      "edges": 26,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.6418882903556096e-7,
-      "error": null
-    }
+      "edges": 26,
+      "error": null,
+      "maxEdgeDeviation": 2.6418882903556096e-07,
+      "tangentEdges": 0
+    },
+    "triangles": 2052,
+    "valid": true
   },
   {
-    "slug": "camera-support-arm",
-    "mesh": "mesh-export",
-    "triangles": 5448,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 5448,
     "facesUnified": 3960,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "kernel error: the kernel panicked while tessellating the result",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 17,
-        "cylinder": 12,
-        "cone": 5,
-        "torus": 0,
-        "sphere": 1,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.008202705980770837,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 5,
+        "cylinder": 12,
+        "plane": 17,
+        "sphere": 1,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.008202705980770837
     },
+    "slug": "camera-support-arm",
+    "tier": "faceted",
     "topology": {
-      "edges": 85,
       "analyticFraction": 0.8823529411764706,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 85,
+      "error": null,
       "maxEdgeDeviation": 2.733443694154251,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 5448,
+    "valid": true
   },
   {
-    "slug": "cockpit-plug",
-    "mesh": "mesh-export",
-    "triangles": 12686,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 12686,
     "facesUnified": 7941,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.02026442651588274,
+      "facesAnalytic": 64,
+      "facesFinal": 2682,
+      "facesTriangle": 4309,
+      "fallbackReason": "first solid was invalid (edge 1070 has near-zero length (6.11e-16 < 1.00e-7)); retried with the reported faces demoted",
+      "stepBytes": 4754461,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 3.138648122023782e-05
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 7,
-        "cylinder": 73,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 2,
-        "unknown": 7
-      },
-      "unknownAreaFraction": 0.255860008541804,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 73,
+        "plane": 7,
+        "sphere": 2,
+        "torus": 0,
+        "unknown": 7
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.255860008541804
     },
+    "slug": "cockpit-plug",
+    "tier": "faceted",
     "topology": {
-      "edges": 346,
       "analyticFraction": 0.1069364161849711,
-      "tangentEdges": 111,
       "closedPatchFraction": 1.0,
+      "edges": 346,
+      "error": null,
       "maxEdgeDeviation": 0.35176441154972954,
-      "error": null
-    }
+      "tangentEdges": 111
+    },
+    "triangles": 12686,
+    "valid": true
   },
   {
-    "slug": "conduit-fitting",
-    "mesh": "mesh-export",
-    "triangles": 4088,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4088,
     "facesUnified": 2328,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "kernel error: the kernel panicked while tessellating the result",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 12,
-        "cylinder": 10,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 10,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "conduit-fitting",
+    "tier": "faceted",
     "topology": {
-      "edges": 44,
       "analyticFraction": 0.9090909090909091,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 44,
+      "error": null,
       "maxEdgeDeviation": 0.1438586634015018,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 4088,
+    "valid": true
   },
   {
-    "slug": "conical-funnel-adapter",
-    "mesh": "mesh-coarse",
-    "triangles": 624,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 624,
     "facesUnified": 290,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 290,
+      "facesTriangle": 624,
+      "fallbackReason": "reconstruction failed verification: volume off by 12.0% (budget 5.0%), deviation p95 2.8973 (budget 2.8478)",
+      "stepBytes": 418128,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 4,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 4,
-        "cylinder": 4,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 2,
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "conical-funnel-adapter",
+    "tier": "faceted",
     "topology": {
-      "edges": 10,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 10,
+      "error": null,
       "maxEdgeDeviation": 0.0003543804046237749,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 624,
+    "valid": true
   },
   {
-    "slug": "conical-funnel-adapter",
-    "mesh": "mesh-default",
-    "triangles": 3780,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3780,
     "facesUnified": 2394,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2394,
+      "facesTriangle": 3780,
+      "fallbackReason": "reconstruction failed verification: volume off by 45.4% (budget 5.0%), deviation p95 3.3927 (budget 2.8554)",
+      "stepBytes": 3127640,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 4,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 4,
-        "cylinder": 4,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 2,
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "conical-funnel-adapter",
+    "tier": "faceted",
     "topology": {
-      "edges": 10,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 10,
+      "error": null,
       "maxEdgeDeviation": 0.0003333091639658998,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3780,
+    "valid": true
   },
   {
-    "slug": "cooler-handle-plate",
-    "mesh": "mesh-export",
-    "triangles": 2864,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2864,
     "facesUnified": 1825,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1825,
+      "facesTriangle": 2864,
+      "fallbackReason": "solid invalid after retry: edge 837 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 2282220,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 16,
-        "cylinder": 8,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.18078179582932713,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 8,
+        "plane": 16,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.18078179582932713
     },
+    "slug": "cooler-handle-plate",
+    "tier": "faceted",
     "topology": {
-      "edges": 58,
       "analyticFraction": 0.7758620689655172,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 58,
+      "error": null,
       "maxEdgeDeviation": 1.646095365789291,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2864,
+    "valid": true
   },
   {
-    "slug": "corner-brace-countersunk",
-    "mesh": "mesh-coarse",
-    "triangles": 704,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 704,
     "facesUnified": 272,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 272,
+      "facesTriangle": 704,
+      "fallbackReason": "solid invalid after retry: edge 656 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 423665,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 11,
-        "cylinder": 5,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 3
-      },
-      "unknownAreaFraction": 0.036709723992600696,
       "groundTruth": {
-        "plane": 16,
-        "cylinder": 11,
         "cone": 6,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 11,
+        "plane": 16,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 17
+      "inventory": {
+        "cone": 0,
+        "cylinder": 5,
+        "plane": 11,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 3
+      },
+      "inventoryError": 17,
+      "unknownAreaFraction": 0.036709723992600696
     },
+    "slug": "corner-brace-countersunk",
+    "tier": "faceted",
     "topology": {
-      "edges": 48,
       "analyticFraction": 0.5416666666666666,
-      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
+      "edges": 48,
+      "error": null,
       "maxEdgeDeviation": 1.4507410466575623,
-      "error": null
-    }
+      "tangentEdges": 4
+    },
+    "triangles": 704,
+    "valid": true
   },
   {
-    "slug": "corner-brace-countersunk",
-    "mesh": "mesh-default",
-    "triangles": 3312,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3312,
     "facesUnified": 2072,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.11891832093268413,
+      "facesAnalytic": 21,
+      "facesFinal": 190,
+      "facesTriangle": 257,
+      "stepBytes": 308932,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.004548992189501288
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 14,
-        "cylinder": 7,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 4
-      },
-      "unknownAreaFraction": 0.030783744830891073,
       "groundTruth": {
-        "plane": 16,
-        "cylinder": 11,
         "cone": 6,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 11,
+        "plane": 16,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 12
+      "inventory": {
+        "cone": 0,
+        "cylinder": 7,
+        "plane": 14,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 4
+      },
+      "inventoryError": 12,
+      "unknownAreaFraction": 0.030783744830891073
     },
+    "slug": "corner-brace-countersunk",
+    "tier": "faceted",
     "topology": {
-      "edges": 66,
       "analyticFraction": 0.6060606060606061,
-      "tangentEdges": 3,
       "closedPatchFraction": 1.0,
+      "edges": 66,
+      "error": null,
       "maxEdgeDeviation": 0.4619146139554421,
-      "error": null
-    }
+      "tangentEdges": 3
+    },
+    "triangles": 3312,
+    "valid": true
   },
   {
-    "slug": "cup-holder-bar-mount",
-    "mesh": "mesh-export",
-    "triangles": 2524,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2524,
     "facesUnified": 1224,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1224,
+      "facesTriangle": 2524,
+      "fallbackReason": "solid invalid after retry: edge 683 is shared by 6 faces (non-manifold, expected 2)",
+      "stepBytes": 1693356,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 16,
-        "cylinder": 8,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 8,
+        "plane": 16,
         "sphere": 0,
+        "torus": 0,
         "unknown": 16
       },
-      "unknownAreaFraction": 0.0657968222772851,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0657968222772851
     },
+    "slug": "cup-holder-bar-mount",
+    "tier": "faceted",
     "topology": {
-      "edges": 114,
       "analyticFraction": 0.4473684210526316,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 114,
+      "error": null,
       "maxEdgeDeviation": 4.748563086744201,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2524,
+    "valid": true
   },
   {
-    "slug": "deck-cap",
-    "mesh": "mesh-export",
-    "triangles": 3434,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3434,
     "facesUnified": 2468,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.07388933445894999,
+      "facesAnalytic": 44,
+      "facesFinal": 44,
+      "facesTriangle": 0,
+      "stepBytes": 79873,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.00040758615736675557
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 37,
-        "cylinder": 6,
-        "cone": 1,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 1,
+        "cylinder": 6,
+        "plane": 37,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "deck-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 105,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.6964321272183724e-6,
-      "error": null
-    }
+      "edges": 105,
+      "error": null,
+      "maxEdgeDeviation": 1.6964321272183724e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 3434,
+    "valid": true
   },
   {
-    "slug": "desk-cable-clip",
-    "mesh": "mesh-export",
-    "triangles": 3150,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3150,
     "facesUnified": 1787,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1787,
+      "facesTriangle": 3150,
+      "fallbackReason": "solid invalid after retry: edge 586 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 2389542,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 18,
-        "cylinder": 7,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 14
-      },
-      "unknownAreaFraction": 0.02598520467967023,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 7,
+        "plane": 18,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 14
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.02598520467967023
     },
+    "slug": "desk-cable-clip",
+    "tier": "faceted",
     "topology": {
-      "edges": 111,
       "analyticFraction": 0.5225225225225225,
-      "tangentEdges": 5,
       "closedPatchFraction": 1.0,
+      "edges": 111,
+      "error": null,
       "maxEdgeDeviation": 1.8858868998469422,
-      "error": null
-    }
+      "tangentEdges": 5
+    },
+    "triangles": 3150,
+    "valid": true
   },
   {
-    "slug": "dock-side-protector-cap",
-    "mesh": "mesh-export",
-    "triangles": 11648,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 11648,
     "facesUnified": 6099,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.022347578250920267,
+      "facesAnalytic": 42,
+      "facesFinal": 4004,
+      "facesTriangle": 7848,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = -9 is invalid (expected V-E+F = 2+L with L=6 inner loops, got V=3299, E=5817, F=2509)); retried with the reported faces demoted",
+      "stepBytes": 6374845,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0028269371737600223
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 46,
-        "cylinder": 22,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 22,
+        "plane": 46,
         "sphere": 4,
+        "torus": 0,
         "unknown": 51
       },
-      "unknownAreaFraction": 0.12337907980244572,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.12337907980244572
     },
+    "slug": "dock-side-protector-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 558,
       "analyticFraction": 0.23655913978494625,
-      "tangentEdges": 11,
       "closedPatchFraction": 1.0,
+      "edges": 558,
+      "error": null,
       "maxEdgeDeviation": 0.44019778218451977,
-      "error": null
-    }
+      "tangentEdges": 11
+    },
+    "triangles": 11648,
+    "valid": true
   },
   {
-    "slug": "dock-wheel-cap",
-    "mesh": "mesh-export",
-    "triangles": 1336,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1336,
     "facesUnified": 709,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 709,
+      "facesTriangle": 1336,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=7 inner loops, got V=418, E=675, F=259)",
+      "stepBytes": 942184,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 16,
-        "cylinder": 1,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 5
-      },
-      "unknownAreaFraction": 0.021780551850308964,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 1,
+        "plane": 16,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 5
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.021780551850308964
     },
+    "slug": "dock-wheel-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 62,
       "analyticFraction": 0.7096774193548387,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 62,
+      "error": null,
       "maxEdgeDeviation": 1.7643950132546602,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 1336,
+    "valid": true
   },
   {
-    "slug": "dovetail-slide-block",
-    "mesh": "mesh-coarse",
-    "triangles": 356,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 356,
     "facesUnified": 91,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 1.6505990050427845e-12,
+      "facesAnalytic": 13,
+      "facesFinal": 87,
+      "facesTriangle": 148,
+      "fallbackReason": "first solid was invalid (the outer shell is inside out: it encloses a signed volume of -346563.1265036423, so every face points into the body); retried with the reported faces demoted",
+      "stepBytes": 158162,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 5.148779339072547e-05
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 13,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 13,
-        "cylinder": 4,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "dovetail-slide-block",
+    "tier": "faceted",
     "topology": {
-      "edges": 40,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 40,
+      "error": null,
       "maxEdgeDeviation": 0.6844802253683281,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 356,
+    "valid": true
   },
   {
-    "slug": "dovetail-slide-block",
-    "mesh": "mesh-default",
-    "triangles": 1556,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1556,
     "facesUnified": 905,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.043090374795476095,
+      "facesAnalytic": 13,
+      "facesFinal": 141,
+      "facesTriangle": 256,
+      "stepBytes": 265532,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.00025247051377271065
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 11,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 4
-      },
-      "unknownAreaFraction": 0.05078901249199481,
       "groundTruth": {
-        "plane": 13,
-        "cylinder": 4,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 4
+      "inventory": {
+        "cone": 0,
+        "cylinder": 2,
+        "plane": 11,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 4
+      },
+      "inventoryError": 4,
+      "unknownAreaFraction": 0.05078901249199481
     },
+    "slug": "dovetail-slide-block",
+    "tier": "faceted",
     "topology": {
-      "edges": 40,
       "analyticFraction": 0.7,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 8.67083982836192e-7,
-      "error": null
-    }
+      "edges": 40,
+      "error": null,
+      "maxEdgeDeviation": 8.67083982836192e-07,
+      "tangentEdges": 0
+    },
+    "triangles": 1556,
+    "valid": true
   },
   {
-    "slug": "enclosure-lid-shell",
-    "mesh": "mesh-coarse",
-    "triangles": 1992,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1992,
     "facesUnified": 1313,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.08971761571914992,
+      "facesAnalytic": 33,
+      "facesFinal": 667,
+      "facesTriangle": 936,
+      "fallbackReason": "first solid was invalid (the outer shell is inside out: it encloses a signed volume of -657656.3140626017, so every face points into the body); retried with the reported faces demoted",
+      "stepBytes": 1044440,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0014231424517953937
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 33,
-        "cylinder": 18,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 25,
-        "cylinder": 26,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 26,
+        "plane": 25,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 16
+      "inventory": {
+        "cone": 4,
+        "cylinder": 18,
+        "plane": 33,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 16,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "enclosure-lid-shell",
+    "tier": "faceted",
     "topology": {
-      "edges": 128,
       "analyticFraction": 0.90625,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 128,
+      "error": null,
       "maxEdgeDeviation": 1.8581317926463174,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 1992,
+    "valid": true
   },
   {
-    "slug": "enclosure-lid-shell",
-    "mesh": "mesh-default",
-    "triangles": 10200,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 10200,
     "facesUnified": 7528,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 7528,
+      "facesTriangle": 10200,
+      "fallbackReason": "reconstruction failed verification: volume off by 1546215.0% (budget 5.0%), deviation p95 0.9767 (budget 2.6445)",
+      "stepBytes": 9430653,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 23,
-        "cylinder": 18,
+      "groundTruth": {
         "cone": 4,
-        "torus": 0,
+        "cylinder": 26,
+        "plane": 25,
         "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 4,
+        "cylinder": 18,
+        "plane": 23,
+        "sphere": 0,
+        "torus": 0,
         "unknown": 10
       },
-      "unknownAreaFraction": 0.003614736030082508,
-      "groundTruth": {
-        "plane": 25,
-        "cylinder": 26,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 10
+      "inventoryError": 10,
+      "unknownAreaFraction": 0.003614736030082508
     },
+    "slug": "enclosure-lid-shell",
+    "tier": "faceted",
     "topology": {
-      "edges": 128,
       "analyticFraction": 0.59375,
-      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
+      "edges": 128,
+      "error": null,
       "maxEdgeDeviation": 2.258311560284082,
-      "error": null
-    }
+      "tangentEdges": 4
+    },
+    "triangles": 10200,
+    "valid": true
   },
   {
-    "slug": "engraved-label-plate",
-    "mesh": "mesh-coarse",
-    "triangles": 504,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 504,
     "facesUnified": 190,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.3992155385458291,
+      "facesAnalytic": 12,
+      "facesFinal": 178,
+      "facesTriangle": 322,
+      "fallbackReason": "first solid was invalid (inner wire 2 on planar face 0 has the same winding as its outer wire); retried with the reported faces demoted",
+      "stepBytes": 266942,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.010463746900352018
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 27,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 52,
-        "cylinder": 6,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 52,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 29
+      "inventory": {
+        "cone": 0,
+        "cylinder": 2,
+        "plane": 27,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 29,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "engraved-label-plate",
+    "tier": "faceted",
     "topology": {
-      "edges": 49,
       "analyticFraction": 0.6326530612244898,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 49,
+      "error": null,
       "maxEdgeDeviation": 2.301298569307008,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 504,
+    "valid": true
   },
   {
-    "slug": "engraved-label-plate",
-    "mesh": "mesh-default",
-    "triangles": 1700,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1700,
     "facesUnified": 1354,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1354,
+      "facesTriangle": 1700,
+      "fallbackReason": "reconstruction failed verification: volume off by 3439418.4% (budget 5.0%), deviation p95 19288.9523 (budget 1.9268)",
+      "stepBytes": 1601072,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 25,
-        "cylinder": 3,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 52,
-        "cylinder": 6,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 52,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 30
+      "inventory": {
+        "cone": 0,
+        "cylinder": 3,
+        "plane": 25,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 30,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "engraved-label-plate",
+    "tier": "faceted",
     "topology": {
-      "edges": 46,
       "analyticFraction": 0.6086956521739131,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 46,
+      "error": null,
       "maxEdgeDeviation": 1.9307946374733502,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 1700,
+    "valid": true
   },
   {
-    "slug": "finned-heat-sink",
-    "mesh": "mesh-coarse",
-    "triangles": 556,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 556,
     "facesUnified": 145,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.016040471026694644,
+      "facesAnalytic": 45,
+      "facesFinal": 45,
+      "facesTriangle": 0,
+      "stepBytes": 72222,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 6.119497345660852e-05
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 41,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 41,
-        "cylinder": 4,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 41,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 41,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "finned-heat-sink",
+    "tier": "faceted",
     "topology": {
-      "edges": 104,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.21013424525529e-6,
-      "error": null
-    }
+      "edges": 104,
+      "error": null,
+      "maxEdgeDeviation": 1.21013424525529e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 556,
+    "valid": true
   },
   {
-    "slug": "finned-heat-sink",
-    "mesh": "mesh-default",
-    "triangles": 2156,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2156,
     "facesUnified": 1613,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.031600876897656886,
+      "facesAnalytic": 45,
+      "facesFinal": 45,
+      "facesTriangle": 0,
+      "stepBytes": 72222,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.00011545341309103551
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 41,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 41,
-        "cylinder": 4,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 41,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 41,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "finned-heat-sink",
+    "tier": "faceted",
     "topology": {
-      "edges": 104,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.996843448370811e-6,
-      "error": null
-    }
+      "edges": 104,
+      "error": null,
+      "maxEdgeDeviation": 1.996843448370811e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 2156,
+    "valid": true
   },
   {
-    "slug": "flange-four-bolt",
-    "mesh": "mesh-coarse",
-    "triangles": 1992,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1992,
     "facesUnified": 709,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.1832230161202954,
+      "facesAnalytic": 22,
+      "facesFinal": 22,
+      "facesTriangle": 0,
+      "stepBytes": 237264,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.0036302090638900665
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 7,
-        "cylinder": 11,
-        "cone": 2,
-        "torus": 2,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 7,
-        "cylinder": 11,
         "cone": 2,
-        "torus": 2,
-        "sphere": 0
+        "cylinder": 11,
+        "plane": 7,
+        "sphere": 0,
+        "torus": 2
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 2,
+        "cylinder": 11,
+        "plane": 7,
+        "sphere": 0,
+        "torus": 2,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "flange-four-bolt",
+    "tier": "faceted",
     "topology": {
-      "edges": 26,
       "analyticFraction": 0.8461538461538461,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 26,
+      "error": null,
       "maxEdgeDeviation": 0.5065393984405704,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 1992,
+    "valid": true
   },
   {
-    "slug": "flange-four-bolt",
-    "mesh": "mesh-default",
-    "triangles": 22192,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 22192,
     "facesUnified": 14002,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 14002,
+      "facesTriangle": 22192,
+      "fallbackReason": "solid invalid after retry: edge 881 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 19461529,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 40,
-        "cylinder": 9,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 4,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.008751341412640067,
       "groundTruth": {
-        "plane": 7,
-        "cylinder": 11,
         "cone": 2,
-        "torus": 2,
-        "sphere": 0
+        "cylinder": 11,
+        "plane": 7,
+        "sphere": 0,
+        "torus": 2
       },
       "groundTruthSource": "merged",
-      "inventoryError": 41
+      "inventory": {
+        "cone": 2,
+        "cylinder": 9,
+        "plane": 40,
+        "sphere": 4,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": 41,
+      "unknownAreaFraction": 0.008751341412640067
     },
+    "slug": "flange-four-bolt",
+    "tier": "faceted",
     "topology": {
-      "edges": 226,
       "analyticFraction": 0.7654867256637168,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 226,
+      "error": null,
       "maxEdgeDeviation": 1.1878992596984568,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 22192,
+    "valid": true
   },
   {
-    "slug": "fluted-control-knob",
-    "mesh": "mesh-coarse",
-    "triangles": 1110,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1110,
     "facesUnified": 824,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 32,
+      "facesFinal": 426,
+      "facesTriangle": 420,
+      "stepBytes": 950854,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 1.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 29,
-        "cylinder": 14,
-        "cone": 1,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 17,
-        "cylinder": 26,
         "cone": 1,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 26,
+        "plane": 17,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 24
+      "inventory": {
+        "cone": 1,
+        "cylinder": 14,
+        "plane": 29,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 24,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "fluted-control-knob",
+    "tier": "faceted",
     "topology": {
-      "edges": 118,
       "analyticFraction": 0.9322033898305084,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 118,
+      "error": null,
       "maxEdgeDeviation": 3.4276340915364734,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 1110,
+    "valid": true
   },
   {
-    "slug": "fluted-control-knob",
-    "mesh": "mesh-default",
-    "triangles": 4894,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4894,
     "facesUnified": 3593,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3593,
+      "facesTriangle": 4894,
+      "fallbackReason": "reconstruction failed verification: volume off by 2462076.2% (budget 5.0%), deviation p95 594615.5742 (budget 1.2583)",
+      "stepBytes": 4568882,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 29,
-        "cylinder": 14,
-        "cone": 1,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 17,
-        "cylinder": 26,
         "cone": 1,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 26,
+        "plane": 17,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 24
+      "inventory": {
+        "cone": 1,
+        "cylinder": 14,
+        "plane": 29,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 24,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "fluted-control-knob",
+    "tier": "faceted",
     "topology": {
-      "edges": 118,
       "analyticFraction": 0.9152542372881356,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 118,
+      "error": null,
       "maxEdgeDeviation": 0.24812882897952152,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 4894,
+    "valid": true
   },
   {
-    "slug": "freeform-palm-rest",
-    "mesh": "mesh-coarse",
-    "triangles": 496,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 496,
     "facesUnified": 220,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 7.944109290391274e-15,
+      "facesAnalytic": 4,
+      "facesFinal": 207,
+      "facesTriangle": 391,
+      "fallbackReason": "first solid was invalid (edge 128 has near-zero length (7.84e-16 < 1.00e-7)); retried with the reported faces demoted",
+      "stepBytes": 311586,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0014861058716376869
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 6,
-        "cylinder": 1,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 26
-      },
-      "unknownAreaFraction": 0.5511008942192913,
       "groundTruth": {
-        "plane": 5,
-        "cylinder": 2,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 2,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventory": {
+        "cone": 0,
+        "cylinder": 1,
+        "plane": 6,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 26
+      },
+      "inventoryError": 2,
+      "unknownAreaFraction": 0.5511008942192913
     },
+    "slug": "freeform-palm-rest",
+    "tier": "faceted",
     "topology": {
-      "edges": 84,
       "analyticFraction": 0.047619047619047616,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 84,
+      "error": null,
       "maxEdgeDeviation": 3.803207793518033,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 496,
+    "valid": true
   },
   {
-    "slug": "freeform-palm-rest",
-    "mesh": "mesh-default",
-    "triangles": 4270,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4270,
     "facesUnified": 3593,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.11755130816621577,
+      "facesAnalytic": 17,
+      "facesFinal": 1936,
+      "facesTriangle": 1935,
+      "stepBytes": 2561917,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0010639059616628446
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 11,
-        "cylinder": 4,
+      "groundTruth": {
         "cone": 0,
-        "torus": 0,
+        "cylinder": 2,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 11,
         "sphere": 2,
+        "torus": 0,
         "unknown": 26
       },
-      "unknownAreaFraction": 0.4358615639895763,
-      "groundTruth": {
-        "plane": 5,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 10
+      "inventoryError": 10,
+      "unknownAreaFraction": 0.4358615639895763
     },
+    "slug": "freeform-palm-rest",
+    "tier": "faceted",
     "topology": {
-      "edges": 128,
       "analyticFraction": 0.125,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 128,
+      "error": null,
       "maxEdgeDeviation": 2.047450017315266,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 4270,
+    "valid": true
   },
   {
-    "slug": "gear-blank-disc",
-    "mesh": "mesh-coarse",
-    "triangles": 1244,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1244,
     "facesUnified": 1002,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1002,
+      "facesTriangle": 1244,
+      "fallbackReason": "reconstruction failed verification: volume off by 2062082.4% (budget 5.0%), deviation p95 665030.3038 (budget 2.5517)",
+      "stepBytes": 1186523,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 6,
-        "cylinder": 10,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 5,
-        "cylinder": 10,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 10,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 1
+      "inventory": {
+        "cone": 2,
+        "cylinder": 10,
+        "plane": 6,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 1,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "gear-blank-disc",
+    "tier": "faceted",
     "topology": {
-      "edges": 35,
       "analyticFraction": 0.9428571428571428,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 35,
+      "error": null,
       "maxEdgeDeviation": 0.9361794054901018,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 1244,
+    "valid": true
   },
   {
-    "slug": "gear-blank-disc",
-    "mesh": "mesh-default",
-    "triangles": 5908,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 5908,
     "facesUnified": 4549,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 4549,
+      "facesTriangle": 5908,
+      "fallbackReason": "reconstruction failed verification: volume off by 61855695.5% (budget 5.0%), deviation p95 3.6667 (budget 2.5605)",
+      "stepBytes": 5552540,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 5,
-        "cylinder": 10,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 5,
-        "cylinder": 10,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 10,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 2,
+        "cylinder": 10,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "gear-blank-disc",
+    "tier": "faceted",
     "topology": {
-      "edges": 32,
       "analyticFraction": 0.9375,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 32,
+      "error": null,
       "maxEdgeDeviation": 0.40562431994539366,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 5908,
+    "valid": true
   },
   {
-    "slug": "hammer-holder-v1",
-    "mesh": "mesh-coarse",
-    "triangles": 5326,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 5314,
     "facesUnified": 3078,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3078,
+      "facesTriangle": 5314,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -3 is invalid (expected V-E+F = 2+L with L=14 inner loops, got V=4376, E=6239, F=1860)",
+      "stepBytes": 4168346,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 210,
-        "cylinder": 27,
+      "groundTruth": {
         "cone": 2,
-        "torus": 0,
+        "cylinder": 42,
+        "plane": 121,
+        "sphere": 8,
+        "torus": 14
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 2,
+        "cylinder": 27,
+        "plane": 210,
         "sphere": 7,
+        "torus": 0,
         "unknown": 92
       },
-      "unknownAreaFraction": 0.1646628758836658,
-      "groundTruth": {
-        "plane": 121,
-        "cylinder": 42,
-        "cone": 2,
-        "torus": 14,
-        "sphere": 8
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 119
+      "inventoryError": 119,
+      "unknownAreaFraction": 0.1646628758836658
     },
+    "slug": "hammer-holder-v1",
+    "tier": "faceted",
     "topology": {
-      "edges": 957,
       "analyticFraction": 0.5778474399164054,
-      "tangentEdges": 6,
       "closedPatchFraction": 1.0,
+      "edges": 957,
+      "error": null,
       "maxEdgeDeviation": 1.3211304328322082,
-      "error": null
-    }
+      "tangentEdges": 6
+    },
+    "triangles": 5326,
+    "valid": true
   },
   {
-    "slug": "hammer-holder",
-    "mesh": "mesh-coarse",
-    "triangles": 4900,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4892,
     "facesUnified": 3036,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3036,
+      "facesTriangle": 4892,
+      "fallbackReason": "solid invalid after retry: edge 2888 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 4143964,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 121,
-        "cylinder": 15,
+      "groundTruth": {
         "cone": 2,
-        "torus": 0,
+        "cylinder": 42,
+        "plane": 52,
+        "sphere": 8,
+        "torus": 14
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 2,
+        "cylinder": 15,
+        "plane": 121,
         "sphere": 14,
+        "torus": 0,
         "unknown": 50
       },
-      "unknownAreaFraction": 0.1167873014596418,
-      "groundTruth": {
-        "plane": 52,
-        "cylinder": 42,
-        "cone": 2,
-        "torus": 14,
-        "sphere": 8
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 116
+      "inventoryError": 116,
+      "unknownAreaFraction": 0.1167873014596418
     },
+    "slug": "hammer-holder",
+    "tier": "faceted",
     "topology": {
-      "edges": 563,
       "analyticFraction": 0.4049733570159858,
-      "tangentEdges": 8,
       "closedPatchFraction": 1.0,
+      "edges": 563,
+      "error": null,
       "maxEdgeDeviation": 1.172374207920125,
-      "error": null
-    }
+      "tangentEdges": 8
+    },
+    "triangles": 4900,
+    "valid": true
   },
   {
-    "slug": "handle-test",
-    "mesh": "mesh-export",
-    "triangles": 3564,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3564,
     "facesUnified": 1784,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1784,
+      "facesTriangle": 3564,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=10 inner loops, got V=1807, E=2764, F=958)",
+      "stepBytes": 2606496,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 40,
-        "cylinder": 2,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 1,
-        "unknown": 47
-      },
-      "unknownAreaFraction": 0.019560639973268207,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 2,
+        "cylinder": 2,
+        "plane": 40,
+        "sphere": 1,
+        "torus": 0,
+        "unknown": 47
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.019560639973268207
     },
+    "slug": "handle-test",
+    "tier": "faceted",
     "topology": {
-      "edges": 297,
       "analyticFraction": 0.3468013468013468,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 297,
+      "error": null,
       "maxEdgeDeviation": 2.807219249947943,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3564,
+    "valid": true
   },
   {
-    "slug": "hex-standoff-spacer",
-    "mesh": "mesh-coarse",
-    "triangles": 152,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 152,
     "facesUnified": 46,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 46,
+      "facesTriangle": 152,
+      "fallbackReason": "reconstruction failed verification: volume off by 48.4% (budget 5.0%), deviation p95 3.7055 (budget 0.8047)",
+      "stepBytes": 78741,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 1,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 2,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 20,
-        "cylinder": 1,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 1,
+        "plane": 20,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 14
+      "inventory": {
+        "cone": 0,
+        "cylinder": 1,
+        "plane": 8,
+        "sphere": 2,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 14,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "hex-standoff-spacer",
+    "tier": "faceted",
     "topology": {
-      "edges": 22,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.59977500172823e-7,
-      "error": null
-    }
+      "edges": 22,
+      "error": null,
+      "maxEdgeDeviation": 2.59977500172823e-07,
+      "tangentEdges": 0
+    },
+    "triangles": 152,
+    "valid": true
   },
   {
-    "slug": "hex-standoff-spacer",
-    "mesh": "mesh-default",
-    "triangles": 552,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 552,
     "facesUnified": 146,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 146,
+      "facesTriangle": 552,
+      "fallbackReason": "reconstruction failed verification: volume off by 48.6% (budget 5.0%), deviation p95 3.6797 (budget 0.8047)",
+      "stepBytes": 270486,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 1,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 2,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 20,
-        "cylinder": 1,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 1,
+        "plane": 20,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 14
+      "inventory": {
+        "cone": 0,
+        "cylinder": 1,
+        "plane": 8,
+        "sphere": 2,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 14,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "hex-standoff-spacer",
+    "tier": "faceted",
     "topology": {
-      "edges": 22,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.591763128750289e-7,
-      "error": null
-    }
+      "edges": 22,
+      "error": null,
+      "maxEdgeDeviation": 2.591763128750289e-07,
+      "tangentEdges": 0
+    },
+    "triangles": 552,
+    "valid": true
   },
   {
-    "slug": "hinge-half-knuckle",
-    "mesh": "mesh-coarse",
-    "triangles": 856,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 856,
     "facesUnified": 254,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "kernel error: the kernel panicked while tessellating the result",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 8,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 9,
-        "cylinder": 9,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 9,
+        "plane": 9,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventory": {
+        "cone": 0,
+        "cylinder": 8,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 2,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "hinge-half-knuckle",
+    "tier": "faceted",
     "topology": {
-      "edges": 46,
       "analyticFraction": 0.8043478260869565,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 46,
+      "error": null,
       "maxEdgeDeviation": 2.44773888751195,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 856,
+    "valid": true
   },
   {
-    "slug": "hinge-half-knuckle",
-    "mesh": "mesh-default",
-    "triangles": 3916,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3916,
     "facesUnified": 2722,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.0384224055563819,
+      "facesAnalytic": 14,
+      "facesFinal": 628,
+      "facesTriangle": 726,
+      "fallbackReason": "first solid was invalid (edge 250 has near-zero length (8.88e-16 < 1.00e-7)); retried with the reported faces demoted",
+      "stepBytes": 939070,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0002859780498384378
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 9,
-        "cylinder": 7,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.0033784648446568903,
       "groundTruth": {
-        "plane": 9,
-        "cylinder": 9,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 9,
+        "plane": 9,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventory": {
+        "cone": 0,
+        "cylinder": 7,
+        "plane": 9,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": 2,
+      "unknownAreaFraction": 0.0033784648446568903
     },
+    "slug": "hinge-half-knuckle",
+    "tier": "faceted",
     "topology": {
-      "edges": 43,
       "analyticFraction": 0.7209302325581395,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 43,
+      "error": null,
       "maxEdgeDeviation": 2.5178591738262766,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3916,
+    "valid": true
   },
   {
-    "slug": "hydraulic-manifold-block",
-    "mesh": "mesh-coarse",
-    "triangles": 1364,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1364,
     "facesUnified": 511,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 511,
+      "facesTriangle": 1364,
+      "fallbackReason": "solid invalid after retry: inner wire 2 on planar face 0 has the same winding as its outer wire",
+      "stepBytes": 810970,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 16,
-        "cylinder": 11,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 4
-      },
-      "unknownAreaFraction": 0.008961692201031697,
       "groundTruth": {
-        "plane": 22,
-        "cylinder": 14,
         "cone": 8,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 14,
+        "plane": 22,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 17
+      "inventory": {
+        "cone": 0,
+        "cylinder": 11,
+        "plane": 16,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 4
+      },
+      "inventoryError": 17,
+      "unknownAreaFraction": 0.008961692201031697
     },
+    "slug": "hydraulic-manifold-block",
+    "tier": "faceted",
     "topology": {
-      "edges": 67,
       "analyticFraction": 0.6865671641791045,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 67,
+      "error": null,
       "maxEdgeDeviation": 1.8899428062154437,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 1364,
+    "valid": true
   },
   {
-    "slug": "hydraulic-manifold-block",
-    "mesh": "mesh-default",
-    "triangles": 6724,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 6724,
     "facesUnified": 4991,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.9275808615318686,
+      "facesAnalytic": 30,
+      "facesFinal": 221,
+      "facesTriangle": 416,
+      "stepBytes": 674079,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.001946484055420713
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 18,
-        "cylinder": 14,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 2
-      },
-      "unknownAreaFraction": 0.2402827716033668,
       "groundTruth": {
-        "plane": 22,
-        "cylinder": 14,
         "cone": 8,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 14,
+        "plane": 22,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 12
+      "inventory": {
+        "cone": 0,
+        "cylinder": 14,
+        "plane": 18,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 2
+      },
+      "inventoryError": 12,
+      "unknownAreaFraction": 0.2402827716033668
     },
+    "slug": "hydraulic-manifold-block",
+    "tier": "faceted",
     "topology": {
-      "edges": 81,
       "analyticFraction": 0.7654320987654321,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 81,
+      "error": null,
       "maxEdgeDeviation": 1.7198224547818535,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 6724,
+    "valid": true
   },
   {
-    "slug": "l-bracket-gusset",
-    "mesh": "mesh-coarse",
-    "triangles": 852,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 852,
     "facesUnified": 209,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.028658371902258815,
+      "facesAnalytic": 10,
+      "facesFinal": 202,
+      "facesTriangle": 384,
+      "fallbackReason": "first solid was invalid (inner wire 9 on planar face 2 has the same winding as its outer wire); retried with the reported faces demoted",
+      "stepBytes": 378997,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.007663297090673552
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 10,
-        "cylinder": 8,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.021344239652316282,
       "groundTruth": {
-        "plane": 13,
-        "cylinder": 9,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 9,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 4
+      "inventory": {
+        "cone": 0,
+        "cylinder": 8,
+        "plane": 10,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": 4,
+      "unknownAreaFraction": 0.021344239652316282
     },
+    "slug": "l-bracket-gusset",
+    "tier": "faceted",
     "topology": {
-      "edges": 44,
       "analyticFraction": 0.9090909090909091,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 44,
+      "error": null,
       "maxEdgeDeviation": 2.8691740212942842,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 852,
+    "valid": true
   },
   {
-    "slug": "l-bracket-gusset",
-    "mesh": "mesh-default",
-    "triangles": 3852,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3852,
     "facesUnified": 2891,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.026266210747122768,
+      "facesAnalytic": 11,
+      "facesFinal": 912,
+      "facesTriangle": 1802,
+      "fallbackReason": "first solid was invalid (inner wire 10 on planar face 2 has the same winding as its outer wire); retried with the reported faces demoted",
+      "stepBytes": 1769543,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.005858479951706794
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 11,
-        "cylinder": 7,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.003785681192051791,
       "groundTruth": {
-        "plane": 13,
-        "cylinder": 9,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 9,
+        "plane": 13,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 4
+      "inventory": {
+        "cone": 0,
+        "cylinder": 7,
+        "plane": 11,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": 4,
+      "unknownAreaFraction": 0.003785681192051791
     },
+    "slug": "l-bracket-gusset",
+    "tier": "faceted",
     "topology": {
-      "edges": 44,
       "analyticFraction": 0.9090909090909091,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 44,
+      "error": null,
       "maxEdgeDeviation": 4.175476582146715,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3852,
+    "valid": true
   },
   {
-    "slug": "ladder-cap",
-    "mesh": "mesh-export",
-    "triangles": 13530,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 13530,
     "facesUnified": 8149,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.036777496337890625,
+      "facesAnalytic": 13,
+      "facesFinal": 6353,
+      "facesTriangle": 11281,
+      "fallbackReason": "first solid was invalid (edge 304 has near-zero length (2.62e-15 < 1.00e-7)); retried with the reported faces demoted",
+      "stepBytes": 9536453,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0026991463318125717
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 3,
-        "cylinder": 10,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 10,
+        "plane": 3,
         "sphere": 3,
+        "torus": 0,
         "unknown": 9
       },
-      "unknownAreaFraction": 0.019640457282708176,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.019640457282708176
     },
+    "slug": "ladder-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 59,
       "analyticFraction": 0.0847457627118644,
-      "tangentEdges": 9,
       "closedPatchFraction": 1.0,
+      "edges": 59,
+      "error": null,
       "maxEdgeDeviation": 0.4102144671373662,
-      "error": null
-    }
+      "tangentEdges": 9
+    },
+    "triangles": 13530,
+    "valid": true
   },
   {
-    "slug": "lamp-cover",
-    "mesh": "mesh-export",
-    "triangles": 1008,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1008,
     "facesUnified": 756,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.15573687352708243,
+      "facesAnalytic": 4,
+      "facesFinal": 4,
+      "facesTriangle": 0,
+      "stepBytes": 6929,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.00012827322271311245
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 2,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 2,
+        "plane": 2,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "lamp-cover",
+    "tier": "faceted",
     "topology": {
-      "edges": 4,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.078770059199542e-6,
-      "error": null
-    }
+      "edges": 4,
+      "error": null,
+      "maxEdgeDeviation": 2.078770059199542e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 1008,
+    "valid": true
   },
   {
-    "slug": "laser-rail",
-    "mesh": "mesh-export",
-    "triangles": 7080,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 7080,
     "facesUnified": 5828,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 5828,
+      "facesTriangle": 7080,
+      "fallbackReason": "solid invalid after retry: edge 207 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 7467764,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 9,
-        "cylinder": 28,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 28,
+        "plane": 9,
         "sphere": 5,
+        "torus": 0,
         "unknown": 29
       },
-      "unknownAreaFraction": 0.2932420341552227,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.2932420341552227
     },
+    "slug": "laser-rail",
+    "tier": "faceted",
     "topology": {
-      "edges": 301,
       "analyticFraction": 0.1362126245847176,
-      "tangentEdges": 27,
       "closedPatchFraction": 1.0,
+      "edges": 301,
+      "error": null,
       "maxEdgeDeviation": 0.1672635165281977,
-      "error": null
-    }
+      "tangentEdges": 27
+    },
+    "triangles": 7080,
+    "valid": true
   },
   {
-    "slug": "lofted-pull-handle",
-    "mesh": "mesh-coarse",
-    "triangles": 558,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 558,
     "facesUnified": 194,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.044694214738950966,
+      "facesAnalytic": 30,
+      "facesFinal": 160,
+      "facesTriangle": 236,
+      "fallbackReason": "first solid was invalid (inner wire 8 on planar face 2 has the same winding as its outer wire); retried with the reported faces demoted",
+      "note": "Blessed at faceted: reaches mixed on macOS but faceted on Linux; the loft fit sits on a tolerance threshold that floating point resolves differently per platform.",
+      "stepBytes": 270182,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.00034244427965660675
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 30,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 2,
-        "unknown": 2
-      },
-      "unknownAreaFraction": 0.02979926444816743,
       "groundTruth": {
-        "plane": 12,
-        "cylinder": 4,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 20
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 30,
+        "sphere": 2,
+        "torus": 0,
+        "unknown": 2
+      },
+      "inventoryError": 20,
+      "unknownAreaFraction": 0.02979926444816743
     },
+    "slug": "lofted-pull-handle",
+    "tier": "faceted",
     "topology": {
-      "edges": 76,
       "analyticFraction": 0.9210526315789473,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 76,
+      "error": null,
       "maxEdgeDeviation": 6.491271296635642,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 558,
+    "valid": true
   },
   {
-    "slug": "lofted-pull-handle",
-    "mesh": "mesh-default",
-    "triangles": 5512,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 5512,
     "facesUnified": 4969,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 4969,
+      "facesTriangle": 5512,
+      "fallbackReason": "reconstruction failed verification: volume off by 9.8% (budget 5.0%), deviation p95 0.5953 (budget 1.4854)",
+      "stepBytes": 6053992,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 30,
-        "cylinder": 4,
+      "groundTruth": {
         "cone": 0,
-        "torus": 0,
+        "cylinder": 4,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 30,
         "sphere": 1,
+        "torus": 0,
         "unknown": 23
       },
-      "unknownAreaFraction": 0.2111782922069542,
-      "groundTruth": {
-        "plane": 12,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 19
+      "inventoryError": 19,
+      "unknownAreaFraction": 0.2111782922069542
     },
+    "slug": "lofted-pull-handle",
+    "tier": "faceted",
     "topology": {
-      "edges": 155,
       "analyticFraction": 0.4,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 155,
+      "error": null,
       "maxEdgeDeviation": 2.712325899616881,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 5512,
+    "valid": true
   },
   {
-    "slug": "mailbox-tray",
-    "mesh": "mesh-coarse",
-    "triangles": 10366,
-    "tier": null,
-    "valid": false,
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i...",
     "facesImported": 0,
     "facesUnified": 0,
-    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i...",
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i...",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 324,
-        "cylinder": 41,
+      "groundTruth": {
         "cone": 0,
-        "torus": 0,
+        "cylinder": 120,
+        "plane": 306,
+        "sphere": 14,
+        "torus": 18
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 41,
+        "plane": 324,
         "sphere": 24,
+        "torus": 0,
         "unknown": 80
       },
-      "unknownAreaFraction": 0.17864884745964155,
-      "groundTruth": {
-        "plane": 306,
-        "cylinder": 120,
-        "cone": 0,
-        "torus": 18,
-        "sphere": 14
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 125
+      "inventoryError": 125,
+      "unknownAreaFraction": 0.17864884745964155
     },
+    "slug": "mailbox-tray",
+    "tier": null,
     "topology": {
-      "edges": 1289,
       "analyticFraction": 0.552366175329713,
-      "tangentEdges": 23,
       "closedPatchFraction": 0.9616204690831557,
+      "edges": 1289,
+      "error": null,
       "maxEdgeDeviation": 2.0982484827793693,
-      "error": null
-    }
+      "tangentEdges": 23
+    },
+    "triangles": 10366,
+    "valid": false
   },
   {
-    "slug": "motor-mount-nema17",
-    "mesh": "mesh-coarse",
-    "triangles": 642,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 642,
     "facesUnified": 281,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.613572513454181,
+      "facesAnalytic": 5,
+      "facesFinal": 210,
+      "facesTriangle": 398,
+      "stepBytes": 378317,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.006043076966302246
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 12,
-        "cylinder": 4,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 3
-      },
-      "unknownAreaFraction": 0.24035934094079164,
       "groundTruth": {
-        "plane": 22,
-        "cylinder": 11,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 11,
+        "plane": 22,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 21
+      "inventory": {
+        "cone": 0,
+        "cylinder": 4,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 3
+      },
+      "inventoryError": 21,
+      "unknownAreaFraction": 0.24035934094079164
     },
+    "slug": "motor-mount-nema17",
+    "tier": "faceted",
     "topology": {
-      "edges": 49,
       "analyticFraction": 0.6530612244897959,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 49,
+      "error": null,
       "maxEdgeDeviation": 3.1500704397458166,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 642,
+    "valid": true
   },
   {
-    "slug": "motor-mount-nema17",
-    "mesh": "mesh-default",
-    "triangles": 2996,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2996,
     "facesUnified": 2255,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "kernel error: the kernel panicked while tessellating the result",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 21,
-        "cylinder": 9,
-        "cone": 0,
-        "torus": 0,
+      "groundTruth": {
+        "cone": 4,
+        "cylinder": 11,
+        "plane": 22,
         "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 9,
+        "plane": 21,
+        "sphere": 0,
+        "torus": 0,
         "unknown": 5
       },
-      "unknownAreaFraction": 0.14525477814436955,
-      "groundTruth": {
-        "plane": 22,
-        "cylinder": 11,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 7
+      "inventoryError": 7,
+      "unknownAreaFraction": 0.14525477814436955
     },
+    "slug": "motor-mount-nema17",
+    "tier": "faceted",
     "topology": {
-      "edges": 99,
       "analyticFraction": 0.696969696969697,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 99,
+      "error": null,
       "maxEdgeDeviation": 0.7936782662488083,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 2996,
+    "valid": true
   },
   {
-    "slug": "nist-ctc-01",
-    "mesh": "mesh-coarse",
-    "triangles": 2832,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2830,
     "facesUnified": 1645,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1645,
+      "facesTriangle": 2830,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -5 is invalid (expected V-E+F = 2+L with L=22 inner loops, got V=1336, E=2241, F=900)",
+      "stepBytes": 2149000,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 59,
-        "cylinder": 32,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 2,
-        "unknown": 7
-      },
-      "unknownAreaFraction": 0.060532176462915914,
       "groundTruth": {
-        "plane": 80,
-        "cylinder": 57,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 57,
+        "plane": 80,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 48
+      "inventory": {
+        "cone": 2,
+        "cylinder": 32,
+        "plane": 59,
+        "sphere": 2,
+        "torus": 0,
+        "unknown": 7
+      },
+      "inventoryError": 48,
+      "unknownAreaFraction": 0.060532176462915914
     },
+    "slug": "nist-ctc-01",
+    "tier": "faceted",
     "topology": {
-      "edges": 264,
       "analyticFraction": 0.6628787878787878,
-      "tangentEdges": 35,
       "closedPatchFraction": 1.0,
+      "edges": 264,
+      "error": null,
       "maxEdgeDeviation": 9.90713518730064,
-      "error": null
-    }
+      "tangentEdges": 35
+    },
+    "triangles": 2832,
+    "valid": true
   },
   {
-    "slug": "nist-ctc-01",
-    "mesh": "mesh-default",
-    "triangles": 13050,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 13048,
     "facesUnified": 8531,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 8531,
+      "facesTriangle": 13048,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=25 inner loops, got V=5415, E=6927, F=1512)",
+      "stepBytes": 11035794,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 41,
-        "cylinder": 36,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 4,
-        "unknown": 20
-      },
-      "unknownAreaFraction": 0.0621855044924961,
       "groundTruth": {
-        "plane": 80,
-        "cylinder": 57,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 57,
+        "plane": 80,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 64
+      "inventory": {
+        "cone": 2,
+        "cylinder": 36,
+        "plane": 41,
+        "sphere": 4,
+        "torus": 0,
+        "unknown": 20
+      },
+      "inventoryError": 64,
+      "unknownAreaFraction": 0.0621855044924961
     },
+    "slug": "nist-ctc-01",
+    "tier": "faceted",
     "topology": {
-      "edges": 352,
       "analyticFraction": 0.5056818181818182,
-      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
+      "edges": 352,
+      "error": null,
       "maxEdgeDeviation": 7.602335485287979,
-      "error": null
-    }
+      "tangentEdges": 4
+    },
+    "triangles": 13050,
+    "valid": true
   },
   {
-    "slug": "nist-ctc-02",
-    "mesh": "mesh-coarse",
-    "triangles": 20722,
-    "tier": null,
-    "valid": false,
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i...",
     "facesImported": 0,
     "facesUnified": 0,
-    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i...",
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i...",
+      "facesAnalytic": 0,
+      "facesFinal": 0,
+      "facesTriangle": 0,
+      "stepBytes": 0,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": null
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 82,
+        "cylinder": 224,
+        "plane": 130,
+        "sphere": 24,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 404,
-        "cylinder": 145,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 145,
+        "plane": 404,
         "sphere": 7,
+        "torus": 0,
         "unknown": 341
       },
-      "unknownAreaFraction": 0.09086979412732048,
-      "groundTruth": {
-        "plane": 130,
-        "cylinder": 224,
-        "cone": 82,
-        "torus": 0,
-        "sphere": 24
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 452
+      "inventoryError": 452,
+      "unknownAreaFraction": 0.09086979412732048
     },
+    "slug": "nist-ctc-02",
+    "tier": null,
     "topology": {
-      "edges": 1912,
       "analyticFraction": 0.4722803347280335,
-      "tangentEdges": 14,
       "closedPatchFraction": 1.0,
+      "edges": 1912,
+      "error": null,
       "maxEdgeDeviation": 7.350656385991742,
-      "error": null
-    }
+      "tangentEdges": 14
+    },
+    "triangles": 20722,
+    "valid": false
   },
   {
-    "slug": "nist-ctc-03",
-    "mesh": "mesh-coarse",
-    "triangles": 3224,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3224,
     "facesUnified": 1551,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1551,
+      "facesTriangle": 3224,
+      "fallbackReason": "solid invalid after retry: the outer shell is inside out: it encloses a signed volume of -2656167507979.8076, so every face points into the body",
+      "stepBytes": 2232068,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 58,
-        "cylinder": 31,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 6,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 86,
-        "cylinder": 53,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 53,
+        "plane": 86,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 56
+      "inventory": {
+        "cone": 0,
+        "cylinder": 31,
+        "plane": 58,
+        "sphere": 6,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 56,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "nist-ctc-03",
+    "tier": "faceted",
     "topology": {
-      "edges": 264,
       "analyticFraction": 0.821969696969697,
-      "tangentEdges": 12,
       "closedPatchFraction": 1.0,
+      "edges": 264,
+      "error": null,
       "maxEdgeDeviation": 2.5132447077934974,
-      "error": null
-    }
+      "tangentEdges": 12
+    },
+    "triangles": 3224,
+    "valid": true
   },
   {
-    "slug": "nist-ctc-03",
-    "mesh": "mesh-default",
-    "triangles": 13938,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 13938,
     "facesUnified": 10025,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 10025,
+      "facesTriangle": 13938,
+      "fallbackReason": "solid invalid after retry: inner wire 1 on planar face 1 has the same winding as its outer wire",
+      "stepBytes": 12916754,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 47,
-        "cylinder": 39,
+      "groundTruth": {
         "cone": 0,
-        "torus": 0,
+        "cylinder": 53,
+        "plane": 86,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 39,
+        "plane": 47,
         "sphere": 6,
+        "torus": 0,
         "unknown": 7
       },
-      "unknownAreaFraction": 0.0011331311741656245,
-      "groundTruth": {
-        "plane": 86,
-        "cylinder": 53,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 59
+      "inventoryError": 59,
+      "unknownAreaFraction": 0.0011331311741656245
     },
+    "slug": "nist-ctc-03",
+    "tier": "faceted",
     "topology": {
-      "edges": 272,
       "analyticFraction": 0.7573529411764706,
-      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
+      "edges": 272,
+      "error": null,
       "maxEdgeDeviation": 2.0115056340579107,
-      "error": null
-    }
+      "tangentEdges": 4
+    },
+    "triangles": 13938,
+    "valid": true
   },
   {
-    "slug": "nist-ctc-04",
-    "mesh": "mesh-coarse",
-    "triangles": 15668,
-    "tier": "faceted",
-    "valid": false,
+    "error": null,
     "facesImported": 15602,
     "facesUnified": 10074,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 10074,
+      "facesTriangle": 15602,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -5 is invalid for shell component 0 (expected V-E+F = 2+L with L=74 inner loops, got V=36709, E=40398, F=3684)",
+      "stepBytes": 13652933,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 64,
+        "cylinder": 178,
+        "plane": 113,
+        "sphere": 22,
+        "torus": 29
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 153,
-        "cylinder": 96,
         "cone": 30,
-        "torus": 0,
+        "cylinder": 96,
+        "plane": 153,
         "sphere": 7,
+        "torus": 0,
         "unknown": 129
       },
-      "unknownAreaFraction": 0.04274839222426995,
-      "groundTruth": {
-        "plane": 113,
-        "cylinder": 178,
-        "cone": 64,
-        "torus": 29,
-        "sphere": 22
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 200
+      "inventoryError": 200,
+      "unknownAreaFraction": 0.04274839222426995
     },
+    "slug": "nist-ctc-04",
+    "tier": "faceted",
     "topology": {
-      "edges": 979,
       "analyticFraction": 0.5066394279877426,
-      "tangentEdges": 17,
       "closedPatchFraction": 1.0,
+      "edges": 979,
+      "error": null,
       "maxEdgeDeviation": 4.229196872305858,
-      "error": null
-    }
+      "tangentEdges": 17
+    },
+    "triangles": 15668,
+    "valid": false
   },
   {
-    "slug": "nist-ctc-05",
-    "mesh": "mesh-coarse",
-    "triangles": 6429,
-    "tier": "faceted",
-    "valid": false,
+    "error": null,
     "facesImported": 6408,
     "facesUnified": 3039,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3039,
+      "facesTriangle": 6408,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid for shell component 1 (expected V-E+F = 2+L with L=0 inner loops, got V=4, E=4, F=1)",
+      "stepBytes": 4477841,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 13,
+        "cylinder": 67,
+        "plane": 63,
+        "sphere": 4,
+        "torus": 6
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 81,
-        "cylinder": 44,
         "cone": 3,
-        "torus": 1,
+        "cylinder": 44,
+        "plane": 81,
         "sphere": 7,
+        "torus": 1,
         "unknown": 54
       },
-      "unknownAreaFraction": 0.07128154043737848,
-      "groundTruth": {
-        "plane": 63,
-        "cylinder": 67,
-        "cone": 13,
-        "torus": 6,
-        "sphere": 4
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 59
+      "inventoryError": 59,
+      "unknownAreaFraction": 0.07128154043737848
     },
+    "slug": "nist-ctc-05",
+    "tier": "faceted",
     "topology": {
-      "edges": 401,
       "analyticFraction": 0.5835411471321695,
-      "tangentEdges": 12,
       "closedPatchFraction": 1.0,
+      "edges": 401,
+      "error": null,
       "maxEdgeDeviation": 13.577105716341864,
-      "error": null
-    }
+      "tangentEdges": 12
+    },
+    "triangles": 6429,
+    "valid": false
   },
   {
-    "slug": "nist-ftc-06",
-    "mesh": "mesh-coarse",
-    "triangles": 7124,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 7116,
     "facesUnified": 4008,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 4008,
+      "facesTriangle": 7116,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid (expected V-E+F = 2+L with L=50 inner loops, got V=10058, E=10441, F=384)",
+      "stepBytes": 5601820,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 140,
-        "cylinder": 42,
-        "cone": 3,
-        "torus": 2,
-        "sphere": 3,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.00003724027889587364,
       "groundTruth": {
-        "plane": 71,
-        "cylinder": 58,
         "cone": 4,
-        "torus": 6,
-        "sphere": 5
+        "cylinder": 58,
+        "plane": 71,
+        "sphere": 5,
+        "torus": 6
       },
       "groundTruthSource": "merged",
-      "inventoryError": 92
+      "inventory": {
+        "cone": 3,
+        "cylinder": 42,
+        "plane": 140,
+        "sphere": 3,
+        "torus": 2,
+        "unknown": 1
+      },
+      "inventoryError": 92,
+      "unknownAreaFraction": 3.724027889587364e-05
     },
+    "slug": "nist-ftc-06",
+    "tier": "faceted",
     "topology": {
-      "edges": 497,
       "analyticFraction": 0.9054325955734407,
-      "tangentEdges": 17,
       "closedPatchFraction": 1.0,
+      "edges": 497,
+      "error": null,
       "maxEdgeDeviation": 3.9850749737538584,
-      "error": null
-    }
+      "tangentEdges": 17
+    },
+    "triangles": 7124,
+    "valid": true
   },
   {
-    "slug": "nist-ftc-07",
-    "mesh": "mesh-coarse",
-    "triangles": 8148,
-    "tier": "faceted",
-    "valid": false,
+    "error": null,
     "facesImported": 8140,
     "facesUnified": 4790,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 4790,
+      "facesTriangle": 8140,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 8 is invalid (expected V-E+F = 2+L with L=45 inner loops, got V=7281, E=9071, F=1798)",
+      "stepBytes": 6789736,
+      "tier": "faceted",
+      "valid": false,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 28,
+        "cylinder": 106,
+        "plane": 73,
+        "sphere": 18,
+        "torus": 24
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 81,
-        "cylinder": 32,
         "cone": 8,
-        "torus": 0,
+        "cylinder": 32,
+        "plane": 81,
         "sphere": 6,
+        "torus": 0,
         "unknown": 19
       },
-      "unknownAreaFraction": 0.0021313852657128462,
-      "groundTruth": {
-        "plane": 73,
-        "cylinder": 106,
-        "cone": 28,
-        "torus": 24,
-        "sphere": 18
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 138
+      "inventoryError": 138,
+      "unknownAreaFraction": 0.0021313852657128462
     },
+    "slug": "nist-ftc-07",
+    "tier": "faceted",
     "topology": {
-      "edges": 370,
       "analyticFraction": 0.754054054054054,
-      "tangentEdges": 1,
       "closedPatchFraction": 1.0,
+      "edges": 370,
+      "error": null,
       "maxEdgeDeviation": 3.0699828039509325,
-      "error": null
-    }
+      "tangentEdges": 1
+    },
+    "triangles": 8148,
+    "valid": false
   },
   {
-    "slug": "nist-ftc-08",
-    "mesh": "mesh-coarse",
-    "triangles": 7102,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 7082,
     "facesUnified": 4696,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 4696,
+      "facesTriangle": 7082,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -13 is invalid (expected V-E+F = 2+L with L=38 inner loops, got V=5984, E=7507, F=1510)",
+      "stepBytes": 6057060,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 89,
-        "cylinder": 68,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 1,
-        "unknown": 3
-      },
-      "unknownAreaFraction": 0.003942191275738152,
       "groundTruth": {
-        "plane": 81,
-        "cylinder": 134,
         "cone": 0,
-        "torus": 12,
-        "sphere": 20
+        "cylinder": 134,
+        "plane": 81,
+        "sphere": 20,
+        "torus": 12
       },
       "groundTruthSource": "merged",
-      "inventoryError": 105
+      "inventory": {
+        "cone": 0,
+        "cylinder": 68,
+        "plane": 89,
+        "sphere": 1,
+        "torus": 0,
+        "unknown": 3
+      },
+      "inventoryError": 105,
+      "unknownAreaFraction": 0.003942191275738152
     },
+    "slug": "nist-ftc-08",
+    "tier": "faceted",
     "topology": {
-      "edges": 475,
       "analyticFraction": 0.7494736842105263,
-      "tangentEdges": 50,
       "closedPatchFraction": 1.0,
+      "edges": 475,
+      "error": null,
       "maxEdgeDeviation": 2.7715505655556463,
-      "error": null
-    }
+      "tangentEdges": 50
+    },
+    "triangles": 7102,
+    "valid": true
   },
   {
-    "slug": "nist-ftc-09",
-    "mesh": "mesh-coarse",
-    "triangles": 4892,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4892,
     "facesUnified": 3532,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3532,
+      "facesTriangle": 4892,
+      "fallbackReason": "solid invalid after retry: the outer shell is inside out: it encloses a signed volume of -4116196.446861457, so every face points into the body",
+      "stepBytes": 4204292,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 32,
-        "cylinder": 47,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 62,
-        "cylinder": 59,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 59,
+        "plane": 62,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 42
+      "inventory": {
+        "cone": 4,
+        "cylinder": 47,
+        "plane": 32,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 42,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "nist-ftc-09",
+    "tier": "faceted",
     "topology": {
-      "edges": 206,
       "analyticFraction": 0.8300970873786407,
-      "tangentEdges": 22,
       "closedPatchFraction": 1.0,
+      "edges": 206,
+      "error": null,
       "maxEdgeDeviation": 1.71569703757735,
-      "error": null
-    }
+      "tangentEdges": 22
+    },
+    "triangles": 4892,
+    "valid": true
   },
   {
-    "slug": "nist-ftc-09",
-    "mesh": "mesh-default",
-    "triangles": 23244,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 23244,
     "facesUnified": 17804,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 17804,
+      "facesTriangle": 23244,
+      "fallbackReason": "reconstruction failed verification: volume off by 1213802.3% (budget 5.0%), deviation p95 0.7686 (budget 6.7635)",
+      "stepBytes": 21751232,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 20,
-        "cylinder": 39,
+      "groundTruth": {
         "cone": 4,
-        "torus": 0,
+        "cylinder": 59,
+        "plane": 62,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 4,
+        "cylinder": 39,
+        "plane": 20,
         "sphere": 4,
+        "torus": 0,
         "unknown": 14
       },
-      "unknownAreaFraction": 0.004556350729793082,
-      "groundTruth": {
-        "plane": 62,
-        "cylinder": 59,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 66
+      "inventoryError": 66,
+      "unknownAreaFraction": 0.004556350729793082
     },
+    "slug": "nist-ftc-09",
+    "tier": "faceted",
     "topology": {
-      "edges": 196,
       "analyticFraction": 0.7142857142857143,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 196,
+      "error": null,
       "maxEdgeDeviation": 1.331150884665975,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 23244,
+    "valid": true
   },
   {
-    "slug": "nist-ftc-10",
-    "mesh": "mesh-coarse",
-    "triangles": 11416,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 11408,
     "facesUnified": 6168,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 6168,
+      "facesTriangle": 11408,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 14 is invalid (expected V-E+F = 2+L with L=79 inner loops, got V=6263, E=8138, F=1889)",
+      "stepBytes": 8953058,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 86,
-        "cylinder": 49,
-        "cone": 8,
-        "torus": 0,
-        "sphere": 12,
-        "unknown": 8
-      },
-      "unknownAreaFraction": 0.030278708126679925,
       "groundTruth": {
-        "plane": 53,
-        "cylinder": 103,
         "cone": 8,
-        "torus": 39,
-        "sphere": 10
+        "cylinder": 103,
+        "plane": 53,
+        "sphere": 10,
+        "torus": 39
       },
       "groundTruthSource": "merged",
-      "inventoryError": 128
+      "inventory": {
+        "cone": 8,
+        "cylinder": 49,
+        "plane": 86,
+        "sphere": 12,
+        "torus": 0,
+        "unknown": 8
+      },
+      "inventoryError": 128,
+      "unknownAreaFraction": 0.030278708126679925
     },
+    "slug": "nist-ftc-10",
+    "tier": "faceted",
     "topology": {
-      "edges": 404,
       "analyticFraction": 0.8514851485148515,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 404,
+      "error": null,
       "maxEdgeDeviation": 1.9263916483769765,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 11416,
+    "valid": true
   },
   {
-    "slug": "nist-ftc-11",
-    "mesh": "mesh-coarse",
-    "triangles": 2014,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2014,
     "facesUnified": 1092,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1092,
+      "facesTriangle": 2014,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 7 is invalid (expected V-E+F = 2+L with L=3 inner loops, got V=956, E=1759, F=810)",
+      "stepBytes": 1573637,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 59,
-        "cylinder": 7,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 10,
-        "unknown": 30
-      },
-      "unknownAreaFraction": 0.34485579248093134,
       "groundTruth": {
-        "plane": 2,
-        "cylinder": 2,
         "cone": 0,
-        "torus": 2,
-        "sphere": 0
+        "cylinder": 2,
+        "plane": 2,
+        "sphere": 0,
+        "torus": 2
       },
       "groundTruthSource": "merged",
-      "inventoryError": 74
+      "inventory": {
+        "cone": 0,
+        "cylinder": 7,
+        "plane": 59,
+        "sphere": 10,
+        "torus": 0,
+        "unknown": 30
+      },
+      "inventoryError": 74,
+      "unknownAreaFraction": 0.34485579248093134
     },
+    "slug": "nist-ftc-11",
+    "tier": "faceted",
     "topology": {
-      "edges": 306,
       "analyticFraction": 0.25163398692810457,
-      "tangentEdges": 1,
       "closedPatchFraction": 1.0,
+      "edges": 306,
+      "error": null,
       "maxEdgeDeviation": 1.7235224663890782,
-      "error": null
-    }
+      "tangentEdges": 1
+    },
+    "triangles": 2014,
+    "valid": true
   },
   {
-    "slug": "oil-ring",
-    "mesh": "mesh-export",
-    "triangles": 1040,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1040,
     "facesUnified": 780,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.10829953907236911,
+      "facesAnalytic": 4,
+      "facesFinal": 4,
+      "facesTriangle": 0,
+      "stepBytes": 6887,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.002013596559820821
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 2,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 2,
+        "plane": 2,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "oil-ring",
+    "tier": "faceted",
     "topology": {
-      "edges": 4,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.955570724021527e-6,
-      "error": null
-    }
+      "edges": 4,
+      "error": null,
+      "maxEdgeDeviation": 1.955570724021527e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 1040,
+    "valid": true
   },
   {
-    "slug": "oring-gland-ring",
-    "mesh": "mesh-coarse",
-    "triangles": 1624,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1624,
     "facesUnified": 628,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 628,
+      "facesTriangle": 1624,
+      "fallbackReason": "reconstruction failed verification: volume off by 41.7% (budget 5.0%), deviation p95 2.1014 (budget 1.9313)",
+      "stepBytes": 1002400,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 6,
-        "cone": 6,
-        "torus": 2,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 2,
-        "cylinder": 6,
         "cone": 4,
-        "torus": 1,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 2,
+        "sphere": 0,
+        "torus": 1
       },
       "groundTruthSource": "merged",
-      "inventoryError": 5
+      "inventory": {
+        "cone": 6,
+        "cylinder": 6,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 2,
+        "unknown": 0
+      },
+      "inventoryError": 5,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "oring-gland-ring",
+    "tier": "faceted",
     "topology": {
-      "edges": 21,
       "analyticFraction": 0.8095238095238095,
-      "tangentEdges": 1,
       "closedPatchFraction": 1.0,
+      "edges": 21,
+      "error": null,
       "maxEdgeDeviation": 0.02589379800152207,
-      "error": null
-    }
+      "tangentEdges": 1
+    },
+    "triangles": 1624,
+    "valid": true
   },
   {
-    "slug": "oring-gland-ring",
-    "mesh": "mesh-default",
-    "triangles": 23700,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 23700,
     "facesUnified": 15510,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.06573404513844269,
+      "facesAnalytic": 144,
+      "facesFinal": 144,
+      "facesTriangle": 0,
+      "stepBytes": 3811465,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.023787247368572715
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 132,
-        "cone": 8,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 2,
-        "cylinder": 6,
         "cone": 4,
-        "torus": 1,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 2,
+        "sphere": 0,
+        "torus": 1
       },
       "groundTruthSource": "merged",
-      "inventoryError": 133
+      "inventory": {
+        "cone": 8,
+        "cylinder": 132,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 133,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "oring-gland-ring",
+    "tier": "faceted",
     "topology": {
-      "edges": 398,
       "analyticFraction": 0.19095477386934673,
-      "tangentEdges": 126,
       "closedPatchFraction": 1.0,
+      "edges": 398,
+      "error": null,
       "maxEdgeDeviation": 0.11594343625392206,
-      "error": null
-    }
+      "tangentEdges": 126
+    },
+    "triangles": 23700,
+    "valid": true
   },
   {
-    "slug": "pole-cap",
-    "mesh": "mesh-export",
-    "triangles": 13288,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 13288,
     "facesUnified": 8700,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": 0.036526750191991725,
+      "facesAnalytic": 12,
+      "facesFinal": 3532,
+      "facesTriangle": 6669,
+      "stepBytes": 6896060,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0021267776353956496
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 4,
-        "cylinder": 6,
         "cone": 2,
-        "torus": 0,
+        "cylinder": 6,
+        "plane": 4,
         "sphere": 0,
+        "torus": 0,
         "unknown": 186
       },
-      "unknownAreaFraction": 0.0442066876343607,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0442066876343607
     },
+    "slug": "pole-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 571,
       "analyticFraction": 0.01576182136602452,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 571,
+      "error": null,
       "maxEdgeDeviation": 0.4057336130191914,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 13288,
+    "valid": true
   },
   {
-    "slug": "sensor-mount-bracket",
-    "mesh": "mesh-coarse",
-    "triangles": 740,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 740,
     "facesUnified": 262,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.08900768467902923,
+      "facesAnalytic": 13,
+      "facesFinal": 226,
+      "facesTriangle": 470,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=5 inner loops, got V=321, E=400, F=81)); retried with the reported faces demoted",
+      "stepBytes": 378659,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.02098952992647082
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 17,
-        "cylinder": 10,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 3
-      },
-      "unknownAreaFraction": 0.014247065982761015,
       "groundTruth": {
-        "plane": 20,
-        "cylinder": 14,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 14,
+        "plane": 20,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 11
+      "inventory": {
+        "cone": 0,
+        "cylinder": 10,
+        "plane": 17,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 3
+      },
+      "inventoryError": 11,
+      "unknownAreaFraction": 0.014247065982761015
     },
+    "slug": "sensor-mount-bracket",
+    "tier": "faceted",
     "topology": {
-      "edges": 77,
       "analyticFraction": 0.6623376623376623,
-      "tangentEdges": 12,
       "closedPatchFraction": 1.0,
+      "edges": 77,
+      "error": null,
       "maxEdgeDeviation": 1.3815724310037825,
-      "error": null
-    }
+      "tangentEdges": 12
+    },
+    "triangles": 740,
+    "valid": true
   },
   {
-    "slug": "sensor-mount-bracket",
-    "mesh": "mesh-default",
-    "triangles": 3520,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3520,
     "facesUnified": 2038,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": 0.06712360329504471,
+      "facesAnalytic": 31,
+      "facesFinal": 255,
+      "facesTriangle": 322,
+      "stepBytes": 395519,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.0073176801756049134
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 22,
-        "cylinder": 10,
-        "cone": 0,
-        "torus": 0,
+      "groundTruth": {
+        "cone": 4,
+        "cylinder": 14,
+        "plane": 20,
         "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 0,
+        "cylinder": 10,
+        "plane": 22,
+        "sphere": 0,
+        "torus": 0,
         "unknown": 4
       },
-      "unknownAreaFraction": 0.0433695466645042,
-      "groundTruth": {
-        "plane": 20,
-        "cylinder": 14,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 10
+      "inventoryError": 10,
+      "unknownAreaFraction": 0.0433695466645042
     },
+    "slug": "sensor-mount-bracket",
+    "tier": "faceted",
     "topology": {
-      "edges": 92,
       "analyticFraction": 0.6086956521739131,
-      "tangentEdges": 7,
       "closedPatchFraction": 1.0,
+      "edges": 92,
+      "error": null,
       "maxEdgeDeviation": 0.42575993694266334,
-      "error": null
-    }
+      "tangentEdges": 7
+    },
+    "triangles": 3520,
+    "valid": true
   },
   {
-    "slug": "slotted-angle-plate",
-    "mesh": "mesh-coarse",
-    "triangles": 688,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 688,
     "facesUnified": 190,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.08499174418151549,
+      "facesAnalytic": 15,
+      "facesFinal": 142,
+      "facesTriangle": 244,
+      "fallbackReason": "first solid was invalid (inner wire 7 on planar face 2 has the same winding as its outer wire); retried with the reported faces demoted",
+      "stepBytes": 260179,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.001067462446996933
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 15,
-        "cylinder": 11,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 18,
-        "cylinder": 16,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 16,
+        "plane": 18,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 8
+      "inventory": {
+        "cone": 0,
+        "cylinder": 11,
+        "plane": 15,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 8,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "slotted-angle-plate",
+    "tier": "faceted",
     "topology": {
-      "edges": 72,
       "analyticFraction": 0.7777777777777778,
-      "tangentEdges": 16,
       "closedPatchFraction": 1.0,
+      "edges": 72,
+      "error": null,
       "maxEdgeDeviation": 5.30704756235823,
-      "error": null
-    }
+      "tangentEdges": 16
+    },
+    "triangles": 688,
+    "valid": true
   },
   {
-    "slug": "slotted-angle-plate",
-    "mesh": "mesh-default",
-    "triangles": 2880,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2880,
     "facesUnified": 2098,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2098,
+      "facesTriangle": 2880,
+      "fallbackReason": "solid invalid after retry: edge 873 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 2515909,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 7,
-        "cylinder": 2,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 20
-      },
-      "unknownAreaFraction": 0.15290209988661507,
       "groundTruth": {
-        "plane": 18,
-        "cylinder": 16,
         "cone": 0,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 16,
+        "plane": 18,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 25
+      "inventory": {
+        "cone": 0,
+        "cylinder": 2,
+        "plane": 7,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 20
+      },
+      "inventoryError": 25,
+      "unknownAreaFraction": 0.15290209988661507
     },
+    "slug": "slotted-angle-plate",
+    "tier": "faceted",
     "topology": {
-      "edges": 81,
       "analyticFraction": 0.19753086419753085,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 81,
+      "error": null,
       "maxEdgeDeviation": 1.2242847818361258,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2880,
+    "valid": true
   },
   {
-    "slug": "solar-light-post",
-    "mesh": "mesh-export",
-    "triangles": 4086,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4086,
     "facesUnified": 2645,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2645,
+      "facesTriangle": 4086,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 20 is invalid (expected V-E+F = 2+L with L=10 inner loops, got V=2060, E=3411, F=1371)",
+      "stepBytes": 3618377,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 41,
-        "cylinder": 5,
         "cone": 2,
-        "torus": 0,
+        "cylinder": 5,
+        "plane": 41,
         "sphere": 0,
+        "torus": 0,
         "unknown": 3
       },
-      "unknownAreaFraction": 0.05317954818186639,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.05317954818186639
     },
+    "slug": "solar-light-post",
+    "tier": "faceted",
     "topology": {
-      "edges": 279,
       "analyticFraction": 0.3906810035842294,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 279,
+      "error": null,
       "maxEdgeDeviation": 0.6695510245232956,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 4086,
+    "valid": true
   },
   {
-    "slug": "spanner-18mm",
-    "mesh": "mesh-coarse",
-    "triangles": 3101,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3098,
     "facesUnified": 1700,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1700,
+      "facesTriangle": 3098,
+      "fallbackReason": "solid invalid after retry: edge 3236 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 2394827,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 13,
+        "cylinder": 20,
+        "plane": 83,
+        "sphere": 0,
+        "torus": 15
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 67,
-        "cylinder": 16,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 16,
+        "plane": 67,
         "sphere": 13,
+        "torus": 0,
         "unknown": 30
       },
-      "unknownAreaFraction": 0.203456216410071,
-      "groundTruth": {
-        "plane": 83,
-        "cylinder": 20,
-        "cone": 13,
-        "torus": 15,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 61
+      "inventoryError": 61,
+      "unknownAreaFraction": 0.203456216410071
     },
+    "slug": "spanner-18mm",
+    "tier": "faceted",
     "topology": {
-      "edges": 312,
       "analyticFraction": 0.4230769230769231,
-      "tangentEdges": 8,
       "closedPatchFraction": 1.0,
+      "edges": 312,
+      "error": null,
       "maxEdgeDeviation": 0.5200350691934357,
-      "error": null
-    }
+      "tangentEdges": 8
+    },
+    "triangles": 3101,
+    "valid": true
   },
   {
-    "slug": "spherical-ball-stud",
-    "mesh": "mesh-coarse",
-    "triangles": 514,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 514,
     "facesUnified": 406,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 406,
+      "facesTriangle": 514,
+      "fallbackReason": "reconstruction failed verification: volume off by 49.4% (budget 5.0%), deviation p95 2.8263 (budget 0.9882)",
+      "stepBytes": 503931,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 8,
-        "cylinder": 3,
-        "cone": 1,
-        "torus": 0,
-        "sphere": 3,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 6,
-        "cylinder": 3,
         "cone": 3,
-        "torus": 0,
-        "sphere": 1
+        "cylinder": 3,
+        "plane": 6,
+        "sphere": 1,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 6
+      "inventory": {
+        "cone": 1,
+        "cylinder": 3,
+        "plane": 8,
+        "sphere": 3,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 6,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "spherical-ball-stud",
+    "tier": "faceted",
     "topology": {
-      "edges": 25,
       "analyticFraction": 0.8,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 25,
+      "error": null,
       "maxEdgeDeviation": 0.014508279068379017,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 514,
+    "valid": true
   },
   {
-    "slug": "spherical-ball-stud",
-    "mesh": "mesh-default",
-    "triangles": 6968,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 6968,
     "facesUnified": 6096,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 6096,
+      "facesTriangle": 6968,
+      "fallbackReason": "reconstruction failed verification: volume off by 22.0% (budget 5.0%), deviation p95 0.6164 (budget 0.9899)",
+      "stepBytes": 7770325,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 6,
-        "cylinder": 3,
-        "cone": 1,
-        "torus": 0,
-        "sphere": 3,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 6,
-        "cylinder": 3,
         "cone": 3,
-        "torus": 0,
-        "sphere": 1
+        "cylinder": 3,
+        "plane": 6,
+        "sphere": 1,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 4
+      "inventory": {
+        "cone": 1,
+        "cylinder": 3,
+        "plane": 6,
+        "sphere": 3,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 4,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "spherical-ball-stud",
+    "tier": "faceted",
     "topology": {
-      "edges": 23,
       "analyticFraction": 0.8260869565217391,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 23,
+      "error": null,
       "maxEdgeDeviation": 0.02067414691174374,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 6968,
+    "valid": true
   },
   {
-    "slug": "split-tube-clamp",
-    "mesh": "mesh-coarse",
-    "triangles": 808,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 808,
     "facesUnified": 317,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 317,
+      "facesTriangle": 808,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 6 is invalid (expected V-E+F = 2+L with L=13 inner loops, got V=386, E=709, F=329)",
+      "stepBytes": 489251,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 12,
-        "cylinder": 6,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 4,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 12,
-        "cylinder": 6,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 8
+      "inventory": {
+        "cone": 0,
+        "cylinder": 6,
+        "plane": 12,
+        "sphere": 4,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 8,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "split-tube-clamp",
+    "tier": "faceted",
     "topology": {
-      "edges": 56,
       "analyticFraction": 0.8571428571428571,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 56,
+      "error": null,
       "maxEdgeDeviation": 0.8259507742070795,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 808,
+    "valid": true
   },
   {
-    "slug": "split-tube-clamp",
-    "mesh": "mesh-default",
-    "triangles": 3544,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3544,
     "facesUnified": 2446,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2446,
+      "facesTriangle": 3544,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=9 inner loops, got V=1762, E=3183, F=1421)",
+      "stepBytes": 3095458,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 12,
-        "cylinder": 6,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 4,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 12,
-        "cylinder": 6,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 6,
+        "plane": 12,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 8
+      "inventory": {
+        "cone": 0,
+        "cylinder": 6,
+        "plane": 12,
+        "sphere": 4,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 8,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "split-tube-clamp",
+    "tier": "faceted",
     "topology": {
-      "edges": 56,
       "analyticFraction": 0.875,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 56,
+      "error": null,
       "maxEdgeDeviation": 0.5282913993408495,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3544,
+    "valid": true
   },
   {
-    "slug": "stand-horizontal",
-    "mesh": "mesh-export",
-    "triangles": 20020,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 20020,
     "facesUnified": 17777,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 17777,
+      "facesTriangle": 20020,
+      "fallbackReason": "reconstruction failed verification: volume off by 6.1% (budget 5.0%), deviation p95 0.0374 (budget 1.8082)",
+      "stepBytes": 23064667,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": null,
+      "groundTruthSource": null,
       "inventory": {
-        "plane": 72,
-        "cylinder": 19,
         "cone": 0,
-        "torus": 0,
+        "cylinder": 19,
+        "plane": 72,
         "sphere": 12,
+        "torus": 0,
         "unknown": 47
       },
-      "unknownAreaFraction": 0.34187113293298244,
-      "groundTruth": null,
-      "groundTruthSource": null,
-      "inventoryError": null
+      "inventoryError": null,
+      "unknownAreaFraction": 0.34187113293298244
     },
+    "slug": "stand-horizontal",
+    "tier": "faceted",
     "topology": {
-      "edges": 493,
       "analyticFraction": 0.3103448275862069,
-      "tangentEdges": 7,
       "closedPatchFraction": 1.0,
+      "edges": 493,
+      "error": null,
       "maxEdgeDeviation": 0.4529936667733341,
-      "error": null
-    }
+      "tangentEdges": 7
+    },
+    "triangles": 20020,
+    "valid": true
   },
   {
-    "slug": "stepped-shaft-spacer",
-    "mesh": "mesh-coarse",
-    "triangles": 624,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 624,
     "facesUnified": 212,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.10610192161523539,
+      "facesAnalytic": 12,
+      "facesFinal": 12,
+      "facesTriangle": 0,
+      "stepBytes": 19639,
+      "tier": "analytic",
+      "valid": true,
+      "volumeRelErr": 0.004542014799632539
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 4,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 4,
-        "cylinder": 4,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 4,
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "stepped-shaft-spacer",
+    "tier": "faceted",
     "topology": {
-      "edges": 12,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.1045507497370666e-6,
-      "error": null
-    }
+      "edges": 12,
+      "error": null,
+      "maxEdgeDeviation": 1.1045507497370666e-06,
+      "tangentEdges": 0
+    },
+    "triangles": 624,
+    "valid": true
   },
   {
-    "slug": "stepped-shaft-spacer",
-    "mesh": "mesh-default",
-    "triangles": 3402,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3402,
     "facesUnified": 2772,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2772,
+      "facesTriangle": 3402,
+      "fallbackReason": "reconstruction failed verification: volume off by 14.5% (budget 5.0%), deviation p95 0.2447 (budget 1.5475)",
+      "stepBytes": 3372972,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 4,
-        "cylinder": 4,
-        "cone": 4,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": {
-        "plane": 4,
-        "cylinder": 4,
         "cone": 4,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventory": {
+        "cone": 4,
+        "cylinder": 4,
+        "plane": 4,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "stepped-shaft-spacer",
+    "tier": "faceted",
     "topology": {
-      "edges": 12,
       "analyticFraction": 1.0,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 12,
+      "error": null,
       "maxEdgeDeviation": 0.00015335987084989688,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3402,
+    "valid": true
   },
   {
-    "slug": "switch-stand",
-    "mesh": "mesh-export",
-    "triangles": 208,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 208,
     "facesUnified": 42,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 42,
+      "facesTriangle": 208,
+      "fallbackReason": "solid invalid after retry: edge 83 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 79049,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 34,
-        "cylinder": 0,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 0
-      },
-      "unknownAreaFraction": 0.0,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 0,
+        "plane": 34,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 0
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "switch-stand",
+    "tier": "faceted",
     "topology": {
-      "edges": 78,
       "analyticFraction": 0.8205128205128205,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 78,
+      "error": null,
       "maxEdgeDeviation": 3.4376583634923903,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 208,
+    "valid": true
   },
   {
-    "slug": "threaded-pipe-cap",
-    "mesh": "mesh-coarse",
-    "triangles": 2442,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2442,
     "facesUnified": 2069,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2069,
+      "facesTriangle": 2442,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -3 is invalid (expected V-E+F = 2+L with L=2 inner loops, got V=12946, E=13121, F=172)",
+      "stepBytes": 2638442,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 24,
-        "cylinder": 22,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 23,
-        "unknown": 2
-      },
-      "unknownAreaFraction": 0.0026232454440416448,
       "groundTruth": {
-        "plane": 15,
-        "cylinder": 12,
         "cone": 10,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 12,
+        "plane": 15,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 52
+      "inventory": {
+        "cone": 0,
+        "cylinder": 22,
+        "plane": 24,
+        "sphere": 23,
+        "torus": 0,
+        "unknown": 2
+      },
+      "inventoryError": 52,
+      "unknownAreaFraction": 0.0026232454440416448
     },
+    "slug": "threaded-pipe-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 199,
       "analyticFraction": 0.7035175879396985,
-      "tangentEdges": 14,
       "closedPatchFraction": 1.0,
+      "edges": 199,
+      "error": null,
       "maxEdgeDeviation": 2.3999765849178494,
-      "error": null
-    }
+      "tangentEdges": 14
+    },
+    "triangles": 2442,
+    "valid": true
   },
   {
-    "slug": "threaded-pipe-cap",
-    "mesh": "mesh-default",
-    "triangles": 10270,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 10270,
     "facesUnified": 8998,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 8998,
+      "facesTriangle": 10270,
+      "fallbackReason": "solid invalid after retry: edge 11597 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 11560903,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 29,
-        "cylinder": 26,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 21,
-        "unknown": 2
-      },
-      "unknownAreaFraction": 0.0019736971486787594,
       "groundTruth": {
-        "plane": 15,
-        "cylinder": 12,
         "cone": 10,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 12,
+        "plane": 15,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 59
+      "inventory": {
+        "cone": 0,
+        "cylinder": 26,
+        "plane": 29,
+        "sphere": 21,
+        "torus": 0,
+        "unknown": 2
+      },
+      "inventoryError": 59,
+      "unknownAreaFraction": 0.0019736971486787594
     },
+    "slug": "threaded-pipe-cap",
+    "tier": "faceted",
     "topology": {
-      "edges": 224,
       "analyticFraction": 0.6294642857142857,
-      "tangentEdges": 12,
       "closedPatchFraction": 1.0,
+      "edges": 224,
+      "error": null,
       "maxEdgeDeviation": 0.8673177107233514,
-      "error": null
-    }
+      "tangentEdges": 12
+    },
+    "triangles": 10270,
+    "valid": true
   },
   {
-    "slug": "tube-end-cap-boss",
-    "mesh": "mesh-coarse",
-    "triangles": 1796,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 1796,
     "facesUnified": 890,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 890,
+      "facesTriangle": 1796,
+      "fallbackReason": "reconstruction failed verification: volume off by 6041.0% (budget 5.0%), deviation p95 1.5585 (budget 1.4762)",
+      "stepBytes": 1301537,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 1,
+        "cylinder": 9,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 2
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 9,
-        "cylinder": 10,
         "cone": 2,
-        "torus": 1,
+        "cylinder": 10,
+        "plane": 9,
         "sphere": 1,
+        "torus": 1,
         "unknown": 2
       },
-      "unknownAreaFraction": 0.022548756842009795,
-      "groundTruth": {
-        "plane": 8,
-        "cylinder": 9,
-        "cone": 1,
-        "torus": 2,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 5
+      "inventoryError": 5,
+      "unknownAreaFraction": 0.022548756842009795
     },
+    "slug": "tube-end-cap-boss",
+    "tier": "faceted",
     "topology": {
-      "edges": 33,
       "analyticFraction": 0.6363636363636364,
-      "tangentEdges": 2,
       "closedPatchFraction": 1.0,
+      "edges": 33,
+      "error": null,
       "maxEdgeDeviation": 3.1156830681328027,
-      "error": null
-    }
+      "tangentEdges": 2
+    },
+    "triangles": 1796,
+    "valid": true
   },
   {
-    "slug": "tube-end-cap-boss",
-    "mesh": "mesh-default",
-    "triangles": 21334,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 21334,
     "facesUnified": 12934,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 12934,
+      "facesTriangle": 21334,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=5 inner loops, got V=8303, E=16907, F=8606)",
+      "stepBytes": 18446468,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 1,
+        "cylinder": 9,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 2
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 38,
-        "cylinder": 25,
         "cone": 2,
-        "torus": 0,
+        "cylinder": 25,
+        "plane": 38,
         "sphere": 2,
+        "torus": 0,
         "unknown": 73
       },
-      "unknownAreaFraction": 0.08720908108535111,
-      "groundTruth": {
-        "plane": 8,
-        "cylinder": 9,
-        "cone": 1,
-        "torus": 2,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 51
+      "inventoryError": 51,
+      "unknownAreaFraction": 0.08720908108535111
     },
+    "slug": "tube-end-cap-boss",
+    "tier": "faceted",
     "topology": {
-      "edges": 727,
       "analyticFraction": 0.11966987620357634,
-      "tangentEdges": 27,
       "closedPatchFraction": 1.0,
+      "edges": 727,
+      "error": null,
       "maxEdgeDeviation": 0.4949171752757656,
-      "error": null
-    }
+      "tangentEdges": 27
+    },
+    "triangles": 21334,
+    "valid": true
   },
   {
-    "slug": "v-belt-pulley",
-    "mesh": "mesh-coarse",
-    "triangles": 514,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 514,
     "facesUnified": 335,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 335,
+      "facesTriangle": 514,
+      "fallbackReason": "solid invalid after retry: edge 386 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 437942,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 5,
-        "cylinder": 3,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 1
-      },
-      "unknownAreaFraction": 0.023142564983146225,
       "groundTruth": {
-        "plane": 5,
-        "cylinder": 4,
         "cone": 2,
-        "torus": 0,
-        "sphere": 0
+        "cylinder": 4,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 1
+      "inventory": {
+        "cone": 2,
+        "cylinder": 3,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 1
+      },
+      "inventoryError": 1,
+      "unknownAreaFraction": 0.023142564983146225
     },
+    "slug": "v-belt-pulley",
+    "tier": "faceted",
     "topology": {
-      "edges": 22,
       "analyticFraction": 0.6363636363636364,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 22,
+      "error": null,
       "maxEdgeDeviation": 3.0524150885644077,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 514,
+    "valid": true
   },
   {
-    "slug": "v-belt-pulley",
-    "mesh": "mesh-default",
-    "triangles": 2948,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2948,
     "facesUnified": 2348,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 2348,
+      "facesTriangle": 2948,
+      "fallbackReason": "reconstruction failed verification: volume off by 5.4% (budget 5.0%), deviation p95 1.3232 (budget 2.2024)",
+      "stepBytes": 2940162,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 5,
-        "cylinder": 4,
+      "groundTruth": {
         "cone": 2,
-        "torus": 0,
+        "cylinder": 4,
+        "plane": 5,
         "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 2,
+        "cylinder": 4,
+        "plane": 5,
+        "sphere": 0,
+        "torus": 0,
         "unknown": 0
       },
-      "unknownAreaFraction": 0.0,
-      "groundTruth": {
-        "plane": 5,
-        "cylinder": 4,
-        "cone": 2,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 0
+      "inventoryError": 0,
+      "unknownAreaFraction": 0.0
     },
+    "slug": "v-belt-pulley",
+    "tier": "faceted",
     "topology": {
-      "edges": 20,
       "analyticFraction": 0.8,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 20,
+      "error": null,
       "maxEdgeDeviation": 0.3270165555056028,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2948,
+    "valid": true
   },
   {
-    "slug": "watch-charger-desk-clip",
-    "mesh": "mesh-coarse",
-    "triangles": 950,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 950,
     "facesUnified": 491,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 491,
+      "facesTriangle": 950,
+      "fallbackReason": "solid invalid after retry: edge 805 is shared by 6 faces (non-manifold, expected 2)",
+      "stepBytes": 698692,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 23,
+        "cylinder": 16,
+        "plane": 27,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 19,
-        "cylinder": 10,
         "cone": 1,
-        "torus": 0,
+        "cylinder": 10,
+        "plane": 19,
         "sphere": 11,
+        "torus": 0,
         "unknown": 12
       },
-      "unknownAreaFraction": 0.033195749037009274,
-      "groundTruth": {
-        "plane": 27,
-        "cylinder": 16,
-        "cone": 23,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 47
+      "inventoryError": 47,
+      "unknownAreaFraction": 0.033195749037009274
     },
+    "slug": "watch-charger-desk-clip",
+    "tier": "faceted",
     "topology": {
-      "edges": 137,
       "analyticFraction": 0.5401459854014599,
-      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
+      "edges": 137,
+      "error": null,
       "maxEdgeDeviation": 1.6187998437842412,
-      "error": null
-    }
+      "tangentEdges": 4
+    },
+    "triangles": 950,
+    "valid": true
   },
   {
-    "slug": "watch-charger-desk-clip",
-    "mesh": "mesh-default",
-    "triangles": 4906,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 4906,
     "facesUnified": 3478,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 3478,
+      "facesTriangle": 4906,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 3 is invalid (expected V-E+F = 2+L with L=6 inner loops, got V=2832, E=3941, F=1112)",
+      "stepBytes": 4564243,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
+      "groundTruth": {
+        "cone": 23,
+        "cylinder": 16,
+        "plane": 27,
+        "sphere": 0,
+        "torus": 0
+      },
+      "groundTruthSource": "merged",
       "inventory": {
-        "plane": 26,
-        "cylinder": 13,
         "cone": 1,
-        "torus": 0,
+        "cylinder": 13,
+        "plane": 26,
         "sphere": 8,
+        "torus": 0,
         "unknown": 8
       },
-      "unknownAreaFraction": 0.017303689535701685,
-      "groundTruth": {
-        "plane": 27,
-        "cylinder": 16,
-        "cone": 23,
-        "torus": 0,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 34
+      "inventoryError": 34,
+      "unknownAreaFraction": 0.017303689535701685
     },
+    "slug": "watch-charger-desk-clip",
+    "tier": "faceted",
     "topology": {
-      "edges": 152,
       "analyticFraction": 0.6447368421052632,
-      "tangentEdges": 1,
       "closedPatchFraction": 1.0,
+      "edges": 152,
+      "error": null,
       "maxEdgeDeviation": 0.9005853477079959,
-      "error": null
-    }
+      "tangentEdges": 1
+    },
+    "triangles": 4906,
+    "valid": true
   },
   {
-    "slug": "wheel-hub-adapter",
-    "mesh": "mesh-coarse",
-    "triangles": 2464,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 2464,
     "facesUnified": 892,
-    "error": null,
+    "mesh": "mesh-coarse",
+    "reconstruct": {
+      "deviationP95": 0.46644191195578155,
+      "facesAnalytic": 28,
+      "facesFinal": 211,
+      "facesTriangle": 416,
+      "stepBytes": 422653,
+      "tier": "mixed",
+      "valid": true,
+      "volumeRelErr": 0.020065501770053507
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 7,
-        "cylinder": 13,
+      "groundTruth": {
         "cone": 7,
-        "torus": 1,
+        "cylinder": 13,
+        "plane": 8,
         "sphere": 0,
+        "torus": 2
+      },
+      "groundTruthSource": "merged",
+      "inventory": {
+        "cone": 7,
+        "cylinder": 13,
+        "plane": 7,
+        "sphere": 0,
+        "torus": 1,
         "unknown": 1
       },
-      "unknownAreaFraction": 0.085519957726964,
-      "groundTruth": {
-        "plane": 8,
-        "cylinder": 13,
-        "cone": 7,
-        "torus": 2,
-        "sphere": 0
-      },
-      "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventoryError": 2,
+      "unknownAreaFraction": 0.085519957726964
     },
+    "slug": "wheel-hub-adapter",
+    "tier": "faceted",
     "topology": {
-      "edges": 34,
       "analyticFraction": 0.7647058823529411,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 34,
+      "error": null,
       "maxEdgeDeviation": 0.04966705645303482,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 2464,
+    "valid": true
   },
   {
-    "slug": "wheel-hub-adapter",
-    "mesh": "mesh-default",
-    "triangles": 25094,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 25094,
     "facesUnified": 16652,
-    "error": null,
+    "mesh": "mesh-default",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 16652,
+      "facesTriangle": 25094,
+      "fallbackReason": "solid invalid after retry: edge 1514 is shared by 4 faces (non-manifold, expected 2)",
+      "stepBytes": 22820438,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 84,
-        "cylinder": 26,
-        "cone": 7,
-        "torus": 0,
-        "sphere": 9,
-        "unknown": 28
-      },
-      "unknownAreaFraction": 0.047857975168464705,
       "groundTruth": {
-        "plane": 8,
-        "cylinder": 13,
         "cone": 7,
-        "torus": 2,
-        "sphere": 0
+        "cylinder": 13,
+        "plane": 8,
+        "sphere": 0,
+        "torus": 2
       },
       "groundTruthSource": "merged",
-      "inventoryError": 100
+      "inventory": {
+        "cone": 7,
+        "cylinder": 26,
+        "plane": 84,
+        "sphere": 9,
+        "torus": 0,
+        "unknown": 28
+      },
+      "inventoryError": 100,
+      "unknownAreaFraction": 0.047857975168464705
     },
+    "slug": "wheel-hub-adapter",
+    "tier": "faceted",
     "topology": {
-      "edges": 930,
       "analyticFraction": 0.32365591397849464,
-      "tangentEdges": 140,
       "closedPatchFraction": 1.0,
+      "edges": 930,
+      "error": null,
       "maxEdgeDeviation": 1.0107872825757225,
-      "error": null
-    }
+      "tangentEdges": 140
+    },
+    "triangles": 25094,
+    "valid": true
   },
   {
-    "slug": "windshield-holder-coarse",
-    "mesh": "mesh-export",
-    "triangles": 3488,
-    "tier": "faceted",
-    "valid": true,
+    "error": null,
     "facesImported": 3488,
     "facesUnified": 1577,
-    "error": null,
+    "mesh": "mesh-export",
+    "reconstruct": {
+      "deviationP95": null,
+      "facesAnalytic": 0,
+      "facesFinal": 1577,
+      "facesTriangle": 3488,
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=1 inner loops, got V=1871, E=3322, F=1451)",
+      "stepBytes": 2267513,
+      "tier": "faceted",
+      "valid": true,
+      "volumeRelErr": 0.0
+    },
     "segmentation": {
-      "inventory": {
-        "plane": 15,
-        "cylinder": 5,
-        "cone": 0,
-        "torus": 0,
-        "sphere": 0,
-        "unknown": 20
-      },
-      "unknownAreaFraction": 0.23909707112358888,
       "groundTruth": null,
       "groundTruthSource": null,
-      "inventoryError": null
+      "inventory": {
+        "cone": 0,
+        "cylinder": 5,
+        "plane": 15,
+        "sphere": 0,
+        "torus": 0,
+        "unknown": 20
+      },
+      "inventoryError": null,
+      "unknownAreaFraction": 0.23909707112358888
     },
+    "slug": "windshield-holder-coarse",
+    "tier": "faceted",
     "topology": {
-      "edges": 114,
       "analyticFraction": 0.22807017543859648,
-      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
+      "edges": 114,
+      "error": null,
       "maxEdgeDeviation": 1.1899272567355939,
-      "error": null
-    }
+      "tangentEdges": 0
+    },
+    "triangles": 3488,
+    "valid": true
   }
 ]

@@ -20,6 +20,7 @@ cargo clippy --workspace --all-targets -- -D warnings       # lints
 # crates/mesh2param-core/scoreboard-baseline.json.
 cargo test -p mesh2param-core --test scoreboard -- --nocapture
 MESH2PARAM_SCOREBOARD=full cargo test -p mesh2param-core --test scoreboard -- --nocapture
+MESH2PARAM_SCOREBOARD_ONLY=slug/mesh cargo test -p mesh2param-core --test scoreboard -- --nocapture
 MESH2PARAM_SCOREBOARD_WRITE_BASELINE=1 cargo test -p mesh2param-core --test scoreboard
 
 # The core must keep building for the browser target.

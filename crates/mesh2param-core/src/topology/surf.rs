@@ -126,7 +126,7 @@ pub(super) fn surface_of(prim: Primitive) -> Option<Surface> {
 /// The cone's is the signed distance to the generating line in the axial
 /// half-plane, which is what makes the Gauss-Newton step well-scaled: the
 /// unsigned residual has a kink at the surface and no usable gradient there.
-pub(super) fn signed_distance(prim: Primitive, q: V3) -> Option<f64> {
+pub fn signed_distance(prim: Primitive, q: V3) -> Option<f64> {
     match prim {
         Primitive::Plane { normal, offset } => Some(V3::from_arr(normal).dot(q) - offset),
         Primitive::Cylinder {
@@ -168,7 +168,7 @@ pub(super) fn signed_distance(prim: Primitive, q: V3) -> Option<f64> {
 }
 
 /// Gradient of [`signed_distance`]: the outward unit normal at `q`.
-pub(super) fn gradient(prim: Primitive, q: V3) -> Option<V3> {
+pub fn gradient(prim: Primitive, q: V3) -> Option<V3> {
     match prim {
         Primitive::Plane { normal, .. } => V3::from_arr(normal).unit(),
         Primitive::Cylinder {
