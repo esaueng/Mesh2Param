@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { resolve } from "node:path";
+import { perfBudgetMs } from "./support/perfBudget";
 
 const SAMPLE_STL = resolve(process.cwd(), "../../samples/generated/l-bracket-with-holes/source-random.stl");
 
@@ -12,8 +13,11 @@ const SAMPLE_STL = resolve(process.cwd(), "../../samples/generated/l-bracket-wit
  * CI and effectively absent on a real GPU, so they measure the driver rather
  * than this codebase. The scene build is pure CPU work and is the part a code
  * change can actually regress. See docs/viewer-performance.md.
+ *
+ * Scaled by MESH2PARAM_E2E_PERF_SCALE so the CI runner, which has no GPU and
+ * shares vCPUs, is held to a looser but still real bound.
  */
-const BUILD_BUDGET_MS = 100;
+const BUILD_BUDGET_MS = perfBudgetMs(100);
 
 async function sceneBuilds(page: Page) {
   return page.evaluate(() =>

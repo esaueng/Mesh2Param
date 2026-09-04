@@ -1,6 +1,6 @@
 import { webcrypto } from "node:crypto";
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type {
   Mesh2ParamProjectFile,
@@ -16,6 +16,7 @@ import {
   parseProjectFile,
   projectFileSourceFromBlob,
   readBlobBytes,
+  saveProjectFile,
   serializeProjectFile,
   sha256Hex,
 } from "./projectFile";
@@ -452,5 +453,40 @@ describe("Mesh2Param project files", () => {
     expect(imported.file.working.artifacts).toEqual([]);
     expect(imported.file.working.artifactSetId).toBeNull();
     expect(stored?.document.artifacts).toEqual([]);
+  });
+
+  // Regression: the object URL used to be revoked in the same task as the
+  // anchor click. Chromium reads the blob for a download in a *later* task, so
+  // that races the download away — rarely on a fast machine, reliably on a
+  // loaded CI runner.
+  it("keeps a download's object URL alive past the click that starts it", async () => {
+    const urlApi = URL as unknown as {
+      createObjectURL: (blob: Blob) => string;
+      revokeObjectURL: (url: string) => void;
+    };
+    const originalCreate = urlApi.createObjectURL;
+    const originalRevoke = urlApi.revokeObjectURL;
+    const createObjectURL = vi.fn(() => "blob:mesh2param/test");
+    const revokeObjectURL = vi.fn();
+    urlApi.createObjectURL = createObjectURL;
+    urlApi.revokeObjectURL = revokeObjectURL;
+    vi.useFakeTimers();
+    try {
+      const result = await saveProjectFile(projectFileFixture(), {
+        preferFileSystemAccess: false,
+        suggestedName: "part.mesh2param.json",
+      });
+
+      expect(result.method).toBe("download");
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+
+      await vi.runAllTimersAsync();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:mesh2param/test");
+    } finally {
+      vi.useRealTimers();
+      urlApi.createObjectURL = originalCreate;
+      urlApi.revokeObjectURL = originalRevoke;
+    }
   });
 });

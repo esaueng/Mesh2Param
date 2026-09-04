@@ -13,10 +13,29 @@ test("saved project with unavailable artifact bytes does not mount a black viewe
   // before a visibility assertion can attach (the same reason
   // primary-workflow.spec.ts waits on the primary action).
   await expect(page.locator(".dock-primary")).toContainText("Download STEP", { timeout: 240_000 });
+  // Save project is a main-thread operation (IndexedDB write, lazy codec
+  // import, source re-hash). Clicking while the first reveal is still held
+  // schedules it behind the reveal's shader compile, which on a GPU-less CI
+  // runner is a multi-hundred-millisecond SwiftShader stall — see
+  // docs/viewer-performance.md. Every other viewer spec waits for this
+  // attribute; this one did not.
+  await expect(page.getByTestId("cad-viewport"))
+    .toHaveAttribute("data-viewer-preparing", "false", { timeout: 60_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
 
   const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+  // A failing save raises an alert and never requests a download, which would
+  // otherwise surface only as an unexplained waitForEvent timeout. Race the
+  // two so the failure names itself.
+  const saveAlert = page.getByRole("alert").first();
+  const reportedSaveFailure = saveAlert
+    .waitFor({ state: "visible", timeout: 30_000 })
+    .then(async () => {
+      throw new Error(`Save project reported: ${await saveAlert.innerText()}`);
+    });
+  reportedSaveFailure.catch(() => {/* only meaningful when it wins the race */});
   await page.getByRole("button", { name: "Save project", exact: true }).click();
+  await Promise.race([downloadPromise, reportedSaveFailure]);
   const savedProject = testInfo.outputPath("l-bracket.mesh2param.json");
   await (await downloadPromise).saveAs(savedProject);
 

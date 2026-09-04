@@ -10,6 +10,29 @@ const SOFT_GABLE_STL = resolve(
 
 const primaryAction = (page: Page) => page.locator(".dock-primary");
 
+/**
+ * Waits until the viewport has actually painted the state a toggle just asked
+ * for.
+ *
+ * Display-mode and section changes swap Three.js material programs, and every
+ * new program is compiled on the main thread. On a machine with a GPU that is
+ * microseconds; under the SwiftShader rasterizer headless CI falls back to it
+ * is hundreds of milliseconds to seconds (docs/viewer-performance.md). An
+ * `expect` on the resulting DOM passes as soon as React commits, which happens
+ * *before* the compile, so the next `click` inherits the stall: its pointer
+ * events land, and then the in-page step Playwright runs afterwards cannot
+ * execute until the main thread frees — reported as a click that timed out
+ * "waiting for scheduled navigations to finish".
+ *
+ * `page.evaluate` carries no timeout of its own, so parking here absorbs the
+ * compile instead of spending an action's budget on it.
+ */
+async function settleFrames(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+}
+
 async function expectPrimaryAction(page: Page, label: string, timeout = 240_000) {
   await expect(primaryAction(page)).toContainText(label, { timeout });
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -84,17 +107,23 @@ test("L-bracket sample opens validated and exports a STEP", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Compare", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Result", exact: true }).click();
   await expect(page.getByRole("button", { name: "Result", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await settleFrames(page);
 
   // The identity strip occupies the same top row visually, but its empty grid
-  // area must not intercept the viewport tools underneath it.
+  // area must not intercept the viewport tools underneath it. Each toggle here
+  // rebuilds shader programs, so settle the frame before the next click rather
+  // than letting the compile eat that click's timeout.
   const section = page.getByRole("button", { name: "Section", exact: true });
   await section.click({ timeout: 15_000 });
   await expect(page.getByTestId("section-controls")).toBeVisible();
+  await settleFrames(page);
   await section.click({ timeout: 15_000 });
   await expect(page.getByTestId("section-controls")).toHaveCount(0);
+  await settleFrames(page);
   const measure = page.getByRole("button", { name: "Measure", exact: true });
   await measure.click({ timeout: 15_000 });
   await expect(page.getByTestId("measurement-controls")).toBeVisible();
+  await settleFrames(page);
   await measure.click({ timeout: 15_000 });
   await expect(page.getByTestId("measurement-controls")).toHaveCount(0);
 

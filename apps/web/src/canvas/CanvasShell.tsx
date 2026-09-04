@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "../api/client";
 import { apiFetch } from "../api/auth";
+import { releaseAfterDownloadStarts } from "../persistence/objectUrl";
 import { Mesh2ParamLogoMark } from "../start/Mesh2ParamLogoMark";
 import { useWorkspaceSelector, workspaceStore } from "../state/store";
 import type { ViewerMode } from "../state/types";
@@ -127,7 +128,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(objectUrl);
+      releaseAfterDownloadStarts(objectUrl);
       debugLog.info("export", `Downloaded ${filename}`, { bytes: blob.size, artifact: artifact.name });
     } catch (cause) {
       debugLog.error("export", `Download failed: ${filename}`, cause);
