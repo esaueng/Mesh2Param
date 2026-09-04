@@ -1,0 +1,992 @@
+[
+  {
+    "slug": "airtag-keychain",
+    "mesh": "mesh-coarse",
+    "triangles": 3468,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3468,
+    "facesUnified": 2675,
+    "error": null
+  },
+  {
+    "slug": "bag-clip-150",
+    "mesh": "mesh-export",
+    "triangles": 11334,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 11334,
+    "facesUnified": 6596,
+    "error": null
+  },
+  {
+    "slug": "bearing-block-608",
+    "mesh": "mesh-coarse",
+    "triangles": 574,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 574,
+    "facesUnified": 247,
+    "error": null
+  },
+  {
+    "slug": "bearing-block-608",
+    "mesh": "mesh-default",
+    "triangles": 2708,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2708,
+    "facesUnified": 1388,
+    "error": null
+  },
+  {
+    "slug": "boat-lift-cap",
+    "mesh": "mesh-export",
+    "triangles": 804,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 804,
+    "facesUnified": 295,
+    "error": null
+  },
+  {
+    "slug": "cable-saddle-clamp",
+    "mesh": "mesh-coarse",
+    "triangles": 492,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 492,
+    "facesUnified": 124,
+    "error": null
+  },
+  {
+    "slug": "cable-saddle-clamp",
+    "mesh": "mesh-default",
+    "triangles": 2204,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2204,
+    "facesUnified": 937,
+    "error": null
+  },
+  {
+    "slug": "cable-support",
+    "mesh": "mesh-export",
+    "triangles": 2052,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2052,
+    "facesUnified": 1282,
+    "error": null
+  },
+  {
+    "slug": "camera-support-arm",
+    "mesh": "mesh-export",
+    "triangles": 5448,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 5448,
+    "facesUnified": 3960,
+    "error": null
+  },
+  {
+    "slug": "cockpit-plug",
+    "mesh": "mesh-export",
+    "triangles": 12686,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 12686,
+    "facesUnified": 7941,
+    "error": null
+  },
+  {
+    "slug": "conduit-fitting",
+    "mesh": "mesh-export",
+    "triangles": 4088,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4088,
+    "facesUnified": 2328,
+    "error": null
+  },
+  {
+    "slug": "conical-funnel-adapter",
+    "mesh": "mesh-coarse",
+    "triangles": 624,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 624,
+    "facesUnified": 290,
+    "error": null
+  },
+  {
+    "slug": "conical-funnel-adapter",
+    "mesh": "mesh-default",
+    "triangles": 3780,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3780,
+    "facesUnified": 2394,
+    "error": null
+  },
+  {
+    "slug": "cooler-handle-plate",
+    "mesh": "mesh-export",
+    "triangles": 2864,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2864,
+    "facesUnified": 1825,
+    "error": null
+  },
+  {
+    "slug": "corner-brace-countersunk",
+    "mesh": "mesh-coarse",
+    "triangles": 704,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 704,
+    "facesUnified": 272,
+    "error": null
+  },
+  {
+    "slug": "corner-brace-countersunk",
+    "mesh": "mesh-default",
+    "triangles": 3312,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3312,
+    "facesUnified": 2072,
+    "error": null
+  },
+  {
+    "slug": "cup-holder-bar-mount",
+    "mesh": "mesh-export",
+    "triangles": 2524,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2524,
+    "facesUnified": 1224,
+    "error": null
+  },
+  {
+    "slug": "deck-cap",
+    "mesh": "mesh-export",
+    "triangles": 3434,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3434,
+    "facesUnified": 2468,
+    "error": null
+  },
+  {
+    "slug": "desk-cable-clip",
+    "mesh": "mesh-export",
+    "triangles": 3150,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3150,
+    "facesUnified": 1787,
+    "error": null
+  },
+  {
+    "slug": "dock-side-protector-cap",
+    "mesh": "mesh-export",
+    "triangles": 11648,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 11648,
+    "facesUnified": 6099,
+    "error": null
+  },
+  {
+    "slug": "dock-wheel-cap",
+    "mesh": "mesh-export",
+    "triangles": 1336,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1336,
+    "facesUnified": 709,
+    "error": null
+  },
+  {
+    "slug": "dovetail-slide-block",
+    "mesh": "mesh-coarse",
+    "triangles": 356,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 356,
+    "facesUnified": 91,
+    "error": null
+  },
+  {
+    "slug": "dovetail-slide-block",
+    "mesh": "mesh-default",
+    "triangles": 1556,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1556,
+    "facesUnified": 905,
+    "error": null
+  },
+  {
+    "slug": "enclosure-lid-shell",
+    "mesh": "mesh-coarse",
+    "triangles": 1992,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1992,
+    "facesUnified": 1313,
+    "error": null
+  },
+  {
+    "slug": "enclosure-lid-shell",
+    "mesh": "mesh-default",
+    "triangles": 10200,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 10200,
+    "facesUnified": 7528,
+    "error": null
+  },
+  {
+    "slug": "engraved-label-plate",
+    "mesh": "mesh-coarse",
+    "triangles": 504,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 504,
+    "facesUnified": 190,
+    "error": null
+  },
+  {
+    "slug": "engraved-label-plate",
+    "mesh": "mesh-default",
+    "triangles": 1700,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1700,
+    "facesUnified": 1354,
+    "error": null
+  },
+  {
+    "slug": "finned-heat-sink",
+    "mesh": "mesh-coarse",
+    "triangles": 556,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 556,
+    "facesUnified": 145,
+    "error": null
+  },
+  {
+    "slug": "finned-heat-sink",
+    "mesh": "mesh-default",
+    "triangles": 2156,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2156,
+    "facesUnified": 1613,
+    "error": null
+  },
+  {
+    "slug": "flange-four-bolt",
+    "mesh": "mesh-coarse",
+    "triangles": 1992,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1992,
+    "facesUnified": 709,
+    "error": null
+  },
+  {
+    "slug": "flange-four-bolt",
+    "mesh": "mesh-default",
+    "triangles": 22192,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 22192,
+    "facesUnified": 14002,
+    "error": null
+  },
+  {
+    "slug": "fluted-control-knob",
+    "mesh": "mesh-coarse",
+    "triangles": 1110,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1110,
+    "facesUnified": 824,
+    "error": null
+  },
+  {
+    "slug": "fluted-control-knob",
+    "mesh": "mesh-default",
+    "triangles": 4894,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4894,
+    "facesUnified": 3593,
+    "error": null
+  },
+  {
+    "slug": "freeform-palm-rest",
+    "mesh": "mesh-coarse",
+    "triangles": 496,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 496,
+    "facesUnified": 220,
+    "error": null
+  },
+  {
+    "slug": "freeform-palm-rest",
+    "mesh": "mesh-default",
+    "triangles": 4270,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4270,
+    "facesUnified": 3593,
+    "error": null
+  },
+  {
+    "slug": "gear-blank-disc",
+    "mesh": "mesh-coarse",
+    "triangles": 1244,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1244,
+    "facesUnified": 1002,
+    "error": null
+  },
+  {
+    "slug": "gear-blank-disc",
+    "mesh": "mesh-default",
+    "triangles": 5908,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 5908,
+    "facesUnified": 4549,
+    "error": null
+  },
+  {
+    "slug": "hammer-holder-v1",
+    "mesh": "mesh-coarse",
+    "triangles": 5326,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 5314,
+    "facesUnified": 3078,
+    "error": null
+  },
+  {
+    "slug": "hammer-holder",
+    "mesh": "mesh-coarse",
+    "triangles": 4900,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4892,
+    "facesUnified": 3036,
+    "error": null
+  },
+  {
+    "slug": "handle-test",
+    "mesh": "mesh-export",
+    "triangles": 3564,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3564,
+    "facesUnified": 1784,
+    "error": null
+  },
+  {
+    "slug": "hex-standoff-spacer",
+    "mesh": "mesh-coarse",
+    "triangles": 152,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 152,
+    "facesUnified": 46,
+    "error": null
+  },
+  {
+    "slug": "hex-standoff-spacer",
+    "mesh": "mesh-default",
+    "triangles": 552,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 552,
+    "facesUnified": 146,
+    "error": null
+  },
+  {
+    "slug": "hinge-half-knuckle",
+    "mesh": "mesh-coarse",
+    "triangles": 856,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 856,
+    "facesUnified": 254,
+    "error": null
+  },
+  {
+    "slug": "hinge-half-knuckle",
+    "mesh": "mesh-default",
+    "triangles": 3916,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3916,
+    "facesUnified": 2722,
+    "error": null
+  },
+  {
+    "slug": "hydraulic-manifold-block",
+    "mesh": "mesh-coarse",
+    "triangles": 1364,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1364,
+    "facesUnified": 511,
+    "error": null
+  },
+  {
+    "slug": "hydraulic-manifold-block",
+    "mesh": "mesh-default",
+    "triangles": 6724,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 6724,
+    "facesUnified": 4991,
+    "error": null
+  },
+  {
+    "slug": "l-bracket-gusset",
+    "mesh": "mesh-coarse",
+    "triangles": 852,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 852,
+    "facesUnified": 209,
+    "error": null
+  },
+  {
+    "slug": "l-bracket-gusset",
+    "mesh": "mesh-default",
+    "triangles": 3852,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3852,
+    "facesUnified": 2891,
+    "error": null
+  },
+  {
+    "slug": "ladder-cap",
+    "mesh": "mesh-export",
+    "triangles": 13530,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 13530,
+    "facesUnified": 8149,
+    "error": null
+  },
+  {
+    "slug": "lamp-cover",
+    "mesh": "mesh-export",
+    "triangles": 1008,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1008,
+    "facesUnified": 756,
+    "error": null
+  },
+  {
+    "slug": "laser-rail",
+    "mesh": "mesh-export",
+    "triangles": 7080,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 7080,
+    "facesUnified": 5828,
+    "error": null
+  },
+  {
+    "slug": "lofted-pull-handle",
+    "mesh": "mesh-coarse",
+    "triangles": 558,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 558,
+    "facesUnified": 194,
+    "error": null
+  },
+  {
+    "slug": "lofted-pull-handle",
+    "mesh": "mesh-default",
+    "triangles": 5512,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 5512,
+    "facesUnified": 4969,
+    "error": null
+  },
+  {
+    "slug": "mailbox-tray",
+    "mesh": "mesh-coarse",
+    "triangles": 10366,
+    "tier": null,
+    "valid": false,
+    "facesImported": 0,
+    "facesUnified": 0,
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i..."
+  },
+  {
+    "slug": "motor-mount-nema17",
+    "mesh": "mesh-coarse",
+    "triangles": 642,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 642,
+    "facesUnified": 281,
+    "error": null
+  },
+  {
+    "slug": "motor-mount-nema17",
+    "mesh": "mesh-default",
+    "triangles": 2996,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2996,
+    "facesUnified": 2255,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-01",
+    "mesh": "mesh-coarse",
+    "triangles": 2832,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2830,
+    "facesUnified": 1645,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-01",
+    "mesh": "mesh-default",
+    "triangles": 13050,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 13048,
+    "facesUnified": 8531,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-02",
+    "mesh": "mesh-coarse",
+    "triangles": 20722,
+    "tier": null,
+    "valid": false,
+    "facesImported": 0,
+    "facesUnified": 0,
+    "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i..."
+  },
+  {
+    "slug": "nist-ctc-03",
+    "mesh": "mesh-coarse",
+    "triangles": 3224,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3224,
+    "facesUnified": 1551,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-03",
+    "mesh": "mesh-default",
+    "triangles": 13938,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 13938,
+    "facesUnified": 10025,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-04",
+    "mesh": "mesh-coarse",
+    "triangles": 15668,
+    "tier": "faceted",
+    "valid": false,
+    "facesImported": 15602,
+    "facesUnified": 10074,
+    "error": null
+  },
+  {
+    "slug": "nist-ctc-05",
+    "mesh": "mesh-coarse",
+    "triangles": 6429,
+    "tier": "faceted",
+    "valid": false,
+    "facesImported": 6408,
+    "facesUnified": 3039,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-06",
+    "mesh": "mesh-coarse",
+    "triangles": 7124,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 7116,
+    "facesUnified": 4008,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-07",
+    "mesh": "mesh-coarse",
+    "triangles": 8148,
+    "tier": "faceted",
+    "valid": false,
+    "facesImported": 8140,
+    "facesUnified": 4790,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-08",
+    "mesh": "mesh-coarse",
+    "triangles": 7102,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 7082,
+    "facesUnified": 4696,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-09",
+    "mesh": "mesh-coarse",
+    "triangles": 4892,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4892,
+    "facesUnified": 3532,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-09",
+    "mesh": "mesh-default",
+    "triangles": 23244,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 23244,
+    "facesUnified": 17804,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-10",
+    "mesh": "mesh-coarse",
+    "triangles": 11416,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 11408,
+    "facesUnified": 6168,
+    "error": null
+  },
+  {
+    "slug": "nist-ftc-11",
+    "mesh": "mesh-coarse",
+    "triangles": 2014,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2014,
+    "facesUnified": 1092,
+    "error": null
+  },
+  {
+    "slug": "oil-ring",
+    "mesh": "mesh-export",
+    "triangles": 1040,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1040,
+    "facesUnified": 780,
+    "error": null
+  },
+  {
+    "slug": "oring-gland-ring",
+    "mesh": "mesh-coarse",
+    "triangles": 1624,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1624,
+    "facesUnified": 628,
+    "error": null
+  },
+  {
+    "slug": "oring-gland-ring",
+    "mesh": "mesh-default",
+    "triangles": 23700,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 23700,
+    "facesUnified": 15510,
+    "error": null
+  },
+  {
+    "slug": "pole-cap",
+    "mesh": "mesh-export",
+    "triangles": 13288,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 13288,
+    "facesUnified": 8700,
+    "error": null
+  },
+  {
+    "slug": "sensor-mount-bracket",
+    "mesh": "mesh-coarse",
+    "triangles": 740,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 740,
+    "facesUnified": 262,
+    "error": null
+  },
+  {
+    "slug": "sensor-mount-bracket",
+    "mesh": "mesh-default",
+    "triangles": 3520,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3520,
+    "facesUnified": 2038,
+    "error": null
+  },
+  {
+    "slug": "slotted-angle-plate",
+    "mesh": "mesh-coarse",
+    "triangles": 688,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 688,
+    "facesUnified": 190,
+    "error": null
+  },
+  {
+    "slug": "slotted-angle-plate",
+    "mesh": "mesh-default",
+    "triangles": 2880,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2880,
+    "facesUnified": 2098,
+    "error": null
+  },
+  {
+    "slug": "solar-light-post",
+    "mesh": "mesh-export",
+    "triangles": 4086,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4086,
+    "facesUnified": 2645,
+    "error": null
+  },
+  {
+    "slug": "spanner-18mm",
+    "mesh": "mesh-coarse",
+    "triangles": 3101,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3098,
+    "facesUnified": 1700,
+    "error": null
+  },
+  {
+    "slug": "spherical-ball-stud",
+    "mesh": "mesh-coarse",
+    "triangles": 514,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 514,
+    "facesUnified": 406,
+    "error": null
+  },
+  {
+    "slug": "spherical-ball-stud",
+    "mesh": "mesh-default",
+    "triangles": 6968,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 6968,
+    "facesUnified": 6096,
+    "error": null
+  },
+  {
+    "slug": "split-tube-clamp",
+    "mesh": "mesh-coarse",
+    "triangles": 808,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 808,
+    "facesUnified": 317,
+    "error": null
+  },
+  {
+    "slug": "split-tube-clamp",
+    "mesh": "mesh-default",
+    "triangles": 3544,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3544,
+    "facesUnified": 2446,
+    "error": null
+  },
+  {
+    "slug": "stand-horizontal",
+    "mesh": "mesh-export",
+    "triangles": 20020,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 20020,
+    "facesUnified": 17777,
+    "error": null
+  },
+  {
+    "slug": "stepped-shaft-spacer",
+    "mesh": "mesh-coarse",
+    "triangles": 624,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 624,
+    "facesUnified": 212,
+    "error": null
+  },
+  {
+    "slug": "stepped-shaft-spacer",
+    "mesh": "mesh-default",
+    "triangles": 3402,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3402,
+    "facesUnified": 2772,
+    "error": null
+  },
+  {
+    "slug": "switch-stand",
+    "mesh": "mesh-export",
+    "triangles": 208,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 208,
+    "facesUnified": 42,
+    "error": null
+  },
+  {
+    "slug": "threaded-pipe-cap",
+    "mesh": "mesh-coarse",
+    "triangles": 2442,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2442,
+    "facesUnified": 2069,
+    "error": null
+  },
+  {
+    "slug": "threaded-pipe-cap",
+    "mesh": "mesh-default",
+    "triangles": 10270,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 10270,
+    "facesUnified": 8998,
+    "error": null
+  },
+  {
+    "slug": "tube-end-cap-boss",
+    "mesh": "mesh-coarse",
+    "triangles": 1796,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 1796,
+    "facesUnified": 890,
+    "error": null
+  },
+  {
+    "slug": "tube-end-cap-boss",
+    "mesh": "mesh-default",
+    "triangles": 21334,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 21334,
+    "facesUnified": 12934,
+    "error": null
+  },
+  {
+    "slug": "v-belt-pulley",
+    "mesh": "mesh-coarse",
+    "triangles": 514,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 514,
+    "facesUnified": 335,
+    "error": null
+  },
+  {
+    "slug": "v-belt-pulley",
+    "mesh": "mesh-default",
+    "triangles": 2948,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2948,
+    "facesUnified": 2348,
+    "error": null
+  },
+  {
+    "slug": "watch-charger-desk-clip",
+    "mesh": "mesh-coarse",
+    "triangles": 950,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 950,
+    "facesUnified": 491,
+    "error": null
+  },
+  {
+    "slug": "watch-charger-desk-clip",
+    "mesh": "mesh-default",
+    "triangles": 4906,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 4906,
+    "facesUnified": 3478,
+    "error": null
+  },
+  {
+    "slug": "wheel-hub-adapter",
+    "mesh": "mesh-coarse",
+    "triangles": 2464,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 2464,
+    "facesUnified": 892,
+    "error": null
+  },
+  {
+    "slug": "wheel-hub-adapter",
+    "mesh": "mesh-default",
+    "triangles": 25094,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 25094,
+    "facesUnified": 16652,
+    "error": null
+  },
+  {
+    "slug": "windshield-holder-coarse",
+    "mesh": "mesh-export",
+    "triangles": 3488,
+    "tier": "faceted",
+    "valid": true,
+    "facesImported": 3488,
+    "facesUnified": 1577,
+    "error": null
+  }
+]

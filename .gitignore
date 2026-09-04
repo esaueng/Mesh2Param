@@ -24,5 +24,10 @@ output/playwright/
 artifacts/acceptance/
 artifacts/curved-baseline/
 
+# Rust build output. Cargo.lock is committed on purpose: the workspace ships a
+# binary-shaped artifact and pins its kernel by revision, so the resolved graph
+# has to be reproducible.
+/target/
+
 # Rust spike build output
 spikes/*/target/
