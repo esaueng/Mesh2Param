@@ -52,6 +52,28 @@ cylinder and the torus is Kåsa refined by Gauss-Newton on the true
 point-to-circle distance, because the algebraic fit is biased on exactly the
 short arcs that partial cylinders and fillet bands produce.
 
+**No surface holds a crease.** Before any of that, a patch whose interior
+contains two edge-adjacent triangles more than `maxFacetDeg` apart is refused
+every primitive. It has to be, because the residuals say the opposite in both
+directions. A fit is scored at the vertices, and a polyhedron inscribed in a
+curved surface touches it at *every* vertex: the twelve vertices of a hexagonal
+chamfer ring lie exactly on one sphere, so a sphere fits them with zero residual
+and six real planes disappear into it. And the RMS is area-weighted, so a 1.5 mm
+chamfer folded 45 degrees off the end of a 33 mm hex flat lands at 12% of the
+tolerance and is absorbed by the flat. Only the crease at the mesh's own edges
+tells either case apart, which is what `maxFacetDeg` already says about a
+coarsely tessellated cylinder — this measures it at the edges rather than around
+a fitted axis, so it covers the sphere and the torus, which have no axis, and the
+plane, which has no facet step.
+
+**And no stage may put one there.** Boundary refinement moves a face to whichever
+neighbouring patch's primitive scores it best, and that score says nothing about
+the angle the face meets its new patch at: a chamfer facet that lies close to a
+big flat's plane is scored well by it and moves there, folded. Nothing after that
+stage re-cuts a patch, so the fold is permanent and the crease rule then refuses
+the *whole* face rather than the one triangle that spoiled it. A face may only
+join a patch it does not fold, measured exactly as the crease rule measures it.
+
 Primitives are tried simplest first — plane, cylinder, cone, sphere, torus — and
 the **first** one inside tolerance wins. Smallest residual is the wrong rule: a
 sphere has one more free parameter than a cylinder and a torus two more, so they
@@ -66,14 +88,14 @@ large sphere.
 | `tolChordFactor` | 0.35 | tolerance as a multiple of **each patch's own** median edge length |
 | `tolMinFrac` / `tolMaxFrac` | 1e-4 / 0.05 | clamps on that tolerance, as fractions of the bbox diagonal |
 | `minSpreadDeg` | 8 | a flat patch must never become a huge-radius cylinder |
-| `maxFacetDeg` | 40 | a hex prism puts its vertices on a circle too; only the step size separates it from a coarse cylinder |
+| `maxFacetDeg` | 40 | a hex prism puts its vertices on a circle too; only the step size separates it from a coarse cylinder, and no surface at all may hold a crease that sharp |
 | `maxNormalDevDeg` | 12 | a cone or torus band sits inside some sphere's distance budget; only its normals give it away |
 | `radiusTolFrac` | 0.002 | residual budget relative to a curved fit's own radius |
 | `minMinorSweepDeg` | 20 | a torus must sweep a real arc of its tube, or a cylinder fits as a huge-major-radius torus |
 | `mergeAngleDeg` / `mergeHalfAngleDeg` | 1 / 1 | when two fitted primitives are declared the same |
 | `mergeRadiusFrac` / `mergeTorusRadiusFrac` | 0.01 / 0.02 | radius slack for the same |
 | `maxMergeRounds` / `refineRounds` / `splitLevels` | 12 / 2 / 3 | stage caps |
-| `minPatchFaces` / `shardFactor` | 6 / 5 | promotion floor for a patch carved out of an unfittable region: face count, and span in units of its own tolerance |
+| `minPatchFaces` / `shardFactor` | 6 / 5 | promotion floor for a patch carved out of an unfittable region: face count, and span in units of its own tolerance. `shardFactor` also gates a **one-triangle** patch whatever cut it out — one triangle lies on exactly one plane, so it is evidence of a plane only when it is large |
 | `minPatchAreaFraction` | 0 | optional extra promotion floor, as a share of the whole part; off by default |
 | `fitOnCentroids` | false | reproduce the old centroid-fit behaviour |
 
@@ -144,7 +166,45 @@ fillets and rounds, which is what tori are on real parts, stay well inside that.
   planes used to cover becomes `Unknown` (2.6% -> 32%), because the part's 42
   b-spline faces have no primitive to be recognised as. Only cone/torus/general
   freeform handling moves that number, not promotion policy.
-* `nist-ctc-01` reports roughly 41 planes against 80 in the ground truth. This
+* The crease rule still costs coarsely tessellated freeform, though less than it
+  did. Where adjacent triangles are pervasively more than `maxFacetDeg` apart,
+  merges that used to fuse such a region into one primitive are refused and the
+  pieces stay as separate promoted planes. Gating the lone triangles takes the
+  worst of that back — `airtag-keychain/mesh-coarse` 101 -> 87 and
+  `mailbox-tray/mesh-coarse` 170 -> 160 — but not all of it: against a main of
+  76, 125 and 61 those two and `spanner-18mm/mesh-coarse` still report 87, 160
+  and 76, as do `hammer-holder/mesh-coarse` 116 -> 128,
+  `threaded-pipe-cap/mesh-coarse` 52 -> 56, `nist-ftc-08/mesh-coarse` 105 -> 109
+  and `nist-ctc-05/mesh-coarse` 59 -> 61. What is left is two- to five-triangle
+  patches, and no size gate separates those from the real small faces a CAD
+  tessellator emits: requiring `minPatchFaces` of every patch costs the heat
+  sink 14 of its 41 planes and doubles the manifold block's error, and requiring
+  the span of every patch costs the same meshes a reconstruction tier. Against
+  that the corpus gains 48 -> 19 on `nist-ctc-01/mesh-coarse`, 56 -> 23 on
+  `nist-ctc-03/mesh-coarse`, 42 -> 11 on `nist-ftc-09/mesh-coarse` and 452 -> 345
+  on `nist-ctc-02/mesh-coarse`.
+* The crease rule also **cuts more patches than it promotes**, and that is felt
+  a stage later rather than here. `cockpit-plug/mesh-export` gains 18 tiny
+  4-triangle `Unknown` patches where main absorbed the same triangles into a
+  neighbouring patch; the recognised inventory is identical (7 planes, 73
+  cylinders, 2 spheres) and the unknown area moves by 0.02%, but each new patch
+  is a new boundary, and each boundary is a chance for topology recovery to
+  merge two mesh vertices into one corner. That is what used to take the mesh
+  down a tier; face construction now keeps those vertices apart instead (see
+  "Face construction" below), and the cut itself is left alone because those
+  fragments really do hold a crease.
+* `motor-mount-nema17/mesh-coarse` fits a 444 mm cylinder to a 23 mm flat face
+  whose patch leaked a chamfer: the fold pushes the plane past
+  `maxNormalDevDeg`, the circle fit then follows the flat majority, and the face
+  built on it lands 37 000 mm from the part. `radiusSane` allows 50 bbox
+  diagonals, which does not catch it; what does is that the patch wraps only 7.3
+  degrees around the axis it was given while its normals turn 12.9. Gating a
+  cylinder's swept angle at `minSpreadDeg`, as the torus is gated at
+  `minMinorSweepDeg`, removes the surface — but it could not be reproduced on a
+  synthetic mesh, so it is recorded here rather than applied. Verification
+  demotes the face it produces, so the surface costs the part one face rather
+  than its tier.
+* `nist-ctc-01` reports roughly 57 planes against 80 in the ground truth. This
   was put down to STEP splitting coplanar adjacent faces, but the merged
   inventory measures that claim and refutes it: the part has no adjacent
   coincident face pair at all, so its 80 planes are 80 distinct surfaces and the
@@ -386,12 +446,26 @@ better answer than any circle drawn through them.
 
 Measured: the capped cylinder, the cone frustum, the pointed cone and the whole
 torus each tessellate to within 0.5% of their closed-form volume, and the corpus
-histogram moves from 9 analytic / 24 mixed / 66 faceted to 13 / 25 / 61.
+histogram moves from 9 analytic / 24 mixed / 66 faceted to 13 / 25 / 61 (16 / 70
+/ 13 with the repairs below).
 esaueng/remus#264 stays **open**: the workaround is here, not upstream, and
 `validate_solid` still accepts the inner-wire form without a word.
 
 **Unknown and open patches become triangles**, one planar face per mesh
 triangle, on the same shared vertices and edges, so the shell still closes.
+
+**A recovered corner stands in for at most one mesh vertex.** Topology recovery
+merges corners that sit inside one tolerance, so two distinct mesh vertices can
+arrive at the same recovered vertex. Routing both to one kernel vertex fuses the
+mesh edges that end there: two different mesh edges resolve to the same kernel
+vertex pair, get the same kernel edge, and the shell then has an edge used by
+four faces — which also moves `V - E + F` by one, so the Euler check fails as
+well. Neither is repairable by demotion, because the faces on such an edge are
+triangles. The later mesh vertex therefore keeps its own kernel vertex, and the
+analytic faces whose loops relied on the merge fail to chain and fall to
+triangles: a face lost, not a solid. Measured on `cockpit-plug/mesh-export`,
+where 18 small carved features each contribute one fusion — mixed and valid with
+64 analytic faces with the vertices kept apart, `Faceted` with them merged.
 
 **Assembly.** Shell, solid, `unify_faces`, `validate_solid`. `sew_faces` is
 **not** used and neither is `make_solid_from_faces`, which is `sew_faces` under
@@ -401,21 +475,66 @@ exists to produce. Edges are already shared, so there is nothing for it to do.
 `heal_solid` stays off for the same reason as at the faceted tier
 (esaueng/remus#244).
 
-An invalid solid is retried once with the analytic faces the validator named
-demoted to triangles — the report is prose, so when no edge can be localised
-every curved face is demoted, a plane bounded by the mesh polygon being the one
-analytic face that cannot be in the wrong place. Still invalid, and the run
-falls back to `faceted_step` with `fallbackReason` set.
+Merging is a tidy-up and is **not allowed to be what breaks the solid**.
+`unify_faces` loses track of the inner loops it moves onto a merged face
+(esaueng/remus#246) and the Euler check then reads the body as the wrong genus,
+so a solid that is invalid after merging is rebuilt unmerged — assembly is
+deterministic — and the unmerged one kept when it validates.
+`hydraulic-manifold-block/mesh-default` is exactly that: 30 analytic faces and a
+valid solid unmerged, Euler-invalid merged.
+
+A shell that closes, is manifold and is consistently wound can still face
+**inward**, and then encloses a negative volume; that is one global sign, not a
+face-by-face error, so it is repaired globally — every face reversed, then
+re-validated, and put back if reversing did not settle it. The sign itself is
+the kernel's own answer, from `validate_solid` integrating the real face
+geometry, rather than a second estimate from a tessellation. Nothing in the
+corpus subset needs it today; it is the net under `outward_sign`, which is an
+area-weighted vote of mesh normals and can vote wrong on a patch its fitted
+surface grazes.
+
+An invalid solid is then retried once with the analytic faces the validator
+named demoted to triangles — the report is prose, so when no edge can be
+localised every curved face is demoted, a plane bounded by the mesh polygon
+being the one analytic face that cannot be in the wrong place. Still invalid,
+and the run falls back to `faceted_step` with `fallbackReason` set.
 
 **Verification is part of the tier claim.** The result is tessellated and
 measured against the source mesh in both directions — source centroids and
 vertices against the result, result vertices against the source — with a
-uniform-grid point-to-triangle query, and its volume compared. A solid whose
-volume is more than `maxVolumeError` off, or whose deviation p95 is more than
-`maxDeviationFraction` of the bounding box, does not keep a tier above
-`Faceted`. A hex prism recognised as a cylinder is closed, manifold, orientable
-and half again too big; topology cannot see that and a caller acting on the
-tier would.
+uniform-grid point-to-triangle query, and its volume compared. A hex prism
+recognised as a cylinder is closed, manifold, orientable and half again too big;
+topology cannot see that and a caller acting on the tier would.
+
+**A failed verification is localised before it is fatal.** It is rarely the
+whole solid that is wrong: one face built on a surface that grazes its own patch
+can sit metres off a hundred-millimetre part and carry the aggregate with it. So
+the same measurement is taken **per face** — from the grouped tessellation,
+result against source, with distance to the mesh's own bounding box as the lower
+bound that settles a far face without a grid search — and the analytic patches
+whose faces are further off than the deviation budget are demoted and the solid
+rebuilt, once. 26 of the 99 subset meshes take that retry.
+`motor-mount-nema17/mesh-coarse` goes from 970 668% off its volume to 0.6%, and
+`sensor-mount-bracket/mesh-coarse` from 17.5% to 1.6%; the ball stud keeps its
+flat as an analytic face and loses only its sphere.
+
+**The volume budget follows the measured deviation.** A volume difference is
+evidence of a wrong shape only when it is larger than the deviation can produce:
+displace every point of a closed surface by at most `d` and the volume it bounds
+moves by at most `d x A`. So the budget is
+`max(maxVolumeError, 1.5 x deviationMax x area / volume)`, capped at 100%. The
+factor above one covers the second-order term a curved surface adds and the fact
+that the deviation is sampled rather than exhaustive. This is what admits a
+coarse polygonal bore reconstructed as the cylinder it was cut from — the mesh
+is the thing that is small there, by the chord sagitta, all the way round.
+
+The cap is what stops that reasoning excusing anything: a cylinder fitted at
+twice the radius is a whole radius off the mesh, so the explained budget is
+enormous, and 100% refuses it anyway. The flat `maxVolumeError` is tried first
+and the widened budget only after the per-face retry above has run, so a
+localisable failure is never excused instead of fixed —
+`cable-saddle-clamp/mesh-default`, whose first solid encloses 964x the mesh, is
+repaired by demoting the four faces responsible rather than by either budget.
 
 ### Options and defaults
 
@@ -427,8 +546,8 @@ tier would.
 | `unify` | `true` | merge same-surface adjacent faces before validating |
 | `polylineNurbs` | `false` | interpolate a polyline edge instead of chaining straight edges |
 | `triangleBudget` | 200000 | refuse larger meshes |
-| `maxRounds` | 3 | demote-and-rebuild rounds before the faceted fallback |
-| `maxVolumeError` | 0.05 | volume error, relative, above which the tier drops to `Faceted` |
+| `maxRounds` | 3 | demote-and-rebuild rounds before the faceted fallback: at most one for an invalid solid and one for a failed verification |
+| `maxVolumeError` | 0.05 | volume error, relative, above which the tier drops to `Faceted` — widened towards 100% by what the measured deviation can account for |
 | `maxDeviationFraction` | 0.02 | deviation p95, as a fraction of the diagonal, above which the same |
 
 `polylineNurbs` is **off on measurement, not on principle**. The interpolating
@@ -441,50 +560,47 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 
 ### Known limits
 
-* **Recognition, not assembly, is what caps the tier.** Of 99 corpus meshes
-  that reach this stage, 13 come back `Analytic`, 25 `Mixed` and 61 `Faceted`.
-  Most of the 61 are solids that built and validated and then failed
-  verification — the shape is wrong, not the topology — and the biggest of
-  those are gross: `cable-saddle-clamp/mesh-default` builds a valid 16-face
-  analytic solid whose volume is 960x the mesh's, and `hex-standoff-spacer`
-  reports 8 planes and 2 spheres against a ground truth of 20 planes and no
-  sphere. Those are recognition failures with nothing periodic about them: the
-  seam work above moved five meshes and none of the hex-prism-as-cylinder
-  class.
+* **The remaining `Faceted` rows are validation failures, not shape failures.**
+  Of the 99 corpus meshes that reach this stage, 16 come back `Analytic`, 70
+  `Mixed` and 13 `Faceted`. Ten of the 13 are solids that never validated —
+  seven on Euler characteristic, three on an inner wire winding the same way as
+  its outer wire, both inside the triangulated regions — two are meshes the
+  faceted floor itself cannot import (`mailbox-tray/mesh-coarse`,
+  `nist-ctc-02/mesh-coarse`, both non-manifold as welded), and exactly one is a
+  verification failure: `spherical-ball-stud/mesh-coarse`, on the deviation gate
+  rather than the volume one.
 * **A spherical face wider than about 80 degrees has no structured
   tessellation path.** `fill_sphere_cap_web` declines it outright
   (`tessellate/nonplanar.rs:2604`) and the latitude-cap path needs a second
   trimmed face on the same sphere, which a lone ball has not got — so the ball
   stud shape (a sphere with one flat cut off it) builds a valid solid that
-  tessellates 59% under its volume and drops to `Faceted`. Seaming it out to
-  its pole the way a cone's wall is seamed to its apex measures **worse**, 82%,
-  so it is not done; a spherical dome inside the 80 degrees meshes fine.
+  tessellates 59% under its volume. Seaming it out to its pole the way a cone's
+  wall is seamed to its apex measures **worse**, 82%, so it is not done; a
+  spherical dome inside the 80 degrees meshes fine. Verification localises the
+  bad face and demotes it, so the shape costs its sphere and not its tier.
 * **A whole doughnut cannot be reached through `reconstruct`.** The face is
   built and measured (`build_solid` on a hand-written single-torus
   segmentation), but a torus swept a full turn around its tube defeats the
   segmenter's axis estimator, which breaks the mesh into eight patches instead
   of one.
-* **The retry is all-or-nothing.** A solid that fails verification falls
-  straight to the faceted tier rather than demoting the faces responsible and
-  rebuilding, because the deviation is measured per part and not per face. A
-  per-face deviation would keep the good half of those 21.
-* **Euler failures are the largest topological class**, 20 of the 66. They are
-  concentrated in the triangulated regions, where a patch pinched by the
-  topology stage's vertex merge leaves a mesh edge whose two ends resolve to
-  one kernel vertex.
-* **Two mesh edges can collapse onto one kernel edge.** Topology recovery
-  merges corners inside one tolerance, so two distinct mesh edges can end up
-  between the same pair of kernel vertices. They are deliberately shared rather
-  than kept apart: kept apart, eight more corpus parts lose their shell to
-  boundary edges; shared, the edge carries four face uses and the validator
-  says so. 14 of the 66 fall over on that.
-* **The kernel panics on four corpus meshes** —
+* **The per-face retry runs once and only demotes.** A face further off than
+  the deviation budget is demoted to triangles; nothing tries to rebuild it
+  better, and a second failure after the retry goes to the faceted floor.
+* **Euler failures are the largest remaining topological class**, seven of the
+  13. They are concentrated in the triangulated regions and are now the ones the
+  corner-per-mesh-vertex rule above does *not* cover: a mesh edge whose two ends
+  still resolve to one kernel vertex is dropped outright, which leaves a hole in
+  the shell rather than a fused edge.
+* **The kernel panics on five corpus meshes** —
   `camera-support-arm/mesh-export`, `conduit-fitting/mesh-export`,
-  `hinge-half-knuckle/mesh-coarse`, `motor-mount-nema17/mesh-default`:
-  `index out of bounds` in the non-planar CDT at
+  `hinge-half-knuckle/mesh-coarse`, `motor-mount-nema17/mesh-default`,
+  `nist-ctc-01/mesh-default`: `index out of bounds` in the non-planar CDT at
   `crates/operations/src/tessellate/nonplanar.rs:2187`, reached from
-  `tessellate_solid` on a face this stage builds. The scoreboard catches it so
-  one mesh does not take the corpus with it; a product caller cannot.
+  `tessellate_solid` on a face this stage builds. Verification catches the
+  unwind and treats it as a stage that declined, so the panic costs the run its
+  measurement rather than the calling process — but the message still reaches
+  the default panic hook, and `deviation` comes back `null` on those rows, which
+  means their tier is claimed unverified.
 * **No ellipse, hyperbola or parabola faces or edges**, because topology
   recovery does not produce them.
 * **A patch merged out of two disjoint regions of one plane is demoted**

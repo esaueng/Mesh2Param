@@ -30,6 +30,8 @@ pub(super) struct MeshGeom {
     pub areas: Vec<f64>,
     /// Enclosed volume, positive.
     pub volume: f64,
+    /// Total surface area.
+    pub surface_area: f64,
 }
 
 impl MeshGeom {
@@ -57,6 +59,7 @@ impl MeshGeom {
 
         Self {
             volume: signed.abs(),
+            surface_area: areas.iter().sum(),
             points,
             triangles,
             normals,

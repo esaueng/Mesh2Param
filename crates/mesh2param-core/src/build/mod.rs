@@ -19,12 +19,16 @@
 //!    boundary does not close, and a patch whose face construction fails are
 //!    all emitted as one planar face per mesh triangle, on the same shared
 //!    vertices and edges, so the shell still closes.
-//! 4. **Assemble, validate, retry.** Shell, solid, `unify_faces`, then
-//!    `validate_solid`. An invalid solid is retried once with the analytic
-//!    faces the validator complained about demoted to triangles, and falls
-//!    back to [`crate::faceted_step`] if that does not help.
+//! 4. **Assemble, validate, repair, retry.** Shell, solid, `unify_faces`, then
+//!    `validate_solid`. A merge that makes the solid invalid is thrown away; a
+//!    shell that came out inside out is reversed; an invalid solid is retried
+//!    once with the analytic faces the validator complained about demoted to
+//!    triangles, and falls back to [`crate::faceted_step`] if that does not
+//!    help.
 //! 5. **Verify.** The result is tessellated and measured against the source
-//!    mesh in both directions, and its volume compared.
+//!    mesh in both directions, and its volume compared against what that
+//!    measured deviation can account for. A failure is localised to the faces
+//!    that are off the mesh and retried once with those demoted.
 //!
 //! # Tiers
 //!
@@ -58,6 +62,29 @@ pub use verify::Deviation;
 
 /// How many validation issues are carried on a result before truncating.
 const MAX_ISSUES: usize = 10;
+
+/// How much volume error one unit of measured surface deviation is allowed to
+/// account for, per unit of `surface_area / volume`.
+///
+/// Displace every point of a closed surface by at most `d` and the volume it
+/// bounds moves by at most `d * A`, so `d * A / V` is the relative volume
+/// error a deviation of `d` can produce on its own. The factor above one is the
+/// slack on that first-order bound: a curved surface adds a second-order term,
+/// and the deviation is a sampled maximum rather than an exhaustive one. Half
+/// again is enough to cover the case this exists for — a polygonal bore
+/// reconstructed as the cylinder it was cut from, where the mesh is the thing
+/// that is small — and every corpus mesh that reaches the widened budget passes
+/// or fails it by an order of magnitude, not by this factor.
+const DEVIATION_VOLUME_FACTOR: f64 = 1.5;
+
+/// The volume error no measured deviation may excuse.
+///
+/// A result that encloses twice, or half, what the mesh does is a different
+/// shape, not a differently-sampled one. Without it the reasoning above excuses
+/// anything far enough away: a cylinder fitted at twice the radius sits a whole
+/// radius off the mesh, so its own deviation buys it a budget several times the
+/// error it has.
+const MAX_EXPLAINED_VOLUME_ERROR: f64 = 1.0;
 
 /// Wall clock, where there is one. `wasm32-unknown-unknown` has no clock at
 /// all and `Instant::now` traps there, so the browser build reports zero
@@ -377,8 +404,20 @@ pub fn build_solid(
     }
 
     let mut retried_after_invalid = false;
+    let mut retried_after_verify = false;
     let mut last: Option<(KernelTopology, SolidId, assemble::Attempt, ValidationReport)> = None;
     let mut fallback_reason: Option<String> = None;
+    let mut measured: Option<verify::Measured> = None;
+    let mut ms_verify = 0.0;
+
+    // A thousandth of the part is the usual display deflection, and the
+    // measurement has to be finer than what it is measuring: at the run
+    // tolerance the result's own faceting would dominate the number.
+    let diagonal = mesh.bbox.diagonal();
+    let deflection = options
+        .deflection
+        .unwrap_or_else(|| tol.min(1e-3 * diagonal).max(1e-6 * diagonal));
+    let deviation_budget = options.max_deviation_fraction * diagonal;
 
     // One round per demotion pass, plus one that is not allowed to demote
     // again: a round that ends by demoting has to be followed by a round that
@@ -404,35 +443,162 @@ pub fn build_solid(
             remus_operations::heal::unify_faces(&mut attempt.topo, attempt.solid)
                 .map_err(|e| CoreError::Kernel(format!("unify_faces: {e}")))?;
         }
-        let report = remus_operations::validate::validate_solid(&attempt.topo, attempt.solid)
+        let mut report = remus_operations::validate::validate_solid(&attempt.topo, attempt.solid)
             .map_err(|e| CoreError::Kernel(format!("validate_solid: {e}")))?;
 
-        // A single retry with the faces the validator named demoted. The
-        // report is prose, so the fallback is every curved face: a plane
-        // bounded by the mesh polygon is the one analytic face that cannot be
-        // in the wrong place.
-        if !report.is_valid() && !retried_after_invalid && !final_round {
-            retried_after_invalid = true;
-            let demote = invalid_demotions(&attempt, &report, seg, &analytic);
-            let still_analytic = analytic
-                .iter()
-                .enumerate()
-                .any(|(i, on)| *on && !demote.contains(&(i as u32)));
-            if !demote.is_empty() && still_analytic {
-                fallback_reason = Some(format!(
-                    "first solid was invalid ({}); retried with the reported faces demoted",
-                    first_issue(&report)
-                ));
-                for patch in demote {
-                    failures.push((patch, "validator reported the face's edges"));
-                    if let Some(slot) = analytic.get_mut(patch as usize) {
-                        *slot = false;
-                    }
-                }
-                continue;
+        // Merging same-surface faces is a tidy-up, not a step the result
+        // depends on, and it must not be the thing that makes the solid
+        // invalid. `unify_faces` loses track of the inner loops it moves onto a
+        // merged face (esaueng/remus#246), and the Euler check then reads the
+        // solid as the wrong genus: measured on
+        // `hydraulic-manifold-block/mesh-default`, which is a valid mixed solid
+        // unmerged and Euler-invalid merged. Assembly is deterministic, so the
+        // unmerged solid is one rebuild away.
+        if options.unify && !report.is_valid() {
+            let plain = assemble::attempt(&ctx, &analytic)?;
+            let plain_report = remus_operations::validate::validate_solid(&plain.topo, plain.solid)
+                .map_err(|e| CoreError::Kernel(format!("validate_solid: {e}")))?;
+            if plain_report.is_valid() {
+                fallback_reason.get_or_insert_with(|| {
+                    format!(
+                        "merging same-surface faces made the solid invalid ({}); \
+                         kept the unmerged faces",
+                        first_issue(&report)
+                    )
+                });
+                attempt = plain;
+                report = plain_report;
             }
         }
 
+        // The safety net under every per-patch orientation decision: a shell
+        // that closes, is manifold and is consistently wound can still face
+        // inward, and then encloses a negative volume. That is one global sign,
+        // so it is repaired globally rather than demoted face by face.
+        if inside_out(&report) {
+            assemble::reverse_shell(&mut attempt.topo, attempt.solid)?;
+            let after = remus_operations::validate::validate_solid(&attempt.topo, attempt.solid)
+                .map_err(|e| CoreError::Kernel(format!("validate_solid: {e}")))?;
+            if inside_out(&after) {
+                // Reversing did not settle the sign, so it was not one global
+                // flip; put the shell back and let the ordinary retry run.
+                assemble::reverse_shell(&mut attempt.topo, attempt.solid)?;
+            } else {
+                fallback_reason.get_or_insert_with(|| {
+                    "the assembled shell was inside out and was \
+                                            reversed before validating"
+                        .to_string()
+                });
+                report = after;
+            }
+        }
+
+        if !report.is_valid() {
+            // A single retry with the faces the validator named demoted. The
+            // report is prose, so the fallback is every curved face: a plane
+            // bounded by the mesh polygon is the one analytic face that cannot
+            // be in the wrong place.
+            if !retried_after_invalid && !final_round {
+                retried_after_invalid = true;
+                let demote = invalid_demotions(&attempt, &report, seg, &analytic);
+                let still_analytic = analytic
+                    .iter()
+                    .enumerate()
+                    .any(|(i, on)| *on && !demote.contains(&(i as u32)));
+                if !demote.is_empty() && still_analytic {
+                    fallback_reason = Some(format!(
+                        "first solid was invalid ({}); retried with the reported faces demoted",
+                        first_issue(&report)
+                    ));
+                    for patch in demote {
+                        failures.push((patch, "validator reported the face's edges"));
+                        if let Some(slot) = analytic.get_mut(patch as usize) {
+                            *slot = false;
+                        }
+                    }
+                    continue;
+                }
+            }
+            let ms_build = build_clock.ms();
+            let reason = format!("solid invalid after retry: {}", first_issue(&report));
+            return faceted_result(mesh, &geom, options, reason, grouped(&failures), ms_build);
+        }
+
+        // The tier is a claim about the shape, not only about the topology, so
+        // a result that is measurably not the part does not get to keep it.
+        let verify_clock = Stopwatch::start();
+        let m = if options.verify {
+            verify::measure(&attempt.topo, attempt.solid, &geom, deflection).ok()
+        } else {
+            None
+        };
+        ms_verify += verify_clock.ms();
+
+        if let Some(m) = &m {
+            let volume_error = relative_volume_error(m.volume, geom.volume);
+            let over_volume = volume_error > options.max_volume_error;
+            let over_deviation = m.deviation.p95 > deviation_budget;
+            if over_volume || over_deviation {
+                // Verification is measured over the whole solid, but it is
+                // rarely the whole solid that is wrong: one face built on a
+                // surface that grazes its own patch can sit metres off a
+                // hundred-millimetre part and carry the aggregate with it.
+                // Localise it the way an invalid solid is localised — demote
+                // the faces that are demonstrably not on the mesh and rebuild —
+                // before giving the whole reconstruction up.
+                if !retried_after_verify && !final_round {
+                    retried_after_verify = true;
+                    let demote = off_mesh_demotions(
+                        &attempt,
+                        &geom,
+                        deflection,
+                        deviation_budget,
+                        &analytic,
+                    );
+                    let still_analytic = analytic
+                        .iter()
+                        .enumerate()
+                        .any(|(i, on)| *on && !demote.contains(&(i as u32)));
+                    if !demote.is_empty() && still_analytic {
+                        fallback_reason = Some(format!(
+                            "first solid failed verification (volume off by {:.1}%, deviation p95 \
+                             {:.4}); retried with the {} face(s) off the mesh demoted",
+                            volume_error * 100.0,
+                            m.deviation.p95,
+                            demote.len()
+                        ));
+                        for patch in demote {
+                            failures.push((patch, "face lies off the source mesh"));
+                            if let Some(slot) = analytic.get_mut(patch as usize) {
+                                *slot = false;
+                            }
+                        }
+                        continue;
+                    }
+                }
+                let budget = volume_budget(options, m, &geom);
+                if over_deviation || volume_error > budget {
+                    let ms_build = build_clock.ms();
+                    let reason = format!(
+                        "reconstruction failed verification: volume off by {:.1}% (budget \
+                         {:.1}%), deviation p95 {:.4} (budget {deviation_budget:.4})",
+                        volume_error * 100.0,
+                        budget * 100.0,
+                        m.deviation.p95,
+                    );
+                    return faceted_result(
+                        mesh,
+                        &geom,
+                        options,
+                        reason,
+                        grouped(&failures),
+                        ms_build,
+                    );
+                }
+            }
+        }
+
+        measured = m;
         let topo_out = std::mem::replace(&mut attempt.topo, KernelTopology::new());
         let solid = attempt.solid;
         last = Some((topo_out, solid, attempt, report));
@@ -451,12 +617,6 @@ pub fn build_solid(
         );
     };
 
-    if !report.is_valid() {
-        let ms_build = build_clock.ms();
-        let reason = format!("solid invalid after retry: {}", first_issue(&report));
-        return faceted_result(mesh, &geom, options, reason, grouped(&failures), ms_build);
-    }
-
     let step = remus_io::step::writer::write_step(&topo_out, &[solid])
         .map_err(|e| CoreError::Kernel(format!("write_step: {e}")))?;
     let round_trip_ok = {
@@ -464,43 +624,7 @@ pub fn build_solid(
         remus_io::step::reader::read_step(&step, &mut probe).is_ok()
     };
     let faces_final = face_count(&topo_out, solid);
-    let ms_build = build_clock.ms();
-
-    let verify_clock = Stopwatch::start();
-    // A thousandth of the part is the usual display deflection, and the
-    // measurement has to be finer than what it is measuring: at the run
-    // tolerance the result's own faceting would dominate the number.
-    let diagonal = mesh.bbox.diagonal();
-    let measured = if options.verify {
-        let deflection = options
-            .deflection
-            .unwrap_or_else(|| tol.min(1e-3 * diagonal).max(1e-6 * diagonal));
-        verify::measure(&topo_out, solid, &geom, deflection).ok()
-    } else {
-        None
-    };
-    let ms_verify = verify_clock.ms();
-
-    // The tier is a claim about the shape, not only about the topology, so a
-    // result that is measurably not the part does not get to keep it.
-    if let Some(m) = &measured {
-        let volume_error = if geom.volume > 0.0 {
-            (m.volume - geom.volume).abs() / geom.volume
-        } else {
-            0.0
-        };
-        let deviation_budget = options.max_deviation_fraction * diagonal;
-        if volume_error > options.max_volume_error || m.deviation.p95 > deviation_budget {
-            let reason = format!(
-                "reconstruction failed verification: volume off by {:.1}% (budget {:.1}%), \
-                 deviation p95 {:.4} (budget {deviation_budget:.4})",
-                volume_error * 100.0,
-                options.max_volume_error * 100.0,
-                m.deviation.p95,
-            );
-            return faceted_result(mesh, &geom, options, reason, grouped(&failures), ms_build);
-        }
-    }
+    let ms_build = build_clock.ms() - ms_verify;
 
     let tier = if attempt.faces_analytic == 0 {
         Tier::Faceted
@@ -534,6 +658,69 @@ pub fn build_solid(
         ms_build,
         ms_verify,
     })
+}
+
+/// Whether the validator says the outer shell faces inward.
+///
+/// The check is the kernel's own: it integrates the real face geometry, which
+/// is a better answer than any second estimate from a tessellation, and it is
+/// silent rather than wrong when the sign cannot be established.
+fn inside_out(report: &ValidationReport) -> bool {
+    report
+        .issues
+        .iter()
+        .any(|i| i.severity == Severity::Error && i.description.contains("inside out"))
+}
+
+/// `|built - source| / source`, zero when the source encloses nothing.
+fn relative_volume_error(built: f64, source: f64) -> f64 {
+    if source > 0.0 {
+        (built - source).abs() / source
+    } else {
+        0.0
+    }
+}
+
+/// The volume error this reconstruction is allowed, given how far it actually
+/// sits from the mesh.
+///
+/// A volume difference is only evidence of a *wrong shape* when it is larger
+/// than the measured surface deviation can produce. The case this exists for is
+/// the coarse bore: a twelve-sided hole reconstructed as the cylinder it was
+/// tessellated from is right, and the mesh is the thing that is 5% out, but the
+/// deviation over the whole surface stays at the chord sagitta. Below
+/// [`BuildOptions::max_volume_error`] nothing is asked, and above
+/// [`MAX_EXPLAINED_VOLUME_ERROR`] nothing is excused.
+fn volume_budget(
+    options: &BuildOptions,
+    measured: &verify::Measured,
+    geom: &geom::MeshGeom,
+) -> f64 {
+    if geom.volume <= 0.0 || !measured.deviation.max.is_finite() {
+        return options.max_volume_error;
+    }
+    let explained =
+        DEVIATION_VOLUME_FACTOR * measured.deviation.max * geom.surface_area / geom.volume;
+    explained.clamp(options.max_volume_error, MAX_EXPLAINED_VOLUME_ERROR)
+}
+
+/// The analytic patches whose faces are demonstrably not on the source mesh.
+fn off_mesh_demotions(
+    attempt: &assemble::Attempt,
+    geom: &geom::MeshGeom,
+    deflection: f64,
+    budget: f64,
+    analytic: &[bool],
+) -> Vec<u32> {
+    let mut out: BTreeSet<u32> = BTreeSet::new();
+    for fid in verify::faces_off_mesh(&attempt.topo, attempt.solid, geom, deflection, budget) {
+        if let Some(&patch) = attempt.face_patch.get(&fid.index())
+            && analytic.get(patch as usize).copied().unwrap_or(false)
+        {
+            out.insert(patch);
+        }
+    }
+    out.into_iter().collect()
 }
 
 /// The analytic patches to demote after an invalid solid.

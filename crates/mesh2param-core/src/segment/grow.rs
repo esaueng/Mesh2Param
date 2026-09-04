@@ -281,12 +281,59 @@ fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef
     (pts, refs)
 }
 
+/// The sharpest crease inside a face set: the largest angle between the normals
+/// of two triangles of the set that share an edge.
+///
+/// This is the one thing only the caller of a fit can measure, and it is what
+/// separates a coarsely tessellated curve from a polyhedron.
+///
+/// Measured undirected, as [`same_surface`] and the fits' own normal deviation
+/// are: a triangle wound the other way round from its neighbour is a bookkeeping
+/// artefact of the tessellation, not a fold in the surface, and a planar
+/// rectangle-to-circle triangulation is full of them. Degenerate triangles are
+/// skipped outright, because [`Geom::new`] gives them an arbitrary normal and
+/// one sliver must not be able to veto a real cylinder.
+fn max_crease(g: &Geom, faces: &[u32]) -> f64 {
+    let own: HashSet<u32> = faces.iter().copied().collect();
+    let mut worst: f64 = 0.0;
+    for &f in faces {
+        let Some(fg) = g.faces.get(f as usize) else {
+            continue;
+        };
+        if fg.area <= 0.0 {
+            continue;
+        }
+        for &h in g.neighbours_of(f) {
+            if h <= f || !own.contains(&h) {
+                continue;
+            }
+            let Some(hg) = g.faces.get(h as usize) else {
+                continue;
+            };
+            if hg.area <= 0.0 {
+                continue;
+            }
+            worst = worst.max(angle_undirected(fg.normal, hg.normal));
+        }
+    }
+    worst
+}
+
 /// Fit a face set against a tolerance chosen by the caller: a freshly cut patch
 /// is judged against its own chords ([`patch_tol`]), while a trial merge is
 /// judged against the looser of the two patches it joins.
 fn fit_faces_at(g: &Geom, faces: &[u32], p: &Params, tol: f64) -> Fit {
     let (pts, refs) = gather(g, faces, p.fit_on_centroids);
-    fit_patch(&pts, &refs, FitOpts { tol, ..p.opts })
+    let crease = max_crease(g, faces);
+    fit_patch(
+        &pts,
+        &refs,
+        FitOpts {
+            tol,
+            max_crease: crease,
+            ..p.opts
+        },
+    )
 }
 
 /// Do two independently fitted primitives describe the same surface?
@@ -485,6 +532,36 @@ fn face_score(g: &Geom, fi: usize, prim: Primitive) -> f64 {
             a.min(core::f64::consts::PI - a)
         });
     ang.mul_add(face.area.sqrt(), dist)
+}
+
+/// Would moving face `f` into patch `to` put a crease inside that patch?
+///
+/// Boundary refinement scores a face against a neighbouring patch's fitted
+/// primitive, and [`face_score`] says nothing about the angle the face meets
+/// that patch at: a chamfer facet lying close to a big flat's plane is scored
+/// well by it and moves there, folded — and a face whose own patch fitted
+/// nothing scores infinity at home, so it moves wherever it is touched. That is
+/// how a clean surface acquires a fold it can never lose: nothing after this
+/// stage re-cuts a patch, and the crease rule in [`fit_patch`] then refuses the
+/// whole face rather than the one triangle that spoiled it. A face may only
+/// join a patch it does not fold, measured exactly as that rule measures it.
+fn joins_smoothly(g: &Geom, f: u32, to: usize, label: &[usize], max_step: f64) -> bool {
+    let Some(fg) = g.faces.get(f as usize) else {
+        return false;
+    };
+    // A degenerate triangle's normal is arbitrary, so it can neither fold a
+    // patch nor be kept out of one by a fold that is not there.
+    if fg.area <= 0.0 {
+        return true;
+    }
+    g.neighbours_of(f).iter().all(|&h| {
+        if label.get(h as usize).copied() != Some(to) {
+            return true;
+        }
+        g.faces
+            .get(h as usize)
+            .is_none_or(|hg| hg.area <= 0.0 || angle_undirected(fg.normal, hg.normal) <= max_step)
+    })
 }
 
 /// Re-cut one patch at a tighter dihedral angle, using only its own faces.
@@ -724,7 +801,10 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
                     continue;
                 }
                 let s = face_score(g, i, st.fits[lj].prim);
-                if s < best.0 * 0.999 && s <= st.tols[lj] {
+                if s < best.0 * 0.999
+                    && s <= st.tols[lj]
+                    && joins_smoothly(g, i as u32, lj, &label, p.opts.max_facet_step)
+                {
                     best = (s, lj);
                 }
             }

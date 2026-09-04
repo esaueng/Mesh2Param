@@ -139,6 +139,13 @@ pub(super) struct FitOpts {
     pub min_spread: f64,
     /// Largest tolerated per-facet angular step around an axis (radians).
     pub max_facet_step: f64,
+    /// The sharpest crease *inside* the patch being fitted: the largest angle
+    /// between the normals of two triangles that share an edge (radians).
+    ///
+    /// Filled in per patch by the caller, which is the only place mesh
+    /// adjacency is known. Zero means "no adjacency information", which is
+    /// never a reason to reject.
+    pub max_crease: f64,
     /// Largest tolerated RMS angle between a face normal and the fitted
     /// primitive's own normal (radians). This is what keeps a cone or torus
     /// band out of the sphere bucket: both sit inside the distance tolerance,
@@ -668,6 +675,24 @@ pub(super) fn normal_spread(faces: &[FaceRef]) -> f64 {
 /// simplest model that is inside tolerance is the right answer, so the order is
 /// by how much freedom each surface has to flatter itself.
 pub(super) fn fit_patch(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Fit {
+    // No analytic surface has an edge on it, so a patch holding a crease
+    // sharper than one facet step is two surfaces, whatever the residuals say —
+    // and the residuals do say otherwise, in both directions:
+    //
+    // * A fit is scored at the mesh's vertices, and a polyhedron inscribed in a
+    //   curved surface touches it at *every* vertex. The twelve vertices of a
+    //   hexagonal chamfer ring lie exactly on a sphere, so the sphere fits them
+    //   with zero residual and swallows six real planes.
+    // * The RMS is area-weighted, so a narrow strip folded off a large flat
+    //   barely registers. A 1.5 mm chamfer on the end of a 33 mm hex flat is
+    //   absorbed into that flat as a "plane" at 12% of the tolerance.
+    //
+    // This is what `max_facet_step` already says about a coarsely tessellated
+    // cylinder or cone, measured at the mesh's own edges instead of around a
+    // fitted axis — so it also covers the sphere and the torus, which have no
+    // axis to project their normals onto, and the plane, which has no facet
+    // step at all.
+    let creased = o.max_crease > o.max_facet_step;
     let curved_ok = normal_spread(faces) > o.min_spread;
 
     let mut fallback: Option<Cand> = None;
@@ -676,7 +701,10 @@ pub(super) fn fit_patch(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Fit {
         if fallback.is_none_or(|f: Cand| c.rms < f.rms) {
             fallback = Some(c);
         }
-        (c.rms <= o.tol && c.rms <= c.budget && normal_dev(c.prim, faces) <= o.max_normal_dev)
+        (!creased
+            && c.rms <= o.tol
+            && c.rms <= c.budget
+            && normal_dev(c.prim, faces) <= o.max_normal_dev)
             .then_some(c)
     };
 

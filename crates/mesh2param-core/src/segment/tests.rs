@@ -333,3 +333,253 @@ fn sphere_cap_shards_never_become_planes() {
         "nothing was left unknown, so the shards went somewhere"
     );
 }
+
+/// A hexagonal prism with a 45-degree chamfer at each end: six flats, two end
+/// faces and twelve chamfer facets, all planar.
+///
+/// The chamfer is cut on the apothem, so each chamfer facet is a planar
+/// trapezoid; the outer ring sits at `chamfer` above the base, the inner ring
+/// on it.
+fn chamfered_hex_prism(circumradius: f64, height: f64, chamfer: f64) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let apothem = circumradius * (TAU / 12.0).cos();
+    let inner = (apothem - chamfer) / (TAU / 12.0).cos();
+    let ring = |r: f64, z: f64, v: &mut Vec<[f64; 3]>| {
+        for k in 0..6 {
+            let a = TAU * f64::from(k) / 6.0;
+            v.push([r * a.cos(), r * a.sin(), z]);
+        }
+    };
+    let mut v = Vec::new();
+    ring(inner, 0.0, &mut v); // 0..6   bottom cap rim
+    ring(circumradius, chamfer, &mut v); // 6..12  bottom chamfer top
+    ring(circumradius, height - chamfer, &mut v); // 12..18 side top
+    ring(inner, height, &mut v); // 18..24 top cap rim
+    let cb = v.len() as u32;
+    v.push([0.0, 0.0, 0.0]);
+    let ct = v.len() as u32;
+    v.push([0.0, 0.0, height]);
+
+    let mut i = Vec::new();
+    for k in 0..6_u32 {
+        let n = (k + 1) % 6;
+        // Three rings of quads, wound as in `cylinder_mesh`: outward.
+        for base in [0_u32, 6, 12] {
+            let (b0, b1) = (base + k, base + n);
+            let (t0, t1) = (base + 6 + k, base + 6 + n);
+            i.extend_from_slice(&[b0, b1, t0, b1, t1, t0]);
+        }
+        i.extend_from_slice(&[cb, n, k]); // bottom cap, normal -z
+        i.extend_from_slice(&[ct, 18 + k, 18 + n]); // top cap, normal +z
+    }
+    (v, i)
+}
+
+/// A chamfer ring is not a sphere.
+///
+/// Every vertex of a hexagonal prism lies on one sphere — that is what being
+/// inscribed means — so a sphere fitted to a chamfer ring has *zero* residual
+/// at every sample, and the normal deviation at the facet centroids is under
+/// six degrees. Nothing but the 60-degree crease between the facets says the
+/// ring is twelve planes and not two spheres, which is what this solid used to
+/// report.
+#[test]
+fn chamfered_hex_prism_is_twenty_planes_and_no_spheres() {
+    let (v, i) = chamfered_hex_prism(7.5, 35.0, 1.1);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        // 6 hex flats + 2 end faces + 12 chamfer facets.
+        inventory(20, 0, 0, 0, 0),
+        "{:?}",
+        seg.inventory
+    );
+    assert!(seg.unknown_area_fraction.abs() < 1e-12);
+}
+
+/// Two parallel flats joined by one narrow 45-degree chamfer strip.
+///
+/// The strip is a fortieth of the area of the flats it borders, so it moves the
+/// area-weighted RMS of a merged plane fit by almost nothing and the
+/// area-weighted normal deviation by under seven degrees: both flats used to
+/// swallow it, leaving two planes where there are three. The strip's fold is a
+/// 45-degree crease and that is the only thing that says so.
+#[test]
+fn a_chamfer_strip_is_not_absorbed_by_the_flats_it_joins() {
+    let step = 1.0;
+    let (mut v, mut i) = (Vec::new(), Vec::new());
+    // Three strips running in y, meeting along x = 0 and x = step.
+    let profile = [(-40.0, 0.0), (0.0, 0.0), (step, -step), (41.0, -step)];
+    for &(x, z) in &profile {
+        v.push([x, 0.0, z]);
+        v.push([x, 20.0, z]);
+    }
+    for k in 0..3_u32 {
+        let (a, b) = (2 * k, 2 * k + 2);
+        i.extend_from_slice(&[a, b, a + 1, b, b + 1, a + 1]);
+    }
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        inventory(3, 0, 0, 0, 0),
+        "the chamfer strip was absorbed: {:?}",
+        seg.inventory
+    );
+}
+
+/// A ribbon whose cross-section runs across a flat top, down a stepped chamfer
+/// and on to a flat side.
+///
+/// The chamfer's facets are `steps` equal turns of `total_deg / steps`, which
+/// the caller keeps under [`SegmentOptions::angle_deg`] so the whole band and
+/// the top face come out of the dihedral pass as **one** patch — the leak
+/// stage 2b exists to undo. The last facet is left more than `maxFacetDeg`
+/// from the side face.
+fn stepped_chamfer_ribbon(
+    length: f64,
+    top: f64,
+    side: f64,
+    steps: usize,
+    total_deg: f64,
+    facet: f64,
+) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let mut profile = vec![(-top, side), (0.0, side)];
+    let (mut y, mut z) = (0.0_f64, side);
+    for k in 0..steps {
+        let a = (total_deg * (k as f64 + 0.5) / steps as f64).to_radians();
+        y += facet * a.cos();
+        z -= facet * a.sin();
+        profile.push((y, z));
+    }
+    profile.push((y, 0.0));
+
+    let mut v = Vec::new();
+    for &(py, pz) in &profile {
+        v.push([0.0, py, pz]);
+        v.push([length, py, pz]);
+    }
+    let mut i = Vec::new();
+    for k in 0..(profile.len() as u32 - 1) {
+        let (a, b) = (2 * k, 2 * k + 2);
+        i.extend_from_slice(&[a, b, a + 1, b, b + 1, a + 1]);
+    }
+    (v, i)
+}
+
+/// Boundary refinement may not put a crease into a patch.
+///
+/// A face moves to whichever neighbouring patch's primitive scores it best,
+/// and that score says nothing about the angle the face meets its new patch
+/// at: the last facet of this chamfer sits close enough to the side face's
+/// plane to be scored well by it, and moves there — 40.5 degrees out of
+/// plane. Nothing after this stage re-cuts a patch, so the fold is permanent,
+/// and the crease rule in `fit_patch` then refuses **the whole side face**
+/// rather than the one triangle that spoiled it. Before the guard this solid
+/// loses 38% of its area to `Unknown`; the mechanism is what took four corpus
+/// meshes down a reconstruction tier.
+#[test]
+fn refinement_never_folds_a_face_into_a_plane() {
+    // Five 11-degree steps: each is under the 12-degree dihedral threshold, so
+    // the band leaks into the top face's patch, and the last one lands 40.5
+    // degrees from the side face — just past `maxFacetDeg`.
+    let (v, i) = stepped_chamfer_ribbon(60.0, 30.0, 20.0, 5, 55.0, 0.4);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        inventory(2, 0, 0, 0, 0),
+        "the top and side faces are two planes: {:?}",
+        seg.inventory
+    );
+    assert!(
+        seg.unknown_area_fraction.abs() < 1e-12,
+        "a whole face was refused over one folded triangle: {} unknown",
+        seg.unknown_area_fraction
+    );
+}
+
+/// A closed blob whose radius is modulated so that no part of it is any
+/// primitive, tessellated coarsely enough that neighbouring triangles are
+/// pervasively further apart than `angleDeg`.
+fn lumpy_blob(radius: f64, bump: f64, lon: usize, lat: usize) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let mut v = Vec::new();
+    for j in 0..=lat {
+        let t = core::f64::consts::PI * j as f64 / lat as f64;
+        for i in 0..lon {
+            let u = TAU * i as f64 / lon as f64;
+            let r = radius * bump.mul_add((3.0 * u).sin() * (2.0 * t).cos(), 1.0);
+            v.push([r * t.sin() * u.cos(), r * t.sin() * u.sin(), r * t.cos()]);
+        }
+    }
+    let mut i = Vec::new();
+    let n = lon as u32;
+    for j in 0..lat as u32 {
+        for k in 0..n {
+            let nk = (k + 1) % n;
+            let (a, b) = (j * n + k, j * n + nk);
+            let (c, d) = ((j + 1) * n + k, (j + 1) * n + nk);
+            i.extend_from_slice(&[a, c, b, b, c, d]);
+        }
+    }
+    (v, i)
+}
+
+/// A triangular prism: two triangular ends and three rectangular sides.
+fn triangular_prism(side: f64, length: f64) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let mut v = Vec::new();
+    for k in 0..3 {
+        let a = TAU * f64::from(k) / 3.0;
+        v.push([side * a.cos(), side * a.sin(), 0.0]);
+        v.push([side * a.cos(), side * a.sin(), length]);
+    }
+    let mut i = Vec::new();
+    for k in 0..3_u32 {
+        let n = (k + 1) % 3;
+        let (b0, t0, b1, t1) = (2 * k, 2 * k + 1, 2 * n, 2 * n + 1);
+        i.extend_from_slice(&[b0, b1, t0, b1, t1, t0]);
+    }
+    i.extend_from_slice(&[0, 4, 2]); // bottom, one triangle
+    i.extend_from_slice(&[1, 3, 5]); // top, one triangle
+    (v, i)
+}
+
+/// A lone triangle is not evidence of a plane.
+///
+/// Where adjacent triangles are pervasively further apart than `angleDeg`, the
+/// dihedral pass on its own cuts a coarsely tessellated freeform surface into
+/// single triangles: no merge can join them, the split stage never touches
+/// them, so nothing marks them `carved` and none of the shard gates ever look
+/// at them. This blob has no flat face anywhere on it and used to report
+/// **55** planes covering every square millimetre of it.
+///
+/// The gate is span, not face count: the prism's ends are one triangle each
+/// and are real faces, and they are large.
+#[test]
+fn a_lone_triangle_is_promoted_only_when_it_is_a_face() {
+    let (v, i) = lumpy_blob(10.0, 0.25, 8, 6);
+    let seg = run(&v, &i);
+    for patch in &seg.patches {
+        assert!(
+            patch.faces.len() > 1 || patch.kind == PatchKind::Unknown,
+            "a single triangle of the blob was promoted to {:?}",
+            patch.kind
+        );
+    }
+    assert!(
+        seg.inventory.plane < 30,
+        "the blob is still a fan of planes: {:?}",
+        seg.inventory
+    );
+    assert!(
+        seg.unknown_area_fraction > 0.15,
+        "a freeform blob reported almost no unknown area: {}",
+        seg.unknown_area_fraction
+    );
+
+    let (v, i) = triangular_prism(20.0, 50.0);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        inventory(5, 0, 0, 0, 0),
+        "the prism's one-triangle ends were thrown away: {:?}",
+        seg.inventory
+    );
+}

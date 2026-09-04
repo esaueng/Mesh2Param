@@ -43,14 +43,24 @@ impl Soup {
     fn mesh(&self) -> MeshData {
         MeshData::from_triangles(&self.points, &self.indices).unwrap()
     }
+
+    /// The same solid with every triangle wound the other way round, so the
+    /// whole mesh faces into the body instead of out of it.
+    fn inward_mesh(&self) -> MeshData {
+        let mut indices = self.indices.clone();
+        for t in indices.chunks_exact_mut(3) {
+            t.swap(1, 2);
+        }
+        MeshData::from_triangles(&self.points, &indices).unwrap()
+    }
 }
 
 fn run(mesh: &MeshData) -> ReconstructResult {
     reconstruct(mesh, &ReconstructOptions::default()).unwrap()
 }
 
-/// The unit cube, outward winding.
-fn cube() -> MeshData {
+/// The unit cube as a triangle soup, outward winding.
+fn cube_soup() -> Soup {
     let mut s = Soup::default();
     let p = |x: f64, y: f64, z: f64| [x, y, z];
     // -z and +z
@@ -62,7 +72,31 @@ fn cube() -> MeshData {
     // -x and +x
     s.quad(p(0., 0., 0.), p(0., 0., 1.), p(0., 1., 1.), p(0., 1., 0.));
     s.quad(p(1., 0., 0.), p(1., 1., 0.), p(1., 1., 1.), p(1., 0., 1.));
-    s.mesh()
+    s
+}
+
+/// The unit cube, outward winding.
+fn cube() -> MeshData {
+    cube_soup().mesh()
+}
+
+/// The cube assembled into kernel topology, for the tests that need the solid
+/// itself rather than the finished [`BuildResult`].
+fn assemble_cube() -> (KernelTopology, SolidId) {
+    let mesh = cube();
+    let welded = mesh.welded().unwrap();
+    let seg = segment(&mesh, &SegmentOptions::default()).unwrap();
+    let topo = recover(&mesh, &seg, &TopologyOptions::default()).unwrap();
+    let geom = geom::MeshGeom::new(&welded);
+    let chains = crate::topology::chains::build(&welded, &seg.face_patch, seg.patches.len());
+    let ctx =
+        assemble::Context::new(&geom, &seg, &topo, &chains.chains, seg.tolerance, false).unwrap();
+    let attempt = assemble::attempt(&ctx, &vec![true; seg.patches.len()]).unwrap();
+    (attempt.topo, attempt.solid)
+}
+
+fn validate(topo: &KernelTopology, solid: SolidId) -> ValidationReport {
+    remus_operations::validate::validate_solid(topo, solid).unwrap()
 }
 
 /// A capped cylinder about the z axis.
@@ -435,28 +469,41 @@ fn a_spherical_dome_tessellates_to_its_own_volume() {
     assert_volume(b, exact);
 }
 
-/// The ball stud shape — a sphere with one flat cut off it — is still refused,
-/// and the refusal is the kernel's, not this stage's.
+/// The ball stud shape — a sphere with one flat cut off it — loses its
+/// **sphere** and keeps everything else, and the refusal is the kernel's, not
+/// this stage's.
 ///
 /// A spherical face wider than about 80 degrees has no structured
 /// tessellation path: `fill_sphere_cap_web` declines it outright
 /// (`crates/operations/src/tessellate/nonplanar.rs:2604`) and the latitude-cap
 /// path needs a **second** trimmed face on the same sphere, which a single
-/// ball has not got. The CDT fallback then meshes the wrong side of the rim.
-/// Seaming the face out to its pole, the way a cone's wall is seamed to its
-/// apex, measures worse rather than better, so it is not done.
+/// ball has not got. The CDT fallback then meshes the wrong side of the rim, so
+/// the result comes back 59% out on volume. Seaming the face out to its pole,
+/// the way a cone's wall is seamed to its apex, measures worse rather than
+/// better, so it is not done.
+///
+/// What verification does with that is demote the one face that is off the
+/// mesh and rebuild: the flat survives as an analytic face, and the volume then
+/// matches the mesh's own.
 #[test]
-fn a_ball_with_a_flat_is_refused_by_the_tessellator() {
+fn a_ball_with_a_flat_loses_its_sphere_and_keeps_its_flat() {
     let (radius, cut) = (2.0, 1.0);
     let mesh = ball_with_flat(radius, cut, 96, 32);
     let out = run(&mesh);
     let b = &out.build;
     assert!(b.valid, "the solid itself is sound: {:?}", b.issues);
-    assert_eq!(b.tier, Tier::Faceted);
+    assert_eq!(b.tier, Tier::Mixed, "failures: {:?}", b.face_failures);
+    assert_eq!(b.faces_analytic, 1, "failures: {:?}", b.face_failures);
     let reason = b.fallback_reason.as_deref().unwrap_or_default();
     assert!(
         reason.contains("failed verification"),
         "expected the volume gate to catch it, got {reason:?}"
+    );
+    assert!(
+        (b.volume - b.source_volume).abs() / b.source_volume < 1e-4,
+        "volume {} against the mesh's {}",
+        b.volume,
+        b.source_volume
     );
 }
 
@@ -521,4 +568,107 @@ fn the_triangle_budget_is_enforced_before_any_work() {
             limit: 3
         })
     ));
+}
+
+/// A mesh wound inward is still a solid, and the solid still encloses a
+/// positive volume.
+///
+/// Orientation is decided once, globally, from the mesh's own signed volume,
+/// and every per-patch decision above it hangs on that one sign. A mesh whose
+/// facets all face into the body is the case that has to come out unchanged:
+/// the same six faces, the same volume, the same validity.
+#[test]
+fn an_inward_wound_box_still_builds_a_positive_solid() {
+    let mesh = cube_soup().inward_mesh();
+    let out = run(&mesh);
+    let b = &out.build;
+    assert!(b.valid, "issues: {:?}", b.issues);
+    assert_eq!(b.tier, Tier::Analytic, "failures: {:?}", b.face_failures);
+    assert_eq!(b.faces_final, 6);
+    assert!((b.volume - 1.0).abs() < 1e-9, "volume {}", b.volume);
+    assert!((b.source_volume - 1.0).abs() < 1e-12);
+    assert!(b.round_trip_ok);
+}
+
+/// Reversing a shell swaps which side of it is material, and doing it twice is
+/// the identity.
+///
+/// This is the repair under an inside-out shell, so it has to be exact: the
+/// kernel must read the reversed solid as inverted — not merely as different —
+/// and read the twice-reversed one as the original.
+#[test]
+fn reversing_a_shell_turns_the_solid_inside_out_and_back() {
+    let (mut topo, solid) = assemble_cube();
+    let before = validate(&topo, solid);
+    assert!(before.is_valid(), "issues: {:?}", issues_of(&before));
+    assert!(!inside_out(&before));
+
+    assemble::reverse_shell(&mut topo, solid).unwrap();
+    let flipped = validate(&topo, solid);
+    assert!(
+        inside_out(&flipped),
+        "the reversed shell was not reported inverted: {:?}",
+        issues_of(&flipped)
+    );
+
+    assemble::reverse_shell(&mut topo, solid).unwrap();
+    let back = validate(&topo, solid);
+    assert!(back.is_valid(), "issues: {:?}", issues_of(&back));
+    assert!(!inside_out(&back));
+}
+
+/// The volume budget follows the measured deviation, and stops at the ceiling.
+///
+/// A polygonal prism reconstructed as the cylinder it was tessellated from is
+/// the *right* answer and the mesh is the thing that is small — the mesh's
+/// facets are chords, so it under-reports by the sagitta all the way round.
+/// Ten sides is the coarsest such prism the segmenter still reads as a
+/// cylinder at `maxFacetDeg`; twelve is already inside the flat 5%, which is
+/// why this is measured on ten.
+///
+/// The second half is what stops that reasoning from excusing anything: a
+/// cylinder fitted at twice the radius has a deviation of a whole radius, so
+/// the explained budget is enormous, and the ceiling refuses it anyway.
+#[test]
+fn the_volume_budget_admits_a_coarse_prism_and_refuses_a_wrong_radius() {
+    let (radius, height, sides) = (1.0_f64, 4.0_f64, 10_usize);
+    let mesh = capped_cylinder(radius, height, sides);
+    let welded = mesh.welded().unwrap();
+    let geom = geom::MeshGeom::new(&welded);
+    let options = BuildOptions::default();
+
+    // Every point of the cylinder is within one chord sagitta of the prism.
+    let sagitta = radius * (1.0 - (TAU / (2.0 * sides as f64)).cos());
+    let right = verify::Measured {
+        deviation: Deviation {
+            p95: sagitta,
+            max: sagitta,
+            samples: 1,
+        },
+        volume: core::f64::consts::PI * radius * radius * height,
+    };
+    let error = relative_volume_error(right.volume, geom.volume);
+    assert!(
+        error > options.max_volume_error,
+        "a ten-sided prism is already inside the flat budget ({error})"
+    );
+    assert!(
+        error <= volume_budget(&options, &right, &geom),
+        "volume error {error} is not explained by a deviation of {sagitta}"
+    );
+
+    // Twice the radius: the surface is a whole radius off the mesh.
+    let wrong = verify::Measured {
+        deviation: Deviation {
+            p95: radius,
+            max: radius,
+            samples: 1,
+        },
+        volume: core::f64::consts::PI * (2.0 * radius) * (2.0 * radius) * height,
+    };
+    let error = relative_volume_error(wrong.volume, geom.volume);
+    assert!(
+        error > volume_budget(&options, &wrong, &geom),
+        "a cylinder at twice the radius passed verification ({error})"
+    );
 }
