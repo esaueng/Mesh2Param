@@ -1,14 +1,13 @@
-//! Corpus scoreboard: run the faceted tier and the segmentation stage over
-//! every real-world sample mesh and compare the outcome against a committed
-//! baseline.
+//! Corpus scoreboard: run every rung of the ladder over every real-world
+//! sample mesh and compare the outcome against a committed baseline.
 //!
 //! This is the only thing that says whether a change to the core, or a bump of
-//! the kernel pin, is an improvement. It runs before any face construction work
-//! precisely so the "before" numbers exist.
+//! the kernel pin, is an improvement.
 //!
 //! ```text
 //! cargo test -p mesh2param-core --test scoreboard -- --nocapture
 //! MESH2PARAM_SCOREBOARD=full cargo test -p mesh2param-core --test scoreboard -- --nocapture
+//! MESH2PARAM_SCOREBOARD_ONLY=hammer-holder/mesh-export cargo test -p mesh2param-core --test scoreboard -- --nocapture
 //! MESH2PARAM_SCOREBOARD_WRITE_BASELINE=1 cargo test -p mesh2param-core --test scoreboard
 //! ```
 
@@ -20,8 +19,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use mesh2param_core::{
-    CoreError, FacetedOptions, Inventory, MeshFormat, SegmentOptions, TopologyOptions,
-    faceted_step, load_mesh, recover, segment,
+    BuildOptions, CoreError, FacetedOptions, Inventory, MeshFormat, SegmentOptions, Tier,
+    TopologyOptions, build_solid, faceted_step, load_mesh, recover, segment,
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +32,16 @@ const SUBSET_MAX_TRIANGLES: usize = 30_000;
 /// the baseline. Recognition counts move by one or two when a fit is retuned;
 /// a fifth of the error is a change of behaviour, not of numerics.
 const MAX_INVENTORY_ERROR_GROWTH: f64 = 0.20;
+
+/// Rank of a reconstruction tier: a mesh may never come back at a lower one
+/// than the baseline recorded.
+fn tier_rank(tier: &str) -> u8 {
+    match tier {
+        "analytic" => 2,
+        "mixed" => 1,
+        _ => 0,
+    }
+}
 
 /// A mesh's `closed_patch_fraction` may not fall further than this below the
 /// baseline. Loop closure is the one topology number a face builder cannot
@@ -159,6 +168,50 @@ impl Topo {
     }
 }
 
+/// The face-construction half of a row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Recon {
+    /// Wall clock for construction plus verification. Omitted from the baseline.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    ms: f64,
+    /// `analytic`, `mixed` or `faceted`.
+    tier: String,
+    faces_analytic: usize,
+    faces_triangle: usize,
+    faces_final: usize,
+    valid: bool,
+    /// 95th percentile of the symmetric distance to the source mesh.
+    deviation_p95: Option<f64>,
+    /// `|built - source| / source`, `None` when the source encloses nothing.
+    volume_rel_err: Option<f64>,
+    step_bytes: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    fallback_reason: Option<String>,
+    /// `None` unless construction itself failed, in which case the rest is
+    /// zero and the tier reads `faceted`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+impl Recon {
+    fn failed(error: String) -> Self {
+        Self {
+            ms: 0.0,
+            tier: "faceted".to_string(),
+            faces_analytic: 0,
+            faces_triangle: 0,
+            faces_final: 0,
+            valid: false,
+            deviation_p95: None,
+            volume_rel_err: None,
+            step_bytes: 0,
+            fallback_reason: None,
+            error: Some(error),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct MeshEntry {
     file: String,
@@ -189,6 +242,9 @@ struct Row {
     /// `None` when segmentation never produced patches to recover from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     topology: Option<Topo>,
+    /// `None` when topology recovery never produced a skeleton to build from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reconstruct: Option<Recon>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde requires the &T signature
@@ -214,6 +270,10 @@ impl Row {
                 ms: 0.0,
                 ..t.clone()
             }),
+            reconstruct: self.reconstruct.as_ref().map(|r| Recon {
+                ms: 0.0,
+                ..r.clone()
+            }),
             ..self.clone()
         }
     }
@@ -227,6 +287,10 @@ impl Row {
 
     fn inventory_error(&self) -> Option<u32> {
         self.segmentation.as_ref().and_then(|s| s.inventory_error)
+    }
+
+    fn recon(&self) -> Option<&Recon> {
+        self.reconstruct.as_ref().filter(|r| r.error.is_none())
     }
 }
 
@@ -278,6 +342,7 @@ fn run_one(
         segmentation: None,
         seg_error: None,
         topology: None,
+        reconstruct: None,
     };
 
     let bytes = match fs::read(&stl) {
@@ -315,13 +380,14 @@ fn run_one(
         }
     }
 
+    let mut recovered = None;
     if let (Ok(mesh), Some(seg)) = (&loaded, &segmentation) {
         let started = Instant::now();
         row.topology = Some(match recover(mesh, seg, &TopologyOptions::default()) {
             Ok(topo) => {
                 let s = topo.summary;
                 let patches = s.patches_closed + s.patches_open;
-                Topo {
+                let out = Topo {
                     ms: started.elapsed().as_secs_f64() * 1000.0,
                     edges: s.edges,
                     analytic_fraction: if s.edges == 0 {
@@ -337,9 +403,47 @@ fn run_one(
                     },
                     max_edge_deviation: s.max_edge_deviation,
                     error: None,
-                }
+                };
+                recovered = Some(topo);
+                out
             }
             Err(e) => Topo::failed(short(&e)),
+        });
+    }
+
+    if let (Ok(mesh), Some(seg), Some(topo)) = (&loaded, &segmentation, &recovered) {
+        let started = Instant::now();
+        // The kernel's non-planar CDT tessellator indexes out of bounds on
+        // some faces this stage produces (`camera-support-arm/mesh-export`,
+        // nonplanar.rs:2187). A panic in one mesh must not take the whole
+        // corpus with it, so the row records it and the run continues.
+        let built = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            build_solid(mesh, seg, topo, &BuildOptions::default())
+        }));
+        let built = match built {
+            Ok(built) => built,
+            Err(_) => Err(CoreError::Kernel(
+                "the kernel panicked while tessellating the result".to_string(),
+            )),
+        };
+        row.reconstruct = Some(match built {
+            Ok(built) => {
+                let source = built.source_volume;
+                Recon {
+                    ms: started.elapsed().as_secs_f64() * 1000.0,
+                    tier: tier_name(built.tier),
+                    faces_analytic: built.faces_analytic,
+                    faces_triangle: built.faces_triangle,
+                    faces_final: built.faces_final,
+                    valid: built.valid,
+                    deviation_p95: built.deviation.map(|d| d.p95),
+                    volume_rel_err: (source > 0.0).then(|| (built.volume - source).abs() / source),
+                    step_bytes: built.step_bytes,
+                    fallback_reason: built.fallback_reason,
+                    error: None,
+                }
+            }
+            Err(e) => Recon::failed(short(&e)),
         });
     }
 
@@ -363,6 +467,15 @@ fn run_one(
 
 /// Errors are compared across runs, so they must be stable text: strip the
 /// variable tail (counts, ids) by keeping only the first 120 characters.
+fn tier_name(tier: Tier) -> String {
+    match tier {
+        Tier::Analytic => "analytic",
+        Tier::Mixed => "mixed",
+        Tier::Faceted => "faceted",
+    }
+    .to_string()
+}
+
 fn short(e: &CoreError) -> String {
     let one = e.to_string().replace('\n', " ");
     if one.chars().count() > 120 {
@@ -492,11 +605,78 @@ fn print_table(rows: &[Row]) {
     );
 }
 
+/// The reconstruct half, printed separately: the faceted table is already at
+/// the width of a terminal.
+fn print_reconstruct_table(rows: &[Row]) {
+    println!(
+        "\n{:<26} {:<16} {:>9} {:>6} {:>6} {:>6} {:>5} {:>9} {:>8} {:>9} {:>8}  notes",
+        "slug", "mesh", "tier", "an", "tri", "final", "valid", "devP95", "volErr", "stepB", "ms"
+    );
+    println!("{}", "-".repeat(150));
+    for r in rows {
+        let Some(rec) = r.reconstruct.as_ref() else {
+            continue;
+        };
+        let notes = match (rec.error.as_deref(), rec.fallback_reason.as_deref()) {
+            (Some(e), _) => format!("error: {e}"),
+            (None, Some(f)) => f.chars().take(70).collect(),
+            (None, None) => String::new(),
+        };
+        println!(
+            "{:<26} {:<16} {:>9} {:>6} {:>6} {:>6} {:>5} {:>9} {:>8} {:>9} {:>8.0}  {}",
+            r.slug,
+            r.mesh,
+            rec.tier,
+            rec.faces_analytic,
+            rec.faces_triangle,
+            rec.faces_final,
+            if rec.valid { "yes" } else { "no" },
+            rec.deviation_p95
+                .map_or_else(|| "-".to_string(), |d| format!("{d:.5}")),
+            rec.volume_rel_err
+                .map_or_else(|| "-".to_string(), |d| format!("{d:.4}")),
+            rec.step_bytes,
+            rec.ms,
+            notes
+        );
+    }
+
+    let mut histogram: BTreeMap<&str, usize> = BTreeMap::new();
+    for r in rows {
+        if let Some(rec) = r.reconstruct.as_ref() {
+            *histogram.entry(rec.tier.as_str()).or_default() += 1;
+        }
+    }
+    let built: Vec<&Recon> = rows.iter().filter_map(Row::recon).collect();
+    let valid = built.iter().filter(|r| r.valid).count();
+    let mut devs: Vec<f64> = built.iter().filter_map(|r| r.deviation_p95).collect();
+    devs.sort_by(f64::total_cmp);
+    let median = devs.get(devs.len() / 2).copied().unwrap_or(0.0);
+    println!("{}", "-".repeat(150));
+    println!(
+        "tiers: analytic {}, mixed {}, faceted {} (of {} built); {valid} valid, median deviation p95 {median:.5}\n",
+        histogram.get("analytic").copied().unwrap_or(0),
+        histogram.get("mixed").copied().unwrap_or(0),
+        histogram.get("faceted").copied().unwrap_or(0),
+        built.len(),
+    );
+}
+
 #[test]
 fn corpus_scoreboard_matches_baseline() {
     let root = repo_root();
     let corpus = root.join("samples/real");
     let full = std::env::var("MESH2PARAM_SCOREBOARD").as_deref() == Ok("full");
+    // One mesh at a time, for looking at a single part without paying for the
+    // corpus. The baseline is not compared in this mode: most of it is absent
+    // by construction.
+    let only = std::env::var("MESH2PARAM_SCOREBOARD_ONLY").ok();
+
+    // The kernel panics on a handful of corpus faces; the catch in `run_one`
+    // needs the default hook out of the way or every row it survives prints a
+    // backtrace notice into the table.
+    let previous_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
 
     let mut rows = Vec::new();
     for part_file in part_files(&corpus) {
@@ -507,7 +687,12 @@ fn corpus_scoreboard_matches_baseline() {
             .unwrap_or_else(|e| panic!("parse {}: {e}", part_file.display()));
         let truth = part.ground_truth.as_ref().and_then(GroundTruth::truth);
         for entry in &part.meshes {
-            if !full && entry.triangles > SUBSET_MAX_TRIANGLES {
+            let name = entry.file.strip_suffix(".stl").unwrap_or(&entry.file);
+            if let Some(only) = &only {
+                if !format!("{}/{name}", part.slug).contains(only.as_str()) {
+                    continue;
+                }
+            } else if !full && entry.triangles > SUBSET_MAX_TRIANGLES {
                 continue;
             }
             if let Some(row) = run_one(&dir, &part.slug, entry, truth) {
@@ -515,6 +700,7 @@ fn corpus_scoreboard_matches_baseline() {
             }
         }
     }
+    std::panic::set_hook(previous_hook);
     assert!(
         !rows.is_empty(),
         "no corpus meshes found under {}",
@@ -522,6 +708,7 @@ fn corpus_scoreboard_matches_baseline() {
     );
     rows.sort_by_key(Row::key);
     print_table(&rows);
+    print_reconstruct_table(&rows);
 
     let out_dir = root.join("target");
     fs::create_dir_all(&out_dir).unwrap();
@@ -530,6 +717,10 @@ fn corpus_scoreboard_matches_baseline() {
         serde_json::to_string_pretty(&rows).unwrap(),
     )
     .unwrap();
+
+    if only.is_some() {
+        return;
+    }
 
     let baseline_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("scoreboard-baseline.json");
     if std::env::var("MESH2PARAM_SCOREBOARD_WRITE_BASELINE").is_ok() {
@@ -597,6 +788,44 @@ fn corpus_scoreboard_matches_baseline() {
                 "{}: closed patch fraction {was:.3} -> {now:.3}, past the {MAX_CLOSURE_DROP:.2} drop budget",
                 row.key()
             ));
+        }
+        // Face construction is scored on the two things a consumer can see:
+        // which tier the part came back at, and whether the solid is valid.
+        // Everything else on the row is measurement, not a contract.
+        match (before.reconstruct.as_ref(), row.reconstruct.as_ref()) {
+            (Some(was), Some(now)) => {
+                if tier_rank(&now.tier) < tier_rank(&was.tier) {
+                    regressions.push(format!(
+                        "{}: reconstruction tier {} -> {} ({})",
+                        row.key(),
+                        was.tier,
+                        now.tier,
+                        now.fallback_reason
+                            .as_deref()
+                            .or(now.error.as_deref())
+                            .unwrap_or("no reason given")
+                    ));
+                } else if tier_rank(&now.tier) > tier_rank(&was.tier) {
+                    improvements.push(format!(
+                        "{}: reconstruction tier {} -> {}",
+                        row.key(),
+                        was.tier,
+                        now.tier
+                    ));
+                }
+                if was.valid && !now.valid {
+                    regressions.push(format!(
+                        "{}: reconstruction was valid, now invalid ({})",
+                        row.key(),
+                        now.error.as_deref().unwrap_or("no error")
+                    ));
+                }
+            }
+            (Some(_), None) => regressions.push(format!(
+                "{}: reconstruction ran in the baseline and not now",
+                row.key()
+            )),
+            _ => {}
         }
         if before.topology.as_ref().is_some_and(|t| t.error.is_none())
             && row.topology.as_ref().is_some_and(|t| t.error.is_some())

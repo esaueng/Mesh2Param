@@ -15,11 +15,11 @@
 //! 2. **Mixed** ([`Tier::Mixed`]) — analytic where recognition succeeded,
 //!    faceted for the regions it declined. Unfittable regions stay honest
 //!    rather than being forced onto a wrong surface.
-//! 3. **Faceted** ([`Tier::Faceted`]) — planar facets throughout. Implemented
-//!    here, in [`faceted_step`]; the floor everything else is measured against.
+//! 3. **Faceted** ([`Tier::Faceted`]) — planar facets throughout, in
+//!    [`faceted_step`]; the floor everything else is measured against.
 //!
-//! Only the faceted rung exists today. The corpus scoreboard
-//! (`tests/scoreboard.rs`) is what says whether a new rung is an improvement.
+//! The corpus scoreboard (`tests/scoreboard.rs`) is what says whether a new
+//! rung is an improvement.
 //!
 //! # Recognition
 //!
@@ -29,7 +29,14 @@
 //!
 //! [`recover`] is the rung above it: given those patches it says where they
 //! meet — vertices, trimmed edge curves, and the loops that bound each patch.
-//! It builds nothing either; face construction is what consumes it.
+//! It builds nothing either.
+//!
+//! # Construction
+//!
+//! [`build_solid`] is what consumes them: patches and their boundaries become
+//! trimmed analytic faces on shared edges, unrecognised regions stay
+//! triangles, and the result is a STEP solid at the best tier that held.
+//! [`reconstruct`] runs the whole ladder in one call.
 //!
 //! # Example
 //!
@@ -45,12 +52,17 @@
 //! # }
 //! ```
 
+pub mod build;
 pub mod error;
 pub mod faceted;
 pub mod mesh;
 pub mod segment;
 pub mod topology;
 
+pub use build::{
+    BuildOptions, BuildResult, Deviation, ReconstructOptions, ReconstructResult, build_solid,
+    reconstruct,
+};
 pub use error::{CoreError, Result};
 pub use faceted::{FacetedOptions, FacetedResult, Tier, faceted_step};
 pub use mesh::{Bbox, MeshData, MeshFormat, WeldedMesh, load_mesh};

@@ -42,10 +42,10 @@
 //! # }
 //! ```
 
-mod chains;
+pub(crate) mod chains;
 mod curve;
 mod loops;
-mod surf;
+pub(crate) mod surf;
 #[cfg(test)]
 mod tests;
 

@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::mesh::WeldedMesh;
 
 /// One boundary chain: an ordered run of mesh vertices separating two patches.
-pub(super) struct Chain {
+pub struct Chain {
     /// The two patches, ascending.
     pub patches: (u32, u32),
     /// Mesh vertex indices in order. A ring does not repeat its first vertex.
@@ -25,7 +25,7 @@ pub(super) struct Chain {
 }
 
 /// What [`build`] found.
-pub(super) struct Adjacency {
+pub struct Adjacency {
     /// The chains, ordered by patch pair then by discovery.
     pub chains: Vec<Chain>,
     /// Patches incident to each mesh vertex.
@@ -36,7 +36,7 @@ fn key(a: u32, b: u32) -> (u32, u32) {
     if a < b { (a, b) } else { (b, a) }
 }
 
-pub(super) fn build(welded: &WeldedMesh, face_patch: &[u32], patch_count: usize) -> Adjacency {
+pub fn build(welded: &WeldedMesh, face_patch: &[u32], patch_count: usize) -> Adjacency {
     let mut vertex_patches: Vec<BTreeSet<u32>> = vec![BTreeSet::new(); welded.positions.len()];
     for (fi, tri) in welded.triangles.iter().enumerate() {
         let Some(&patch) = face_patch.get(fi) else {
