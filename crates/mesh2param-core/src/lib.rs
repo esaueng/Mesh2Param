@@ -27,6 +27,10 @@
 //! groups a mesh's triangles into patches and names the analytic surface each
 //! one lies on, or leaves it [`PatchKind::Unknown`]. It builds nothing.
 //!
+//! [`recover`] is the rung above it: given those patches it says where they
+//! meet — vertices, trimmed edge curves, and the loops that bound each patch.
+//! It builds nothing either; face construction is what consumes it.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -45,8 +49,13 @@ pub mod error;
 pub mod faceted;
 pub mod mesh;
 pub mod segment;
+pub mod topology;
 
 pub use error::{CoreError, Result};
 pub use faceted::{FacetedOptions, FacetedResult, Tier, faceted_step};
 pub use mesh::{Bbox, MeshData, MeshFormat, WeldedMesh, load_mesh};
 pub use segment::{Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, segment};
+pub use topology::{
+    Curve, Edge, EdgeSource, Loop, PatchLoops, Topology, TopologyOptions, TopologySummary, Vertex,
+    recover,
+};

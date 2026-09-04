@@ -27,6 +27,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 76
+    },
+    "topology": {
+      "edges": 323,
+      "analyticFraction": 0.3684210526315789,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.022529547827572,
+      "error": null
     }
   },
   {
@@ -51,6 +59,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 191,
+      "analyticFraction": 0.8795811518324608,
+      "tangentEdges": 7,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.6364557105485197,
+      "error": null
     }
   },
   {
@@ -81,6 +97,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 2
+    },
+    "topology": {
+      "edges": 48,
+      "analyticFraction": 0.8541666666666666,
+      "tangentEdges": 3,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 5.450385191412242,
+      "error": null
     }
   },
   {
@@ -111,6 +135,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 3
+    },
+    "topology": {
+      "edges": 34,
+      "analyticFraction": 0.5588235294117647,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.7575643236289342,
+      "error": null
     }
   },
   {
@@ -135,6 +167,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 27,
+      "analyticFraction": 0.8888888888888888,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.304602932854954,
+      "error": null
     }
   },
   {
@@ -165,6 +205,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 52,
+      "analyticFraction": 0.9230769230769231,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.9019280263269172,
+      "error": null
     }
   },
   {
@@ -195,6 +243,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 4
+    },
+    "topology": {
+      "edges": 40,
+      "analyticFraction": 0.9,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.0249065286096353,
+      "error": null
     }
   },
   {
@@ -219,6 +275,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 26,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.6418882903556096e-7,
+      "error": null
     }
   },
   {
@@ -243,6 +307,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 85,
+      "analyticFraction": 0.8823529411764706,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.733443694154251,
+      "error": null
     }
   },
   {
@@ -267,6 +339,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 346,
+      "analyticFraction": 0.1069364161849711,
+      "tangentEdges": 111,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.35176441154972954,
+      "error": null
     }
   },
   {
@@ -291,6 +371,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 44,
+      "analyticFraction": 0.9090909090909091,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.1438586634015018,
+      "error": null
     }
   },
   {
@@ -321,6 +409,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 10,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.0003543804046237749,
+      "error": null
     }
   },
   {
@@ -351,6 +447,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 10,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.0003333091639658998,
+      "error": null
     }
   },
   {
@@ -375,6 +479,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 58,
+      "analyticFraction": 0.7758620689655172,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.646095365789291,
+      "error": null
     }
   },
   {
@@ -405,6 +517,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 17
+    },
+    "topology": {
+      "edges": 48,
+      "analyticFraction": 0.5416666666666666,
+      "tangentEdges": 4,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.4507410466575623,
+      "error": null
     }
   },
   {
@@ -435,6 +555,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 12
+    },
+    "topology": {
+      "edges": 66,
+      "analyticFraction": 0.6060606060606061,
+      "tangentEdges": 3,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.4619146139554421,
+      "error": null
     }
   },
   {
@@ -459,6 +587,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 114,
+      "analyticFraction": 0.4473684210526316,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 4.748563086744201,
+      "error": null
     }
   },
   {
@@ -483,6 +619,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 105,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.6964321272183724e-6,
+      "error": null
     }
   },
   {
@@ -507,6 +651,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 111,
+      "analyticFraction": 0.5225225225225225,
+      "tangentEdges": 5,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.8858868998469422,
+      "error": null
     }
   },
   {
@@ -531,6 +683,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 558,
+      "analyticFraction": 0.23655913978494625,
+      "tangentEdges": 11,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.44019778218451977,
+      "error": null
     }
   },
   {
@@ -555,6 +715,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 62,
+      "analyticFraction": 0.7096774193548387,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.7643950132546602,
+      "error": null
     }
   },
   {
@@ -585,6 +753,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 40,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.6844802253683281,
+      "error": null
     }
   },
   {
@@ -615,6 +791,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 4
+    },
+    "topology": {
+      "edges": 40,
+      "analyticFraction": 0.7,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 8.67083982836192e-7,
+      "error": null
     }
   },
   {
@@ -645,6 +829,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 16
+    },
+    "topology": {
+      "edges": 128,
+      "analyticFraction": 0.90625,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.8581317926463174,
+      "error": null
     }
   },
   {
@@ -675,6 +867,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 10
+    },
+    "topology": {
+      "edges": 128,
+      "analyticFraction": 0.59375,
+      "tangentEdges": 4,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.258311560284082,
+      "error": null
     }
   },
   {
@@ -705,6 +905,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 29
+    },
+    "topology": {
+      "edges": 49,
+      "analyticFraction": 0.6326530612244898,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.301298569307008,
+      "error": null
     }
   },
   {
@@ -735,6 +943,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 30
+    },
+    "topology": {
+      "edges": 46,
+      "analyticFraction": 0.6086956521739131,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.9307946374733502,
+      "error": null
     }
   },
   {
@@ -765,6 +981,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 104,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.21013424525529e-6,
+      "error": null
     }
   },
   {
@@ -795,6 +1019,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 104,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.996843448370811e-6,
+      "error": null
     }
   },
   {
@@ -825,6 +1057,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 26,
+      "analyticFraction": 0.8461538461538461,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.5065393984405704,
+      "error": null
     }
   },
   {
@@ -855,6 +1095,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 41
+    },
+    "topology": {
+      "edges": 226,
+      "analyticFraction": 0.7654867256637168,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.1878992596984568,
+      "error": null
     }
   },
   {
@@ -885,6 +1133,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 24
+    },
+    "topology": {
+      "edges": 118,
+      "analyticFraction": 0.9322033898305084,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.4276340915364734,
+      "error": null
     }
   },
   {
@@ -915,6 +1171,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 24
+    },
+    "topology": {
+      "edges": 118,
+      "analyticFraction": 0.9152542372881356,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.24812882897952152,
+      "error": null
     }
   },
   {
@@ -945,6 +1209,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 2
+    },
+    "topology": {
+      "edges": 84,
+      "analyticFraction": 0.047619047619047616,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.803207793518033,
+      "error": null
     }
   },
   {
@@ -975,6 +1247,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 10
+    },
+    "topology": {
+      "edges": 128,
+      "analyticFraction": 0.125,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.047450017315266,
+      "error": null
     }
   },
   {
@@ -1005,6 +1285,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 1
+    },
+    "topology": {
+      "edges": 35,
+      "analyticFraction": 0.9428571428571428,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.9361794054901018,
+      "error": null
     }
   },
   {
@@ -1035,6 +1323,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 32,
+      "analyticFraction": 0.9375,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.40562431994539366,
+      "error": null
     }
   },
   {
@@ -1065,6 +1361,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 119
+    },
+    "topology": {
+      "edges": 957,
+      "analyticFraction": 0.5778474399164054,
+      "tangentEdges": 6,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.3211304328322082,
+      "error": null
     }
   },
   {
@@ -1095,6 +1399,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 116
+    },
+    "topology": {
+      "edges": 563,
+      "analyticFraction": 0.4049733570159858,
+      "tangentEdges": 8,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.172374207920125,
+      "error": null
     }
   },
   {
@@ -1119,6 +1431,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 297,
+      "analyticFraction": 0.3468013468013468,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.807219249947943,
+      "error": null
     }
   },
   {
@@ -1149,6 +1469,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 14
+    },
+    "topology": {
+      "edges": 22,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.59977500172823e-7,
+      "error": null
     }
   },
   {
@@ -1179,6 +1507,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 14
+    },
+    "topology": {
+      "edges": 22,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.591763128750289e-7,
+      "error": null
     }
   },
   {
@@ -1209,6 +1545,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 2
+    },
+    "topology": {
+      "edges": 46,
+      "analyticFraction": 0.8043478260869565,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.44773888751195,
+      "error": null
     }
   },
   {
@@ -1239,6 +1583,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 2
+    },
+    "topology": {
+      "edges": 43,
+      "analyticFraction": 0.7209302325581395,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.5178591738262766,
+      "error": null
     }
   },
   {
@@ -1269,6 +1621,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 17
+    },
+    "topology": {
+      "edges": 67,
+      "analyticFraction": 0.6865671641791045,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.8899428062154437,
+      "error": null
     }
   },
   {
@@ -1299,6 +1659,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 12
+    },
+    "topology": {
+      "edges": 81,
+      "analyticFraction": 0.7654320987654321,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.7198224547818535,
+      "error": null
     }
   },
   {
@@ -1329,6 +1697,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 4
+    },
+    "topology": {
+      "edges": 44,
+      "analyticFraction": 0.9090909090909091,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.8691740212942842,
+      "error": null
     }
   },
   {
@@ -1359,6 +1735,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 4
+    },
+    "topology": {
+      "edges": 44,
+      "analyticFraction": 0.9090909090909091,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 4.175476582146715,
+      "error": null
     }
   },
   {
@@ -1383,6 +1767,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 59,
+      "analyticFraction": 0.0847457627118644,
+      "tangentEdges": 9,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.4102144671373662,
+      "error": null
     }
   },
   {
@@ -1407,6 +1799,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 4,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.078770059199542e-6,
+      "error": null
     }
   },
   {
@@ -1431,6 +1831,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 301,
+      "analyticFraction": 0.1362126245847176,
+      "tangentEdges": 27,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.1672635165281977,
+      "error": null
     }
   },
   {
@@ -1461,6 +1869,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 20
+    },
+    "topology": {
+      "edges": 76,
+      "analyticFraction": 0.9210526315789473,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 6.491271296635642,
+      "error": null
     }
   },
   {
@@ -1491,6 +1907,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 19
+    },
+    "topology": {
+      "edges": 155,
+      "analyticFraction": 0.4,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.712325899616881,
+      "error": null
     }
   },
   {
@@ -1521,6 +1945,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 125
+    },
+    "topology": {
+      "edges": 1289,
+      "analyticFraction": 0.552366175329713,
+      "tangentEdges": 23,
+      "closedPatchFraction": 0.9616204690831557,
+      "maxEdgeDeviation": 2.0982484827793693,
+      "error": null
     }
   },
   {
@@ -1551,6 +1983,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 21
+    },
+    "topology": {
+      "edges": 49,
+      "analyticFraction": 0.6530612244897959,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.1500704397458166,
+      "error": null
     }
   },
   {
@@ -1581,6 +2021,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 7
+    },
+    "topology": {
+      "edges": 99,
+      "analyticFraction": 0.696969696969697,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.7936782662488083,
+      "error": null
     }
   },
   {
@@ -1611,6 +2059,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 48
+    },
+    "topology": {
+      "edges": 264,
+      "analyticFraction": 0.6628787878787878,
+      "tangentEdges": 35,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 9.90713518730064,
+      "error": null
     }
   },
   {
@@ -1641,6 +2097,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 64
+    },
+    "topology": {
+      "edges": 352,
+      "analyticFraction": 0.5056818181818182,
+      "tangentEdges": 4,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 7.602335485287979,
+      "error": null
     }
   },
   {
@@ -1671,6 +2135,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 452
+    },
+    "topology": {
+      "edges": 1912,
+      "analyticFraction": 0.4722803347280335,
+      "tangentEdges": 14,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 7.350656385991742,
+      "error": null
     }
   },
   {
@@ -1701,6 +2173,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 56
+    },
+    "topology": {
+      "edges": 264,
+      "analyticFraction": 0.821969696969697,
+      "tangentEdges": 12,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.5132447077934974,
+      "error": null
     }
   },
   {
@@ -1731,6 +2211,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 59
+    },
+    "topology": {
+      "edges": 272,
+      "analyticFraction": 0.7573529411764706,
+      "tangentEdges": 4,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.0115056340579107,
+      "error": null
     }
   },
   {
@@ -1761,6 +2249,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 200
+    },
+    "topology": {
+      "edges": 979,
+      "analyticFraction": 0.5066394279877426,
+      "tangentEdges": 17,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 4.229196872305858,
+      "error": null
     }
   },
   {
@@ -1791,6 +2287,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 59
+    },
+    "topology": {
+      "edges": 401,
+      "analyticFraction": 0.5835411471321695,
+      "tangentEdges": 12,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 13.577105716341864,
+      "error": null
     }
   },
   {
@@ -1821,6 +2325,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 92
+    },
+    "topology": {
+      "edges": 497,
+      "analyticFraction": 0.9054325955734407,
+      "tangentEdges": 17,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.9850749737538584,
+      "error": null
     }
   },
   {
@@ -1851,6 +2363,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 138
+    },
+    "topology": {
+      "edges": 370,
+      "analyticFraction": 0.754054054054054,
+      "tangentEdges": 1,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.0699828039509325,
+      "error": null
     }
   },
   {
@@ -1881,6 +2401,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 105
+    },
+    "topology": {
+      "edges": 475,
+      "analyticFraction": 0.7494736842105263,
+      "tangentEdges": 50,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.7715505655556463,
+      "error": null
     }
   },
   {
@@ -1911,6 +2439,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 42
+    },
+    "topology": {
+      "edges": 206,
+      "analyticFraction": 0.8300970873786407,
+      "tangentEdges": 22,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.71569703757735,
+      "error": null
     }
   },
   {
@@ -1941,6 +2477,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 66
+    },
+    "topology": {
+      "edges": 196,
+      "analyticFraction": 0.7142857142857143,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.331150884665975,
+      "error": null
     }
   },
   {
@@ -1971,6 +2515,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 128
+    },
+    "topology": {
+      "edges": 404,
+      "analyticFraction": 0.8514851485148515,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.9263916483769765,
+      "error": null
     }
   },
   {
@@ -2001,6 +2553,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 74
+    },
+    "topology": {
+      "edges": 306,
+      "analyticFraction": 0.25163398692810457,
+      "tangentEdges": 1,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.7235224663890782,
+      "error": null
     }
   },
   {
@@ -2025,6 +2585,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 4,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.955570724021527e-6,
+      "error": null
     }
   },
   {
@@ -2055,6 +2623,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 5
+    },
+    "topology": {
+      "edges": 21,
+      "analyticFraction": 0.8095238095238095,
+      "tangentEdges": 1,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.02589379800152207,
+      "error": null
     }
   },
   {
@@ -2085,6 +2661,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 133
+    },
+    "topology": {
+      "edges": 398,
+      "analyticFraction": 0.19095477386934673,
+      "tangentEdges": 126,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.11594343625392206,
+      "error": null
     }
   },
   {
@@ -2109,6 +2693,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 571,
+      "analyticFraction": 0.01576182136602452,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.4057336130191914,
+      "error": null
     }
   },
   {
@@ -2139,6 +2731,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 11
+    },
+    "topology": {
+      "edges": 77,
+      "analyticFraction": 0.6623376623376623,
+      "tangentEdges": 12,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.3815724310037825,
+      "error": null
     }
   },
   {
@@ -2169,6 +2769,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 10
+    },
+    "topology": {
+      "edges": 92,
+      "analyticFraction": 0.6086956521739131,
+      "tangentEdges": 7,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.42575993694266334,
+      "error": null
     }
   },
   {
@@ -2199,6 +2807,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 8
+    },
+    "topology": {
+      "edges": 72,
+      "analyticFraction": 0.7777777777777778,
+      "tangentEdges": 16,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 5.30704756235823,
+      "error": null
     }
   },
   {
@@ -2229,6 +2845,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 25
+    },
+    "topology": {
+      "edges": 81,
+      "analyticFraction": 0.19753086419753085,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.2242847818361258,
+      "error": null
     }
   },
   {
@@ -2253,6 +2877,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 279,
+      "analyticFraction": 0.3906810035842294,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.6695510245232956,
+      "error": null
     }
   },
   {
@@ -2283,6 +2915,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 61
+    },
+    "topology": {
+      "edges": 312,
+      "analyticFraction": 0.4230769230769231,
+      "tangentEdges": 8,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.5200350691934357,
+      "error": null
     }
   },
   {
@@ -2313,6 +2953,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 6
+    },
+    "topology": {
+      "edges": 25,
+      "analyticFraction": 0.8,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.014508279068379017,
+      "error": null
     }
   },
   {
@@ -2343,6 +2991,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 4
+    },
+    "topology": {
+      "edges": 23,
+      "analyticFraction": 0.8260869565217391,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.02067414691174374,
+      "error": null
     }
   },
   {
@@ -2373,6 +3029,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 8
+    },
+    "topology": {
+      "edges": 56,
+      "analyticFraction": 0.8571428571428571,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.8259507742070795,
+      "error": null
     }
   },
   {
@@ -2403,6 +3067,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 8
+    },
+    "topology": {
+      "edges": 56,
+      "analyticFraction": 0.875,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.5282913993408495,
+      "error": null
     }
   },
   {
@@ -2427,6 +3099,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 493,
+      "analyticFraction": 0.3103448275862069,
+      "tangentEdges": 7,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.4529936667733341,
+      "error": null
     }
   },
   {
@@ -2457,6 +3137,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 12,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.1045507497370666e-6,
+      "error": null
     }
   },
   {
@@ -2487,6 +3175,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 12,
+      "analyticFraction": 1.0,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.00015335987084989688,
+      "error": null
     }
   },
   {
@@ -2511,6 +3207,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 78,
+      "analyticFraction": 0.8205128205128205,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.4376583634923903,
+      "error": null
     }
   },
   {
@@ -2541,6 +3245,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 52
+    },
+    "topology": {
+      "edges": 199,
+      "analyticFraction": 0.7035175879396985,
+      "tangentEdges": 14,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 2.3999765849178494,
+      "error": null
     }
   },
   {
@@ -2571,6 +3283,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 59
+    },
+    "topology": {
+      "edges": 224,
+      "analyticFraction": 0.6294642857142857,
+      "tangentEdges": 12,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.8673177107233514,
+      "error": null
     }
   },
   {
@@ -2601,6 +3321,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 5
+    },
+    "topology": {
+      "edges": 33,
+      "analyticFraction": 0.6363636363636364,
+      "tangentEdges": 2,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.1156830681328027,
+      "error": null
     }
   },
   {
@@ -2631,6 +3359,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 51
+    },
+    "topology": {
+      "edges": 727,
+      "analyticFraction": 0.11966987620357634,
+      "tangentEdges": 27,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.4949171752757656,
+      "error": null
     }
   },
   {
@@ -2661,6 +3397,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 1
+    },
+    "topology": {
+      "edges": 22,
+      "analyticFraction": 0.6363636363636364,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 3.0524150885644077,
+      "error": null
     }
   },
   {
@@ -2691,6 +3435,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 0
+    },
+    "topology": {
+      "edges": 20,
+      "analyticFraction": 0.8,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.3270165555056028,
+      "error": null
     }
   },
   {
@@ -2721,6 +3473,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 47
+    },
+    "topology": {
+      "edges": 137,
+      "analyticFraction": 0.5401459854014599,
+      "tangentEdges": 4,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.6187998437842412,
+      "error": null
     }
   },
   {
@@ -2751,6 +3511,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 34
+    },
+    "topology": {
+      "edges": 152,
+      "analyticFraction": 0.6447368421052632,
+      "tangentEdges": 1,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.9005853477079959,
+      "error": null
     }
   },
   {
@@ -2781,6 +3549,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 2
+    },
+    "topology": {
+      "edges": 34,
+      "analyticFraction": 0.7647058823529411,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 0.04966705645303482,
+      "error": null
     }
   },
   {
@@ -2811,6 +3587,14 @@
       },
       "groundTruthSource": "merged",
       "inventoryError": 100
+    },
+    "topology": {
+      "edges": 930,
+      "analyticFraction": 0.32365591397849464,
+      "tangentEdges": 140,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.0107872825757225,
+      "error": null
     }
   },
   {
@@ -2835,6 +3619,14 @@
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
+    },
+    "topology": {
+      "edges": 114,
+      "analyticFraction": 0.22807017543859648,
+      "tangentEdges": 0,
+      "closedPatchFraction": 1.0,
+      "maxEdgeDeviation": 1.1899272567355939,
+      "error": null
     }
   }
 ]

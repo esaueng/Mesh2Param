@@ -43,7 +43,7 @@
 
 mod fit;
 mod grow;
-mod linalg;
+pub(crate) mod linalg;
 #[cfg(test)]
 mod tests;
 

@@ -150,11 +150,140 @@ fillets and rounds, which is what tori are on real parts, stay well inside that.
   re-fitted on the real union, which bounds the damage but does not undo a merge
   a later one makes wrong.
 
+## Topology recovery
+
+`recover` is the rung above segmentation: patches in, a **vertex / edge / loop
+skeleton** out. It still builds nothing — face construction is what consumes
+it — but it is where the mesh stops being the answer and the fitted surfaces
+start being it.
+
+`MeshData::welded` → boundary chains per patch pair → vertices → edge curves →
+loops.
+
+**Chains.** A mesh edge whose triangles do not all belong to one patch is a
+boundary edge. Boundary edges are grouped by the unordered patch pair they
+separate and linked into ordered runs of mesh vertices; a run ends at a vertex
+touching three or more patches, or where the pair's own edge graph branches,
+and otherwise closes into a **ring**. An edge with three or more patches on it
+is skipped rather than forced into a pair: its endpoints are corners anyway,
+and inventing a chain there would claim two surfaces meet along something
+neither of them bounds.
+
+**Vertices.** Every chain endpoint becomes a vertex. When all its incident
+patches are analytic the point is refined by Gauss-Newton on the sum of squared
+signed distances to those surfaces — a fitted corner is more accurate than a
+tessellated one — but only while the fits are right, so a refinement that moves
+further than `vertexSnapFactor` tolerances is thrown away and the mesh vertex
+kept. Whatever survives is then merged inside one tolerance.
+
+**Edge curves.** Between two analytic patches the chain is replaced by the real
+surface-surface intersection, trimmed to the chain's own span between its end
+vertices (a ring becomes a full circle or a closed polyline). Three routes
+reach the kernel, because its `AnalyticSurface` has no plane arm:
+
+| pair | kernel entry point | best case |
+| --- | --- | --- |
+| plane / plane | `plane_plane_intersection` | `Line` |
+| plane / analytic | `exact_plane_analytic_bounded` | `Circle`, else sampled |
+| analytic / analytic | `exact_cylinder_cylinder`, `exact_cone_cylinder`, `exact_sphere_cylinder`, `exact_torus_cylinder`, `exact_torus_sphere`, `exact_cone_cone`, then `intersect_analytic_analytic_bounded` | `Circle` from the `exact_*` arm, else sampled |
+
+The kernel is asked for every branch it can see and the branch **this** chain
+lies on is picked by mean distance; anything further off than
+`edgeFitFactor` tolerances is not this chain's curve and is rejected. The
+marching route takes v-range hints derived from the chain's own extent on each
+surface — only for the cylinder and the cone, whose default ranges are a couple
+of units wide; the sphere and the torus are already angular in `v`.
+
+Everything that is not a line or a circle — an ellipse, a marched quartic —
+becomes a `Polyline` tagged `marching`. Nothing downstream consumes an ellipse
+yet, and demoting it is honest about that.
+
+**Tangent pairs never reach any of that.** Where the two surface normals along
+the chain differ by less than `tangentAngleDeg` — a fillet running out into its
+wall, a round meeting the cylinder it blends — the intersection exists but its
+*position* is ill-conditioned in the fit error: it moves like the square root
+of it. The mesh's own samples beat it, so the edge is marked `tangent` and
+takes the fallback.
+
+**The fallback** is the chain's mesh samples projected onto whichever side is
+analytic and fits them better, with the refined end vertices substituted for
+the first and last point so adjacent edges still share a corner. `rmsDeviation`
+and `maxDeviation` are recorded against the emitted curve in every case,
+including the fallback, so a polyline that hides a bad fit says so.
+
+**Loops.** Each patch's incident edges are chained into oriented loops by
+vertex connectivity, a ring edge being a closed loop on its own — which is how
+a full cylinder or a bore keeps a valid boundary with no vertex anywhere on it.
+Which loop is outer is deliberately **not** decided here: that needs the face's
+surface parameterisation, which is the next rung's job.
+
+### Options and defaults
+
+| option | default | what it is for |
+| --- | ---: | --- |
+| `tolerance` | `null` | absolute; `null` takes the segmentation's own tolerance, so the two stages agree on what "the same point" means |
+| `vertexSnapFactor` | 3 | how far, in tolerances, a refined vertex may move before the refinement is rejected |
+| `tangentAngleDeg` | 5 | below this angle between the two surface normals, no intersection is attempted |
+| `edgeFitFactor` | 2 | how far, in tolerances, the chain samples may sit off an intersection before it is rejected as the wrong branch |
+| `gridRes` | 16 | seed-grid resolution for the kernel's marching intersection |
+| `refineIterations` | 12 | cap on Gauss-Newton iterations per vertex |
+
+A `Curve::Circle` carries only centre, axis, radius and two angles. The angles
+are measured in the frame the kernel derives from the axis alone — the frame
+`Circle3D::new(center, axis, radius)` builds — so a consumer that rebuilds the
+circle from those three numbers reproduces the parameterisation. `endAngle` is
+always above `startAngle`; the arc runs counter-clockwise about `axis`.
+
+### Known limits
+
+* **The analytic fraction is capped by recognition, not by this stage.** On the
+  fine exports most chains have an `Unknown` patch on one side and can only
+  fall back: `hammer-holder/mesh-export` has 294 unknown patches out of 587 and
+  576 chains with an analytic surface on *both* sides out of 3030.
+  `windshield-holder-fine` is 514 of 1087, and 1255 of 5608. Freeform
+  recognition is what moves those numbers.
+* **About a fifth of the both-analytic chains are still rejected** — 134 of 576
+  on `hammer-holder/mesh-export`, 9 of 191 on `nist-ctc-01/mesh-default` — the
+  intersection of two fitted surfaces landing further than `edgeFitFactor`
+  tolerances from the samples the fits came from. On a fine mesh the tolerance
+  is small and a fit error of a few chords is enough.
+* **No ellipse, hyperbola or parabola output.** An oblique plane through a
+  cylinder or a cone has an exact conic in the kernel and this stage throws it
+  away as a polyline. The kernel's topology builder takes `Ellipse` edges
+  today, so this is a gap here, not upstream.
+* **Marching is the slow arm.** A pair with no closed form — torus/torus,
+  cone/sphere — costs tens of milliseconds per edge:
+  `flange-four-bolt/mesh-coarse` spends ~700 ms on 26 edges,
+  `nist-ftc-06/mesh-coarse` ~1.3 s on 497. Everything else is a few
+  milliseconds per hundred edges.
+* **Loop assembly is greedy.** At a vertex where four of a patch's edges meet —
+  two loops touching at a point — the walk pairs them by discovery order, which
+  can close the wrong two loops together. It never reports a false *open* loop,
+  so the scoreboard's closure number is an upper bound.
+* **`Unknown` patches are still given chains and loops**, with a polyline
+  through the raw mesh vertices. They are boundaries the faceted fallback will
+  need; they are just not analytic.
+
+### Remus gaps this stage ran into
+
+* `AnalyticSurface` has no `Plane` arm, so `intersect_analytic_analytic_bounded`
+  can never be called for a pair involving a plane — the overwhelmingly common
+  case on real parts. Every caller has to dispatch planes itself, to
+  `exact_plane_analytic_bounded` and `plane_plane_intersection`.
+* There is no plane/plane helper on the intersection module at all;
+  `remus_math::plane::plane_plane_intersection` lives elsewhere and returns a
+  point and a direction rather than an `ExactIntersectionCurve::Line`, so
+  `ExactIntersectionCurve` has no `Line` variant to receive it.
+* No exact torus/torus, torus/cone or cone/sphere arm: those fall to the
+  general marcher, and its output is a fitted NURBS, never a circle, even for
+  configurations (coaxial tori, a sphere centred on a cone axis) whose
+  intersection is exactly a circle.
+
 ## Running the scoreboard
 
-The scoreboard walks `samples/real/*/part.json`, runs `faceted_step` and
-`segment` on every mesh, writes `target/scoreboard.json`, prints a table, and
-compares the outcome against the committed `scoreboard-baseline.json`.
+The scoreboard walks `samples/real/*/part.json`, runs `faceted_step`, `segment`
+and `recover` on every mesh, writes `target/scoreboard.json`, prints a table,
+and compares the outcome against the committed `scoreboard-baseline.json`.
 
 Each row carries the recognised inventory, the unknown area fraction, the STEP
 ground truth from `part.json` and `inventoryError`: the total absolute miscount
@@ -180,13 +309,22 @@ MESH2PARAM_SCOREBOARD=full cargo test -p mesh2param-core --test scoreboard -- --
 Without `--nocapture` the table is only printed when the test fails;
 `target/scoreboard.json` is written either way.
 
+Each row also carries the topology block: `edges`, `analyticFraction` (the
+share of edges whose curve came from a real intersection, closed-form or
+marched), `tangentEdges`, `closedPatchFraction` (the share of patches all of
+whose loops closed) and `maxEdgeDeviation`.
+
 The comparison fails when a mesh that was `valid` in the baseline is not valid
 now, when a mesh that did not error now errors, when a mesh's `inventoryError`
-grows by more than 20% against the baseline, or when a baseline mesh is missing
-from the run. Meshes not in the baseline are reported, not failed, so adding a
-corpus part does not break the build. Recognition is scored separately from the
-faceted tier on purpose: a mesh can still build a valid solid while the
-segmenter has started reporting the wrong surfaces.
+grows by more than 20% against the baseline, when its `closedPatchFraction`
+falls more than 0.05 below the baseline, when topology recovery starts erroring
+on a mesh it used to handle, or when a baseline mesh is missing from the run. Meshes not in the baseline are reported, not failed, so adding a
+corpus part does not break the build. Recognition and topology are scored separately from the
+faceted tier, and from each other, on purpose: a mesh can still build a valid
+solid while the segmenter reports the wrong surfaces, and it can keep its
+recognition while its patch boundaries stop closing. Loop closure is the one
+topology number a face builder cannot work around — a patch whose boundary does
+not close has no face — which is why it is the one with a budget.
 
 ### Re-blessing the baseline
 

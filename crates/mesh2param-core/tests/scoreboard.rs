@@ -20,8 +20,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use mesh2param_core::{
-    CoreError, FacetedOptions, Inventory, MeshFormat, SegmentOptions, faceted_step, load_mesh,
-    segment,
+    CoreError, FacetedOptions, Inventory, MeshFormat, SegmentOptions, TopologyOptions,
+    faceted_step, load_mesh, recover, segment,
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +33,11 @@ const SUBSET_MAX_TRIANGLES: usize = 30_000;
 /// the baseline. Recognition counts move by one or two when a fit is retuned;
 /// a fifth of the error is a change of behaviour, not of numerics.
 const MAX_INVENTORY_ERROR_GROWTH: f64 = 0.20;
+
+/// A mesh's `closed_patch_fraction` may not fall further than this below the
+/// baseline. Loop closure is the one topology number a face builder cannot
+/// work around: a patch whose boundary does not close has no face.
+const MAX_CLOSURE_DROP: f64 = 0.05;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -120,6 +125,40 @@ struct Seg {
     inventory_error: Option<u32>,
 }
 
+/// The topology half of a row, measured after segmentation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Topo {
+    /// Wall clock for topology recovery alone. Omitted from the baseline.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    ms: f64,
+    edges: usize,
+    /// Share of edges whose curve came from a real surface-surface
+    /// intersection. Zero when there are no edges.
+    analytic_fraction: f64,
+    tangent_edges: usize,
+    /// Share of patches all of whose loops closed.
+    closed_patch_fraction: f64,
+    max_edge_deviation: f64,
+    /// `None` unless recovery itself failed, in which case every other field
+    /// is zero.
+    error: Option<String>,
+}
+
+impl Topo {
+    fn failed(error: String) -> Self {
+        Self {
+            ms: 0.0,
+            edges: 0,
+            analytic_fraction: 0.0,
+            tangent_edges: 0,
+            closed_patch_fraction: 0.0,
+            max_edge_deviation: 0.0,
+            error: Some(error),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct MeshEntry {
     file: String,
@@ -147,6 +186,9 @@ struct Row {
     segmentation: Option<Seg>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     seg_error: Option<String>,
+    /// `None` when segmentation never produced patches to recover from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    topology: Option<Topo>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde requires the &T signature
@@ -168,8 +210,19 @@ impl Row {
                 ms: 0.0,
                 ..s.clone()
             }),
+            topology: self.topology.as_ref().map(|t| Topo {
+                ms: 0.0,
+                ..t.clone()
+            }),
             ..self.clone()
         }
+    }
+
+    fn closed_patch_fraction(&self) -> Option<f64> {
+        self.topology
+            .as_ref()
+            .filter(|t| t.error.is_none())
+            .map(|t| t.closed_patch_fraction)
     }
 
     fn inventory_error(&self) -> Option<u32> {
@@ -224,6 +277,7 @@ fn run_one(
         error: None,
         segmentation: None,
         seg_error: None,
+        topology: None,
     };
 
     let bytes = match fs::read(&stl) {
@@ -242,6 +296,7 @@ fn run_one(
         .and_then(|mesh| faceted_step(mesh, &FacetedOptions::default()).map_err(|e| short(&e)));
     row.ms = started.elapsed().as_secs_f64() * 1000.0;
 
+    let mut segmentation = None;
     if let Ok(mesh) = &loaded {
         let started = Instant::now();
         match segment(mesh, &SegmentOptions::default()) {
@@ -254,9 +309,38 @@ fn run_one(
                     ground_truth_source: truth.map(|(_, source)| source),
                     inventory_error: truth.map(|(t, _)| t.error_against(seg.inventory)),
                 });
+                segmentation = Some(seg);
             }
             Err(e) => row.seg_error = Some(short(&e)),
         }
+    }
+
+    if let (Ok(mesh), Some(seg)) = (&loaded, &segmentation) {
+        let started = Instant::now();
+        row.topology = Some(match recover(mesh, seg, &TopologyOptions::default()) {
+            Ok(topo) => {
+                let s = topo.summary;
+                let patches = s.patches_closed + s.patches_open;
+                Topo {
+                    ms: started.elapsed().as_secs_f64() * 1000.0,
+                    edges: s.edges,
+                    analytic_fraction: if s.edges == 0 {
+                        0.0
+                    } else {
+                        s.analytic_edges as f64 / s.edges as f64
+                    },
+                    tangent_edges: s.tangent_edges,
+                    closed_patch_fraction: if patches == 0 {
+                        0.0
+                    } else {
+                        s.patches_closed as f64 / patches as f64
+                    },
+                    max_edge_deviation: s.max_edge_deviation,
+                    error: None,
+                }
+            }
+            Err(e) => Topo::failed(short(&e)),
+        });
     }
 
     match outcome {
@@ -290,7 +374,7 @@ fn short(e: &CoreError) -> String {
 
 fn print_table(rows: &[Row]) {
     println!(
-        "\n{:<26} {:<16} {:>7} {:>7} {:>5} {:>8} | {:>8} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7} {:>6}  notes",
+        "\n{:<26} {:<16} {:>7} {:>7} {:>5} {:>8} | {:>8} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7} {:>6} | {:>7} {:>6} {:>6} {:>4} {:>6} {:>8}  notes",
         "slug",
         "mesh",
         "tris",
@@ -305,9 +389,15 @@ fn print_table(rows: &[Row]) {
         "sp",
         "unk",
         "unkArea",
-        "invErr"
+        "invErr",
+        "topo ms",
+        "edges",
+        "anaFr",
+        "tan",
+        "closed",
+        "maxDev"
     );
-    println!("{}", "-".repeat(155));
+    println!("{}", "-".repeat(210));
     for r in rows {
         let (seg_ms, inv, unk, err) = r.segmentation.as_ref().map_or_else(
             || (f64::NAN, Inventory::default(), f64::NAN, None),
@@ -320,14 +410,22 @@ fn print_table(rows: &[Row]) {
                 )
             },
         );
-        let notes = match (r.error.as_deref(), r.seg_error.as_deref()) {
+        let topo = r.topology.as_ref();
+        let mut notes = match (r.error.as_deref(), r.seg_error.as_deref()) {
             (Some(e), Some(s)) => format!("{e} | seg: {s}"),
             (Some(e), None) => e.to_string(),
             (None, Some(s)) => format!("seg: {s}"),
             (None, None) => String::new(),
         };
+        if let Some(e) = topo.and_then(|t| t.error.as_deref()) {
+            if !notes.is_empty() {
+                notes.push_str(" | ");
+            }
+            notes.push_str("topo: ");
+            notes.push_str(e);
+        }
         println!(
-            "{:<26} {:<16} {:>7} {:>7} {:>5} {:>8.1} | {:>8.1} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7.3} {:>6}  {}",
+            "{:<26} {:<16} {:>7} {:>7} {:>5} {:>8.1} | {:>8.1} {:>4} {:>4} {:>4} {:>4} {:>4} {:>4} {:>7.3} {:>6} | {:>7.1} {:>6} {:>6.3} {:>4} {:>6.3} {:>8.4}  {}",
             r.slug,
             r.mesh,
             r.triangles,
@@ -343,6 +441,12 @@ fn print_table(rows: &[Row]) {
             inv.unknown,
             unk,
             err.map_or_else(|| "-".to_string(), |e| e.to_string()),
+            topo.map_or(f64::NAN, |t| t.ms),
+            topo.map_or(0, |t| t.edges),
+            topo.map_or(f64::NAN, |t| t.analytic_fraction),
+            topo.map_or(0, |t| t.tangent_edges),
+            topo.map_or(f64::NAN, |t| t.closed_patch_fraction),
+            topo.map_or(f64::NAN, |t| t.max_edge_deviation),
             notes
         );
     }
@@ -354,14 +458,37 @@ fn print_table(rows: &[Row]) {
     } else {
         f64::from(scored.iter().sum::<u32>()) / scored.len() as f64
     };
+    let closure: Vec<f64> = rows.iter().filter_map(Row::closed_patch_fraction).collect();
+    let analytic: Vec<f64> = rows
+        .iter()
+        .filter_map(|r| r.topology.as_ref())
+        .filter(|t| t.error.is_none() && t.edges > 0)
+        .map(|t| t.analytic_fraction)
+        .collect();
+    let tangent: usize = rows
+        .iter()
+        .filter_map(|r| r.topology.as_ref())
+        .map(|t| t.tangent_edges)
+        .sum();
+    let mean = |v: &[f64]| -> f64 {
+        if v.is_empty() {
+            0.0
+        } else {
+            v.iter().sum::<f64>() / v.len() as f64
+        }
+    };
     println!(
-        "{}\n{} meshes, {} valid, {} errored; {} scored against STEP ground truth, mean inventory error {:.1}\n",
-        "-".repeat(155),
+        "{}\n{} meshes, {} valid, {} errored; {} scored against STEP ground truth, mean inventory error {:.1}\ntopology: {} recovered, mean closed patch fraction {:.3}, mean analytic edge fraction {:.3}, {} tangent edges\n",
+        "-".repeat(210),
         rows.len(),
         valid,
         errored,
         scored.len(),
-        mean_err
+        mean_err,
+        closure.len(),
+        mean(&closure),
+        mean(&analytic),
+        tangent
     );
 }
 
@@ -459,6 +586,29 @@ fn corpus_scoreboard_matches_baseline() {
             } else if now < was {
                 improvements.push(format!("{}: inventory error {was} -> {now}", row.key()));
             }
+        }
+        // Loop closure is scored separately again: a mesh can keep its
+        // recognition and still stop producing usable face boundaries.
+        if let (Some(was), Some(now)) =
+            (before.closed_patch_fraction(), row.closed_patch_fraction())
+            && now < was - MAX_CLOSURE_DROP
+        {
+            regressions.push(format!(
+                "{}: closed patch fraction {was:.3} -> {now:.3}, past the {MAX_CLOSURE_DROP:.2} drop budget",
+                row.key()
+            ));
+        }
+        if before.topology.as_ref().is_some_and(|t| t.error.is_none())
+            && row.topology.as_ref().is_some_and(|t| t.error.is_some())
+        {
+            regressions.push(format!(
+                "{}: topology now errors: {}",
+                row.key(),
+                row.topology
+                    .as_ref()
+                    .and_then(|t| t.error.as_deref())
+                    .unwrap_or("")
+            ));
         }
     }
     // A mesh present in the baseline but absent now means the corpus shrank or
