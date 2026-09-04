@@ -242,6 +242,165 @@ def test_javascript_inventory_reports_missing_install(tmp_path: Path) -> None:
     ]
 
 
+_CARGO_METADATA_FIXTURE = """
+{
+  "workspace_members": ["path+file:///repo/crates/mesh2param-core#mesh2param-core@0.1.0"],
+  "packages": [
+    {
+      "id": "path+file:///repo/crates/mesh2param-core#mesh2param-core@0.1.0",
+      "name": "mesh2param-core",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "license_file": null,
+      "source": null,
+      "repository": null,
+      "manifest_path": "/repo/crates/mesh2param-core/Cargo.toml"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229",
+      "name": "serde",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "license_file": null,
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "repository": "https://github.com/serde-rs/serde",
+      "manifest_path": "/cargo/registry/src/serde-1.0.229/Cargo.toml"
+    },
+    {
+      "id": "git+https://github.com/esaueng/remus?rev=cbd1382#remus-io@0.1.0",
+      "name": "remus-io",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "license_file": null,
+      "source": "git+https://github.com/esaueng/remus?rev=cbd1382#cbd1382",
+      "repository": "https://github.com/esaueng/remus",
+      "manifest_path": "/cargo/git/checkouts/remus/cbd1382/crates/remus-io/Cargo.toml"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#prose-only@2.1.0",
+      "name": "prose-only",
+      "version": "2.1.0",
+      "license": null,
+      "license_file": "LICENSE.md",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "repository": null,
+      "manifest_path": "/cargo/registry/src/prose-only-2.1.0/Cargo.toml"
+    }
+  ]
+}
+"""
+
+
+def test_rust_inventory_records_source_repository_and_unknown_license() -> None:
+    checker = _checker()
+    metadata = json.loads(_CARGO_METADATA_FIXTURE)
+
+    records, errors = checker.rust_records(checker.load_policy(), metadata=metadata)
+
+    assert errors == []
+    # The workspace member itself is never inventoried as a dependency.
+    assert [record.name for record in records] == ["prose-only", "remus-io", "serde"]
+    by_name = {record.name: record for record in records}
+    assert by_name["serde"] == checker.LicenseRecord(
+        "rust",
+        "serde",
+        "1.0.229",
+        "MIT OR Apache-2.0",
+        source="crates.io",
+        repository="https://github.com/serde-rs/serde",
+    )
+    assert by_name["remus-io"] == checker.LicenseRecord(
+        "rust",
+        "remus-io",
+        "0.1.0",
+        "Apache-2.0",
+        source="git+https://github.com/esaueng/remus#cbd1382",
+        repository="https://github.com/esaueng/remus",
+    )
+    # license-file only, and the file is unreadable here, so nothing is guessed.
+    assert by_name["prose-only"].license == "UNKNOWN"
+    assert by_name["prose-only"].repository == ""
+
+    policy = replace(checker.load_policy(), required_notice_packages=frozenset())
+    failures = checker.policy_errors(records, policy)
+    assert failures == [
+        "license is not allowlisted for rust:prose-only==2.1.0: UNKNOWN"
+    ]
+
+
+def test_rust_license_file_resolves_obvious_spdx_and_overrides_win(tmp_path: Path) -> None:
+    checker = _checker()
+    metadata = json.loads(_CARGO_METADATA_FIXTURE)
+    package = next(item for item in metadata["packages"] if item["name"] == "prose-only")
+    package["manifest_path"] = str(tmp_path / "Cargo.toml")
+    (tmp_path / "LICENSE.md").write_text(
+        "Permission is hereby granted, free of charge, to any person obtaining a copy",
+        encoding="utf-8",
+    )
+
+    records, errors = checker.rust_records(checker.load_policy(), metadata=metadata)
+
+    assert errors == []
+    assert {record.name: record.license for record in records}["prose-only"] == "MIT"
+
+    policy = checker.load_policy()
+    overridden = replace(
+        policy,
+        overrides={
+            **policy.overrides,
+            "rust:prose-only": checker.LicenseOverride(
+                ecosystem="rust",
+                name="prose-only",
+                license="BSD-3-Clause",
+                source="https://example.invalid/prose-only",
+                reason="audited",
+            ),
+        },
+    )
+    records, _ = checker.rust_records(overridden, metadata=metadata)
+    assert {record.name: record.license for record in records}["prose-only"] == "BSD-3-Clause"
+
+
+def test_rust_inventory_fails_loudly_when_cargo_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checker = _checker()
+
+    def _no_cargo(*args: object, **kwargs: object) -> None:
+        raise OSError("No such file or directory: 'cargo'")
+
+    monkeypatch.setattr(checker.subprocess, "run", _no_cargo)
+    records, errors = checker.rust_records(checker.load_policy())
+
+    assert records == []
+    assert len(errors) == 1
+    assert "cannot inventory Rust dependencies" in errors[0]
+    assert "rust-toolchain.toml" in errors[0]
+
+
+def test_rust_records_are_rendered_in_their_own_notice_table() -> None:
+    checker = _checker()
+    records = [
+        checker.LicenseRecord("python", "zeta", "1", "MIT"),
+        checker.LicenseRecord(
+            "rust",
+            "serde",
+            "1.0.229",
+            "MIT OR Apache-2.0",
+            source="crates.io",
+            repository="https://github.com/serde-rs/serde",
+        ),
+    ]
+
+    assert "serde" not in checker.render_inventory(records)
+    rust_table = checker.render_rust_inventory(records)
+    assert "zeta" not in rust_table
+    assert (
+        "| serde | 1.0.229 | MIT OR Apache-2.0 | crates.io | "
+        "https://github.com/serde-rs/serde |"
+    ) in rust_table
+
+
 def test_failed_inventory_does_not_report_missing_dependencies_or_stale_notices(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -256,7 +415,12 @@ def test_failed_inventory_does_not_report_missing_dependencies_or_stale_notices(
         ),
         checker.LicenseRecord("python", "casadi", "3", "LGPL-3.0-or-later"),
     ]
+    rust_notice_records = [
+        checker.LicenseRecord("rust", name, "0.1.0", "Apache-2.0")
+        for name in ("remus-io", "remus-math", "remus-operations", "remus-topology")
+    ]
     monkeypatch.setattr(checker, "python_records", lambda policy: (policy_records, []))
+    monkeypatch.setattr(checker, "rust_records", lambda policy: (rust_notice_records, []))
     monkeypatch.setattr(
         checker,
         "javascript_records",

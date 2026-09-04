@@ -74,7 +74,8 @@ dependency is necessary:
 
 1. pin it through the appropriate lockfile;
 2. verify upstream license and source from a primary source;
-3. run `uv run --extra dev python scripts/check_licenses.py`;
+3. run `uv run --extra dev python scripts/check_licenses.py` (it audits `uv.lock`, the pnpm store,
+   and the Cargo graph, so the pinned Rust toolchain must be on `PATH`);
 4. update `THIRD_PARTY_NOTICES.md` with `--write-notices`;
 5. add a narrow override only for incomplete/non-SPDX metadata, never to conceal incompatibility;
 6. include required attribution or license text.

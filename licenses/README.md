@@ -20,7 +20,14 @@ version 1.2.4. Those packages declare LGPL-3.0-or-later and contain libvips 8.17
 recorded dynamic dependencies. Every locked platform variant is explicitly reviewed in policy but
 remains development tooling rather than a Mesh2Param application runtime dependency.
 
-Run the standard-library-only checker from the repository root after installing both ecosystems:
+The Rust core adds no copyleft component. Every crate in the resolved Cargo graph is permissive,
+and the Remus geometry kernel crates come from `https://github.com/esaueng/remus` at the revision
+pinned in `crates/mesh2param-core/Cargo.toml` under Apache-2.0. A crate that states its terms only
+through a `license-file` is recorded as `UNKNOWN` unless the file text is an unambiguous SPDX
+license; `UNKNOWN` fails the audit until the crate is reviewed and given an override here.
+
+Run the standard-library-only checker from the repository root after installing all three
+ecosystems:
 
 ```sh
 uv run --extra dev python scripts/check_licenses.py
@@ -28,7 +35,10 @@ uv run --extra dev python scripts/check_licenses.py
 
 The checker:
 
-- audits every installed Python distribution and every package in pnpm's installed virtual store;
+- audits every installed Python distribution, every package in pnpm's installed virtual store, and
+  every package in the resolved Cargo graph except the workspace members;
+- shells out to `cargo metadata --locked`, and fails with a clear message rather than skipping the
+  Rust ecosystem when the pinned toolchain is not on `PATH`;
 - rejects unresolved or non-allowlisted licenses and unreviewed GPL/AGPL/SSPL/BUSL/CC-BY-NC
   dependencies;
 - permits LGPL only for the explicitly reviewed OCCT, CasADi, and
@@ -37,7 +47,8 @@ The checker:
   packages from the generated cross-platform notice inventory while still auditing their licenses;
 - verifies hashes of the canonical project, OCCT, and CasADi license texts;
 - rejects the GPL-bearing `jsonschema[format]` dependency path;
-- checks that the generated table in `THIRD_PARTY_NOTICES.md` is current.
+- checks that both generated tables in `THIRD_PARTY_NOTICES.md` are current: the Python/pnpm
+  inventory and the Rust table that also records each crate's resolved source and repository.
 
 When adding a dependency, prefer SPDX metadata. Add an override only when upstream metadata is
 missing or cannot express a bundled component, and include the exact package, effective license,
