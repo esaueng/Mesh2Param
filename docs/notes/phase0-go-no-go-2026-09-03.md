@@ -41,21 +41,21 @@ triangles, and the Python path keeps the 45 second worker boot and the server-on
 
 ## Remus items Phase 1 depends on
 
-To be filed upstream in esaueng/remus with corpus meshes as reproducers, in priority order:
+Filed upstream in esaueng/remus on 2026-09-03 with corpus meshes as reproducers, in priority order:
 
-1. **`heal_solid` opens or splits closed shells on faceted input.** 69 of 111 valid solids
+1. **`heal_solid` opens or splits closed shells on faceted input** (esaueng/remus#244). 69 of 111 valid solids
    become invalid (38 with boundary edges, 31 Euler failures). Reproducers: any
    `samples/real/*/mesh-coarse.stl`; `cable-saddle-clamp/mesh-default.stl` is small and
    deterministic. Until fixed, `heal_solid` stays off the product path.
-2. **STEP reader input limit of 128 MiB** rejects files the writer produces (156k-triangle
+2. **STEP reader input limit of 128 MiB** (esaueng/remus#245) rejects files the writer produces (156k-triangle
    `thru-hull-hex-nut/mesh-export.stl` writes 154 MB). Either raise the limit or expose it in
    `ImportLimits`; the product also needs a triangle budget regardless.
-3. **`unify_same_domain` Euler bookkeeping** on faces with many inner loops:
+3. **`unify_same_domain` Euler bookkeeping** (esaueng/remus#246) on faces with many inner loops:
    `nist-ftc-07/mesh-coarse.stl` is valid at import, invalid after unify (44 inner loops).
-4. **Round-trip rejections `ADVANCED_FACE ... leaves its plane`** on 3 of 120 written files,
+4. **Round-trip rejections `ADVANCED_FACE ... leaves its plane`** (esaueng/remus#247) on 4 of 120 written files,
    Remus's own writer output. Needs a tolerance-aware planarity check in the reader or a
    writer fix.
-5. **Stability matrix item "inner-shell export and broader round-trip evidence pending"**:
+5. (esaueng/remus#248) **Stability matrix item "inner-shell export and broader round-trip evidence pending"**:
    parts with voids need it; none of the corpus parts have voids yet, so add one.
 
 ## Phase 1 first work items, ordered by evidence
