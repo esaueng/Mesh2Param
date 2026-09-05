@@ -1,0 +1,110 @@
+name: VPS pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/vps-runner-pilot]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-pilot
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    name: VPS pilot (${{ matrix.probe }})
+    if: github.event.repository.private == true
+    runs-on: [self-hosted, Linux, X64, ci-small, ci-vm-1441561]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        probe: [1, 2]
+    env:
+      CI: '1'
+    steps:
+      - name: Verify fresh non-root job and Docker
+        env:
+          PROBE: ${{ matrix.probe }}
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = ci-runner
+          test "$(id -u)" != 0
+          test "$(uname -m)" = x86_64
+          test ! -e "$HOME/.ci-probe-sentinel"
+          touch "$HOME/.ci-probe-sentinel"
+          test ! -e /srv/ci/work/.ci-probe-sentinel
+          touch /srv/ci/work/.ci-probe-sentinel
+          test -z "$(docker ps --all --quiet)"
+          test -z "$(docker image ls --quiet)"
+          mkdir -p "$RUNNER_TEMP/evidence" "$RUNNER_TEMP/docker-probe"
+          date -u +%FT%TZ | tee "$RUNNER_TEMP/evidence/start.txt"
+          id
+          nproc
+          free -m
+          df -h /
+          docker version
+          docker compose version
+          cd "$RUNNER_TEMP/docker-probe"
+          printf '#include <stdio.h>\nint main(void) { puts("ci-docker-ok"); return 0; }\n' > hello.c
+          gcc -static hello.c -o hello
+          printf 'FROM scratch\nCOPY hello /hello\nUSER 10001\nENTRYPOINT ["/hello"]\n' > Dockerfile
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/docker-build.txt" docker build --tag ci-probe:local .
+          test "$(docker run --rm ci-probe:local)" = ci-docker-ok
+          # Both matrix jobs are eligible together; the single listener must serialize them.
+          sleep 10
+
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: 3.12.11
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: 0.11.28
+          enable-cache: false
+
+      - name: Activate pinned pnpm and verify Python tools
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+          pnpm --version
+          python --version
+          uv --version
+
+      - name: Install dependencies and verify contracts
+        run: |
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/install.txt" pnpm install --frozen-lockfile
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/contracts.txt" pnpm --filter @mesh2param/contracts verify
+
+      - name: Record capacity evidence
+        if: always()
+        run: |
+          date -u +%FT%TZ | tee "$RUNNER_TEMP/evidence/end.txt"
+          df -h / > "$RUNNER_TEMP/evidence/disk.txt"
+          du -sh "$HOME" "$GITHUB_WORKSPACE" >> "$RUNNER_TEMP/evidence/disk.txt"
+          docker system df >> "$RUNNER_TEMP/evidence/disk.txt"
+          cat "$RUNNER_TEMP"/evidence/*.txt
+
+      - name: Upload pilot evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vps-pilot-${{ matrix.probe }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 7
+          if-no-files-found: warn
