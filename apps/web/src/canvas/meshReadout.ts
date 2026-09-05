@@ -43,11 +43,23 @@ export function diagnosticRows(diagnostics: MeshDiagnostics, units: string): Rea
         ? `${count.format(diagnostics.weldedVertexCount)} (${count.format(diagnostics.rawVertexCount)} raw)`
         : count.format(diagnostics.weldedVertexCount),
     },
-    { label: "Bodies", value: count.format(diagnostics.connectedComponentCount), ...(diagnostics.connectedComponentCount > 1 ? { tone: "warn" as const } : {}) },
+    // A measurement only gets a row when the engine that produced these
+    // diagnostics actually made it; a missing one is never shown as passing.
+    ...(diagnostics.connectedComponentCount === null ? [] : [{
+      label: "Bodies",
+      value: count.format(diagnostics.connectedComponentCount),
+      ...(diagnostics.connectedComponentCount > 1 ? { tone: "warn" as const } : {}),
+    }]),
     { label: "Watertight", value: diagnostics.watertight ? "yes" : "no", tone: diagnostics.watertight ? "ok" : "warn" },
-    { label: "Winding", value: diagnostics.windingConsistent ? "consistent" : "inconsistent", tone: diagnostics.windingConsistent ? "ok" : "warn" },
+    ...(diagnostics.windingConsistent === null ? [] : [{
+      label: "Winding",
+      value: diagnostics.windingConsistent ? "consistent" : "inconsistent",
+      tone: diagnostics.windingConsistent ? "ok" as const : "warn" as const,
+    }]),
   ];
-  if (diagnostics.openBoundaryEdgeCount > 0) rows.push({ label: "Open edges", value: count.format(diagnostics.openBoundaryEdgeCount), tone: "warn" });
+  if (diagnostics.openBoundaryEdgeCount !== null && diagnostics.openBoundaryEdgeCount > 0) {
+    rows.push({ label: "Open edges", value: count.format(diagnostics.openBoundaryEdgeCount), tone: "warn" });
+  }
   if (diagnostics.nonManifoldEdgeCount > 0) rows.push({ label: "Non-manifold", value: count.format(diagnostics.nonManifoldEdgeCount), tone: "warn" });
   if (diagnostics.degenerateTriangleCount > 0) rows.push({ label: "Degenerate", value: count.format(diagnostics.degenerateTriangleCount), tone: "warn" });
   rows.push({ label: "Area", value: `${measure.format(diagnostics.surfaceArea)} ${units}²` });

@@ -239,7 +239,7 @@ export function meshToGlb(mesh: BrowserMesh, edgeLines?: BrowserEdgeLines): Blob
     }] : []),
   ];
   const document = {
-    asset: { version: "2.0", generator: "Mesh2Param browser OCCT" },
+    asset: { version: "2.0", generator: "Mesh2Param browser core" },
     ...(quantization === null ? {} : {
       extensionsRequired: ["KHR_mesh_quantization"],
       extensionsUsed: ["KHR_mesh_quantization"],

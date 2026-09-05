@@ -208,7 +208,7 @@ export function CanvasLanding({
           <span className="dot" /> Worker {ready ? "ready" : readiness === null ? "connecting…" : "unavailable"}
         </span>
         <span className="landing-backend">
-          {browserLocal ? "Local OCCT-WASM · files stay in this browser" : "OCCT backend"}
+          {browserLocal ? "Local Mesh2Param core · files stay in this browser" : "OCCT backend"}
         </span>
       </footer>
 
