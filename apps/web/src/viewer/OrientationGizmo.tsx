@@ -1,9 +1,10 @@
 import { Billboard, GizmoHelper, Line, Text } from "@react-three/drei";
 import gizmoFontUrl from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState, type MutableRefObject } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 import { configureTextBuilder } from "troika-three-text";
+import { viewerPalette, type GizmoPalette, type ViewerTheme } from "./viewerTheme";
 import "./orientationGizmo.css";
 
 // Troika's worker typesetter rebuilds code with new Function(), which the
@@ -15,12 +16,15 @@ export type GizmoViewRequest = "x" | "y" | "z" | "iso" | { kind: "corner"; direc
 export type ViewCubeFaceLabel = "Front" | "Back" | "Right" | "Left" | "Top" | "Bottom";
 
 export const VIEWER_GIZMO_ALIGNMENT = "bottom-right";
-export const VIEWER_GIZMO_MARGIN: [number, number] = [112, 112];
+export const VIEWER_GIZMO_MARGIN: [number, number] = [88, 88];
 export const VIEWER_GIZMO_DPR: [number, number] = [2, 3];
 export const VIEWER_GIZMO_SCALE = 40;
 export const VIEWER_AXIS_HEAD_RADIUS = 0.26;
 export const VIEWER_AXIS_LABEL_BADGE_RADIUS = 0.18;
 export const VIEWER_AXIS_LABEL_BADGE_COLOR = "#07111d";
+// Every colour below is the dark-theme value; the light theme swaps them
+// through GizmoThemeContext (see viewerTheme.ts, the documented WebGL palette).
+const GizmoThemeContext = createContext<GizmoPalette>(viewerPalette("dark").gizmo);
 export const VIEWER_AXIS_LABEL_FONT_SIZE = 0.24;
 export const VIEWER_AXIS_LABEL_FONT_WEIGHT = 800;
 export const VIEWER_AXIS_LABEL_COLOR = "#ffffff";
@@ -65,12 +69,13 @@ export function OrientationGizmo({ onSelectView }: { onSelectView: (view: GizmoV
  * can then use a conservative DPR for dense meshes without rasterizing this
  * small HUD below the display's native resolution.
  */
-export function OrientationGizmoCanvas({ cameraRef, onSelectView }: {
+export function OrientationGizmoCanvas({ cameraRef, onSelectView, theme = "dark" }: {
   cameraRef: MutableRefObject<THREE.Camera | null>;
   onSelectView: (view: GizmoViewRequest) => void;
+  theme?: ViewerTheme;
 }) {
   return (
-    <div className="orientation-gizmo-layer">
+    <div className="orientation-gizmo-layer" data-theme={theme}>
       <Canvas
         dpr={VIEWER_GIZMO_DPR}
         frameloop="always"
@@ -78,7 +83,9 @@ export function OrientationGizmoCanvas({ cameraRef, onSelectView }: {
         camera={{ position: [0, 0, 200] }}
       >
         <SyncedGizmoCamera cameraRef={cameraRef} />
-        <OrientationGizmo onSelectView={onSelectView} />
+        <GizmoThemeContext.Provider value={viewerPalette(theme).gizmo}>
+          <OrientationGizmo onSelectView={onSelectView} />
+        </GizmoThemeContext.Provider>
       </Canvas>
     </div>
   );
@@ -155,9 +162,10 @@ function PositiveOctantViewCube({ onSelectView }: { onSelectView: (view: GizmoVi
   const half = cubeSize / 2;
   const faces = useMemo(() => getViewCubeFaceDescriptors(), []);
   const corners = useMemo(() => getViewCubeCornerDescriptors(), []);
+  const gizmo = useContext(GizmoThemeContext);
   return (
     <group name="Positive-octant triad view cube">
-      <mesh position={[half, half, half]} renderOrder={1}><boxGeometry args={[cubeSize, cubeSize, cubeSize]} /><meshBasicMaterial color="#1d2b3d" depthTest transparent={false} opacity={VIEWER_VIEW_CUBE_BODY_OPACITY} depthWrite toneMapped={false} /></mesh>
+      <mesh position={[half, half, half]} renderOrder={1}><boxGeometry args={[cubeSize, cubeSize, cubeSize]} /><meshBasicMaterial color={gizmo.body} depthTest transparent={false} opacity={VIEWER_VIEW_CUBE_BODY_OPACITY} depthWrite toneMapped={false} /></mesh>
       <ViewCubeEdges />
       {faces.map((face) => <ViewCubeFace key={face.label} {...face} onSelectView={onSelectView} />)}
       {corners.map((corner) => <ViewCubeCorner key={corner.title} {...corner} onSelectView={onSelectView} />)}
@@ -195,6 +203,7 @@ export function getViewCubeCornerDescriptors(): ViewCubeCornerDescriptor[] {
 }
 
 function ViewCubeEdges() {
+  const gizmo = useContext(GizmoThemeContext);
   const edgeInset = 0.004;
   const min = -edgeInset;
   const max = VIEWER_VIEW_CUBE_SIZE + edgeInset;
@@ -203,11 +212,12 @@ function ViewCubeEdges() {
     [[min, min, min], [min, max, min]], [[max, min, min], [max, max, min]], [[min, min, max], [min, max, max]], [[max, min, max], [max, max, max]],
     [[min, min, min], [min, min, max]], [[max, min, min], [max, min, max]], [[min, max, min], [min, max, max]], [[max, max, min], [max, max, max]],
   ];
-  return <group renderOrder={2}>{segments.map((segment, index) => <Line key={index} points={segment} color={VIEWER_VIEW_CUBE_EDGE_COLOR} lineWidth={1} transparent opacity={0.56} depthTest />)}</group>;
+  return <group renderOrder={2}>{segments.map((segment, index) => <Line key={index} points={segment} color={gizmo.edge} lineWidth={1} transparent opacity={0.56} depthTest />)}</group>;
 }
 
 function ViewCubeFace({ label, position, rotation, normal, onSelectView }: ViewCubeFaceDescriptor & { onSelectView: (view: GizmoViewRequest) => void }) {
   const [hovered, setHovered] = useState(false);
+  const gizmo = useContext(GizmoThemeContext);
   const { camera } = useThree();
   const faceRef = useRef<THREE.Group | null>(null);
   const labelRef = useRef<THREE.Group | null>(null);
@@ -230,14 +240,15 @@ function ViewCubeFace({ label, position, rotation, normal, onSelectView }: ViewC
       onClick={(event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); onSelectView(viewCubeFaceToGizmoView(label)); }}
       onPointerOver={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(true); }}
       onPointerOut={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(false); }}>
-      <mesh renderOrder={3}><planeGeometry args={[VIEWER_VIEW_CUBE_SIZE * 0.82, VIEWER_VIEW_CUBE_SIZE * 0.82]} /><meshBasicMaterial color={hovered ? "#6da4c9" : "#31516b"} depthTest transparent opacity={hovered ? VIEWER_VIEW_CUBE_FACE_HOVER_OPACITY : VIEWER_VIEW_CUBE_FACE_OPACITY} depthWrite={false} toneMapped={false} /></mesh>
-      <group ref={labelRef} position={[0, 0, 0.075]} renderOrder={4}><GizmoTextLabel color={hovered ? "#ffffff" : "#e4eef8"} fontSize={VIEWER_VIEW_CUBE_FACE_LABEL_FONT_SIZE} opacity={hovered ? 1 : 0.95} depthTest>{label}</GizmoTextLabel></group>
+      <mesh renderOrder={3}><planeGeometry args={[VIEWER_VIEW_CUBE_SIZE * 0.82, VIEWER_VIEW_CUBE_SIZE * 0.82]} /><meshBasicMaterial color={hovered ? gizmo.faceHover : gizmo.face} depthTest transparent opacity={hovered ? VIEWER_VIEW_CUBE_FACE_HOVER_OPACITY : VIEWER_VIEW_CUBE_FACE_OPACITY} depthWrite={false} toneMapped={false} /></mesh>
+      <group ref={labelRef} position={[0, 0, 0.075]} renderOrder={4}><GizmoTextLabel color={hovered ? gizmo.labelHover : gizmo.label} fontSize={VIEWER_VIEW_CUBE_FACE_LABEL_FONT_SIZE} opacity={hovered ? 1 : 0.95} depthTest>{label}</GizmoTextLabel></group>
     </group>
   );
 }
 
 function ViewCubeCorner({ title, position, direction, onSelectView }: ViewCubeCornerDescriptor & { onSelectView: (view: GizmoViewRequest) => void }) {
   const [hovered, setHovered] = useState(false);
+  const gizmo = useContext(GizmoThemeContext);
   return (
     <Billboard name={title} position={position} scale={hovered ? 1.22 : 1} userData={{ title, ariaLabel: title }}
       onPointerDown={(event: ThreeEvent<PointerEvent>) => event.stopPropagation()}
@@ -245,14 +256,15 @@ function ViewCubeCorner({ title, position, direction, onSelectView }: ViewCubeCo
       onPointerOver={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(true); }}
       onPointerOut={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(false); }}>
       <mesh renderOrder={3}><sphereGeometry args={[VIEWER_VIEW_CUBE_CORNER_HIT_RADIUS, 18, 18]} /><meshBasicMaterial color="#ffffff" depthTest={false} transparent opacity={0} toneMapped={false} /></mesh>
-      <mesh renderOrder={5}><sphereGeometry args={[VIEWER_VIEW_CUBE_CORNER_RADIUS, 18, 18]} /><meshBasicMaterial color={hovered ? "#f8fbff" : "#a9c9e8"} depthTest={false} transparent opacity={hovered ? 0.96 : 0.78} toneMapped={false} /></mesh>
-      {hovered ? <mesh renderOrder={4}><sphereGeometry args={[VIEWER_VIEW_CUBE_CORNER_RADIUS * 1.7, 18, 18]} /><meshBasicMaterial color="#f8fbff" depthTest={false} transparent opacity={0.22} toneMapped={false} /></mesh> : null}
+      <mesh renderOrder={5}><sphereGeometry args={[VIEWER_VIEW_CUBE_CORNER_RADIUS, 18, 18]} /><meshBasicMaterial color={hovered ? gizmo.cornerHover : gizmo.corner} depthTest={false} transparent opacity={hovered ? 0.96 : 0.78} toneMapped={false} /></mesh>
+      {hovered ? <mesh renderOrder={4}><sphereGeometry args={[VIEWER_VIEW_CUBE_CORNER_RADIUS * 1.7, 18, 18]} /><meshBasicMaterial color={gizmo.cornerHover} depthTest={false} transparent opacity={0.22} toneMapped={false} /></mesh> : null}
     </Billboard>
   );
 }
 
 function IsoOriginButton({ onSelectView }: { onSelectView: (view: GizmoViewRequest) => void }) {
   const [hovered, setHovered] = useState(false);
+  const gizmo = useContext(GizmoThemeContext);
   const half = VIEWER_VIEW_CUBE_SIZE / 2;
   return (
     <Billboard name="Isometric view" position={[half, half, half]} userData={{ title: "Isometric view", ariaLabel: "Isometric view" }}
@@ -261,8 +273,8 @@ function IsoOriginButton({ onSelectView }: { onSelectView: (view: GizmoViewReque
       onPointerOver={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(true); }}
       onPointerOut={(event: ThreeEvent<PointerEvent>) => { event.stopPropagation(); setHovered(false); }}>
       {hovered ? <mesh><ringGeometry args={[0.075, 0.105, 28]} /><meshBasicMaterial color="#f8fbff" depthTest={false} transparent opacity={0.42} toneMapped={false} /></mesh> : null}
-      <mesh><sphereGeometry args={[0.065, 18, 18]} /><meshBasicMaterial color="#d9e8f6" depthTest={false} toneMapped={false} /></mesh>
-      {hovered ? <GizmoTextLabel color="#f8fbff" fontSize={0.095} position={[0, -0.16, 0.01]}>Iso</GizmoTextLabel> : null}
+      <mesh><sphereGeometry args={[0.065, 18, 18]} /><meshBasicMaterial color={gizmo.home} depthTest={false} toneMapped={false} /></mesh>
+      {hovered ? <GizmoTextLabel color={gizmo.labelHover} fontSize={0.095} position={[0, -0.16, 0.01]}>Iso</GizmoTextLabel> : null}
     </Billboard>
   );
 }
@@ -270,7 +282,8 @@ function IsoOriginButton({ onSelectView }: { onSelectView: (view: GizmoViewReque
 function GizmoTextLabel({ children, color, fontSize, depthTest = false, opacity = 1, position = [0, 0, 0.01] }: {
   children: string; color: string; fontSize: number; depthTest?: boolean; opacity?: number; position?: [number, number, number];
 }) {
-  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} font={gizmoFontUrl} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor="#07111d" outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
+  const gizmo = useContext(GizmoThemeContext);
+  return <Text anchorX="center" anchorY="middle" color={color} fillOpacity={opacity} font={gizmoFontUrl} fontSize={fontSize} frustumCulled={false} letterSpacing={0} material-depthTest={depthTest} material-side={THREE.DoubleSide} material-toneMapped={false} outlineColor={gizmo.outline} outlineOpacity={opacity} outlineWidth={0.014} position={position} renderOrder={5}>{children}</Text>;
 }
 
 export function shouldShowViewCubeFaceLabel(faceNormalWorld: THREE.Vector3, toCameraWorld: THREE.Vector3, threshold = VIEWER_VIEW_CUBE_FACE_VISIBILITY_THRESHOLD) {

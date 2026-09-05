@@ -1,6 +1,6 @@
 import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
@@ -35,6 +35,54 @@ export function patchForFace(ranges: SelectionRange[], faceIndex: number): strin
 
 export function selectedTriangleRanges(ranges: SelectionRange[], patchId: string | null): SelectionRange[] {
   return patchId === null ? [] : ranges.filter((range) => range.patchId === patchId);
+}
+
+/**
+ * Boundary of a patch as line segments: every triangle edge of the selected
+ * ranges that is not shared by another triangle of the same ranges. Positions
+ * are compared by rounded coordinates so meshes with duplicated vertices
+ * still close their loops. Returns flat xyz pairs in the object's local space.
+ */
+export function patchOutlinePositions(
+  geometry: THREE.BufferGeometry,
+  ranges: SelectionRange[],
+  patchId: string | null,
+  triangleOffset = 0,
+): number[] {
+  const selected = selectedTriangleRanges(ranges, patchId);
+  const position = geometry.getAttribute("position");
+  if (selected.length === 0 || !isReadableBufferAttribute(position)) return [];
+  const index = geometry.index;
+  const triangleCount = index === null ? Math.floor(position.count / 3) : Math.floor(index.count / 3);
+  const key = (vertex: number) => `${position.getX(vertex).toFixed(5)},${position.getY(vertex).toFixed(5)},${position.getZ(vertex).toFixed(5)}`;
+  const edges = new Map<string, { count: number; a: number; b: number }>();
+  for (const range of selected) {
+    const start = Math.max(0, range.triangleStart - triangleOffset);
+    const end = Math.min(triangleCount, range.triangleEndExclusive - triangleOffset);
+    for (let triangle = start; triangle < end; triangle += 1) {
+      const corners = [0, 1, 2].map((corner) => index?.getX(triangle * 3 + corner) ?? triangle * 3 + corner);
+      const keys = corners.map(key);
+      // A hidden (degenerate) triangle contributes no boundary.
+      if (keys[0] === keys[1] || keys[1] === keys[2] || keys[0] === keys[2]) continue;
+      for (let side = 0; side < 3; side += 1) {
+        const a = side;
+        const b = (side + 1) % 3;
+        const edgeKey = keys[a]! < keys[b]! ? `${keys[a]}|${keys[b]}` : `${keys[b]}|${keys[a]}`;
+        const entry = edges.get(edgeKey);
+        if (entry === undefined) edges.set(edgeKey, { count: 1, a: corners[a]!, b: corners[b]! });
+        else entry.count += 1;
+      }
+    }
+  }
+  const out: number[] = [];
+  for (const entry of edges.values()) {
+    if (entry.count !== 1) continue;
+    out.push(
+      position.getX(entry.a), position.getY(entry.a), position.getZ(entry.a),
+      position.getX(entry.b), position.getY(entry.b), position.getZ(entry.b),
+    );
+  }
+  return out;
 }
 
 export function usesAnalyticResultShading(mode: string): boolean {
@@ -92,10 +140,12 @@ interface ArtifactLayerProps {
   selectionRanges: SelectionRange[];
   hiddenPatchIds: readonly string[];
   selectedPatchId: string | null;
+  hoveredPatchId?: string | null;
   sectionPlane: THREE.Plane | null;
   measurementEnabled: boolean;
   onBounds(box: THREE.Box3): void;
   onSelectPatch?(id: string): void;
+  onHoverPatch?(id: string | null): void;
   onMeasurePoint?(point: THREE.Vector3): void;
 }
 
@@ -111,10 +161,12 @@ export function ArtifactLayer({
   selectionRanges,
   hiddenPatchIds,
   selectedPatchId,
+  hoveredPatchId = null,
   sectionPlane,
   measurementEnabled,
   onBounds,
   onSelectPatch,
+  onHoverPatch,
   onMeasurePoint,
 }: ArtifactLayerProps) {
   // The cache entry for `url` outlives this component: layers remount on every
@@ -197,6 +249,18 @@ export function ArtifactLayer({
     () => mode === "patches" ? makePatchHighlight(object, selectionRanges, selectedPatchId, palette) : null,
     [mode, object, palette, selectedPatchId, selectionRanges],
   );
+  // The hover wash is a lighter, non-emissive twin of the selection highlight;
+  // it is never drawn for the patch that is already selected.
+  const hoverHighlight = useMemo(
+    () => mode === "patches" && hoveredPatchId !== null && hoveredPatchId !== selectedPatchId
+      ? makePatchHighlight(object, selectionRanges, hoveredPatchId, palette, "hover")
+      : null,
+    [hoveredPatchId, mode, object, palette, selectedPatchId, selectionRanges],
+  );
+  const outline = useMemo(
+    () => mode === "patches" ? makePatchOutline(object, selectionRanges, selectedPatchId, palette, sectionPlane) : null,
+    [mode, object, palette, sectionPlane, selectedPatchId, selectionRanges],
+  );
 
   useEffect(() => {
     const box = new THREE.Box3().setFromObject(object);
@@ -211,12 +275,27 @@ export function ArtifactLayer({
     };
   }, [object, onBounds]);
 
+  useEffect(() => () => disposeObject(highlight), [highlight]);
+  useEffect(() => () => disposeObject(hoverHighlight), [hoverHighlight]);
+  useEffect(() => () => disposeObject(outline), [outline]);
+  const lastHover = useRef<string | null>(null);
   useEffect(() => () => {
-    highlight?.geometry.dispose();
-    const material = highlight?.material;
-    if (Array.isArray(material)) material.forEach((item) => item.dispose());
-    else material?.dispose();
-  }, [highlight]);
+    if (lastHover.current !== null) onHoverPatch?.(null);
+  }, [onHoverPatch]);
+
+  function hover(event: ThreeEvent<PointerEvent>) {
+    if (onHoverPatch === undefined || measurementEnabled) return;
+    const id = typeof event.faceIndex === "number" ? patchForFace(selectionRanges, event.faceIndex) : null;
+    if (id === lastHover.current) return;
+    lastHover.current = id;
+    onHoverPatch(id);
+  }
+
+  function leave() {
+    if (onHoverPatch === undefined || lastHover.current === null) return;
+    lastHover.current = null;
+    onHoverPatch(null);
+  }
 
   function select(event: ThreeEvent<MouseEvent>) {
     if (measurementEnabled && onMeasurePoint !== undefined) {
@@ -234,8 +313,14 @@ export function ArtifactLayer({
 
   return (
     <group>
-      <primitive object={object} onClick={select} />
+      <primitive
+        object={object}
+        onClick={select}
+        {...(onHoverPatch !== undefined && mode === "patches" ? { onPointerMove: hover, onPointerOut: leave } : {})}
+      />
+      {hoverHighlight === null ? null : <primitive object={hoverHighlight} data-testid="hovered-patch-highlight" />}
       {highlight === null ? null : <primitive object={highlight} data-testid="selected-patch-highlight" />}
+      {outline === null ? null : <primitive object={outline} data-testid="selected-patch-outline" />}
     </group>
   );
 }
@@ -464,12 +549,64 @@ function addShadedEdgeOverlays(
   }
 }
 
+function disposeObject(item: THREE.Object3D | null) {
+  if (item === null || !(item instanceof THREE.Mesh)) return;
+  item.geometry.dispose();
+  const material = item.material;
+  if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+  else material.dispose();
+}
+
+/** Fat-line boundary of the selected patch, drawn through the surface. */
+function makePatchOutline(
+  object: THREE.Object3D,
+  ranges: SelectionRange[],
+  selectedPatchId: string | null,
+  palette: ReturnType<typeof viewerPalette>,
+  sectionPlane: THREE.Plane | null,
+): LineSegments2 | null {
+  if (selectedPatchId === null) return null;
+  const positions: number[] = [];
+  let triangleOffset = 0;
+  object.updateMatrixWorld(true);
+  object.traverse((child) => {
+    if (child.userData.mesh2paramEdgeOverlay === true) return;
+    if (!(child instanceof THREE.Mesh) || !(child.geometry instanceof THREE.BufferGeometry)) return;
+    const local = patchOutlinePositions(child.geometry, ranges, selectedPatchId, triangleOffset);
+    const position = child.geometry.getAttribute("position");
+    const index = child.geometry.index;
+    triangleOffset += index === null ? Math.floor((position?.count ?? 0) / 3) : Math.floor(index.count / 3);
+    const point = new THREE.Vector3();
+    for (let item = 0; item + 2 < local.length; item += 3) {
+      point.set(local[item]!, local[item + 1]!, local[item + 2]!).applyMatrix4(child.matrixWorld);
+      positions.push(point.x, point.y, point.z);
+    }
+  });
+  if (positions.length === 0) return null;
+  const geometry = new LineSegmentsGeometry();
+  geometry.setPositions(positions);
+  const material = new LineMaterial({
+    color: new THREE.Color(palette.outline).getHex(),
+    linewidth: palette.outlineWidth,
+    transparent: true,
+    opacity: 0.95,
+    depthTest: false,
+    depthWrite: false,
+    clippingPlanes: sectionPlane === null ? null : [sectionPlane],
+  });
+  const lines = new LineSegments2(geometry, material);
+  lines.renderOrder = 30;
+  lines.raycast = () => {};
+  return lines;
+}
+
 /** Build a display-only triangle overlay from the signed selection map. */
 function makePatchHighlight(
   object: THREE.Object3D,
   ranges: SelectionRange[],
   selectedPatchId: string | null,
   palette: ReturnType<typeof viewerPalette>,
+  variant: "selected" | "hover" = "selected",
 ): THREE.Mesh | null {
   const selected = selectedTriangleRanges(ranges, selectedPatchId);
   if (selected.length === 0) return null;
@@ -502,18 +639,30 @@ function makePatchHighlight(
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
-  const material = new THREE.MeshStandardMaterial({
-    color: palette.highlight,
-    emissive: palette.highlightEmissive,
-    emissiveIntensity: palette.highlightEmissiveIntensity,
-    transparent: true,
-    opacity: 0.86,
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
-  });
+  const material = variant === "hover"
+    ? new THREE.MeshBasicMaterial({
+      color: palette.hover,
+      transparent: true,
+      opacity: palette.hoverOpacity,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    })
+    : new THREE.MeshStandardMaterial({
+      color: palette.highlight,
+      emissive: palette.highlightEmissive,
+      emissiveIntensity: palette.highlightEmissiveIntensity,
+      transparent: true,
+      opacity: 0.86,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.renderOrder = 20;
+  mesh.raycast = () => {};
+  mesh.renderOrder = variant === "hover" ? 19 : 20;
   return mesh;
 }

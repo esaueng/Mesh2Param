@@ -2,6 +2,19 @@ import type { ShellState, ViewerMode } from "../state/types";
 
 export type ViewerTheme = ShellState["theme"];
 
+export interface GizmoPalette {
+  body: string;
+  face: string;
+  faceHover: string;
+  edge: string;
+  label: string;
+  labelHover: string;
+  corner: string;
+  cornerHover: string;
+  home: string;
+  outline: string;
+}
+
 export interface ViewerPalette {
   background: string;
   gridMajor: string;
@@ -14,6 +27,14 @@ export interface ViewerPalette {
   highlight: string;
   highlightEmissive: string;
   highlightEmissiveIntensity: number;
+  /** Patch under the pointer (or the panel row under the pointer). */
+  hover: string;
+  hoverOpacity: number;
+  /** Boundary of the selected patch, drawn through the surface. */
+  outline: string;
+  outlineWidth: number;
+  gridOpacity: number;
+  gizmo: GizmoPalette;
   ambientIntensity: number;
   keyIntensity: number;
   fillIntensity: number;
@@ -32,6 +53,23 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     highlight: "#9dd7ff",
     highlightEmissive: "#0a78d4",
     highlightEmissiveIntensity: 1.35,
+    hover: "#7fc4ff",
+    hoverOpacity: 0.38,
+    outline: "#e8f4ff",
+    outlineWidth: 2.2,
+    gridOpacity: 0.7,
+    gizmo: {
+      body: "#1d2b3d",
+      face: "#31516b",
+      faceHover: "#6da4c9",
+      edge: "#8fb4d8",
+      label: "#e4eef8",
+      labelHover: "#ffffff",
+      corner: "#a9c9e8",
+      cornerHover: "#f8fbff",
+      home: "#d9e8f6",
+      outline: "#07111d",
+    },
     ambientIntensity: 1.1,
     keyIntensity: 2.2,
     fillIntensity: 0.8,
@@ -53,6 +91,23 @@ const PALETTES: Record<ViewerTheme, ViewerPalette> = {
     highlight: "#07599f",
     highlightEmissive: "#063b69",
     highlightEmissiveIntensity: 0.55,
+    hover: "#2f7fc4",
+    hoverOpacity: 0.3,
+    outline: "#0b3d6b",
+    outlineWidth: 2.2,
+    gridOpacity: 0.7,
+    gizmo: {
+      body: "#dfe7f0",
+      face: "#b7c8d8",
+      faceHover: "#7fa6c8",
+      edge: "#4f6a84",
+      label: "#0f1a26",
+      labelHover: "#000000",
+      corner: "#2f5f8a",
+      cornerHover: "#0b63b6",
+      home: "#2f5f8a",
+      outline: "#f7f9fc",
+    },
     ambientIntensity: 0.72,
     keyIntensity: 1.45,
     fillIntensity: 0.45,

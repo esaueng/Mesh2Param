@@ -64,6 +64,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const revealedKey = `mesh2param-revealed-${vm.project.id}`;
   const revealed = sessionStorage.getItem(revealedKey) === "1";
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Pointer hover over a patch, shared by the viewport and the patch list so
+  // each mirrors the other. Rendering only; selection stays in the store.
+  const [hoveredPatchId, setHoveredPatchId] = useState<string | null>(null);
   const [recoverFullDetailsProject, setRecoverFullDetailsProject] = useState<string | null>(null);
   const recoverFullDetails = recoverFullDetailsProject === vm.project.id;
   const logs = useDebugLog();
@@ -226,8 +229,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               sourceProxyActive={sourceProxy}
               hiddenPatchIds={hiddenPatchIds}
               selectedPatchId={vm.selectedPatchId}
+              hoveredPatchId={hoveredPatchId}
+              grid={layout.grid}
               onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
               onSelectPatch={actions.selectPatch}
+              onHoverPatch={setHoveredPatchId}
             />
           ) : (
             <div
@@ -257,6 +263,38 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               )}
             </div>
           )}
+          {hasGeometry ? (
+            <div className="viewport-display-toolbar">
+              <ViewSettings
+                shading={viewer.shading}
+                edges={viewer.edges}
+                grid={layout.grid}
+                onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+                onGridChange={(grid) => panelLayoutStore.setGrid(grid)}
+              />
+            </div>
+          ) : null}
+          {activeJob !== null ? (
+            <div
+              className="canvas-progress canvas-progress-viewport"
+              role="status"
+              aria-live="polite"
+              data-job-kind={activeJob.job.kind}
+              data-job-state={activeJob.job.status}
+            >
+              <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
+              <div className="canvas-progress-pill">
+                <LoaderCircle className="spin" size={14} />
+                <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
+                <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
+                {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
+                  <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
+                    {activeJob.cancelling ? "Cancelling…" : "Cancel"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {consoleOpen ? (
@@ -321,12 +359,6 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               Shortcuts
             </button>
           </div>
-          <ViewSettings
-            shading={viewer.shading}
-            edges={viewer.edges}
-            disabled={!hasGeometry}
-            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-          />
         </PanelSection>
 
         {state.diagnostics !== null || state.cadgraph !== null ? (
@@ -382,8 +414,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           <PatchPanel
             patches={state.patches}
             selectedPatchId={vm.selectedPatchId}
+            hoveredPatchId={hoveredPatchId}
             disabled={activeJob !== null}
             onSelect={actions.selectPatch}
+            onHover={setHoveredPatchId}
             onUpdate={(patchId, patch) => void actions.updatePatch(patchId, patch)}
             onMerge={(patchIds) => void actions.mergePatches(patchIds)}
           />
@@ -395,17 +429,10 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           {(collapsed) => (
           <>
           {activeJob !== null ? (
-            <div className="canvas-progress" role="status" aria-live="polite" data-job-kind={activeJob.job.kind} data-job-state={activeJob.job.status}>
-              <LoaderCircle className="spin" size={15} />
-              <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
-              <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
-              <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
-              {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
-                <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
-                  {activeJob.cancelling ? "Cancelling…" : "Cancel"}
-                </button>
-              ) : null}
-            </div>
+            <button className="dock-primary" disabled data-action={action.kind} data-job-kind={activeJob.job.kind}>
+              <LoaderCircle className="spin" size={16} />
+              {humanPhase(activeJob.job.phase || activeJob.job.kind)}…
+            </button>
           ) : (
             <>
               {!collapsed && action.kind === "reconstruct" && action.settings === undefined ? (
