@@ -13,6 +13,12 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 crate="$root/crates/mesh2param-wasm"
 out="$root/packages/core-wasm/pkg"
 
+# Hosted builds start without the Rust/WASM tools; local installs remain explicit.
+if [ "${WORKERS_CI:-}" = "1" ] || [ "${MESH2PARAM_BOOTSTRAP_WASM:-}" = "1" ]; then
+  bash "$root/scripts/setup_core_wasm.sh"
+  export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+fi
+
 if ! command -v wasm-pack >/dev/null 2>&1; then
   echo "wasm-pack is not on PATH; install it with 'cargo install --locked wasm-pack --version 0.15.0'" >&2
   exit 1
