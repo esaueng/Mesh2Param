@@ -1,5 +1,6 @@
-//! The small amount of linear algebra the fits need: a 3-vector, a symmetric
-//! 3x3 Jacobi eigen-decomposition, and a dense solve for `n <= 4`.
+//! The small amount of linear algebra the fits and their statistics need: a
+//! 3-vector, a symmetric 3x3 Jacobi eigen-decomposition, and a dense solve for
+//! `n <= 4`.
 //!
 //! Local on purpose. The kernel's own vector types travel with the kernel pin,
 //! and a fit that changed meaning when the pin moved would make the corpus
@@ -215,32 +216,4 @@ pub fn solve_small(n: usize, m: &[[f64; 4]; 4], rhs: &[f64; 4]) -> Option<[f64; 
         x[i] = acc / a[i][i];
     }
     Some(x)
-}
-
-/// Weighted least squares for a straight line `y = m x + c`.
-///
-/// `None` when the samples carry no spread in `x`.
-pub fn fit_line(samples: &[(f64, f64, f64)]) -> Option<(f64, f64)> {
-    let mut sw = 0.0;
-    let mut sx = 0.0;
-    let mut sy = 0.0;
-    let mut sxx = 0.0;
-    let mut sxy = 0.0;
-    for &(x, y, w) in samples {
-        sw += w;
-        sx += w * x;
-        sy += w * y;
-        sxx += w * x * x;
-        sxy += w * x * y;
-    }
-    if sw <= 0.0 {
-        return None;
-    }
-    let det = sxx.mul_add(sw, -(sx * sx));
-    if det.abs() < 1e-300 {
-        return None;
-    }
-    let m = sxy.mul_add(sw, -(sx * sy)) / det;
-    let c = sxx.mul_add(sy, -(sx * sxy)) / det;
-    Some((m, c))
 }

@@ -10,14 +10,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 60,
-        "cylinder": 19,
+        "plane": 27,
+        "cylinder": 20,
         "cone": 2,
         "torus": 0,
         "sphere": 10,
-        "unknown": 63
+        "unknown": 106
       },
-      "unknownAreaFraction": 0.08884342601970306,
+      "unknownAreaFraction": 0.1332423795029056,
       "groundTruth": {
         "plane": 8,
         "cylinder": 8,
@@ -26,14 +26,14 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 87
+      "inventoryError": 55
     },
     "topology": {
-      "edges": 419,
-      "analyticFraction": 0.42482100238663484,
+      "edges": 472,
+      "analyticFraction": 0.21398305084745764,
       "tangentEdges": 2,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.1929064496538804,
+      "maxEdgeDeviation": 1.1774380390893475,
       "error": null
     },
     "reconstruct": {
@@ -45,7 +45,7 @@
       "deviationP95": null,
       "volumeRelErr": 0.0,
       "stepBytes": 3503792,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -3 is invalid (expected V-E+F = 2+L with L=2 inner loops, got V=1695, E=4166, F=2468)"
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = -2 is invalid (expected V-E+F = 2+L with L=1 inner loops, got V=1669, E=4131, F=2460)"
     }
   },
   {
@@ -216,18 +216,18 @@
       "analyticFraction": 0.9722222222222222,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.0178046810877481,
+      "maxEdgeDeviation": 1.0178046810877452,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
       "facesAnalytic": 9,
-      "facesTriangle": 384,
-      "facesFinal": 225,
+      "facesTriangle": 400,
+      "facesFinal": 234,
       "valid": true,
-      "deviationP95": 0.10081780426715459,
-      "volumeRelErr": 0.0034084251856835385,
-      "stepBytes": 370546
+      "deviationP95": 0.07441177634612216,
+      "volumeRelErr": 0.023759053921788682,
+      "stepBytes": 382330
     }
   },
   {
@@ -423,21 +423,21 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 7,
+        "plane": 6,
         "cylinder": 73,
         "cone": 0,
         "torus": 0,
         "sphere": 2,
-        "unknown": 25
+        "unknown": 26
       },
-      "unknownAreaFraction": 0.25608165280688955,
+      "unknownAreaFraction": 0.2564089542321379,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
       "edges": 402,
-      "analyticFraction": 0.08706467661691543,
+      "analyticFraction": 0.08208955223880597,
       "tangentEdges": 111,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.35176441154972954,
@@ -450,8 +450,8 @@
       "facesFinal": 2652,
       "valid": true,
       "deviationP95": 0.020233294207840632,
-      "volumeRelErr": 7.700718566382756e-05,
-      "stepBytes": 4693246
+      "volumeRelErr": 7.700553729708546e-05,
+      "stepBytes": 4693204
     }
   },
   {
@@ -646,14 +646,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 12,
+        "plane": 11,
         "cylinder": 7,
         "cone": 0,
         "torus": 0,
         "sphere": 0,
-        "unknown": 4
+        "unknown": 5
       },
-      "unknownAreaFraction": 0.024670018156050945,
+      "unknownAreaFraction": 0.030649664125129768,
       "groundTruth": {
         "plane": 16,
         "cylinder": 11,
@@ -662,11 +662,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 14
+      "inventoryError": 15
     },
     "topology": {
       "edges": 58,
-      "analyticFraction": 0.6206896551724138,
+      "analyticFraction": 0.5517241379310345,
       "tangentEdges": 6,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 1.1270277476954178,
@@ -676,11 +676,11 @@
       "tier": "mixed",
       "facesAnalytic": 12,
       "facesTriangle": 232,
-      "facesFinal": 174,
+      "facesFinal": 173,
       "valid": true,
-      "deviationP95": 0.041814805681990586,
-      "volumeRelErr": 0.00961379840089274,
-      "stepBytes": 254966
+      "deviationP95": 0.041002631652758345,
+      "volumeRelErr": 0.009627320567530477,
+      "stepBytes": 253952
     }
   },
   {
@@ -694,14 +694,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 14,
+        "plane": 11,
         "cylinder": 7,
         "cone": 0,
         "torus": 0,
         "sphere": 0,
-        "unknown": 4
+        "unknown": 7
       },
-      "unknownAreaFraction": 0.030783744830891073,
+      "unknownAreaFraction": 0.03703586530359807,
       "groundTruth": {
         "plane": 16,
         "cylinder": 11,
@@ -710,11 +710,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 12
+      "inventoryError": 15
     },
     "topology": {
       "edges": 66,
-      "analyticFraction": 0.6060606060606061,
+      "analyticFraction": 0.45454545454545453,
       "tangentEdges": 3,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.4619146139554421,
@@ -722,13 +722,13 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 21,
-      "facesTriangle": 257,
-      "facesFinal": 190,
+      "facesAnalytic": 18,
+      "facesTriangle": 778,
+      "facesFinal": 554,
       "valid": true,
-      "deviationP95": 0.11899645394611202,
-      "volumeRelErr": 0.004549967670029598,
-      "stepBytes": 308916
+      "deviationP95": 0.049954549197709266,
+      "volumeRelErr": 0.004545103208555396,
+      "stepBytes": 824961
     }
   },
   {
@@ -869,36 +869,36 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 46,
-        "cylinder": 22,
+        "plane": 34,
+        "cylinder": 20,
         "cone": 0,
         "torus": 0,
         "sphere": 4,
-        "unknown": 51
+        "unknown": 73
       },
-      "unknownAreaFraction": 0.12337907980244572,
+      "unknownAreaFraction": 0.1472711858158147,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
-      "edges": 558,
-      "analyticFraction": 0.23655913978494625,
-      "tangentEdges": 11,
+      "edges": 594,
+      "analyticFraction": 0.16835016835016836,
+      "tangentEdges": 16,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 0.44019778218451977,
+      "maxEdgeDeviation": 0.4401977802713435,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 42,
-      "facesTriangle": 7848,
-      "facesFinal": 4004,
+      "facesAnalytic": 33,
+      "facesTriangle": 8369,
+      "facesFinal": 4241,
       "valid": true,
-      "deviationP95": 0.022347578250920267,
-      "volumeRelErr": 0.0028269371737600223,
-      "stepBytes": 6374845,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = -7 is invalid (expected V-E+F = 2+L with L=8 inner loops, got V=3299, E=5815, F=2509)); retried with the reported faces demoted"
+      "deviationP95": 0.01910596840755268,
+      "volumeRelErr": 0.002725029902547304,
+      "stepBytes": 6714907,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=3 inner loops, got V=3882, E=7262, F=3382)); retried with the reported faces demoted"
     }
   },
   {
@@ -1390,14 +1390,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 40,
-        "cylinder": 9,
+        "plane": 7,
+        "cylinder": 11,
         "cone": 2,
-        "torus": 0,
-        "sphere": 4,
-        "unknown": 1
+        "torus": 2,
+        "sphere": 0,
+        "unknown": 0
       },
-      "unknownAreaFraction": 0.008751341412640067,
+      "unknownAreaFraction": 0.0,
       "groundTruth": {
         "plane": 7,
         "cylinder": 11,
@@ -1406,25 +1406,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 41
+      "inventoryError": 0
     },
     "topology": {
-      "edges": 226,
-      "analyticFraction": 0.7654867256637168,
-      "tangentEdges": 0,
+      "edges": 26,
+      "analyticFraction": 0.8461538461538461,
+      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.1878992596984568,
+      "maxEdgeDeviation": 2.448341181145175e-06,
       "error": null
     },
     "reconstruct": {
-      "tier": "mixed",
-      "facesAnalytic": 26,
-      "facesTriangle": 5156,
-      "facesFinal": 2644,
+      "tier": "analytic",
+      "facesAnalytic": 22,
+      "facesTriangle": 0,
+      "facesFinal": 22,
       "valid": true,
-      "deviationP95": 0.21243085458452823,
-      "volumeRelErr": 0.018766357958386673,
-      "stepBytes": 4114510
+      "deviationP95": 0.5830657012068221,
+      "volumeRelErr": 0.13699715983600966,
+      "stepBytes": 310566
     }
   },
   {
@@ -1535,14 +1535,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 7,
+        "plane": 6,
         "cylinder": 2,
         "cone": 0,
         "torus": 0,
         "sphere": 0,
-        "unknown": 26
+        "unknown": 27
       },
-      "unknownAreaFraction": 0.5511008942192913,
+      "unknownAreaFraction": 0.5642685820385003,
       "groundTruth": {
         "plane": 5,
         "cylinder": 2,
@@ -1551,11 +1551,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 2
+      "inventoryError": 1
     },
     "topology": {
       "edges": 86,
-      "analyticFraction": 0.06976744186046512,
+      "analyticFraction": 0.05813953488372093,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 3.803207793518033,
@@ -1563,13 +1563,13 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 8,
-      "facesTriangle": 179,
-      "facesFinal": 158,
+      "facesAnalytic": 7,
+      "facesTriangle": 187,
+      "facesFinal": 165,
       "valid": true,
-      "deviationP95": 0.02788429229874831,
-      "volumeRelErr": 0.0013700674521201885,
-      "stepBytes": 218841
+      "deviationP95": 0.027884292298745766,
+      "volumeRelErr": 0.0014388560779113903,
+      "stepBytes": 225205
     }
   },
   {
@@ -1583,14 +1583,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 11,
+        "plane": 5,
         "cylinder": 4,
         "cone": 0,
         "torus": 0,
         "sphere": 2,
-        "unknown": 26
+        "unknown": 18
       },
-      "unknownAreaFraction": 0.4358615639895763,
+      "unknownAreaFraction": 0.5585234254161029,
       "groundTruth": {
         "plane": 5,
         "cylinder": 2,
@@ -1599,25 +1599,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 10
+      "inventoryError": 4
     },
     "topology": {
-      "edges": 128,
-      "analyticFraction": 0.125,
+      "edges": 71,
+      "analyticFraction": 0.16901408450704225,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.047450017315266,
+      "maxEdgeDeviation": 0.7429810194722053,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 17,
-      "facesTriangle": 1935,
-      "facesFinal": 1936,
+      "facesAnalytic": 11,
+      "facesTriangle": 2477,
+      "facesFinal": 2312,
       "valid": true,
-      "deviationP95": 0.11755130816621577,
-      "volumeRelErr": 0.0010639059616628446,
-      "stepBytes": 2561923
+      "deviationP95": 0.04728981534562337,
+      "volumeRelErr": 0.002496964656051722,
+      "stepBytes": 2997290
     }
   },
   {
@@ -1729,14 +1729,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 210,
-        "cylinder": 27,
+        "plane": 150,
+        "cylinder": 24,
         "cone": 2,
         "torus": 0,
-        "sphere": 7,
-        "unknown": 92
+        "sphere": 5,
+        "unknown": 107
       },
-      "unknownAreaFraction": 0.1646628758836658,
+      "unknownAreaFraction": 0.6439130296131979,
       "groundTruth": {
         "plane": 121,
         "cylinder": 42,
@@ -1745,26 +1745,26 @@
         "sphere": 8
       },
       "groundTruthSource": "merged",
-      "inventoryError": 119
+      "inventoryError": 64
     },
     "topology": {
-      "edges": 957,
-      "analyticFraction": 0.5778474399164054,
-      "tangentEdges": 6,
+      "edges": 794,
+      "analyticFraction": 0.5428211586901763,
+      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.3211304328322082,
+      "maxEdgeDeviation": 1.1813418002507108,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 213,
-      "facesTriangle": 2788,
-      "facesFinal": 1930,
+      "facesAnalytic": 162,
+      "facesTriangle": 4087,
+      "facesFinal": 2679,
       "valid": true,
-      "deviationP95": 0.12347926482816678,
-      "volumeRelErr": 0.025270583100805315,
-      "stepBytes": 2914896,
-      "fallbackReason": "first solid failed verification (volume off by 89.8%, deviation p95 0.2793); retried with the 8 face(s) off the mesh demoted"
+      "deviationP95": 0.010108313822220992,
+      "volumeRelErr": 0.0001240995211302548,
+      "stepBytes": 3746093,
+      "fallbackReason": "first solid failed verification (volume off by 85.4%, deviation p95 1.1125); retried with the 8 face(s) off the mesh demoted"
     }
   },
   {
@@ -1778,14 +1778,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 147,
-        "cylinder": 29,
+        "plane": 84,
+        "cylinder": 28,
         "cone": 2,
         "torus": 0,
-        "sphere": 14,
-        "unknown": 61
+        "sphere": 4,
+        "unknown": 74
       },
-      "unknownAreaFraction": 0.03637246304333864,
+      "unknownAreaFraction": 0.688436267749399,
       "groundTruth": {
         "plane": 52,
         "cylinder": 42,
@@ -1794,26 +1794,26 @@
         "sphere": 8
       },
       "groundTruthSource": "merged",
-      "inventoryError": 128
+      "inventoryError": 64
     },
     "topology": {
-      "edges": 757,
-      "analyticFraction": 0.560105680317041,
-      "tangentEdges": 11,
+      "edges": 522,
+      "analyticFraction": 0.3390804597701149,
+      "tangentEdges": 7,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.172374207920125,
+      "maxEdgeDeviation": 0.6291740500499716,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 138,
-      "facesTriangle": 2720,
-      "facesFinal": 1610,
+      "facesAnalytic": 69,
+      "facesTriangle": 4187,
+      "facesFinal": 2925,
       "valid": true,
-      "deviationP95": 0.11762514034664938,
-      "volumeRelErr": 0.019009247623921352,
-      "stepBytes": 2672661,
-      "fallbackReason": "first solid failed verification (volume off by 1627.2%, deviation p95 40.4417); retried with the 25 face(s) off the mesh demoted"
+      "deviationP95": 4.87618768821419e-07,
+      "volumeRelErr": 0.0007376200131229247,
+      "stepBytes": 4012298,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 3 is invalid (expected V-E+F = 2+L with L=8 inner loops, got V=3092, E=5603, F=2514)); retried with the reported faces demoted"
     }
   },
   {
@@ -2255,34 +2255,35 @@
     "segmentation": {
       "inventory": {
         "plane": 3,
-        "cylinder": 10,
+        "cylinder": 2,
         "cone": 0,
         "torus": 0,
-        "sphere": 3,
-        "unknown": 9
+        "sphere": 0,
+        "unknown": 1
       },
-      "unknownAreaFraction": 0.019640457282708176,
+      "unknownAreaFraction": 0.2125487418507236,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
-      "edges": 59,
-      "analyticFraction": 0.0847457627118644,
-      "tangentEdges": 9,
+      "edges": 58,
+      "analyticFraction": 0.05172413793103448,
+      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 0.4102144671373662,
+      "maxEdgeDeviation": 0.03241430769009434,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 16,
-      "facesTriangle": 27,
-      "facesFinal": 34,
+      "facesAnalytic": 3,
+      "facesTriangle": 12382,
+      "facesFinal": 7282,
       "valid": true,
-      "deviationP95": 0.033617124528926984,
-      "volumeRelErr": 0.02712778876892202,
-      "stepBytes": 264998
+      "deviationP95": 3.988719553870076e-07,
+      "volumeRelErr": 0.0005684268357286729,
+      "stepBytes": 10657274,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 3 is invalid (expected V-E+F = 2+L with L=28 inner loops, got V=5740, E=12175, F=6438)); retried with the reported faces demoted"
     }
   },
   {
@@ -2338,21 +2339,21 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 11,
+        "plane": 8,
         "cylinder": 20,
         "cone": 0,
         "torus": 0,
         "sphere": 5,
         "unknown": 33
       },
-      "unknownAreaFraction": 0.29025886481540664,
+      "unknownAreaFraction": 0.290460397259902,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
-      "edges": 366,
-      "analyticFraction": 0.10109289617486339,
+      "edges": 356,
+      "analyticFraction": 0.0898876404494382,
       "tangentEdges": 25,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.1941492883766092,
@@ -2360,13 +2361,14 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 26,
-      "facesTriangle": 4718,
-      "facesFinal": 4251,
+      "facesAnalytic": 6,
+      "facesTriangle": 6419,
+      "facesFinal": 5574,
       "valid": true,
-      "deviationP95": 0.03691895219503749,
-      "volumeRelErr": 0.002070557923661827,
-      "stepBytes": 5610923
+      "deviationP95": 1.1975596543353486e-13,
+      "volumeRelErr": 1.1108950516492446e-07,
+      "stepBytes": 7249309,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = -11 is invalid (expected V-E+F = 2+L with L=10 inner loops, got V=2881, E=7273, F=4381)); retried with the reported faces demoted"
     }
   },
   {
@@ -2380,14 +2382,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 26,
+        "plane": 24,
         "cylinder": 4,
         "cone": 0,
         "torus": 0,
         "sphere": 2,
-        "unknown": 6
+        "unknown": 8
       },
-      "unknownAreaFraction": 0.0723299124920757,
+      "unknownAreaFraction": 0.10180829091018426,
       "groundTruth": {
         "plane": 12,
         "cylinder": 4,
@@ -2396,25 +2398,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 16
+      "inventoryError": 14
     },
     "topology": {
       "edges": 76,
-      "analyticFraction": 0.7631578947368421,
+      "analyticFraction": 0.7368421052631579,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 6.4912712966356425,
+      "maxEdgeDeviation": 1.8127974918449434,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 26,
-      "facesTriangle": 240,
-      "facesFinal": 160,
+      "facesAnalytic": 24,
+      "facesTriangle": 252,
+      "facesFinal": 170,
       "valid": true,
-      "deviationP95": 0.027825870088313012,
-      "volumeRelErr": 0.00129860217167783,
-      "stepBytes": 270062,
+      "deviationP95": 0.0006751143867354211,
+      "volumeRelErr": 0.0005374099152159813,
+      "stepBytes": 282587,
       "fallbackReason": "first solid was invalid (inner wire 8 on planar face 2 has the same winding as its outer wire); retried with the reported faces demoted"
     }
   },
@@ -2429,14 +2431,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 30,
+        "plane": 20,
         "cylinder": 4,
         "cone": 0,
         "torus": 0,
         "sphere": 0,
-        "unknown": 24
+        "unknown": 51
       },
-      "unknownAreaFraction": 0.2058531302497976,
+      "unknownAreaFraction": 0.21679003847260683,
       "groundTruth": {
         "plane": 12,
         "cylinder": 4,
@@ -2445,25 +2447,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 18
+      "inventoryError": 8
     },
     "topology": {
-      "edges": 160,
-      "analyticFraction": 0.36875,
+      "edges": 204,
+      "analyticFraction": 0.20588235294117646,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 2.7117399123204513,
+      "maxEdgeDeviation": 0.7628191034755993,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 31,
-      "facesTriangle": 2648,
-      "facesFinal": 2656,
+      "facesAnalytic": 23,
+      "facesTriangle": 3161,
+      "facesFinal": 3157,
       "valid": true,
-      "deviationP95": 0.042835863286767153,
-      "volumeRelErr": 0.0030769250218373213,
-      "stepBytes": 3331221
+      "deviationP95": 0.03303836812444737,
+      "volumeRelErr": 0.0037220664163555074,
+      "stepBytes": 3924356
     }
   },
   {
@@ -2477,14 +2479,14 @@
     "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 1412 and 1416 has 4 i...",
     "segmentation": {
       "inventory": {
-        "plane": 402,
+        "plane": 339,
         "cylinder": 83,
         "cone": 0,
         "torus": 0,
-        "sphere": 23,
-        "unknown": 139
+        "sphere": 18,
+        "unknown": 210
       },
-      "unknownAreaFraction": 0.14605493648913043,
+      "unknownAreaFraction": 0.2345890868091825,
       "groundTruth": {
         "plane": 306,
         "cylinder": 120,
@@ -2493,14 +2495,14 @@
         "sphere": 14
       },
       "groundTruthSource": "merged",
-      "inventoryError": 160
+      "inventoryError": 92
     },
     "topology": {
-      "edges": 1847,
-      "analyticFraction": 0.6128857606930157,
-      "tangentEdges": 30,
-      "closedPatchFraction": 0.9721792890262752,
-      "maxEdgeDeviation": 2.0982484827793693,
+      "edges": 1851,
+      "analyticFraction": 0.5083738519719071,
+      "tangentEdges": 27,
+      "closedPatchFraction": 0.9723076923076923,
+      "maxEdgeDeviation": 1.7780127819674165,
       "error": null
     },
     "reconstruct": {
@@ -2720,14 +2722,14 @@
     "error": "mesh import failed: invalid topology for export: non-manifold mesh edge between welded vertices 6575 and 6576 has 3 i...",
     "segmentation": {
       "inventory": {
-        "plane": 309,
-        "cylinder": 155,
+        "plane": 113,
+        "cylinder": 143,
         "cone": 0,
         "torus": 0,
-        "sphere": 10,
-        "unknown": 551
+        "sphere": 11,
+        "unknown": 772
       },
-      "unknownAreaFraction": 0.09410076462504462,
+      "unknownAreaFraction": 0.41973444915254343,
       "groundTruth": {
         "plane": 130,
         "cylinder": 224,
@@ -2736,14 +2738,14 @@
         "sphere": 24
       },
       "groundTruthSource": "merged",
-      "inventoryError": 344
+      "inventoryError": 193
     },
     "topology": {
-      "edges": 2085,
-      "analyticFraction": 0.38321342925659474,
-      "tangentEdges": 24,
+      "edges": 2184,
+      "analyticFraction": 0.15567765567765568,
+      "tangentEdges": 20,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 7.350656385991742,
+      "maxEdgeDeviation": 5.451945598056093,
       "error": null
     },
     "reconstruct": {
@@ -2867,14 +2869,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 129,
+        "plane": 82,
         "cylinder": 90,
         "cone": 30,
         "torus": 0,
-        "sphere": 13,
-        "unknown": 182
+        "sphere": 2,
+        "unknown": 248
       },
-      "unknownAreaFraction": 0.06162583457993825,
+      "unknownAreaFraction": 0.42349159225266,
       "groundTruth": {
         "plane": 113,
         "cylinder": 178,
@@ -2883,14 +2885,14 @@
         "sphere": 22
       },
       "groundTruthSource": "merged",
-      "inventoryError": 176
+      "inventoryError": 202
     },
     "topology": {
-      "edges": 1010,
-      "analyticFraction": 0.49504950495049505,
-      "tangentEdges": 21,
+      "edges": 1115,
+      "analyticFraction": 0.2860986547085202,
+      "tangentEdges": 18,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 3.653540350474839,
+      "maxEdgeDeviation": 3.53632947905048,
       "error": null
     },
     "reconstruct": {
@@ -2902,7 +2904,7 @@
       "deviationP95": null,
       "volumeRelErr": 0.0,
       "stepBytes": 13652933,
-      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 39 is invalid for shell component 0 (expected V-E+F = 2+L with L=106 inner loops, got V=6846, E=13243, F=6436)"
+      "fallbackReason": "solid invalid after retry: Euler characteristic V-E+F = 1 is invalid for shell component 1 (expected V-E+F = 2+L with L=0 inner loops, got V=26, E=26, F=1)"
     }
   },
   {
@@ -2916,14 +2918,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 88,
-        "cylinder": 50,
+        "plane": 83,
+        "cylinder": 49,
         "cone": 3,
         "torus": 1,
-        "sphere": 7,
-        "unknown": 76
+        "sphere": 6,
+        "unknown": 84
       },
-      "unknownAreaFraction": 0.048989282263867125,
+      "unknownAreaFraction": 0.08923765860913933,
       "groundTruth": {
         "plane": 63,
         "cylinder": 67,
@@ -2932,11 +2934,11 @@
         "sphere": 4
       },
       "groundTruthSource": "merged",
-      "inventoryError": 60
+      "inventoryError": 55
     },
     "topology": {
-      "edges": 483,
-      "analyticFraction": 0.5921325051759835,
+      "edges": 498,
+      "analyticFraction": 0.5461847389558233,
       "tangentEdges": 17,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 6.843008945659744,
@@ -2965,14 +2967,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 141,
+        "plane": 81,
         "cylinder": 44,
         "cone": 3,
         "torus": 2,
         "sphere": 3,
-        "unknown": 12
+        "unknown": 76
       },
-      "unknownAreaFraction": 0.0001754602271254609,
+      "unknownAreaFraction": 0.04095176665596281,
       "groundTruth": {
         "plane": 71,
         "cylinder": 58,
@@ -2981,26 +2983,26 @@
         "sphere": 5
       },
       "groundTruthSource": "merged",
-      "inventoryError": 91
+      "inventoryError": 31
     },
     "topology": {
-      "edges": 540,
-      "analyticFraction": 0.9,
+      "edges": 557,
+      "analyticFraction": 0.533213644524237,
       "tangentEdges": 19,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 3.9850749737538584,
+      "maxEdgeDeviation": 2.8709474184387087,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 130,
-      "facesTriangle": 3417,
-      "facesFinal": 2553,
+      "facesAnalytic": 76,
+      "facesTriangle": 4457,
+      "facesFinal": 3088,
       "valid": true,
-      "deviationP95": 0.5895621788856922,
-      "volumeRelErr": 0.0008195957404108072,
-      "stepBytes": 3817508,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=41 inner loops, got V=10423, E=10948, F=527)); retried with the reported faces demoted"
+      "deviationP95": 0.551748725729211,
+      "volumeRelErr": 0.004171207426402702,
+      "stepBytes": 4563619,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 2 is invalid (expected V-E+F = 2+L with L=41 inner loops, got V=10865, E=12249, F=1386)); retried with the reported faces demoted"
     }
   },
   {
@@ -3014,14 +3016,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 81,
-        "cylinder": 32,
+        "plane": 55,
+        "cylinder": 31,
         "cone": 8,
         "torus": 0,
-        "sphere": 7,
-        "unknown": 19
+        "sphere": 15,
+        "unknown": 69
       },
-      "unknownAreaFraction": 0.002128980561832322,
+      "unknownAreaFraction": 0.33995884168978324,
       "groundTruth": {
         "plane": 73,
         "cylinder": 106,
@@ -3030,26 +3032,25 @@
         "sphere": 18
       },
       "groundTruthSource": "merged",
-      "inventoryError": 137
+      "inventoryError": 140
     },
     "topology": {
-      "edges": 373,
-      "analyticFraction": 0.7533512064343163,
-      "tangentEdges": 1,
+      "edges": 524,
+      "analyticFraction": 0.3015267175572519,
+      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 3.068507743014918,
+      "maxEdgeDeviation": 1.4756469141169812,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 100,
-      "facesTriangle": 2792,
-      "facesFinal": 2892,
+      "facesAnalytic": 87,
+      "facesTriangle": 4706,
+      "facesFinal": 3005,
       "valid": true,
-      "deviationP95": 1.596459223274147,
-      "volumeRelErr": 0.018742761582240405,
-      "stepBytes": 4681629,
-      "fallbackReason": "first solid failed verification (volume off by 983.1%, deviation p95 2.3578); retried with the 3 face(s) off the mesh demoted"
+      "deviationP95": null,
+      "volumeRelErr": 1.0,
+      "stepBytes": 5003833
     }
   },
   {
@@ -3063,14 +3064,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 93,
+        "plane": 77,
         "cylinder": 70,
         "cone": 0,
         "torus": 0,
-        "sphere": 1,
-        "unknown": 8
+        "sphere": 7,
+        "unknown": 33
       },
-      "unknownAreaFraction": 0.004291753127070668,
+      "unknownAreaFraction": 0.23881561709431373,
       "groundTruth": {
         "plane": 81,
         "cylinder": 134,
@@ -3079,26 +3080,26 @@
         "sphere": 20
       },
       "groundTruthSource": "merged",
-      "inventoryError": 107
+      "inventoryError": 93
     },
     "topology": {
-      "edges": 516,
-      "analyticFraction": 0.7189922480620154,
+      "edges": 566,
+      "analyticFraction": 0.5229681978798587,
       "tangentEdges": 50,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 3.3998236587119623,
+      "maxEdgeDeviation": 2.2669044747237788,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 126,
-      "facesTriangle": 1833,
-      "facesFinal": 1204,
+      "facesAnalytic": 121,
+      "facesTriangle": 4317,
+      "facesFinal": 2916,
       "valid": true,
-      "deviationP95": 1.1277922346095746,
-      "volumeRelErr": 0.0159064549314781,
-      "stepBytes": 4871331,
-      "fallbackReason": "first solid failed verification (volume off by 27226144.9%, deviation p95 32279597.1802); retried with the 24 face(s) off the mesh demoted"
+      "deviationP95": 0.4245617873395999,
+      "volumeRelErr": 0.027888879963522527,
+      "stepBytes": 4344752,
+      "fallbackReason": "first solid failed verification (volume off by 10198040.6%, deviation p95 41201267.7984); retried with the 24 face(s) off the mesh demoted"
     }
   },
   {
@@ -3210,14 +3211,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 88,
-        "cylinder": 49,
+        "plane": 48,
+        "cylinder": 46,
         "cone": 8,
         "torus": 0,
-        "sphere": 12,
-        "unknown": 7
+        "sphere": 10,
+        "unknown": 54
       },
-      "unknownAreaFraction": 0.027176062247021196,
+      "unknownAreaFraction": 0.2811149206887602,
       "groundTruth": {
         "plane": 53,
         "cylinder": 103,
@@ -3226,26 +3227,25 @@
         "sphere": 10
       },
       "groundTruthSource": "merged",
-      "inventoryError": 130
+      "inventoryError": 101
     },
     "topology": {
-      "edges": 413,
-      "analyticFraction": 0.8498789346246973,
-      "tangentEdges": 3,
+      "edges": 503,
+      "analyticFraction": 0.28429423459244535,
+      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.9263916483769765,
+      "maxEdgeDeviation": 0.7823090193190687,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 126,
-      "facesTriangle": 2871,
-      "facesFinal": 1657,
+      "facesAnalytic": 97,
+      "facesTriangle": 5110,
+      "facesFinal": 2573,
       "valid": true,
-      "deviationP95": null,
-      "volumeRelErr": 1.0,
-      "stepBytes": 5128518,
-      "fallbackReason": "the assembled shell was inside out and was reversed before validating"
+      "deviationP95": 0.6851410239197137,
+      "volumeRelErr": 0.01102566231393033,
+      "stepBytes": 5522706
     }
   },
   {
@@ -3259,14 +3259,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 49,
+        "plane": 28,
         "cylinder": 8,
         "cone": 0,
         "torus": 0,
         "sphere": 17,
-        "unknown": 65
+        "unknown": 82
       },
-      "unknownAreaFraction": 0.09538695633040598,
+      "unknownAreaFraction": 0.10909282611887545,
       "groundTruth": {
         "plane": 2,
         "cylinder": 2,
@@ -3275,25 +3275,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 72
+      "inventoryError": 51
     },
     "topology": {
-      "edges": 364,
-      "analyticFraction": 0.27472527472527475,
+      "edges": 352,
+      "analyticFraction": 0.16761363636363635,
       "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 1.6656497063188977,
+      "maxEdgeDeviation": 1.042101212281995,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 22,
-      "facesTriangle": 1832,
-      "facesFinal": 1045,
+      "facesAnalytic": 8,
+      "facesTriangle": 1892,
+      "facesFinal": 1089,
       "valid": true,
-      "deviationP95": 0.018396145059872082,
-      "volumeRelErr": 0.0048864546369616225,
-      "stepBytes": 1520303,
+      "deviationP95": 0.006918381147658479,
+      "volumeRelErr": 0.00838604223962151,
+      "stepBytes": 1572338,
       "fallbackReason": "first solid was invalid (inner wire 3 on planar face 1 has the same winding as its outer wire); retried with the reported faces demoted"
     }
   },
@@ -3399,14 +3399,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 4,
-        "cylinder": 132,
-        "cone": 8,
+        "plane": 2,
+        "cylinder": 6,
+        "cone": 6,
         "torus": 0,
         "sphere": 0,
-        "unknown": 0
+        "unknown": 1
       },
-      "unknownAreaFraction": 0.0,
+      "unknownAreaFraction": 0.16658547917405117,
       "groundTruth": {
         "plane": 2,
         "cylinder": 6,
@@ -3415,25 +3415,25 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 133
+      "inventoryError": 3
     },
     "topology": {
-      "edges": 398,
-      "analyticFraction": 0.19095477386934673,
-      "tangentEdges": 126,
+      "edges": 18,
+      "analyticFraction": 0.8888888888888888,
+      "tangentEdges": 0,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 0.11594343625392206,
+      "maxEdgeDeviation": 0.001437379704293282,
       "error": null
     },
     "reconstruct": {
-      "tier": "analytic",
-      "facesAnalytic": 144,
-      "facesTriangle": 0,
-      "facesFinal": 144,
+      "tier": "mixed",
+      "facesAnalytic": 14,
+      "facesTriangle": 18900,
+      "facesFinal": 12488,
       "valid": true,
-      "deviationP95": 0.06689399631106116,
-      "volumeRelErr": 0.022952716437550334,
-      "stepBytes": 3811489
+      "deviationP95": 0.03651133824299182,
+      "volumeRelErr": 0.006515210063871769,
+      "stepBytes": 17638578
     }
   },
   {
@@ -3447,21 +3447,21 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 4,
+        "plane": 3,
         "cylinder": 6,
         "cone": 2,
         "torus": 0,
         "sphere": 0,
-        "unknown": 186
+        "unknown": 187
       },
-      "unknownAreaFraction": 0.0442066876343607,
+      "unknownAreaFraction": 0.07629079685409604,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
       "edges": 571,
-      "analyticFraction": 0.01576182136602452,
+      "analyticFraction": 0.012259194395796848,
       "tangentEdges": 2,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.4057336130191914,
@@ -3469,13 +3469,13 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 12,
-      "facesTriangle": 6671,
-      "facesFinal": 3533,
+      "facesAnalytic": 11,
+      "facesTriangle": 8617,
+      "facesFinal": 5478,
       "valid": true,
-      "deviationP95": 0.036526750191991725,
-      "volumeRelErr": 0.002126785944640562,
-      "stepBytes": 6897625
+      "deviationP95": 0.04114220714716653,
+      "volumeRelErr": 0.0076057202223489455,
+      "stepBytes": 9485258
     }
   },
   {
@@ -3537,14 +3537,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 22,
+        "plane": 18,
         "cylinder": 10,
         "cone": 0,
         "torus": 0,
         "sphere": 0,
-        "unknown": 4
+        "unknown": 8
       },
-      "unknownAreaFraction": 0.0433695466645042,
+      "unknownAreaFraction": 0.044559728592187826,
       "groundTruth": {
         "plane": 20,
         "cylinder": 14,
@@ -3557,7 +3557,7 @@
     },
     "topology": {
       "edges": 92,
-      "analyticFraction": 0.6086956521739131,
+      "analyticFraction": 0.5,
       "tangentEdges": 7,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.42575993694266334,
@@ -3565,13 +3565,13 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 30,
-      "facesTriangle": 394,
-      "facesFinal": 306,
+      "facesAnalytic": 28,
+      "facesTriangle": 520,
+      "facesFinal": 392,
       "valid": true,
-      "deviationP95": 0.06649767928160391,
-      "volumeRelErr": 0.007314633425556565,
-      "stepBytes": 459802
+      "deviationP95": 0.07179066654985819,
+      "volumeRelErr": 0.007479255158550578,
+      "stepBytes": 574411
     }
   },
   {
@@ -3726,14 +3726,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 111,
-        "cylinder": 27,
+        "plane": 98,
+        "cylinder": 28,
         "cone": 0,
         "torus": 0,
-        "sphere": 13,
-        "unknown": 41
+        "sphere": 7,
+        "unknown": 39
       },
-      "unknownAreaFraction": 0.03928685171316827,
+      "unknownAreaFraction": 0.45600851372241713,
       "groundTruth": {
         "plane": 83,
         "cylinder": 20,
@@ -3742,26 +3742,26 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 76
+      "inventoryError": 58
     },
     "topology": {
-      "edges": 524,
-      "analyticFraction": 0.6068702290076335,
-      "tangentEdges": 13,
+      "edges": 484,
+      "analyticFraction": 0.44421487603305787,
+      "tangentEdges": 10,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 0.5855223216356532,
+      "maxEdgeDeviation": 0.4702926119903155,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 104,
-      "facesTriangle": 1667,
-      "facesFinal": 1052,
+      "facesAnalytic": 108,
+      "facesTriangle": 1931,
+      "facesFinal": 1364,
       "valid": true,
-      "deviationP95": 0.08651330003625551,
-      "volumeRelErr": 0.0037737825308714187,
-      "stepBytes": 1644672,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 7 is invalid (expected V-E+F = 2+L with L=14 inner loops, got V=2863, E=3427, F=571)); retried with the reported faces demoted"
+      "deviationP95": 0.03493144194351033,
+      "volumeRelErr": 6.9134400835773e-06,
+      "stepBytes": 2165678,
+      "fallbackReason": "first solid failed verification (volume off by 59127.1%, deviation p95 313.2219); retried with the 20 face(s) off the mesh demoted"
     }
   },
   {
@@ -3968,36 +3968,35 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 73,
-        "cylinder": 19,
+        "plane": 36,
+        "cylinder": 18,
         "cone": 0,
         "torus": 0,
-        "sphere": 14,
-        "unknown": 44
+        "sphere": 0,
+        "unknown": 236
       },
-      "unknownAreaFraction": 0.3400694734083136,
+      "unknownAreaFraction": 0.5250173411052963,
       "groundTruth": null,
       "groundTruthSource": null,
       "inventoryError": null
     },
     "topology": {
-      "edges": 490,
-      "analyticFraction": 0.3306122448979592,
-      "tangentEdges": 7,
+      "edges": 799,
+      "analyticFraction": 0.0625782227784731,
+      "tangentEdges": 4,
       "closedPatchFraction": 1.0,
-      "maxEdgeDeviation": 0.4529936667733341,
+      "maxEdgeDeviation": 0.26627327734051004,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 69,
-      "facesTriangle": 12826,
-      "facesFinal": 11669,
+      "facesAnalytic": 54,
+      "facesTriangle": 18708,
+      "facesFinal": 16946,
       "valid": true,
-      "deviationP95": 0.03924049653777257,
-      "volumeRelErr": 0.017414756185962433,
-      "stepBytes": 15439326,
-      "fallbackReason": "first solid was invalid (inner wire 0 on planar face 0 has the same winding as its outer wire); retried with the reported faces demoted"
+      "deviationP95": 9.843043385212348e-08,
+      "volumeRelErr": 0.000782124690471656,
+      "stepBytes": 22164666
     }
   },
   {
@@ -4247,14 +4246,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 9,
+        "plane": 8,
         "cylinder": 10,
         "cone": 2,
         "torus": 1,
         "sphere": 1,
-        "unknown": 2
+        "unknown": 3
       },
-      "unknownAreaFraction": 0.022548756842009795,
+      "unknownAreaFraction": 0.055501586181843435,
       "groundTruth": {
         "plane": 8,
         "cylinder": 9,
@@ -4263,11 +4262,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 5
+      "inventoryError": 4
     },
     "topology": {
       "edges": 33,
-      "analyticFraction": 0.6363636363636364,
+      "analyticFraction": 0.6060606060606061,
       "tangentEdges": 2,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 3.1156830681328027,
@@ -4275,14 +4274,14 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 20,
-      "facesTriangle": 346,
-      "facesFinal": 216,
+      "facesAnalytic": 19,
+      "facesTriangle": 450,
+      "facesFinal": 242,
       "valid": true,
-      "deviationP95": 0.13301145604946,
-      "volumeRelErr": 0.005470053848830647,
-      "stepBytes": 403960,
-      "fallbackReason": "first solid failed verification (volume off by 6509.3%, deviation p95 1.4090); retried with the 3 face(s) off the mesh demoted"
+      "deviationP95": 0.16495034391689684,
+      "volumeRelErr": 0.01668404267604312,
+      "stepBytes": 455015,
+      "fallbackReason": "first solid failed verification (volume off by 6508.1%, deviation p95 1.5496); retried with the 3 face(s) off the mesh demoted"
     }
   },
   {
@@ -4296,14 +4295,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 38,
+        "plane": 25,
         "cylinder": 25,
         "cone": 2,
         "torus": 0,
         "sphere": 2,
-        "unknown": 73
+        "unknown": 86
       },
-      "unknownAreaFraction": 0.08729007016116613,
+      "unknownAreaFraction": 0.12615692010023466,
       "groundTruth": {
         "plane": 8,
         "cylinder": 9,
@@ -4312,11 +4311,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 51
+      "inventoryError": 38
     },
     "topology": {
       "edges": 725,
-      "analyticFraction": 0.12,
+      "analyticFraction": 0.07448275862068965,
       "tangentEdges": 27,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.4949171752757656,
@@ -4324,14 +4323,14 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 30,
-      "facesTriangle": 15760,
-      "facesFinal": 8938,
+      "facesAnalytic": 20,
+      "facesTriangle": 17706,
+      "facesFinal": 10518,
       "valid": true,
-      "deviationP95": 0.03789005465939149,
-      "volumeRelErr": 0.0025410741186800583,
-      "stepBytes": 13704620,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 5 is invalid (expected V-E+F = 2+L with L=8 inner loops, got V=7499, E=14379, F=6885)); retried with the reported faces demoted"
+      "deviationP95": 0.030991672702200167,
+      "volumeRelErr": 0.016136560150119838,
+      "stepBytes": 15633597,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 4 is invalid (expected V-E+F = 2+L with L=7 inner loops, got V=8238, E=16699, F=8465)); retried with the reported faces demoted"
     }
   },
   {
@@ -4490,14 +4489,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 27,
-        "cylinder": 13,
+        "plane": 25,
+        "cylinder": 14,
         "cone": 1,
         "torus": 0,
         "sphere": 7,
-        "unknown": 9
+        "unknown": 10
       },
-      "unknownAreaFraction": 0.02918511728886661,
+      "unknownAreaFraction": 0.029387225281043493,
       "groundTruth": {
         "plane": 27,
         "cylinder": 16,
@@ -4506,11 +4505,11 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 32
+      "inventoryError": 33
     },
     "topology": {
-      "edges": 155,
-      "analyticFraction": 0.6064516129032258,
+      "edges": 157,
+      "analyticFraction": 0.5796178343949044,
       "tangentEdges": 1,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 0.7023491743695947,
@@ -4518,14 +4517,14 @@
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 33,
-      "facesTriangle": 1280,
-      "facesFinal": 902,
+      "facesAnalytic": 18,
+      "facesTriangle": 3357,
+      "facesFinal": 2608,
       "valid": true,
-      "deviationP95": 0.049646277307255536,
-      "volumeRelErr": 0.051419691254505906,
-      "stepBytes": 2279661,
-      "fallbackReason": "first solid failed verification (volume off by 5764.7%, deviation p95 14.5908); retried with the 8 face(s) off the mesh demoted"
+      "deviationP95": 0.037920832004038195,
+      "volumeRelErr": 6.5048145025688955e-06,
+      "stepBytes": 3641153,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 0 is invalid (expected V-E+F = 2+L with L=1 inner loops, got V=3010, E=3752, F=742)); retried with the reported faces demoted"
     }
   },
   {
@@ -4587,14 +4586,14 @@
     "error": null,
     "segmentation": {
       "inventory": {
-        "plane": 84,
+        "plane": 62,
         "cylinder": 26,
         "cone": 7,
         "torus": 0,
         "sphere": 9,
-        "unknown": 28
+        "unknown": 50
       },
-      "unknownAreaFraction": 0.047857975168464705,
+      "unknownAreaFraction": 0.14095100456775708,
       "groundTruth": {
         "plane": 8,
         "cylinder": 13,
@@ -4603,26 +4602,26 @@
         "sphere": 0
       },
       "groundTruthSource": "merged",
-      "inventoryError": 100
+      "inventoryError": 78
     },
     "topology": {
       "edges": 930,
-      "analyticFraction": 0.32365591397849464,
-      "tangentEdges": 140,
+      "analyticFraction": 0.2172043010752688,
+      "tangentEdges": 98,
       "closedPatchFraction": 1.0,
       "maxEdgeDeviation": 1.0107872825757225,
       "error": null
     },
     "reconstruct": {
       "tier": "mixed",
-      "facesAnalytic": 30,
-      "facesTriangle": 18941,
-      "facesFinal": 11039,
+      "facesAnalytic": 23,
+      "facesTriangle": 21307,
+      "facesFinal": 13360,
       "valid": true,
-      "deviationP95": 0.019237518310546875,
-      "volumeRelErr": 0.0002641693300524798,
-      "stepBytes": 17084650,
-      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 7 is invalid (expected V-E+F = 2+L with L=20 inner loops, got V=5927, E=10478, F=4558)); retried with the reported faces demoted"
+      "deviationP95": 3.938735115716469e-07,
+      "volumeRelErr": 5.800247805955323e-05,
+      "stepBytes": 19877470,
+      "fallbackReason": "first solid was invalid (Euler characteristic V-E+F = 6 is invalid (expected V-E+F = 2+L with L=19 inner loops, got V=7208, E=13626, F=6424)); retried with the reported faces demoted"
     }
   },
   {
