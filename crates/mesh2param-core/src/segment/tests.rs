@@ -5,6 +5,8 @@
 
 use core::f64::consts::TAU;
 
+use super::fit::{FaceRef, FitOpts, Sample, fit_patch};
+use super::linalg::V3;
 use super::{Inventory, PatchKind, Primitive, SegmentOptions, Segmentation, segment};
 use crate::mesh::MeshData;
 
@@ -582,4 +584,138 @@ fn a_lone_triangle_is_promoted_only_when_it_is_a_face() {
         "the prism's one-triangle ends were thrown away: {:?}",
         seg.inventory
     );
+}
+
+/// A triangulated height field `z = f(x, y)` over a square, reduced to what the
+/// fits take: area-weighted vertex samples and per-triangle normal records.
+fn patch_of(points: &[[f64; 3]], tris: &[[usize; 3]]) -> (Vec<Sample>, Vec<FaceRef>) {
+    let v = |i: usize| V3::from_arr(points[i]);
+    let mut weights = vec![0.0_f64; points.len()];
+    let mut faces = Vec::with_capacity(tris.len());
+    for t in tris {
+        let (a, b, c) = (v(t[0]), v(t[1]), v(t[2]));
+        let cross = b.sub(a).cross(c.sub(a));
+        let area = 0.5 * cross.norm();
+        let Some(n) = cross.unit() else { continue };
+        for i in t {
+            weights[*i] += area / 3.0;
+        }
+        faces.push(FaceRef {
+            n,
+            c: a.add(b).add(c).mul(1.0 / 3.0),
+            a: area,
+        });
+    }
+    let pts = points
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| weights[*i] > 0.0)
+        .map(|(i, p)| Sample {
+            p: V3::from_arr(*p),
+            w: weights[i],
+        })
+        .collect();
+    (pts, faces)
+}
+
+fn fit_opts(tol: f64) -> FitOpts {
+    let o = SegmentOptions::default();
+    FitOpts {
+        tol,
+        min_spread: o.min_spread_deg.to_radians(),
+        max_facet_step: o.max_facet_deg.to_radians(),
+        max_crease: 0.0,
+        max_normal_dev: o.max_normal_dev_deg.to_radians(),
+        radius_tol_frac: o.radius_tol_frac,
+        min_minor_sweep: o.min_minor_sweep_deg.to_radians(),
+        bbox_diag: 100.0,
+    }
+}
+
+/// A nearly flat strip with a trace of curvature: 500 units of radius across a
+/// 20-unit strip, so the samples wrap 2.3 degrees around an axis 500 away.
+///
+/// `minSpreadDeg` is the *angular* half of this pair and refuses the strip on
+/// its own, so it is turned off here: what is under test is the radial half,
+/// which is what catches a radius no span in the patch supports — the motor
+/// mount's 444 mm cylinder on a 23 mm flat, whose fold pushed the plane out of
+/// tolerance and left the circle fit following the flat majority. Without the
+/// guard the fit returns exactly the 500 the strip was drawn from and a face
+/// built on it sits half a metre off a 20-unit part.
+#[test]
+fn a_nearly_flat_strip_is_never_a_huge_radius_cylinder() {
+    let (radius, width, length) = (500.0_f64, 20.0_f64, 40.0_f64);
+    let sweep = width / radius;
+    let steps = 10_usize;
+    let mut points = Vec::new();
+    for i in 0..=steps {
+        let a = sweep * (i as f64 / steps as f64 - 0.5);
+        for j in 0..=steps {
+            let y = length * (j as f64 / steps as f64 - 0.5);
+            points.push([radius * a.sin(), y, radius * a.cos() - radius]);
+        }
+    }
+    let at = |i: usize, j: usize| i * (steps + 1) + j;
+    let mut tris = Vec::new();
+    for i in 0..steps {
+        for j in 0..steps {
+            tris.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+            tris.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+        }
+    }
+    let (pts, faces) = patch_of(&points, &tris);
+
+    // Tight enough that the plane is out of tolerance, so the curved fits are
+    // genuinely reached rather than pre-empted by the plane.
+    let sagitta = width * width / (8.0 * radius);
+    let mut o = fit_opts(sagitta / 10.0);
+    o.min_spread = 0.0;
+    let fit = fit_patch(&pts, &faces, o);
+    assert!(
+        matches!(fit.prim, Primitive::Unknown),
+        "a nearly flat strip came back as {:?}",
+        fit.prim
+    );
+
+    // With a budget the plane fits inside, it is a plane and nothing else.
+    let mut o = fit_opts(2.0 * sagitta);
+    o.min_spread = 0.0;
+    let fit = fit_patch(&pts, &faces, o);
+    assert!(
+        matches!(fit.prim, Primitive::Plane { .. }),
+        "expected a plane, got {:?}",
+        fit.prim
+    );
+}
+
+/// The other side of the same guard: a genuinely cylindrical patch, coarse
+/// enough that only two facets meet along any edge, still fits.
+#[test]
+fn a_twelve_facet_cylinder_still_fits_under_the_conditioning_guard() {
+    let (radius, height, facets) = (10.0_f64, 20.0_f64, 12_usize);
+    let mut points = Vec::new();
+    for k in 0..=facets {
+        let a = TAU * (k % facets) as f64 / facets as f64;
+        points.push([radius * a.cos(), radius * a.sin(), 0.0]);
+        points.push([radius * a.cos(), radius * a.sin(), height]);
+    }
+    let mut tris = Vec::new();
+    for k in 0..facets {
+        let (b0, t0, b1, t1) = (2 * k, 2 * k + 1, 2 * k + 2, 2 * k + 3);
+        tris.push([b0, b1, t0]);
+        tris.push([b1, t1, t0]);
+    }
+    let (pts, faces) = patch_of(&points, &tris);
+    let fit = fit_patch(&pts, &faces, fit_opts(0.35 * radius * TAU / facets as f64));
+    match fit.prim {
+        Primitive::Cylinder {
+            radius: r,
+            axis_dir,
+            ..
+        } => {
+            assert!((r - radius).abs() < 1e-6, "radius {r}");
+            assert!(axis_dir[2].abs() > 0.999_999, "axis {axis_dir:?}");
+        }
+        other => panic!("expected a cylinder, got {other:?}"),
+    }
 }

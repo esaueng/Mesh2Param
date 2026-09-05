@@ -9,7 +9,9 @@ use core::f64::consts::TAU;
 
 use super::*;
 use crate::mesh::MeshData;
-use crate::segment::{Inventory, Patch, Primitive};
+use crate::segment::linalg::V3;
+use crate::segment::{Inventory, Patch, Primitive, Segmentation};
+use crate::topology::{Curve, Topology as PatchTopology};
 
 /// A triangle soup under construction, in the winding the mesh will keep.
 #[derive(Default)]
@@ -671,4 +673,144 @@ fn the_volume_budget_admits_a_coarse_prism_and_refuses_a_wrong_radius() {
         error > volume_budget(&options, &wrong, &geom),
         "a cylinder at twice the radius passed verification ({error})"
     );
+}
+
+/// The bore's two rims, handed over as marched polylines that run **against**
+/// the mesh's own chain.
+///
+/// The marcher walks its seed curve whichever way it started, so a ring's
+/// samples carry no direction of their own. Laid down as they arrive, the
+/// loop's winding is inverted; on a planar face the kernel then reads the hole
+/// as a second outer boundary and `validate_solid` rejects the solid with
+/// "inner wire N has the same winding as its outer wire". This is what took
+/// `nist-ctc-03`, `nist-ftc-08` and `nist-ftc-11` to the faceted floor.
+fn plate_with_reversed_ring_polylines(
+    samples: usize,
+    duplicate: bool,
+) -> (MeshData, Segmentation, PatchTopology) {
+    let mesh = plate_with_bore(2.0, 1.0, 2.0, 32);
+    let seg = segment(&mesh, &SegmentOptions::default()).unwrap();
+    let mut topo = recover(&mesh, &seg, &TopologyOptions::default()).unwrap();
+    let mut rings = 0;
+    for edge in &mut topo.edges {
+        if edge.vertices.is_some() {
+            continue;
+        }
+        let Curve::Circle {
+            center,
+            axis,
+            radius,
+            ..
+        } = edge.curve
+        else {
+            continue;
+        };
+        let c = V3::from_arr(center);
+        let n = V3::from_arr(axis);
+        let u = crate::segment::linalg::perp(n);
+        let v = n.cross(u);
+        let mut points = Vec::new();
+        for i in 0..samples {
+            // Clockwise about the axis: the reverse of what `Curve::Circle`
+            // promises, which is what a marched ring can arrive as.
+            let t = -TAU * i as f64 / samples as f64;
+            let p = c.add(u.mul(radius * t.cos())).add(v.mul(radius * t.sin()));
+            points.push(p.arr());
+            if duplicate {
+                points.push(p.arr());
+            }
+        }
+        edge.curve = Curve::Polyline { points };
+        edge.source = crate::topology::EdgeSource::Marching;
+        rings += 1;
+    }
+    assert_eq!(rings, 2, "the bore's two rims are the ring edges");
+    (mesh, seg, topo)
+}
+
+#[test]
+fn a_ring_polyline_is_laid_down_the_way_its_chain_runs() {
+    let (mesh, seg, topo) = plate_with_reversed_ring_polylines(48, false);
+    let built = build_solid(&mesh, &seg, &topo, &BuildOptions::default()).unwrap();
+    assert!(
+        built.valid,
+        "issues: {:?}, fallback {:?}",
+        built.issues, built.fallback_reason
+    );
+    assert_eq!(
+        built.tier,
+        Tier::Analytic,
+        "failures: {:?}, fallback {:?}",
+        built.face_failures,
+        built.fallback_reason
+    );
+}
+
+/// Two samples closer than the kernel's own zero-length threshold are one
+/// sample. A marched curve hands back coincident points — `nist-ctc-03` has two
+/// 8.7e-19 apart — and each becomes an edge `validate_solid` rejects outright.
+#[test]
+fn coincident_polyline_samples_do_not_become_zero_length_edges() {
+    let (mesh, seg, topo) = plate_with_reversed_ring_polylines(48, true);
+    let welded = mesh.welded().unwrap();
+    let geom = geom::MeshGeom::new(&welded);
+    let chains = crate::topology::chains::build(&welded, &seg.face_patch, seg.patches.len());
+    let ctx =
+        assemble::Context::new(&geom, &seg, &topo, &chains.chains, seg.tolerance, false).unwrap();
+    // Measured on the unmerged assembly: `unify_faces` can absorb a
+    // zero-length edge and hide the fact that one was built.
+    let attempt = assemble::attempt(&ctx, &vec![true; seg.patches.len()]).unwrap();
+    let report = validate(&attempt.topo, attempt.solid);
+    let zero: Vec<String> = issues_of(&report)
+        .into_iter()
+        .filter(|i| i.contains("near-zero length"))
+        .collect();
+    assert!(zero.is_empty(), "{zero:?}");
+    assert!(report.is_valid(), "issues: {:?}", issues_of(&report));
+}
+
+/// A patch whose face fails to build must not leave the fitted runs that were
+/// laid down for it in place.
+///
+/// The runs are built for the set of patches that are *going to be* analytic
+/// faces. A patch that then fails is emitted as triangles, which bound
+/// themselves with the mesh polygon while the neighbour across the boundary is
+/// still holding the fitted curve: the two no longer share an edge, and the
+/// shell has a slit down that boundary — `nist-ctc-04/mesh-coarse` ends up with
+/// a face nothing else touches, a shell component of V=26, E=26, F=1.
+#[test]
+fn a_patch_whose_face_fails_leaves_no_slit() {
+    let mesh = plate_with_bore(2.0, 1.0, 2.0, 32);
+    let welded = mesh.welded().unwrap();
+    let mut seg = segment(&mesh, &SegmentOptions::default()).unwrap();
+    let topo = recover(&mesh, &seg, &TopologyOptions::default()).unwrap();
+    // Take the bore's surface away but leave it named a cylinder: the patch is
+    // still offered as an analytic face and the face construction refuses it.
+    let mut taken = 0;
+    for p in &mut seg.patches {
+        if p.kind == PatchKind::Cylinder {
+            p.primitive = Primitive::Unknown;
+            taken += 1;
+        }
+    }
+    assert_eq!(taken, 1, "the bore is the only cylinder");
+
+    let geom = geom::MeshGeom::new(&welded);
+    let chains = crate::topology::chains::build(&welded, &seg.face_patch, seg.patches.len());
+    let ctx =
+        assemble::Context::new(&geom, &seg, &topo, &chains.chains, seg.tolerance, false).unwrap();
+    let attempt = assemble::attempt(&ctx, &vec![true; seg.patches.len()]).unwrap();
+    assert!(
+        !attempt.demoted.is_empty(),
+        "the bore's face was expected to fail"
+    );
+    let uses = assemble::map_edge_patches(&attempt.topo, attempt.solid);
+    let lone: Vec<usize> = uses
+        .iter()
+        .filter(|(_, faces)| faces.len() < 2)
+        .map(|(edge, _)| *edge)
+        .collect();
+    assert!(lone.is_empty(), "shell has boundary edges: {lone:?}");
+    let report = validate(&attempt.topo, attempt.solid);
+    assert!(report.is_valid(), "issues: {:?}", issues_of(&report));
 }

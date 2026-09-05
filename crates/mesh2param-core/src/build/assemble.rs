@@ -34,6 +34,31 @@ use crate::topology::{Curve, EdgeSource, Topology as PatchTopology};
 /// tolerance far above the run's is a fit that is not worth exporting.
 const MAX_ARC_ENDPOINT_FACTOR: f64 = 8.0;
 
+/// The kernel's own zero-length edge threshold, `Tolerance::linear`.
+///
+/// `validate_solid` reports an open edge shorter than this as an **error**
+/// (`crates/operations/src/validate.rs:936`), and it is absolute, not relative
+/// to the run tolerance. A marched curve hands back consecutive samples that
+/// coincide to the last bit — `nist-ctc-03/mesh-coarse` has two 8.7e-19 apart —
+/// and each of those becomes exactly such an edge, so they are merged into one
+/// sample before any topology is built.
+const MIN_EDGE_LENGTH: f64 = 1e-7;
+
+/// How many times face construction may demote a patch and rebuild before it
+/// gives up.
+///
+/// The runs are laid down for the set of patches that are *going to be*
+/// analytic faces, and a patch whose face then fails to build is emitted as
+/// triangles instead — which bound themselves with the mesh polygon while the
+/// neighbour on the other side of the boundary is still holding the fitted run.
+/// That is a slit: the two faces no longer share an edge, the shell has
+/// boundary edges, and a face whose whole boundary went that way becomes a
+/// disconnected component of its own (`nist-ctc-04/mesh-coarse`, one component
+/// with V=26, E=26, F=1). So the pass is repeated with the failed patches
+/// cleared until no patch fails, which is a fixed point because the analytic
+/// set only ever shrinks.
+const MAX_FACE_PASSES: usize = 8;
+
 /// What an edge's kernel geometry ended up being.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RunKind {
@@ -329,7 +354,34 @@ pub(super) struct Attempt {
     pub dropped_triangles: usize,
 }
 
+/// Assemble the solid, demoting any patch whose face fails to build and
+/// rebuilding until none does.
+///
+/// The repeat is not a retry policy — the caller has one of those, over
+/// validation and verification — it is what keeps one attempt *self
+/// consistent*. See [`MAX_FACE_PASSES`].
 pub(super) fn attempt(ctx: &Context<'_>, analytic: &[bool]) -> Result<Attempt> {
+    let mut chosen = analytic.to_vec();
+    let mut demoted: Vec<(u32, &'static str)> = Vec::new();
+    for _ in 0..MAX_FACE_PASSES {
+        let mut out = one_pass(ctx, &chosen)?;
+        if out.demoted.is_empty() {
+            out.demoted = demoted;
+            return Ok(out);
+        }
+        for (patch, reason) in &out.demoted {
+            if let Some(slot) = chosen.get_mut(*patch as usize) {
+                *slot = false;
+            }
+            demoted.push((*patch, reason));
+        }
+    }
+    let mut out = one_pass(ctx, &chosen)?;
+    out.demoted.extend(demoted);
+    Ok(out)
+}
+
+fn one_pass(ctx: &Context<'_>, analytic: &[bool]) -> Result<Attempt> {
     let mut b = Builder::new(ctx);
     b.build_runs(analytic);
 
@@ -592,7 +644,27 @@ impl<'a> Builder<'a> {
                 end_angle,
             } => self.circle_run(index, *center, *axis, *radius, *start_angle, *end_angle),
             Curve::Polyline { points } => {
-                let pts: Vec<V3> = points.iter().map(|p| V3::from_arr(*p)).collect();
+                let mut pts: Vec<V3> = points.iter().map(|p| V3::from_arr(*p)).collect();
+                // A ring's samples carry no direction of their own. The
+                // marcher walks its seed curve whichever way it started, and
+                // the mesh's own chain is the only statement of which way
+                // round this boundary goes; laid down the other way the loop's
+                // winding is inverted, and on a planar face that turns a hole
+                // into a second outer boundary — `validate_solid` then reports
+                // "inner wire N has the same winding as its outer wire", which
+                // is what took `nist-ctc-03`, `nist-ftc-08` and `nist-ftc-11`
+                // to the faceted floor. An open chain is anchored to its two
+                // end vertices and needs none of this.
+                if chain.closed && edge.vertices.is_none() {
+                    let mesh: Vec<V3> = chain
+                        .verts
+                        .iter()
+                        .filter_map(|v| self.ctx.geom.points.get(*v as usize).copied())
+                        .collect();
+                    if polygon_normal(&pts).dot(polygon_normal(&mesh)) < 0.0 {
+                        pts.reverse();
+                    }
+                }
                 // A rim the marcher could only sample is still a rim: read the
                 // circle back out of it rather than laying a thousand straight
                 // edges down the boundary of a periodic face. Only a marched
@@ -735,8 +807,28 @@ impl<'a> Builder<'a> {
         closed: bool,
         vertices: Option<(u32, u32)>,
     ) -> Option<EdgeRun> {
-        let mut pts = points.to_vec();
+        // Two samples closer than the kernel's own zero-length threshold are
+        // one sample: built literally they become an edge `validate_solid`
+        // rejects outright, and the point they add to the boundary is one the
+        // previous point already made. See [`MIN_EDGE_LENGTH`].
+        let mut pts: Vec<V3> = Vec::with_capacity(points.len());
+        for p in points {
+            if pts
+                .last()
+                .is_none_or(|q| p.sub(*q).norm() > MIN_EDGE_LENGTH)
+            {
+                pts.push(*p);
+            }
+        }
         if closed {
+            while pts.len() > 1
+                && pts
+                    .last()
+                    .zip(pts.first())
+                    .is_some_and(|(l, f)| l.sub(*f).norm() <= MIN_EDGE_LENGTH)
+            {
+                pts.pop();
+            }
             match (pts.first().copied(), pts.last().copied()) {
                 (Some(f), Some(l)) if f.sub(l).norm() > 0.0 => pts.push(f),
                 _ => {}

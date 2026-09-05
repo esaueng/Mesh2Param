@@ -426,17 +426,15 @@ pub fn build_solid(
     for round in 0..rounds {
         let mut attempt = assemble::attempt(&ctx, &analytic)?;
         let final_round = round + 1 == rounds;
-        if !attempt.demoted.is_empty() && !final_round {
-            for (patch, reason) in &attempt.demoted {
-                failures.push((*patch, reason));
-                if let Some(slot) = analytic.get_mut(*patch as usize) {
-                    *slot = false;
-                }
-            }
-            continue;
-        }
+        // Assembly has already demoted these and rebuilt itself around them,
+        // so this only records them and keeps the caller's own set in step —
+        // the unmerged rebuild below has to make the same choices to be the
+        // same solid. No round is spent on it.
         for (patch, reason) in &attempt.demoted {
             failures.push((*patch, reason));
+            if let Some(slot) = analytic.get_mut(*patch as usize) {
+                *slot = false;
+            }
         }
 
         if options.unify {
