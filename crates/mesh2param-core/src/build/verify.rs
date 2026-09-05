@@ -34,6 +34,43 @@ pub struct Deviation {
 pub(super) struct Measured {
     pub deviation: Deviation,
     pub volume: f64,
+    /// The tessellation the measurement was taken on, kept so a caller that
+    /// wants to draw the result does not pay for a second one.
+    pub mesh: ResultMesh,
+}
+
+/// A tessellation of the reconstructed solid, for display.
+///
+/// Positions are `f32` triples because every consumer of this is a renderer:
+/// the measurement itself is taken in `f64` before the narrowing.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ResultMesh {
+    /// Vertex positions, three floats per vertex.
+    pub positions: Vec<f32>,
+    /// Triangle corners, three indices per triangle.
+    pub indices: Vec<u32>,
+}
+
+impl ResultMesh {
+    /// Build from `f64` points and a flat index list.
+    pub(super) fn new(points: &[V3], indices: &[u32]) -> Self {
+        let mut positions = Vec::with_capacity(points.len() * 3);
+        for p in points {
+            for v in p.arr() {
+                positions.push(v as f32);
+            }
+        }
+        Self {
+            positions,
+            indices: indices.to_vec(),
+        }
+    }
+
+    /// Whether there is anything to draw.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.positions.is_empty() || self.indices.is_empty()
+    }
 }
 
 /// Cap on samples taken in each direction. A quantile does not get better
@@ -116,6 +153,7 @@ pub(super) fn measure(
     Ok(Measured {
         deviation: Deviation { p95, max, samples },
         volume,
+        mesh: ResultMesh::new(&result_points, &tess.indices),
     })
 }
 

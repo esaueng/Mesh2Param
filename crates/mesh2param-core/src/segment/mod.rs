@@ -62,6 +62,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, Result};
 use crate::mesh::MeshData;
+use crate::progress::{Progress, Stage};
 use fit::FitOpts;
 use grow::{Geom, Params};
 
@@ -494,6 +495,22 @@ const FREEFORM_RESIDUAL_FLOOR: f64 = 1e-2;
 /// - [`CoreError::Validation`] when an option is not a finite positive number,
 ///   or when the mesh has no usable triangles once welded.
 pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation> {
+    segment_with_progress(mesh, options, &mut Progress::none())
+}
+
+/// [`segment`], reporting [`Stage::Weld`] and [`Stage::Segment`] as it goes.
+///
+/// The result is the same one [`segment`] returns: the sink is advisory and
+/// nothing in the stage reads it back.
+///
+/// # Errors
+///
+/// The same as [`segment`].
+pub fn segment_with_progress(
+    mesh: &MeshData,
+    options: &SegmentOptions,
+    progress: &mut Progress<'_>,
+) -> Result<Segmentation> {
     check(options.angle_deg, "angleDeg")?;
     check(options.tol_chord_factor, "tolChordFactor")?;
     check(options.tol_min_frac, "tolMinFrac")?;
@@ -508,8 +525,10 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         )));
     }
 
+    progress.at(Stage::Weld, 0.0);
     let welded = mesh.welded()?;
     let geom = Geom::new(&welded);
+    progress.at(Stage::Weld, 1.0);
     let bbox_diag = mesh.bbox.diagonal();
     let total_area = geom.total_area();
     if !total_area.is_finite() || total_area <= 0.0 {
@@ -552,7 +571,7 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
     };
 
     let curv = curvature::estimate(&geom, params.opts.max_facet_step, bbox_diag);
-    let grown = grow::run(&geom, &curv, &params);
+    let grown = grow::run(&geom, &curv, &params, &mut progress.reborrow());
 
     let min_area = options.min_patch_area_fraction * total_area;
     let mut inventory = Inventory::default();
@@ -661,6 +680,7 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         });
     }
 
+    progress.at(Stage::Segment, 1.0);
     Ok(Segmentation {
         patches,
         face_patch,

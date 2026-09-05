@@ -72,6 +72,7 @@ jobs:
         uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master @ 2026-09-03
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: wasm32-unknown-unknown
 
       - name: Set up uv
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
@@ -110,7 +111,24 @@ jobs:
       # imports them resolves on a clean checkout until they are built.
       - name: Build workspace packages
         if: matrix.task != 'backend'
-        run: pnpm build:packages
+        run: pnpm build:packages:js
+
+      # @mesh2param/core-wasm is the same story one toolchain down: its `pkg/`
+      # is wasm-pack output, and `pnpm typecheck`/`pnpm lint` do not resolve
+      # without it. Only the static task runs those, so only it pays for the
+      # build; the Rust job builds the package again to test it, cached
+      # separately.
+      - name: Cache cargo build
+        if: matrix.task == 'static'
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install wasm-pack
+        if: matrix.task == 'static'
+        run: cargo install --locked wasm-pack --version 0.15.0
+
+      - name: Build the WebAssembly package
+        if: matrix.task == 'static'
+        run: pnpm core:wasm
 
       - name: Install Chromium
         if: matrix.task == 'browser'
@@ -218,6 +236,34 @@ jobs:
       # against crates/mesh2param-core/scoreboard-baseline.json.
       - name: Test
         run: cargo test --workspace
+
+      # The browser package is built and tested here rather than in the
+      # frontend task: this is the job that already holds a warm Cargo cache,
+      # and the test is a reconstruction, not a UI test. `cargo install
+      # --locked` is what Swatinem/rust-cache restores best; the version is
+      # pinned so a wasm-pack release cannot change the artifact under us.
+      - name: Install wasm-pack
+        run: cargo install --locked wasm-pack --version 0.15.0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test the WebAssembly package
+        run: |
+          pnpm core:wasm
+          pnpm --filter @mesh2param/core-wasm typecheck
+          pnpm --filter @mesh2param/core-wasm lint
+          pnpm --filter @mesh2param/core-wasm test
 
       - name: Upload the scoreboard
         if: always()
