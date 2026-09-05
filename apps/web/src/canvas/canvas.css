@@ -92,6 +92,35 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-resize-handle::after{content:"";position:absolute;inset:0 3px;background:transparent;transition:background var(--dur-fast) var(--ease-out)}
 .panel-resize-handle:hover::after,.panel-resize-handle:focus-visible::after,.panel-resize-handle[data-dragging]::after{background:var(--color-accent)}
 .panel-resize-handle:focus-visible{outline:none}
+.panel-scroll[hidden]{display:none}
+.panel-sheet-handle{display:none}
+.panel-section.is-busy{position:relative}
+.panel-empty{display:grid;justify-items:start;gap:6px;padding:10px 10px 12px;border:1px dashed var(--color-border-strong);border-radius:var(--radius-md);color:var(--color-muted)}
+.panel-empty-icon{color:var(--color-subtle)}
+.panel-empty strong{color:var(--color-text);font:500 var(--fs-sm) var(--font-ui)}
+.panel-empty p{margin:0;font:var(--fs-mini)/1.5 var(--font-ui)}
+.panel-empty .panel-btn{margin-top:4px}
+.panel-skeleton{display:grid;gap:8px;padding:6px 0 4px}
+.panel-skeleton-label{color:var(--color-subtle);font:var(--fs-mini) var(--font-mono)}
+.panel-skeleton-row{display:block;height:10px;border-radius:var(--radius-pill);background:linear-gradient(90deg,var(--color-hover) 0%,var(--color-border-strong) 50%,var(--color-hover) 100%);background-size:200% 100%;animation:panel-skeleton-sheen 1.4s linear infinite}
+@keyframes panel-skeleton-sheen{from{background-position:200% 0}to{background-position:-200% 0}}
+.job-failure{display:grid;gap:8px;padding:10px 10px 10px 12px;border:1px solid var(--color-error-border);border-left-width:3px;border-radius:var(--radius-md);background:var(--color-error-dim);color:var(--color-text)}
+.job-failure-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start}
+.job-failure-head>svg{margin-top:2px;color:var(--color-error)}
+.job-failure-copy{min-width:0;display:grid;gap:2px}
+.job-failure-copy strong{font:600 var(--fs-sm) var(--font-ui)}
+.job-failure-copy p{margin:0;color:var(--color-muted);font:var(--fs-mini)/1.5 var(--font-ui);overflow-wrap:anywhere}
+.job-failure-note{color:var(--color-warning)!important}
+.job-failure-close{display:grid;place-items:center;width:24px;height:24px;margin:-4px -4px 0 0;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--color-muted)}
+.job-failure-close:hover{color:var(--color-text);background:var(--color-hover)}
+.job-failure-detail{display:grid;gap:4px}
+.job-failure-detail-toggle{display:inline-flex;align-items:center;gap:4px;justify-self:start;padding:0;border:0;background:transparent;color:var(--color-muted);font:var(--fs-mini) var(--font-ui)}
+.job-failure-detail-toggle svg{transition:transform var(--dur-fast) var(--ease-out)}
+.job-failure-detail-toggle svg.open{transform:rotate(180deg)}
+.job-failure-detail pre{margin:0;max-height:160px;padding:6px 8px;overflow:auto;border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-muted);font:var(--fs-mini) var(--font-mono);white-space:pre-wrap}
+.job-failure-actions{display:grid;gap:6px}
+.job-failure-retry{justify-content:center;white-space:normal;height:auto;min-height:34px;padding:6px 10px;text-align:left}
+.job-failure-hint{margin:0;color:var(--color-muted);font:var(--fs-mini)/1.5 var(--font-ui)}
 .panel-readout{display:grid;gap:2px;margin:0}
 .panel-readout>div{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;font:var(--fs-mini) var(--font-ui)}
 .panel-readout dt{color:var(--color-subtle)}
@@ -274,20 +303,37 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .landing-secondary:hover:not(:disabled){background:var(--color-hover);border-color:var(--color-accent-border)}
 .landing-link{margin-top:2px;border:0;background:transparent;color:var(--color-muted);font-size:var(--fs-sm);text-decoration:underline;text-underline-offset:3px}
 .landing-link:hover:not(:disabled){color:var(--color-text)}
-.landing-recents{display:grid;justify-items:start;gap:9px;margin-top:12px;padding-top:16px;border-top:1px solid var(--color-border);width:100%}
+.landing-recents{display:grid;justify-items:start;gap:10px;margin-top:12px;padding-top:16px;border-top:1px solid var(--color-border);width:100%}
+.landing-center:has(.landing-recents){width:min(92%,760px)}
 .landing-recents-label{display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);letter-spacing:.1em;text-transform:uppercase}
-.landing-recents-list{width:100%;display:grid;margin:0;padding:0;overflow:hidden;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);list-style:none;text-align:left}
-.landing-recents-list li+li{border-top:1px solid var(--color-border)}
-.landing-recents-list button{width:100%;min-width:0;min-height:46px;display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 11px;border:0;background:transparent;color:var(--color-text);text-align:left}
-.landing-recents-list button:hover:not(:disabled){background:var(--color-hover)}
-.landing-recents-list button:focus-visible{position:relative;z-index:1;outline:2px solid var(--color-accent);outline-offset:-2px}
+.landing-recents-list{width:100%;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;margin:0;padding:0;list-style:none;text-align:left}
+.landing-card{min-width:0}
+.landing-recents-list button{width:100%;height:100%;min-width:0;display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 12px 12px 10px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-surface);color:var(--color-text);text-align:left;transition:border-color var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
+.landing-recents-list button:hover:not(:disabled){background:var(--color-hover);border-color:var(--color-accent-border)}
+.landing-card-glyph{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-subtle)}
+.landing-card[data-stage="validated"] .landing-card-glyph{color:var(--color-success)}
+.landing-card[data-stage="reconstructed"] .landing-card-glyph,.landing-card[data-stage="analyzed"] .landing-card-glyph{color:var(--color-accent)}
+.landing-card-glyph .landing-recent-index{position:absolute;right:3px;bottom:2px;font-size:9px}
+.landing-card-stats{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px}
+.landing-card-stats .canvas-chip{padding:1px 7px}
+.landing-card-tris{color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);font-variant-numeric:tabular-nums}
+.landing-recents-list button:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
 .landing-recent-index{color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);font-variant-numeric:tabular-nums}
-.landing-recent-copy{min-width:0;display:grid;gap:2px}
+.landing-recent-copy{min-width:0;display:grid;gap:3px}
 .landing-recent-name{overflow:hidden;font:500 var(--fs-sm) var(--font-ui);text-overflow:ellipsis;white-space:nowrap}
 .landing-recent-meta{min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);text-transform:none;white-space:nowrap}
 .landing-recent-meta>span:first-child{text-transform:uppercase}
 .landing-recents-list button>svg{color:var(--color-subtle);transition:color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out)}
 .landing-recents-list button:hover:not(:disabled)>svg{color:var(--color-accent);transform:translateX(2px)}
+.landing-drop-hint{display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono)}
+.landing-drop-rejected{margin:0;padding:6px 10px;border:1px solid var(--color-warning-border);border-radius:var(--radius-md);background:var(--color-warning-dim);color:var(--color-warning);font:var(--fs-xs) var(--font-ui)}
+.landing-no-recents{margin:12px 0 0;padding-top:16px;border-top:1px solid var(--color-border);width:100%;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono)}
+.landing-drop{position:absolute;z-index:var(--z-toast);inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--color-bg) 72%,transparent);backdrop-filter:blur(4px);pointer-events:none;animation:landing-drop-in var(--dur-fast) var(--ease-out)}
+@keyframes landing-drop-in{from{opacity:0}to{opacity:1}}
+.landing-drop-card{display:grid;justify-items:center;gap:6px;padding:28px 36px;border:2px dashed var(--color-accent);border-radius:var(--radius-lg);background:var(--color-surface);color:var(--color-accent);box-shadow:var(--shadow-lg)}
+.landing-drop-card strong{color:var(--color-text);font:600 var(--fs-lg) var(--font-ui)}
+.landing-drop-card span{color:var(--color-muted);font:var(--fs-sm) var(--font-ui)}
+.canvas-landing.dragging .landing-center{opacity:.6}
 .landing-status{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--color-border);color:var(--color-subtle);font:var(--fs-mini) var(--font-mono)}
 .landing-worker{display:inline-flex;align-items:center;gap:7px}
 .landing-worker .dot{width:7px;height:7px;border-radius:50%;background:var(--color-subtle)}
@@ -296,25 +342,35 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .landing-worker.down .dot{background:var(--color-warning)}
 
 /* Stack the panel under the viewport when the window is too narrow for a side column. */
+/* Narrow layout: the panel is a bottom sheet. Peeked, only its handle and
+   the Convert footer show, so the primary action stays one tap away; open,
+   the sections stack as on desktop inside a sheet capped at 72dvh. The
+   stage keeps the rest of the height so the model never disappears. */
 @media(max-width:720px){
   .canvas-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
   .canvas-shell>.canvas-topbar{grid-column:1}
-  .canvas-panel{max-height:42dvh;border-left:0;border-top:1px solid var(--color-border)}
-  .panel-scroll{flex-flow:row wrap;align-items:center;gap:8px 14px;padding:10px 12px}
+  .canvas-panel{grid-template-rows:auto minmax(0,1fr) auto;max-height:72dvh;border-left:0;border-top:1px solid var(--color-border-strong);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg)}
+  .canvas-panel:not(.open){max-height:none}
+  .panel-sheet-handle{display:flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0;border:0;border-bottom:1px solid var(--color-border);background:transparent;color:var(--color-muted);font:500 var(--fs-mini) var(--font-ui);letter-spacing:.04em;text-transform:uppercase}
+  .panel-sheet-grip{position:absolute;top:6px;left:50%;width:36px;height:4px;border-radius:var(--radius-pill);background:var(--color-border-strong);transform:translateX(-50%)}
+  .panel-sheet-handle{position:relative;padding-top:8px}
+  .panel-sheet-chevron{transition:transform var(--dur-fast) var(--ease-out)}
+  .canvas-panel.open .panel-sheet-chevron{transform:rotate(180deg)}
+  .panel-scroll{gap:14px;padding:12px 14px 16px}
   .panel-resize-handle{display:none}
-  .panel-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-  .panel-label{display:none}
   .panel-readout,.panel-warnings{flex:1 1 100%}
-  .panel-modes{display:flex;gap:4px}
-  .panel-view-grid{display:flex;flex-wrap:wrap;gap:6px}
-  .panel-view-group{flex:1 1 100%;display:grid;align-items:start}
-  .panel-view-group .panel-view-grid{display:grid;grid-template-columns:1fr 1fr}
+  .panel-modes{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+  .panel-modes button{justify-content:center}
   .panel-btn,.panel-modes button{height:44px}
   /* Same pinning in the bottom-bar layout, matched to its 12px side padding.
      The separator returns here because the stuck footer now overlays content. */
-  .panel-convert{display:grid;gap:6px;max-height:none;padding:10px 12px;border-top:1px solid var(--color-border)}
+  .panel-convert{display:grid;gap:6px;max-height:none;padding:10px 12px 12px;border-top:1px solid var(--color-border)}
+  .canvas-panel:not(.open) .panel-convert{border-top:0}
+  .canvas-panel:not(.open) .panel-convert .panel-hint,.canvas-panel:not(.open) .panel-export-group,.canvas-panel:not(.open) .panel-secondary-grid,.canvas-panel:not(.open) .panel-convert .panel-btn:not(.job-failure-retry){display:none}
+  .landing-recents-list{grid-template-columns:1fr}
   .canvas-panel .dock-primary{height:44px}
   .debug-console{max-height:34dvh}
+  .canvas-main.console-docked{grid-template-rows:minmax(0,1fr) min(var(--console-height,220px),34dvh)}
   .dc-resize{display:none}
 }
 

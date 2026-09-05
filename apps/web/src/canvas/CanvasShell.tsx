@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import {
   AlertTriangle,
   Box,
+  ChevronUp,
   Download,
   FileArchive,
   FolderOpen,
@@ -32,6 +33,9 @@ import { debugLog, useDebugLog } from "./debugLog";
 import { clampConsoleHeight, DebugConsole } from "./DebugConsole";
 import { artifactDownloadName, stepDownloadName } from "./downloadFilename";
 import { EditableProjectName } from "./EditableProjectName";
+import { JobFailure, latestFailedJob } from "./JobFailure";
+import { EmptyState, PanelSkeleton } from "./PanelStates";
+import { NARROW_LAYOUT_QUERY, useMediaQuery } from "./useMediaQuery";
 import { analysisMeta, diagnosticRows, fileMeta } from "./meshReadout";
 import { panelLayoutStore, usePanelLayout } from "./panelLayout";
 import { PanelResizeHandle } from "./PanelResizeHandle";
@@ -60,6 +64,12 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const consoleOpen = shell.bottomDrawerExpanded;
   const consoleHeight = clampConsoleHeight(shell.bottomDrawerHeight);
   const layout = usePanelLayout();
+  const jobs = useWorkspaceSelector((state) => state.jobs);
+  const narrow = useMediaQuery(NARROW_LAYOUT_QUERY);
+  // Narrow layout: the panel is a bottom sheet that peeks its Convert footer
+  // and opens over the viewport on demand. Not persisted; a sheet reopening
+  // itself on every reload would cover the model.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedKey = `mesh2param-revealed-${vm.project.id}`;
   const revealed = sessionStorage.getItem(revealedKey) === "1";
@@ -176,6 +186,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   };
 
   const status = conversionStatus(vm);
+  const failedJob = activeJob === null ? latestFailedJob(jobs) : null;
+  const analyzing = activeJob !== null && (activeJob.job.kind === "analyze" || activeJob.job.kind === "upload" || activeJob.job.kind === "sample_open");
+  const canAnalyze = state.source !== null && activeJob === null && vm.workerReady;
   const hasGeometry = vm.artifacts.some((artifact) => artifact.name.toLowerCase().endsWith(".glb"));
   // The "result" is a preserved-source facet proxy (not exact B-Rep) when reconstruction fell back to faceting.
   const sourceProxy = vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy");
@@ -309,9 +322,26 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         {shortcutsOpen ? <ShortcutHelp onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
 
-      <nav className="canvas-panel" aria-label="Conversion commands">
+      <nav
+        className={`canvas-panel ${narrow ? "sheet" : ""} ${narrow && sheetOpen ? "open" : ""}`.trim()}
+        aria-label="Conversion commands"
+        data-sheet={narrow ? (sheetOpen ? "open" : "peek") : undefined}
+      >
         <PanelResizeHandle />
-        <div className="panel-scroll">
+        {narrow ? (
+          <button
+            type="button"
+            className="panel-sheet-handle"
+            aria-expanded={sheetOpen}
+            aria-controls="panel-scroll"
+            onClick={() => setSheetOpen((open) => !open)}
+          >
+            <span className="panel-sheet-grip" aria-hidden />
+            <ChevronUp size={14} aria-hidden className="panel-sheet-chevron" />
+            {sheetOpen ? "Hide tools" : "Show tools"}
+          </button>
+        ) : null}
+        <div className="panel-scroll" id="panel-scroll" hidden={narrow && !sheetOpen}>
         <PanelSection id="file" title="File">
           <button className="panel-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"}>
             <FolderOpen size={16} />
@@ -361,8 +391,28 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </div>
         </PanelSection>
 
+        {state.source !== null && state.diagnostics === null && state.cadgraph === null ? (
+          <PanelSection id="analysis" title="Analysis" className={analyzing ? "is-busy" : ""}>
+            {analyzing ? (
+              <PanelSkeleton rows={6} label={`${humanPhase(activeJob?.job.phase || "analyze")}…`} />
+            ) : (
+              <EmptyState
+                icon={<ScanSearch size={22} />}
+                title="Not analyzed yet"
+                hint="Mesh health, surface patches, and fit residuals appear here after analysis."
+                action={{
+                  label: "Analyze mesh",
+                  onClick: () => void actions.run("analyze"),
+                  disabled: !canAnalyze,
+                  title: canAnalyze ? "Run the analysis job" : "Wait for the worker and the running job",
+                }}
+                testId="analysis-empty"
+              />
+            )}
+          </PanelSection>
+        ) : null}
         {state.diagnostics !== null || state.cadgraph !== null ? (
-          <PanelSection id="analysis" title="Analysis" meta={analysisMeta(vm)}>
+          <PanelSection id="analysis" title="Analysis" meta={analysisMeta(vm)} className={analyzing ? "is-busy" : ""}>
             {state.diagnostics !== null ? (
               <dl className="panel-readout" aria-label="Mesh diagnostics">
                 {diagnosticRows(state.diagnostics, vm.project.units).map((row) => (
@@ -410,6 +460,26 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           </PanelSection>
         ) : null}
 
+        {state.patches.length === 0 && state.cadgraph === null && state.diagnostics !== null ? (
+          <PanelSection id="patches" title="Patches" className={analyzing ? "is-busy" : ""}>
+            {analyzing ? (
+              <PanelSkeleton rows={5} label="Segmenting surfaces…" />
+            ) : (
+              <EmptyState
+                icon={<ScanSearch size={22} />}
+                title="Not analyzed yet"
+                hint="Surface patches, their fits, and residuals appear here after analysis."
+                action={{
+                  label: "Analyze mesh",
+                  onClick: () => void actions.run("analyze"),
+                  disabled: !canAnalyze,
+                  title: canAnalyze ? "Run the analysis job" : "Wait for the worker and the running job",
+                }}
+                testId="patches-empty"
+              />
+            )}
+          </PanelSection>
+        ) : null}
         {state.patches.length > 0 && state.cadgraph === null ? (
           <PatchPanel
             patches={state.patches}
@@ -428,6 +498,17 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
         <PanelSection id="convert" title="Convert" className="panel-convert" meta={activeJob !== null ? `${Math.round(activeJob.job.progress)}%` : undefined}>
           {(collapsed) => (
           <>
+          {failedJob !== null && !collapsed ? (
+            <JobFailure
+              view={failedJob}
+              canRetry={vm.workerReady && activeJob === null}
+              onRetry={(operation) => {
+                workspaceStore.getState().clearJob(failedJob.job.kind);
+                void actions.run(operation);
+              }}
+              onDismiss={() => workspaceStore.getState().clearJob(failedJob.job.kind)}
+            />
+          ) : null}
           {activeJob !== null ? (
             <button className="dock-primary" disabled data-action={action.kind} data-job-kind={activeJob.job.kind}>
               <LoaderCircle className="spin" size={16} />

@@ -204,3 +204,7 @@
   background: var(--color-surface-2);
   border-color: var(--color-border);
 }
+
+.sg-panel-states{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.sg-panel-states>div{display:grid;align-content:start;gap:10px;max-width:280px}
+.sg-panel-states h3{margin:0;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);letter-spacing:.1em;text-transform:uppercase}
