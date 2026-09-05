@@ -11,7 +11,7 @@ use remus_topology::face::FaceId;
 use remus_topology::solid::SolidId;
 use serde::{Deserialize, Serialize};
 
-use super::geom::{MeshGeom, TriGrid, mesh_volume, quantile};
+use super::geom::{MeshGeom, TriTree, mesh_volume, quantile};
 use crate::error::{CoreError, Result};
 use crate::segment::linalg::V3;
 
@@ -73,9 +73,10 @@ impl ResultMesh {
     }
 }
 
-/// Cap on samples taken in each direction. A quantile does not get better
-/// past a few tens of thousands of points, and the grid query is the whole
-/// cost of the verify stage.
+/// Cap on samples taken in each direction, so the stage costs the same on a
+/// half-million-triangle mesh as on a fifty-thousand one. A quantile does not
+/// get better past a few tens of thousands of points, and the nearest-triangle
+/// query is the whole cost of the verify stage.
 const MAX_SAMPLES: usize = 40_000;
 
 pub(super) fn measure(
@@ -94,8 +95,6 @@ pub(super) fn measure(
         .map(|p| V3::new(p.x(), p.y(), p.z()))
         .collect();
     let volume = mesh_volume(&result_points, &tess.indices);
-
-    let extent = extent_of(&geom.points).max(extent_of(&result_points));
 
     let result_tris: Vec<[V3; 3]> = tess
         .indices
@@ -122,8 +121,8 @@ pub(super) fn measure(
 
     let mut distances: Vec<f64> = Vec::new();
 
-    let result_grid = TriGrid::new(result_tris, extent);
-    if !result_grid.is_empty() {
+    let result_tree = TriTree::new(result_tris);
+    if !result_tree.is_empty() {
         let source_samples: Vec<V3> = geom
             .centroids
             .iter()
@@ -131,16 +130,16 @@ pub(super) fn measure(
             .chain(geom.points.iter().copied())
             .collect();
         for p in stride(&source_samples, MAX_SAMPLES) {
-            if let Some(d) = result_grid.distance(p) {
+            if let Some(d) = result_tree.distance(p) {
                 distances.push(d);
             }
         }
     }
 
-    let source_grid = TriGrid::new(source_tris, extent);
-    if !source_grid.is_empty() {
+    let source_tree = TriTree::new(source_tris);
+    if !source_tree.is_empty() {
         for p in stride(&result_points, MAX_SAMPLES) {
-            if let Some(d) = source_grid.distance(p) {
+            if let Some(d) = source_tree.distance(p) {
                 distances.push(d);
             }
         }
@@ -167,10 +166,9 @@ pub(super) fn measure(
 /// result is missing belongs to no face of it — which is the direction a face
 /// built in the wrong place shows up in.
 ///
-/// Distance to the mesh's own bounding box is a lower bound on distance to the
-/// mesh, so a point far outside it is settled without a grid query at all. That
-/// is not an optimisation: the grid searches in expanding shells, and a face
-/// built thirty metres off a hundred-millimetre part would search millions.
+/// A face built thirty metres off a hundred-millimetre part is the normal case
+/// here rather than the pathological one, which is why the query structure has
+/// to prune on distance rather than search outward from the point.
 pub(super) fn faces_off_mesh(
     topo: &KernelTopology,
     solid: SolidId,
@@ -209,14 +207,13 @@ pub(super) fn faces_off_mesh(
             ])
         })
         .collect();
-    let bounds = Bounds::of(&geom.points);
-    let grid = TriGrid::new(source_tris, extent_of(&geom.points));
-    if grid.is_empty() {
+    let tree = TriTree::new(source_tris);
+    if tree.is_empty() {
         return Vec::new();
     }
 
     // One answer per tessellation vertex: adjacent faces share their boundary
-    // points, and the grid query is the whole cost here.
+    // points, and the nearest-triangle query is the whole cost here.
     let mut over: Vec<Option<bool>> = vec![None; points.len()];
     let mut out = Vec::new();
     for (i, window) in offsets.windows(2).enumerate() {
@@ -234,8 +231,7 @@ pub(super) fn faces_off_mesh(
             if let Some(known) = over.get(at).copied().flatten() {
                 return known;
             }
-            let answer =
-                bounds.distance(point) > budget || grid.distance(point).is_some_and(|d| d > budget);
+            let answer = tree.distance(point).is_some_and(|d| d > budget);
             if let Some(slot) = over.get_mut(at) {
                 *slot = Some(answer);
             }
@@ -260,41 +256,6 @@ fn guarded<T>(call: impl FnOnce() -> T) -> Option<T> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(call)).ok()
 }
 
-/// An axis-aligned box, for the cheap lower bound on point-to-mesh distance.
-struct Bounds {
-    min: [f64; 3],
-    max: [f64; 3],
-}
-
-impl Bounds {
-    fn of(points: &[V3]) -> Self {
-        let mut min = [f64::INFINITY; 3];
-        let mut max = [f64::NEG_INFINITY; 3];
-        for p in points {
-            for (axis, v) in p.arr().iter().enumerate() {
-                min[axis] = min[axis].min(*v);
-                max[axis] = max[axis].max(*v);
-            }
-        }
-        Self { min, max }
-    }
-
-    /// Distance from a point to the box, zero inside it.
-    fn distance(&self, p: V3) -> f64 {
-        let at = p.arr();
-        let mut total = 0.0;
-        for axis in 0..3 {
-            let d = (self.min[axis] - at[axis])
-                .max(at[axis] - self.max[axis])
-                .max(0.0);
-            if d.is_finite() {
-                total += d * d;
-            }
-        }
-        total.sqrt()
-    }
-}
-
 /// Evenly spaced subsample, so a cap never biases the quantile toward one
 /// region of the part.
 fn stride(points: &[V3], cap: usize) -> Vec<V3> {
@@ -303,23 +264,4 @@ fn stride(points: &[V3], cap: usize) -> Vec<V3> {
     }
     let step = points.len().div_ceil(cap).max(1);
     points.iter().copied().step_by(step).collect()
-}
-
-fn extent_of(points: &[V3]) -> f64 {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
-    for p in points {
-        for (axis, v) in p.arr().iter().enumerate() {
-            min[axis] = min[axis].min(*v);
-            max[axis] = max[axis].max(*v);
-        }
-    }
-    let mut extent = 0.0_f64;
-    for axis in 0..3 {
-        let d = max[axis] - min[axis];
-        if d.is_finite() {
-            extent = extent.max(d);
-        }
-    }
-    if extent > 0.0 { extent } else { 1.0 }
 }

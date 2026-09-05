@@ -710,16 +710,38 @@ and the run falls back to `faceted_step` with `fallbackReason` set.
 **Verification is part of the tier claim.** The result is tessellated and
 measured against the source mesh in both directions — source centroids and
 vertices against the result, result vertices against the source — with a
-uniform-grid point-to-triangle query, and its volume compared. A hex prism
+point-to-triangle nearest-distance query, and its volume compared. A hex prism
 recognised as a cylinder is closed, manifold, orientable and half again too big;
 topology cannot see that and a caller acting on the tier would.
+
+**The nearest-distance query is a BVH, and a uniform grid is the wrong
+structure for it.** Both directions are answered by a median-split bounding
+volume hierarchy over the triangle soup, traversed nearer-child-first with any
+node whose box is already further than the best distance pruned. A uniform grid
+was tried and does not survive the input: verification queries a
+*reconstructed* solid's tessellation, where a large planar face is two
+triangles and a filleted one is thousands, and where a single face built on a
+grazing surface routinely sits kilometres from a hundred-millimetre part — the
+hammer holder's 70k-triangle export tessellates over a 5.5 m extent for a 130 mm
+part. No one cell size serves that. Sized for the small triangles the large ones
+smear across thousands of cells; sized for the large ones a cell holds thousands
+of small ones; and an expanding-shell search starting from an outlier walks the
+whole lattice. The hierarchy needs no cell size and returns the *exact* nearest
+distance, where the shell search returned whatever it found before it gave up:
+switching to it moved `deviationP95` **down** on every subset mesh that moved at
+all, by up to 96%, and it is what took the export's verify stage from 16.6 s to
+0.65 s at `opt-level = 3`.
+
+Sampling is capped at `MAX_SAMPLES` (40 000) in each direction, chosen by an
+even stride so the cap never biases the quantile toward one region of the part.
+That is what bounds the stage's cost independently of mesh size.
 
 **A failed verification is localised before it is fatal.** It is rarely the
 whole solid that is wrong: one face built on a surface that grazes its own patch
 can sit metres off a hundred-millimetre part and carry the aggregate with it. So
 the same measurement is taken **per face** — from the grouped tessellation,
-result against source, with distance to the mesh's own bounding box as the lower
-bound that settles a far face without a grid search — and the analytic patches
+result against source, one answer cached per tessellation vertex because
+adjacent faces share their boundary points — and the analytic patches
 whose faces are further off than the deviation budget are demoted and the solid
 rebuilt, once. 28 of the 99 subset meshes take that retry.
 `motor-mount-nema17/mesh-coarse` goes from 27 568% off its volume to 0.5%, and

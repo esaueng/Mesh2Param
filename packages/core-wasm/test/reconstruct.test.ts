@@ -1,5 +1,5 @@
 /**
- * The built WebAssembly package, run in Node against two real corpus meshes.
+ * The built WebAssembly package, run in Node against three real corpus meshes.
  *
  * This is the only test that exercises the whole path the browser will take —
  * bindings, options, progress, GLB writer — so it loads `pkg/` from disk rather
@@ -54,14 +54,15 @@ describe("the packaged reconstruction core", () => {
     expect(() => reconstruct(bytes, "step" as any)).toThrowError(/unsupported mesh format/);
   });
 
-  // `hammer-holder/mesh-export.stl` is the 70k-triangle export of the same
-  // part. It reconstructs correctly but takes about eight minutes in Node —
-  // almost all of it in verification, whose grid queries run over a 47k-face
-  // tessellation — so the fast mesh of the same part is what CI runs. See
-  // README.md, "Measured".
-  for (const [slug, mesh] of [
-    ["dovetail-slide-block", "mesh-coarse.stl"],
-    ["hammer-holder", "mesh-coarse.stl"],
+  // The bound is per mesh: the two small ones are the fast path CI leans on,
+  // and `hammer-holder/mesh-export.stl` is the 70k-triangle export of the same
+  // part — the largest thing in the corpus, kept here because it is the only
+  // case that exercises the query structures at a size where their complexity
+  // shows. See README.md, "Measured".
+  for (const [slug, mesh, budgetMs] of [
+    ["dovetail-slide-block", "mesh-coarse.stl", 30_000],
+    ["hammer-holder", "mesh-coarse.stl", 30_000],
+    ["hammer-holder", "mesh-export.stl", 90_000],
   ] as const) {
     it(`reconstructs ${slug}/${mesh} to an analytic or mixed solid`, async () => {
       const bytes = await sample(slug, mesh);
@@ -92,7 +93,7 @@ describe("the packaged reconstruction core", () => {
       expect(seen.every(([, fraction]) => fraction >= 0 && fraction <= 1)).toBe(true);
 
       expect(result.timings.segmentMs).toBeGreaterThan(0);
-      expect(elapsed).toBeLessThan(30_000);
+      expect(elapsed).toBeLessThan(budgetMs);
     });
   }
 });
