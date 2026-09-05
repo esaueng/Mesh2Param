@@ -435,8 +435,12 @@ fn a_whole_torus_is_one_face_on_a_fundamental_polygon() {
                 major_radius: major,
                 minor_radius: minor,
             },
+            reason: None,
+            smooth_curved_fraction: 1.0,
         }],
         face_patch: vec![0; welded.triangles.len()],
+        face_curvature: vec![1.0 / minor; welded.triangles.len()],
+        face_smooth_curved: vec![true; welded.triangles.len()],
         inventory: Inventory {
             torus: 1,
             ..Inventory::default()

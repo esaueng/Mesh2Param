@@ -66,7 +66,9 @@ pub use build::{
 pub use error::{CoreError, Result};
 pub use faceted::{FacetedOptions, FacetedResult, Tier, faceted_step};
 pub use mesh::{Bbox, MeshData, MeshFormat, WeldedMesh, load_mesh};
-pub use segment::{Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, segment};
+pub use segment::{
+    Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, UnknownReason, segment,
+};
 pub use topology::{
     Curve, Edge, EdgeSource, Loop, PatchLoops, Topology, TopologyOptions, TopologySummary, Vertex,
     recover,
