@@ -56,18 +56,21 @@ pub mod build;
 pub mod error;
 pub mod faceted;
 pub mod mesh;
+pub mod progress;
 pub mod segment;
 pub mod topology;
 
 pub use build::{
-    BuildOptions, BuildResult, Deviation, ReconstructOptions, ReconstructResult, build_solid,
-    reconstruct,
+    BuildOptions, BuildResult, Deviation, ReconstructOptions, ReconstructResult, ResultMesh,
+    build_solid, build_solid_with_progress, reconstruct, reconstruct_with_progress,
 };
 pub use error::{CoreError, Result};
 pub use faceted::{FacetedOptions, FacetedResult, Tier, faceted_step};
 pub use mesh::{Bbox, MeshData, MeshFormat, WeldedMesh, load_mesh};
+pub use progress::{Progress, Stage};
 pub use segment::{
     Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, UnknownReason, segment,
+    segment_with_progress,
 };
 pub use topology::{
     Curve, Edge, EdgeSource, Loop, PatchLoops, Topology, TopologyOptions, TopologySummary, Vertex,

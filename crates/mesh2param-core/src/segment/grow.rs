@@ -9,6 +9,21 @@ use super::linalg::{V3, angle_between, angle_undirected, dist_point_line};
 use super::stats::{Allow, Stats, screen};
 use super::{PatchKind, Primitive};
 use crate::mesh::WeldedMesh;
+use crate::progress::{Progress, Stage};
+
+// Where each of the four stages ends inside [`Stage::Segment`]'s own 0..1
+// range. The split is by measured share of the stage's wall clock over the
+// corpus, rounded: fitting and merging are what a caller waits on.
+/// End of the smooth over-segmentation pass.
+const SEG_OVERSEGMENT: f32 = 0.15;
+/// End of the first fit over every patch.
+const SEG_FIT: f32 = 0.35;
+/// End of the split-and-refit levels.
+const SEG_SPLIT: f32 = 0.5;
+/// End of the merge rounds.
+const SEG_MERGE: f32 = 0.8;
+/// End of the boundary-refinement rounds.
+const SEG_REFINE: f32 = 0.95;
 
 /// One triangle's geometry, computed once and reused by every stage.
 pub(super) struct FaceGeom {
@@ -801,7 +816,7 @@ impl State {
     }
 }
 
-pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
+pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params, progress: &mut Progress<'_>) -> Grown {
     let nf = g.faces.len();
 
     // ── stage 1: smooth over-segmentation ─────────────────────────
@@ -817,6 +832,7 @@ pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
             }
         }
     }
+    progress.at(Stage::Segment, SEG_OVERSEGMENT);
     let mut label = vec![0_usize; nf];
     let mut patches: Vec<Vec<u32>> = Vec::new();
     let mut index: HashMap<usize, usize> = HashMap::new();
@@ -842,6 +858,7 @@ pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
         refs: Vec::new(),
     };
     st.refit_fresh(g, curv, p);
+    progress.at(Stage::Segment, SEG_FIT);
 
     // ── stage 2b: split patches that fitted nothing ───────────────
     //
@@ -853,7 +870,8 @@ pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
     // makes any triangle pair look planar and those shards must not be
     // promoted to real surfaces on their own.
     let mut split_angle = p.angle_rad;
-    for _ in 0..p.split_levels {
+    for level in 0..p.split_levels {
+        progress.pass(Stage::Segment, SEG_FIT, SEG_SPLIT, level, p.split_levels);
         if st
             .fits
             .iter()
@@ -899,7 +917,14 @@ pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
     }
 
     // ── stage 3: merge patches whose primitives agree ─────────────
-    for _ in 0..p.max_merge_rounds {
+    for round in 0..p.max_merge_rounds {
+        progress.pass(
+            Stage::Segment,
+            SEG_SPLIT,
+            SEG_MERGE,
+            round,
+            p.max_merge_rounds,
+        );
         let pairs = patch_pairs(g, &label);
         let folds: HashMap<(usize, usize), f64> =
             pairs.iter().map(|&(a, b, c)| ((a, b), c)).collect();
@@ -992,7 +1017,14 @@ pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params) -> Grown {
     }
 
     // ── stage 4: boundary refinement + unknown absorption ─────────
-    for _ in 0..p.refine_rounds {
+    for round in 0..p.refine_rounds {
+        progress.pass(
+            Stage::Segment,
+            SEG_MERGE,
+            SEG_REFINE,
+            round,
+            p.refine_rounds,
+        );
         let mut moves: Vec<(usize, usize)> = Vec::new();
         for i in 0..nf {
             let own = label[i];

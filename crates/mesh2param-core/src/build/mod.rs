@@ -55,10 +55,16 @@ use serde::{Deserialize, Serialize};
 use crate::error::{CoreError, Result};
 use crate::faceted::{FacetedOptions, Tier, faceted_step};
 use crate::mesh::MeshData;
-use crate::segment::{PatchKind, SegmentOptions, Segmentation, segment};
+use crate::progress::{Progress, Stage};
+use crate::segment::{Inventory, PatchKind, SegmentOptions, Segmentation, segment_with_progress};
 use crate::topology::{Topology as PatchTopology, TopologyOptions, recover};
 
-pub use verify::Deviation;
+pub use verify::{Deviation, ResultMesh};
+
+/// Where assembly begins inside [`Stage::Build`]'s own 0..1 range: the weld,
+/// the mesh geometry and the boundary chains come first, and on a large mesh
+/// they are a visible part of the stage.
+const BUILD_ASSEMBLY_START: f32 = 0.1;
 
 /// How many validation issues are carried on a result before truncating.
 const MAX_ISSUES: usize = 10;
@@ -229,6 +235,14 @@ pub struct BuildResult {
     pub ms_build: f64,
     /// Wall clock for verification, milliseconds.
     pub ms_verify: f64,
+    /// A tessellation of the result, for display. Empty when verification was
+    /// off or the kernel declined to tessellate; at the faceted tier it is the
+    /// source mesh, which is what that tier's STEP file contains.
+    ///
+    /// Not serialised: it is display data, not a measurement, and every
+    /// baseline this type is compared against is a measurement.
+    #[serde(skip)]
+    pub mesh: ResultMesh,
 }
 
 /// Knobs for [`reconstruct`]: one per rung of the ladder.
@@ -259,6 +273,11 @@ pub struct ReconstructResult {
     pub ms_segment: f64,
     /// Wall clock for topology recovery, milliseconds.
     pub ms_topology: f64,
+    /// What recognition found, `None` when segmentation itself failed.
+    pub inventory: Option<Inventory>,
+    /// Share of the mesh's surface area no primitive was recognised on. Zero
+    /// when segmentation failed.
+    pub unknown_area_fraction: f64,
 }
 
 fn issues_of(report: &ValidationReport) -> Vec<String> {
@@ -345,6 +364,25 @@ pub fn build_solid(
     topo: &PatchTopology,
     options: &BuildOptions,
 ) -> Result<BuildResult> {
+    build_solid_with_progress(mesh, seg, topo, options, &mut Progress::none())
+}
+
+/// [`build_solid`], reporting [`Stage::Build`], [`Stage::Verify`] and
+/// [`Stage::Step`] as it goes.
+///
+/// The result is the same one [`build_solid`] returns: the sink is advisory
+/// and no decision here reads it back.
+///
+/// # Errors
+///
+/// The same as [`build_solid`].
+pub fn build_solid_with_progress(
+    mesh: &MeshData,
+    seg: &Segmentation,
+    topo: &PatchTopology,
+    options: &BuildOptions,
+    progress: &mut Progress<'_>,
+) -> Result<BuildResult> {
     if mesh.triangles > options.triangle_budget {
         return Err(CoreError::Budget {
             triangles: mesh.triangles,
@@ -358,6 +396,7 @@ pub fn build_solid(
         )));
     }
 
+    progress.at(Stage::Build, 0.0);
     let build_clock = Stopwatch::start();
     let welded = mesh.welded()?;
     if seg.face_patch.len() != welded.triangles.len() {
@@ -424,6 +463,7 @@ pub fn build_solid(
     // ends with a solid, or the run finishes holding nothing.
     let rounds = options.max_rounds.max(1) + 1;
     for round in 0..rounds {
+        progress.pass(Stage::Build, BUILD_ASSEMBLY_START, 1.0, round, rounds);
         let mut attempt = assemble::attempt(&ctx, &analytic)?;
         let final_round = round + 1 == rounds;
         // Assembly has already demoted these and rebuilt itself around them,
@@ -526,7 +566,10 @@ pub fn build_solid(
         // a result that is measurably not the part does not get to keep it.
         let verify_clock = Stopwatch::start();
         let m = if options.verify {
-            verify::measure(&attempt.topo, attempt.solid, &geom, deflection).ok()
+            progress.at(Stage::Verify, 0.0);
+            let m = verify::measure(&attempt.topo, attempt.solid, &geom, deflection).ok();
+            progress.at(Stage::Verify, 1.0);
+            m
         } else {
             None
         };
@@ -615,6 +658,8 @@ pub fn build_solid(
         );
     };
 
+    progress.at(Stage::Build, 1.0);
+    progress.at(Stage::Step, 0.0);
     let step = remus_io::step::writer::write_step(&topo_out, &[solid])
         .map_err(|e| CoreError::Kernel(format!("write_step: {e}")))?;
     let round_trip_ok = {
@@ -636,6 +681,7 @@ pub fn build_solid(
     }
 
     let step = step.into_bytes();
+    progress.at(Stage::Step, 1.0);
     Ok(BuildResult {
         tier,
         faces_analytic: attempt.faces_analytic,
@@ -655,6 +701,7 @@ pub fn build_solid(
         edges_curve_chain: attempt.runs_curve_chain,
         ms_build,
         ms_verify,
+        mesh: measured.map(|m| m.mesh).unwrap_or_default(),
     })
 }
 
@@ -797,7 +844,15 @@ fn faceted_result(
         edges_curve_chain: 0,
         ms_build,
         ms_verify: 0.0,
+        // The faceted STEP is one planar face per source triangle, so the
+        // source mesh is exactly what it draws.
+        mesh: ResultMesh::new(&geom.points, &flat_indices(&geom.triangles)),
     })
+}
+
+/// A triangle list flattened to the index layout renderers want.
+fn flat_indices(triangles: &[[u32; 3]]) -> Vec<u32> {
+    triangles.iter().flat_map(|t| t.iter().copied()).collect()
 }
 
 /// Run the whole ladder: recognition, topology, face construction, with the
@@ -809,6 +864,22 @@ fn faceted_result(
 /// A stage that declines is not an error: the run falls to the tier below it
 /// and records why in [`BuildResult::fallback_reason`].
 pub fn reconstruct(mesh: &MeshData, options: &ReconstructOptions) -> Result<ReconstructResult> {
+    reconstruct_with_progress(mesh, options, &mut Progress::none())
+}
+
+/// [`reconstruct`], reporting every [`Stage`] as it goes.
+///
+/// The result is the same one [`reconstruct`] returns. Fractions are per
+/// stage, and the run is finished when [`Stage::Step`] reaches `1.0`.
+///
+/// # Errors
+///
+/// The same as [`reconstruct`].
+pub fn reconstruct_with_progress(
+    mesh: &MeshData,
+    options: &ReconstructOptions,
+    progress: &mut Progress<'_>,
+) -> Result<ReconstructResult> {
     if mesh.triangles > options.build.triangle_budget {
         return Err(CoreError::Budget {
             triangles: mesh.triangles,
@@ -817,7 +888,7 @@ pub fn reconstruct(mesh: &MeshData, options: &ReconstructOptions) -> Result<Reco
     }
 
     let seg_clock = Stopwatch::start();
-    let seg = segment(mesh, &options.segment);
+    let seg = segment_with_progress(mesh, &options.segment, &mut progress.reborrow());
     let ms_segment = seg_clock.ms();
     let seg = match seg {
         Ok(seg) => seg,
@@ -828,13 +899,17 @@ pub fn reconstruct(mesh: &MeshData, options: &ReconstructOptions) -> Result<Reco
                 edges: None,
                 ms_segment,
                 ms_topology: 0.0,
+                inventory: None,
+                unknown_area_fraction: 0.0,
             });
         }
     };
 
+    progress.at(Stage::Topology, 0.0);
     let topo_clock = Stopwatch::start();
     let topo = recover(mesh, &seg, &options.topology);
     let ms_topology = topo_clock.ms();
+    progress.at(Stage::Topology, 1.0);
     let topo = match topo {
         Ok(topo) => topo,
         Err(e) => {
@@ -844,12 +919,20 @@ pub fn reconstruct(mesh: &MeshData, options: &ReconstructOptions) -> Result<Reco
                 edges: None,
                 ms_segment,
                 ms_topology,
+                inventory: Some(seg.inventory),
+                unknown_area_fraction: seg.unknown_area_fraction,
             });
         }
     };
     let edges = topo.edges.len();
 
-    let build = match build_solid(mesh, &seg, &topo, &options.build) {
+    let build = match build_solid_with_progress(
+        mesh,
+        &seg,
+        &topo,
+        &options.build,
+        &mut progress.reborrow(),
+    ) {
         Ok(result) => result,
         Err(CoreError::Budget {
             triangles, limit, ..
@@ -857,12 +940,18 @@ pub fn reconstruct(mesh: &MeshData, options: &ReconstructOptions) -> Result<Reco
         Err(e) => fallback_all(mesh, options, format!("face construction failed: {e}"))?,
     };
 
+    // Every path out of the ladder ends here, including the ones that fell to
+    // the faceted floor without the build stage writing a thing, so this is
+    // the one report a caller can treat as "finished".
+    progress.at(Stage::Step, 1.0);
     Ok(ReconstructResult {
         build,
         patches: Some(seg.patches.len()),
         edges: Some(edges),
         ms_segment,
         ms_topology,
+        inventory: Some(seg.inventory),
+        unknown_area_fraction: seg.unknown_area_fraction,
     })
 }
 
@@ -872,10 +961,11 @@ fn fallback_all(
     reason: String,
 ) -> Result<BuildResult> {
     let faceted = faceted_step(mesh, &options.faceted)?;
-    let source_volume = mesh
-        .welded()
-        .map(|w| geom::MeshGeom::new(&w).volume)
-        .unwrap_or(0.0);
+    let source = mesh.welded().map(|w| geom::MeshGeom::new(&w)).ok();
+    let source_volume = source.as_ref().map_or(0.0, |g| g.volume);
+    let result_mesh = source.as_ref().map_or_else(ResultMesh::default, |g| {
+        ResultMesh::new(&g.points, &flat_indices(&g.triangles))
+    });
     Ok(BuildResult {
         tier: Tier::Faceted,
         faces_analytic: 0,
@@ -895,5 +985,6 @@ fn fallback_all(
         edges_curve_chain: 0,
         ms_build: 0.0,
         ms_verify: 0.0,
+        mesh: result_mesh,
     })
 }

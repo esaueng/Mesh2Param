@@ -1,0 +1,21 @@
+{
+  "name": "@mesh2param/core-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pkg/mesh2param_wasm_bg.wasm": "./pkg/mesh2param_wasm_bg.wasm"
+  },
+  "scripts": {
+    "build": "bash ../../scripts/build_core_wasm.sh",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
