@@ -10,7 +10,6 @@ the exact binaries and source it ships.
 | Component | Version in `uv.lock` | License | Use and source |
 | --- | --- | --- | --- |
 | Open CASCADE Technology (OCCT) | 7.9.3, embedded by `cadquery-ocp` 7.9.3.1.1 | LGPL-2.1-only with Open CASCADE exception 1.0 | Exact B-Rep construction, validation, STEP import/export, and tessellation. [OCCT source](https://github.com/Open-Cascade-SAS/OCCT/tree/V7_9_3). |
-| occt-wasm | 3.7.0 | TypeScript tooling MIT OR Apache-2.0; embedded OCCT WebAssembly remains LGPL-2.1-only | Browser-local B-Rep construction, STEP import/export, validation, and tessellation. [occt-wasm source](https://github.com/andymai/occt-wasm). |
 | CadQuery OCP bindings | 7.9.3.1.1 | Apache-2.0 for the bindings; bundled OCCT remains LGPL-2.1 with the exception | Python bindings distributed by [CadQuery/OCP](https://github.com/CadQuery/OCP/tree/7.9.3.1). |
 | CasADi | 3.7.2 | LGPL-3.0-or-later | Transitive dependency of CadQuery. [CasADi source](https://github.com/casadi/casadi/tree/3.7.2). Mesh2Param does not call it directly. |
 | libvips development bundle | libvips 8.17.3 in `@img/sharp-libvips-darwin-arm64` 1.2.4 | LGPL-3.0-or-later package declaration; bundled components retain their recorded licenses | Platform-constrained transitive dependency of the existing Wrangler/Miniflare development toolchain. [sharp-libvips source](https://github.com/lovell/sharp-libvips/tree/v1.2.4). It is not a Mesh2Param application runtime dependency. |
@@ -37,7 +36,8 @@ engineering, and modification requirements. Mesh2Param does not modify these com
 | --- | --- | --- |
 | Geometry/runtime | CadQuery, cadquery-ocp, trimesh, NumPy, SciPy, Shapely, NetworkX | Apache-2.0; OCCT LGPL-2.1 + exception; MIT; BSD-family and bundled permissive notices |
 | API/runtime | FastAPI, Pydantic Settings, SQLAlchemy, Uvicorn | MIT and BSD-3-Clause |
-| Browser/runtime | React, React DOM, Three.js, R3F, Drei, Dexie, Immer, Lucide, Zustand, occt-wasm | MIT, Apache-2.0, ISC, and embedded OCCT LGPL-2.1 |
+| Browser/runtime | React, React DOM, Three.js, R3F, Drei, Dexie, Immer, Lucide, Zustand | MIT, Apache-2.0, and ISC |
+| Browser geometry | `@mesh2param/core-wasm`, the workspace Rust core compiled with `wasm-bindgen` | Apache-2.0, with the Remus kernel crates recorded under the Rust core row |
 | Fonts | IBM Plex Sans and IBM Plex Mono through `@fontsource` | SIL Open Font License 1.1 |
 | Rust core | Remus kernel crates (`remus-io`, `remus-math`, `remus-operations`, `remus-topology`), serde, serde_json, thiserror | Apache-2.0 and MIT OR Apache-2.0 |
 | Schema/runtime | Ajv, ajv-formats | MIT |
@@ -243,6 +243,7 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | fast-deep-equal | 3.1.3 | MIT |
 | javascript | fast-json-stable-stringify | 2.1.0 | MIT |
 | javascript | fast-levenshtein | 2.0.6 | MIT |
+| javascript | fast-uri | 3.1.3 | BSD-3-Clause |
 | javascript | fast-uri | 3.1.4 | BSD-3-Clause |
 | javascript | fdir | 6.5.0 | MIT |
 | javascript | fflate | 0.6.10 | MIT |
@@ -315,13 +316,11 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | ml-array-max | 2.0.0 | MIT |
 | javascript | ml-array-min | 2.0.0 | MIT |
 | javascript | ml-array-rescale | 2.0.0 | MIT |
-| javascript | ml-matrix | 6.14.0 | MIT |
 | javascript | ms | 2.1.3 | MIT |
 | javascript | nanoid | 3.3.15 | MIT |
 | javascript | natural-compare | 1.4.0 | MIT |
 | javascript | node-releases | 2.0.51 | MIT |
 | javascript | obug | 2.1.4 | MIT |
-| javascript | occt-wasm | 3.7.0 | MIT OR Apache-2.0 |
 | javascript | optionator | 0.9.4 | MIT |
 | javascript | p-limit | 3.1.0 | MIT |
 | javascript | p-locate | 5.0.0 | MIT |
@@ -372,7 +371,6 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | symbol-tree | 3.2.4 | MIT |
 | javascript | three | 0.185.1 | MIT |
 | javascript | three-mesh-bvh | 0.8.3 | MIT |
-| javascript | three-mesh-bvh | 0.9.13 | MIT |
 | javascript | three-stdlib | 2.36.1 | MIT |
 | javascript | tinybench | 2.9.0 | MIT |
 | javascript | tinyexec | 1.2.4 | MIT |
@@ -547,6 +545,7 @@ override in [`licenses/overrides.toml`](licenses/overrides.toml).
 | bitflags | 2.13.1 | MIT OR Apache-2.0 | crates.io | https://github.com/bitflags/bitflags |
 | bumpalo | 3.20.3 | MIT OR Apache-2.0 | crates.io | https://github.com/fitzgen/bumpalo |
 | cfg-if | 1.0.4 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/cfg-if |
+| console_error_panic_hook | 0.1.7 | Apache-2.0/MIT | crates.io | https://github.com/rustwasm/console_error_panic_hook |
 | crc32fast | 1.5.1 | MIT OR Apache-2.0 | crates.io | https://github.com/srijs/rust-crc32fast |
 | crossbeam-deque | 0.8.7 | MIT OR Apache-2.0 | crates.io | https://github.com/crossbeam-rs/crossbeam |
 | crossbeam-epoch | 0.9.20 | MIT OR Apache-2.0 | crates.io | https://github.com/crossbeam-rs/crossbeam |
@@ -554,11 +553,17 @@ override in [`licenses/overrides.toml`](licenses/overrides.toml).
 | either | 1.18.0 | MIT OR Apache-2.0 | crates.io | https://github.com/rayon-rs/either |
 | equivalent | 1.0.2 | Apache-2.0 OR MIT | crates.io | https://github.com/indexmap-rs/equivalent |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/flate2-rs |
+| futures-core | 0.3.34 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/futures-rs |
+| futures-task | 0.3.34 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/futures-rs |
+| futures-util | 0.3.34 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/futures-rs |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/hashbrown |
 | indexmap | 2.14.1 | Apache-2.0 OR MIT | crates.io | https://github.com/indexmap-rs/indexmap |
 | itoa | 1.0.18 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/itoa |
+| js-sys | 0.3.103 | MIT OR Apache-2.0 | crates.io | https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys |
 | log | 0.4.34 | MIT OR Apache-2.0 | crates.io | https://github.com/rust-lang/log |
 | memchr | 2.8.3 | Unlicense OR MIT | crates.io | https://github.com/BurntSushi/memchr |
+| once_cell | 1.21.4 | MIT OR Apache-2.0 | crates.io | https://github.com/matklad/once_cell |
+| pin-project-lite | 0.2.17 | Apache-2.0 OR MIT | crates.io | https://github.com/taiki-e/pin-project-lite |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/proc-macro2 |
 | quick-xml | 0.41.0 | MIT | crates.io | https://github.com/tafia/quick-xml |
 | quote | 1.0.47 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/quote |
@@ -576,17 +581,25 @@ override in [`licenses/overrides.toml`](licenses/overrides.toml).
 | remus-sketch | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
 | remus-topology | 0.1.0 | Apache-2.0 | git+https://github.com/esaueng/remus#cbd1382f8ee3113ce1c42415308ab3488e641625 | https://github.com/esaueng/remus |
 | robust | 1.2.0 | MIT OR Apache-2.0 | crates.io | https://github.com/georust/robust |
+| rustversion | 1.0.23 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/rustversion |
 | serde | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
+| serde-wasm-bindgen | 0.6.5 | MIT | crates.io | https://github.com/RReverser/serde-wasm-bindgen |
 | serde_core | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/serde |
 | serde_json | 1.0.151 | MIT OR Apache-2.0 | crates.io | https://github.com/serde-rs/json |
 | simd-adler32 | 0.3.10 | MIT | crates.io | https://github.com/mcountryman/simd-adler32 |
+| slab | 0.4.12 | MIT | crates.io | https://github.com/tokio-rs/slab |
 | smallvec | 1.16.0 | MIT OR Apache-2.0 | crates.io | https://github.com/servo/rust-smallvec |
+| syn | 2.0.119 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/syn |
 | syn | 3.0.4 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/syn |
 | thiserror | 2.0.20 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/thiserror |
 | thiserror-impl | 2.0.20 | MIT OR Apache-2.0 | crates.io | https://github.com/dtolnay/thiserror |
 | typed-path | 0.12.3 | MIT OR Apache-2.0 | crates.io | https://github.com/chipsenkbeil/typed-path |
 | unicode-ident | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 | crates.io | https://github.com/dtolnay/unicode-ident |
+| wasm-bindgen | 0.2.126 | MIT OR Apache-2.0 | crates.io | https://github.com/wasm-bindgen/wasm-bindgen |
+| wasm-bindgen-macro | 0.2.126 | MIT OR Apache-2.0 | crates.io | https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro |
+| wasm-bindgen-macro-support | 0.2.126 | MIT OR Apache-2.0 | crates.io | https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro-support |
+| wasm-bindgen-shared | 0.2.126 | MIT OR Apache-2.0 | crates.io | https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared |
 | zip | 8.6.0 | MIT | crates.io | https://github.com/zip-rs/zip2 |
 | zlib-rs | 0.6.7 | Zlib | crates.io | https://github.com/trifectatechfoundation/zlib-rs |
 | zmij | 1.0.23 | MIT | crates.io | https://github.com/dtolnay/zmij |

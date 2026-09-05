@@ -19,7 +19,7 @@ silently replaced by a plausible-looking model.
 | --- | --- | --- | --- |
 | Parametric inference | Editable CADGraph and analytic OCCT B-Rep | Straight extrusions with matched planar caps and closed line/arc/circle profiles, including profile holes; bounded spline-profile spanners may also recover a regular-polygon cut, constant-radius rim fillets, and qualifying shallow cap details | Kernel-valid, STEP-reimport-valid, and compared with the source mesh; functional detail suppression is the default, while full additive-detail recovery is opt-in |
 | Native curved reconstruction | Approximate B-spline/analytic surface-network B-Rep | Bounded plate-like STL topology with one or two freeform top regions, sharp or user-declared smooth joins, recognized cylindrical holes, and supported spherical, conical, or toroidal protrusions | Measured source deviation, continuity evidence, B-Rep checks, STEP round trip, surface inventory, and structural STEP audit |
-| Browser-local curved reconstruction | Approximate swept or smooth-loft B-Rep in OCCT WebAssembly | One valid, consistently wound, watertight, axis-aligned layered STL within browser budgets | Solid and STEP-reimport checks, curved-face inventory, volume gate, and bounds-delta gate |
+| Browser-local reconstruction | Analytic, mixed, or faceted B-Rep from the Rust reconstruction core compiled to WebAssembly | Any STL, 3MF, OBJ, or PLY mesh within the triangle budget; the core reports the tier it reached rather than being forced to one | Kernel validity, STEP round trip through the kernel's own reader, surface inventory, and measured deviation from the source mesh |
 | Faceted fallback | Non-parametric STEP with one planar face per preserved triangle | Source-bound STL with unchanged project units and scale factor `1` | B-Rep and STEP reimport are proven; geometric tolerance remains unmeasured, so validation is intentionally partial |
 | CADGraph rebuild | Deterministic exact B-Rep for the supplied parameters | Trusted CADGraph documents and their hash-bound artifacts | Feature-by-feature compilation, kernel validation, STEP export, and STEP reimport |
 
@@ -76,7 +76,7 @@ flowchart TD
   UI["React canvas workspace"] --> MODE{"Execution profile"}
   MODE -->|"Browser-local"| IDB["IndexedDB projects and artifacts"]
   IDB --> BW["Dedicated Web Worker"]
-  BW --> WASM["OCCT WebAssembly"]
+  BW --> WASM["Mesh2Param core (WebAssembly)"]
   MODE -->|"Native / self-hosted"| API["FastAPI + typed HTTP/SSE"]
   API --> DB["SQLite/WAL projects, versions, and jobs"]
   API --> CAS["SHA-256 filesystem CAS"]
@@ -189,7 +189,7 @@ instead of silently changing units.
 | `pnpm test:backend` | Run the complete Python test suite |
 | `pnpm test:geometry` | Run the exact sixteen-step geometry acceptance case |
 | `pnpm test:e2e` | Run the native primary-workflow Playwright test |
-| `pnpm cf:test` | Run browser-local Cloudflare/OCCT integration tests against `pnpm cf:dev` |
+| `pnpm cf:test` | Run browser-local Cloudflare integration tests against `pnpm cf:dev` |
 | `pnpm samples:check` | Verify the committed procedural corpus in the pinned image (Docker required) |
 | `pnpm curved:fixtures` | Regenerate the curved ground-truth benchmark fixtures |
 | `pnpm curved:baseline` | Measure the faceted baseline for the curved corpus |
@@ -271,14 +271,14 @@ pnpm cf:check
 pnpm cf:deploy
 ```
 
-Cloudflare serves the built SPA and OCCT WebAssembly as Workers Static Assets. With
-`MESH2PARAM_API_ORIGIN` empty, bundled samples, local projects, CADGraph rebuilds, and the bounded
-browser conversion path remain self-contained in the browser. That path now reconstructs the
-general-parametric spanner family as an editable line/arc/B-spline extrusion, regular-polygon cut,
-paired rim fillet, and optional shallow rectangular boss; it exports and reimports STEP in
-OCCT-WASM without uploading the source. See
-[browser-local parametric reconstruction](docs/browser-local-parametric.md) for its exact scope and
-acceptance gates. Set `MESH2PARAM_API_ORIGIN` to the
+Cloudflare serves the built SPA and the reconstruction core's WebAssembly module as Workers Static
+Assets. With `MESH2PARAM_API_ORIGIN` empty, bundled samples, local projects, and the browser
+conversion path remain self-contained in the browser: the core segments the mesh, fits surfaces,
+builds and validates a solid, and writes STEP without uploading the source. It reports the tier it
+reached — analytic, mixed, or faceted — rather than claiming a recovered design history, and it
+cannot rebuild a project from a CADGraph, which needs the service. See
+[browser-local reconstruction](docs/browser-local-parametric.md) for its exact scope and gates. Set
+`MESH2PARAM_API_ORIGIN` to the
 public HTTPS origin of a separately hosted FastAPI/native-OCCT service to proxy `/api`, `/health`,
 `/ready`, `/docs`, and `/openapi.json` for native reconstruction.
 
@@ -305,7 +305,7 @@ Read the [security model](docs/security.md) and [vulnerability reporting policy]
 ## Repository map
 
 ```text
-apps/web/             React, Three.js, IndexedDB, and browser-local OCCT workspace
+apps/web/             React, Three.js, IndexedDB, and browser-local core-wasm workspace
 cloudflare/           Worker proxy and static-assets entry point
 engine/mesh2param/    Ingestion, segmentation, inference, B-Rep compilation, and validation
 packages/contracts/   CADGraph schema plus generated Python and TypeScript contracts

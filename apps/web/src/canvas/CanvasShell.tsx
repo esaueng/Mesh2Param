@@ -191,7 +191,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const canAnalyze = state.source !== null && activeJob === null && vm.workerReady;
   const hasGeometry = vm.artifacts.some((artifact) => artifact.name.toLowerCase().endsWith(".glb"));
   // The "result" is a preserved-source facet proxy (not exact B-Rep) when reconstruction fell back to faceting.
-  const sourceProxy = vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy");
+  const sourceProxy = reconstructionTier(vm.project.state) === "faceted";
 
   return (
     <main
@@ -653,19 +653,32 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   return <Download size={size} />;
 }
 
+function capitalize(value: string): string {
+  return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+}
+
+/** The tier a browser-local reconstruction reached, as the core reported it. */
+export function reconstructionTier(
+  state: WorkspaceViewModel["project"]["state"],
+): "analytic" | "mixed" | "faceted" | null {
+  const raw = state.settings["reconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const tier = (raw as { tier?: unknown }).tier;
+  return tier === "analytic" || tier === "mixed" || tier === "faceted" ? tier : null;
+}
+
 export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  const tier = reconstructionTier(state);
+  if (tier !== null) {
+    if (tier === "faceted") return { label: "Faceted STEP", tone: "warn" };
+    return isValidated(state)
+      ? { label: `Validated · ${tier}`, tone: "ok" }
+      : { label: `${capitalize(tier)} B-Rep`, tone: "info" };
+  }
   if (isValidated(state) && state.validation?.toleranceSatisfied === false) {
     return { label: "Validated · functional approximation", tone: "warn" };
   }
-  if (vm.artifacts.some((artifact) => (
-    artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
-  ))) return { label: "Faceted STEP", tone: "warn" };
-  if (vm.artifacts.some((artifact) => (
-    artifact.name === "reconstructed.glb" && artifact.kind === "reconstructed-curved"
-  ))) return isValidated(state)
-      ? { label: "Validated · approximate curved", tone: "ok" }
-      : { label: "Approximate curved B-Rep", tone: "info" };
   const operation = state.cadgraph?.features[0]?.operation;
   const flavor = operation === "reconstructedSurfaceNetwork"
     ? " · approximate curved"
@@ -686,19 +699,35 @@ export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone:
   return { label: "Loaded", tone: "info" };
 }
 
-/** A one-line evidence summary for a completed approximate curved reconstruction. */
+/**
+ * A one-line evidence summary for a completed browser-local reconstruction:
+ * the tier it reached, what the surfaces are, and how far it sits from the
+ * mesh. Every number here was measured by the core.
+ */
 function curvedEvidence(state: WorkspaceViewModel["project"]["state"]): string | null {
-  const raw = state.settings["curvedReconstruction"];
+  const raw = state.settings["reconstruction"];
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const record = raw as { faceSurfaces?: unknown; residualMaximumMm?: unknown };
-  const faces = record.faceSurfaces;
-  const residual = record.residualMaximumMm;
-  if (faces === null || typeof faces !== "object" || typeof residual !== "number") return null;
-  const counts = Object.entries(faces as Record<string, unknown>)
-    .filter(([, count]) => typeof count === "number" && count > 0)
-    .map(([kind, count]) => `${String(count)} ${kind}`)
-    .join(", ");
-  return `Approximate curved B-Rep: ${counts} faces · max deviation ${residual.toFixed(3)} mm. Design history is not recovered.`;
+  const record = raw as {
+    tier?: unknown;
+    surfaceCounts?: unknown;
+    facesFinal?: unknown;
+    deviationMax?: unknown;
+    fallbackReason?: unknown;
+  };
+  const tier = record.tier;
+  if (tier !== "analytic" && tier !== "mixed" && tier !== "faceted") return null;
+  const counts = record.surfaceCounts !== null && typeof record.surfaceCounts === "object"
+    ? Object.entries(record.surfaceCounts as Record<string, unknown>)
+      .filter(([, value]) => typeof value === "number" && value > 0)
+      .map(([kind, value]) => `${String(value)} ${kind}`)
+      .join(", ")
+    : "";
+  const parts = [`${capitalize(tier)} tier`];
+  if (typeof record.facesFinal === "number") parts.push(`${String(record.facesFinal)} faces`);
+  if (counts) parts.push(counts);
+  if (typeof record.deviationMax === "number") parts.push(`max deviation ${record.deviationMax.toFixed(3)} mm`);
+  if (typeof record.fallbackReason === "string") parts.push(record.fallbackReason);
+  return `${parts.join(" · ")}. Design history is not recovered.`;
 }
 
 function detailEvidence(extensions: unknown): string | null {

@@ -1,10 +1,10 @@
 /**
  * Per-chunk size budgets for the web bundle.
  *
- * Vite's single 500 kB warning is not a useful gate here: the OCCT WebAssembly
- * payload is inherently tens of megabytes and will never meet it, while a
- * regression that doubles the initial-load JavaScript stays comfortably under
- * it. Budgets are therefore per chunk and cover both the uncompressed size
+ * Vite's single 500 kB warning is not a useful gate here: the reconstruction
+ * core's WebAssembly payload is inherently over a megabyte and will never meet
+ * it, while a regression that doubles the initial-load JavaScript stays
+ * comfortably under it. Budgets are therefore per chunk and cover both the uncompressed size
  * (what the browser must parse and compile) and the gzipped size (what it must
  * download), because the two move independently — the generated JSON-schema
  * validator, for instance, is 375 kB raw but only 37 kB gzipped.
@@ -32,17 +32,20 @@ const BUDGETS = [
   // Fetched only when a .mesh2param.json is saved or opened; almost all of it
   // is the generated CADGraph schema validator.
   { chunk: "projectFile", extension: ".js", rawKb: 430, gzipKb: 48 },
-  // Runs off the main thread; only fetched for a browser-local conversion.
-  { chunk: "geometry.worker", extension: ".js", rawKb: 780, gzipKb: 145 },
-  { chunk: "occt-wasm", extension: ".js", rawKb: 110, gzipKb: 32, optional: true },
-  // The OCCT kernel itself. Deliberately exempt from any notion of a "small"
-  // bundle and budgeted on its own terms; it is never on the first-paint path.
-  { chunk: "occt-wasm", extension: ".wasm", rawKb: 23_000, gzipKb: 7_400 },
+  // Runs off the main thread; only fetched for a browser-local conversion. All
+  // geometry lives in the WebAssembly module below, so this chunk is the worker
+  // protocol plus wasm-bindgen's glue and nothing else — a budget it can only
+  // breach by growing a JavaScript geometry implementation again.
+  { chunk: "geometry.worker", extension: ".js", rawKb: 60, gzipKb: 20 },
+  // The reconstruction core itself. Deliberately exempt from any notion of a
+  // "small" bundle and budgeted on its own terms; it is never on the
+  // first-paint path. Measured at 1 789 kB raw / 636 kB gzip.
+  { chunk: "mesh2param_wasm_bg", extension: ".wasm", rawKb: 1_900, gzipKb: 700 },
 ];
 
 // Vite appends a fixed-width content hash, which may itself contain "-" or
 // "_"; anchoring to exactly that width avoids eating hyphens that belong to the
-// chunk name (occt-wasm, geometry.worker).
+// chunk name (geometry.worker, mesh2param_wasm_bg).
 const CONTENT_HASH = /-[A-Za-z0-9_-]{8}$/;
 
 function chunkName(file) {
