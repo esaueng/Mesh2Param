@@ -47,6 +47,14 @@ repair and segmentation, process isolation, and shared multi-user persistence st
 self-hosted FastAPI/CadQuery/OCCT topology below. Browser-local mode fails at a named evidence stage
 for unsupported paths instead of exporting a faceted result as parametric.
 
+Workers Builds can keep its existing `pnpm run build` command. When Cloudflare sets
+`WORKERS_CI=1`, the WASM build installs the Rust toolchain from `rust-toolchain.toml`,
+the `wasm32-unknown-unknown` target, and pinned `wasm-pack` 0.15.0 before compiling.
+The GitHub Cloudflare workflow enables the same setup with `MESH2PARAM_BOOTSTRAP_WASM=1`.
+This setup downloads tools from Rust's official distribution and crates.io; it does not deploy.
+Local builds require the tools described in `AGENTS.md`, or an explicit run of
+`bash scripts/setup_core_wasm.sh`.
+
 Install and validate the deployment without publishing it:
 
 ```sh
