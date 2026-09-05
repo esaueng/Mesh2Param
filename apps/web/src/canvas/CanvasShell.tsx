@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   AlertTriangle,
   Box,
@@ -29,9 +29,13 @@ import { CadViewport } from "../viewer/CadViewport";
 import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
-import { DebugConsole } from "./DebugConsole";
+import { clampConsoleHeight, DebugConsole } from "./DebugConsole";
 import { artifactDownloadName, stepDownloadName } from "./downloadFilename";
 import { EditableProjectName } from "./EditableProjectName";
+import { analysisMeta, diagnosticRows, fileMeta } from "./meshReadout";
+import { panelLayoutStore, usePanelLayout } from "./panelLayout";
+import { PanelResizeHandle } from "./PanelResizeHandle";
+import { PanelSection } from "./PanelSection";
 import { ShortcutHelp } from "./ShortcutHelp";
 import { ViewSettings } from "./ViewSettings";
 import {
@@ -49,11 +53,16 @@ import "./canvas.css";
 
 export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: WorkspaceActions }) {
   const viewer = useWorkspaceSelector((state) => state.viewer);
-  const theme = useWorkspaceSelector((state) => state.shell.theme);
+  const shell = useWorkspaceSelector((state) => state.shell);
+  const theme = shell.theme;
+  // The console reuses the shell's persisted bottom-drawer slots, so its open
+  // state and height survive a reload like any other docked tool window.
+  const consoleOpen = shell.bottomDrawerExpanded;
+  const consoleHeight = clampConsoleHeight(shell.bottomDrawerHeight);
+  const layout = usePanelLayout();
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedKey = `mesh2param-revealed-${vm.project.id}`;
   const revealed = sessionStorage.getItem(revealedKey) === "1";
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [recoverFullDetailsProject, setRecoverFullDetailsProject] = useState<string | null>(null);
   const recoverFullDetails = recoverFullDetailsProject === vm.project.id;
@@ -106,6 +115,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
+  const setConsoleOpen = (open: boolean) => workspaceStore.getState().setShellState({ bottomDrawerExpanded: open });
+  const setConsoleHeight = (height: number) => workspaceStore.getState().setShellState({ bottomDrawerHeight: height });
 
   const openFilePicker = () => fileRef.current?.click();
 
@@ -167,7 +178,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   const sourceProxy = vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy");
 
   return (
-    <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
+    <main
+      className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`}
+      data-theme={theme}
+      style={{ "--panel-width": `${layout.width}px` } as CSSProperties}
+    >
       <a
         className="skip-link"
         href="#canvas-viewport"
@@ -179,7 +194,25 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
       >
         Skip to 3D viewport
       </a>
-      <div className="canvas-main">
+      <header className="canvas-topbar">
+        <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
+          <Mesh2ParamLogoMark aria-hidden />
+          <strong>Mesh2Param</strong>
+          <span className="canvas-badge">Beta</span>
+        </button>
+        {state.source !== null ? (
+          <div className="canvas-file">
+            <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
+            {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
+          </div>
+        ) : null}
+        {state.source !== null ? <span className="canvas-file-meta">{fileMeta(vm)}</span> : null}
+      </header>
+
+      <div
+        className={`canvas-main ${consoleOpen && layout.consoleDocked ? "console-docked" : ""}`}
+        style={{ "--console-height": `${consoleHeight}px` } as CSSProperties}
+      >
         <div id="canvas-viewport" className="canvas-stage" tabIndex={-1}>
           {hasGeometry ? (
             <CadViewport
@@ -226,28 +259,22 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           )}
         </div>
 
-        <header className="canvas-topbar">
-          <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
-            <Mesh2ParamLogoMark aria-hidden />
-            <strong>Mesh2Param</strong>
-            <span className="canvas-badge">Beta</span>
-          </button>
-          {state.source !== null ? (
-            <div className="canvas-file">
-              <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
-              <span className="canvas-file-meta">{fileMeta(vm)}</span>
-              {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
-            </div>
-          ) : null}
-        </header>
-
-        {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
+        {consoleOpen ? (
+          <DebugConsole
+            docked={layout.consoleDocked}
+            height={consoleHeight}
+            onDockedChange={(docked) => panelLayoutStore.setConsoleDocked(docked)}
+            onHeightChange={setConsoleHeight}
+            onClose={() => setConsoleOpen(false)}
+          />
+        ) : null}
         {shortcutsOpen ? <ShortcutHelp onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
 
       <nav className="canvas-panel" aria-label="Conversion commands">
-        <section className="panel-group">
-          <h2 className="panel-label">File</h2>
+        <PanelResizeHandle />
+        <div className="panel-scroll">
+        <PanelSection id="file" title="File">
           <button className="panel-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"}>
             <FolderOpen size={16} />
             {state.source === null ? "Open a mesh…" : "Replace mesh…"}
@@ -256,12 +283,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             <Save size={16} />
             Save project
           </button>
-        </section>
+        </PanelSection>
 
-        {modes.length >= 2 ? (
-          <section className="panel-group">
-            <h2 className="panel-label" id="panel-display-label">Display</h2>
-            <div className="panel-modes" role="group" aria-labelledby="panel-display-label">
+        <PanelSection id="view" title="View" className="panel-view-group">
+          {modes.length >= 2 ? (
+            <div className="panel-modes" role="group" aria-label="Display">
               {modes.map((option) => (
                 <button
                   key={option.mode}
@@ -273,11 +299,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 </button>
               ))}
             </div>
-          </section>
-        ) : null}
-
-        <section className="panel-group panel-view-group">
-          <h2 className="panel-label">View</h2>
+          ) : null}
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
             <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme" aria-label="Toggle light or dark theme">
@@ -286,7 +308,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </button>
             <button
               className={`panel-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
-              onClick={() => setConsoleOpen((value) => !value)}
+              onClick={() => setConsoleOpen(!consoleOpen)}
               title="Toggle debug console"
               aria-pressed={consoleOpen}
             >
@@ -305,7 +327,56 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             disabled={!hasGeometry}
             onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
           />
-        </section>
+        </PanelSection>
+
+        {state.diagnostics !== null || state.cadgraph !== null ? (
+          <PanelSection id="analysis" title="Analysis" meta={analysisMeta(vm)}>
+            {state.diagnostics !== null ? (
+              <dl className="panel-readout" aria-label="Mesh diagnostics">
+                {diagnosticRows(state.diagnostics, vm.project.units).map((row) => (
+                  <div key={row.label} className={row.tone === undefined ? undefined : `tone-${row.tone}`}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {state.diagnostics !== null && state.diagnostics.warnings.length > 0 ? (
+              <ul className="panel-warnings" aria-label="Mesh warnings">
+                {state.diagnostics.warnings.map((warning) => (
+                  <li key={warning.code} className="panel-hint warn">
+                    <AlertTriangle size={13} />
+                    <span>{warning.message}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {state.cadgraph !== null ? (
+              <div className="panel-feature-list" role="group" aria-label="Features">
+                {[...state.cadgraph.features]
+                  .sort((left, right) => left.order - right.order)
+                  .map((feature) => (
+                    <button
+                      key={feature.id}
+                      className={vm.selectedFeatureId === feature.id ? "active" : ""}
+                      aria-pressed={vm.selectedFeatureId === feature.id}
+                      onClick={() => actions.selectFeature(feature.id)}
+                    >
+                      <span>{feature.order + 1}</span>
+                      <strong>{feature.name}</strong>
+                      <small>{humanPhase(feature.operation)}</small>
+                    </button>
+                  ))}
+              </div>
+            ) : null}
+            {state.cadgraph !== null && detailEvidence(state.cadgraph.extensions) !== null ? (
+              <p className="panel-hint info" role="note" data-testid="detail-evidence">
+                <Layers size={13} />
+                <span>{detailEvidence(state.cadgraph.extensions)}</span>
+              </p>
+            ) : null}
+          </PanelSection>
+        ) : null}
 
         {state.patches.length > 0 && state.cadgraph === null ? (
           <PatchPanel
@@ -318,36 +389,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
           />
         ) : null}
 
-        {state.cadgraph !== null ? (
-          <section className="panel-group panel-features" aria-labelledby="panel-features-label">
-            <h2 className="panel-label" id="panel-features-label">Features</h2>
-            <div className="panel-feature-list">
-              {[...state.cadgraph.features]
-                .sort((left, right) => left.order - right.order)
-                .map((feature) => (
-                  <button
-                    key={feature.id}
-                    className={vm.selectedFeatureId === feature.id ? "active" : ""}
-                    aria-pressed={vm.selectedFeatureId === feature.id}
-                    onClick={() => actions.selectFeature(feature.id)}
-                  >
-                    <span>{feature.order + 1}</span>
-                    <strong>{feature.name}</strong>
-                    <small>{humanPhase(feature.operation)}</small>
-                  </button>
-                ))}
-            </div>
-            {detailEvidence(state.cadgraph.extensions) !== null ? (
-              <p className="panel-hint info" role="note" data-testid="detail-evidence">
-                <Layers size={13} />
-                <span>{detailEvidence(state.cadgraph.extensions)}</span>
-              </p>
-            ) : null}
-          </section>
-        ) : null}
+        </div>
 
-        <section className="panel-group panel-convert">
-          <h2 className="panel-label">Convert</h2>
+        <PanelSection id="convert" title="Convert" className="panel-convert" meta={activeJob !== null ? `${Math.round(activeJob.job.progress)}%` : undefined}>
+          {(collapsed) => (
+          <>
           {activeJob !== null ? (
             <div className="canvas-progress" role="status" aria-live="polite" data-job-kind={activeJob.job.kind} data-job-state={activeJob.job.status}>
               <LoaderCircle className="spin" size={15} />
@@ -362,7 +408,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </div>
           ) : (
             <>
-              {action.kind === "reconstruct" && action.settings === undefined ? (
+              {!collapsed && action.kind === "reconstruct" && action.settings === undefined ? (
                 <button
                   className={`panel-btn ${recoverFullDetails ? "active" : ""}`}
                   aria-pressed={recoverFullDetails}
@@ -375,7 +421,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   Full detail recovery
                 </button>
               ) : null}
-              {rerunAnalysis !== null || regenerate !== null ? (
+              {!collapsed && (rerunAnalysis !== null || regenerate !== null) ? (
                 <div className="panel-secondary-grid">
                   {rerunAnalysis !== null ? (
                     <button
@@ -411,7 +457,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 <PrimaryIcon kind={action.kind} />
                 {action.label}
               </button>
-              {action.alternate !== undefined ? (
+              {!collapsed && action.alternate !== undefined ? (
                 <button
                   className="panel-btn"
                   onClick={() => {
@@ -426,13 +472,13 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   {action.alternate.label}
                 </button>
               ) : null}
-              {action.reason !== undefined || action.kind === "faceted" || action.kind === "curved" ? (
+              {!collapsed && (action.reason !== undefined || action.kind === "faceted" || action.kind === "curved") ? (
                 <p className={`panel-hint ${action.disabled ? "warn" : "info"}`} role="status">
                   <AlertTriangle size={13} />
                   <span>{action.reason ?? action.hint}</span>
                 </p>
               ) : null}
-              {curvedEvidence(state) !== null ? (
+              {!collapsed && curvedEvidence(state) !== null ? (
                 <p className="panel-hint info" role="note" data-testid="curved-evidence">
                   <Spline size={13} />
                   <span>{curvedEvidence(state)}</span>
@@ -440,7 +486,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               ) : null}
             </>
           )}
-          {action.kind === "download" ? (
+          {!collapsed && action.kind === "download" ? (
             <div className="panel-export-group">
               <span className="panel-export-label">Mesh downloads</span>
               <div className="panel-export-formats" role="group" aria-label="Mesh export formats">
@@ -464,7 +510,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               </div>
             </div>
           ) : null}
-        </section>
+          </>
+          )}
+        </PanelSection>
       </nav>
 
       <input
@@ -494,15 +542,6 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   if (kind === "validate") return <ShieldCheck size={size} />;
   if (kind === "export") return <FileArchive size={size} />;
   return <Download size={size} />;
-}
-
-function fileMeta(vm: WorkspaceViewModel): string {
-  const state = vm.project.state;
-  const parts: string[] = [];
-  if (state.diagnostics !== null) parts.push(`${state.diagnostics.triangleCount.toLocaleString()} tris`);
-  if (state.cadgraph !== null) parts.push(`${state.cadgraph.features.length} features`);
-  parts.push(vm.project.units);
-  return parts.join(" · ");
 }
 
 export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
