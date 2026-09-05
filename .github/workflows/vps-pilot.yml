@@ -36,6 +36,8 @@ jobs:
           test "$(uname -m)" = x86_64
           test ! -e "$HOME/.ci-probe-sentinel"
           touch "$HOME/.ci-probe-sentinel"
+          test ! -e /srv/ci/work/.ci-probe-sentinel
+          touch /srv/ci/work/.ci-probe-sentinel
           test -z "$(docker ps --all --quiet)"
           test -z "$(docker image ls --quiet)"
           mkdir -p "$RUNNER_TEMP/evidence" "$RUNNER_TEMP/docker-probe"
