@@ -24,8 +24,19 @@ function finiteNumber(value: unknown, minimum: number, maximum: number, openMini
     && (openMaximum ? value < maximum : value <= maximum);
 }
 
+/**
+ * Reconstruction replays exactly the settings analysis recorded, so a project
+ * may only be reconstructed when those settings are present and inside the
+ * ranges the solver accepts. The two execution modes record different settings:
+ * the service's segmentation model, and the browser core's. Either is
+ * replayable by the mode that wrote it; neither is accepted in part.
+ */
 function hasReplayableAnalysisSettings(value: unknown): boolean {
   if (!isRecord(value)) return false;
+  return hasReplayableServiceSettings(value) || hasReplayableBrowserCoreSettings(value);
+}
+
+function hasReplayableServiceSettings(value: Record<string, JsonValue>): boolean {
   return finiteNumber(value.smoothAngleDeg, 0, 90, true, true)
     && finiteNumber(value.planarFitToleranceMm, 0, 1_000_000, true)
     && finiteNumber(value.cylinderFitToleranceMm, 0, 1_000_000, true)
@@ -33,6 +44,14 @@ function hasReplayableAnalysisSettings(value: unknown): boolean {
     && finiteNumber(value.maximumCylinderAxisNormalComponent, 0, 1)
     && finiteNumber(value.minimumPatchAreaMm2, 0, 1_000_000_000_000)
     && finiteNumber(value.stableIdResolutionMm, 0, 1_000_000, true);
+}
+
+function hasReplayableBrowserCoreSettings(value: Record<string, JsonValue>): boolean {
+  return typeof value.engine === "string"
+    && value.engine.length > 0
+    && finiteNumber(value.angleDeg, 0, 90, true, true)
+    && finiteNumber(value.triangleBudget, 1, 100_000_000)
+    && finiteNumber(value.tolerance, 0, 1_000_000, true);
 }
 
 export function automaticReconstructionCapability(

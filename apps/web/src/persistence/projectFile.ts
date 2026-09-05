@@ -441,14 +441,21 @@ function validateMeshDiagnostics(value: unknown, label: string): MeshDiagnostics
     "weldedVertexCount",
     "duplicateVertexCount",
     "triangleCount",
-    "connectedComponentCount",
     "degenerateTriangleCount",
-    "duplicateFaceCount",
     "nonManifoldEdgeCount",
+  ]) {
+    nestedNumber(diagnostics, key, label, { integer: true, minimum: 0 });
+  }
+  // The browser core measures edges but not bodies, boundary loops, duplicate
+  // faces or winding, and records what it did not measure as null. A saved
+  // project may therefore carry null here; it may never carry a wrong number.
+  for (const key of [
+    "connectedComponentCount",
+    "duplicateFaceCount",
     "openBoundaryEdgeCount",
     "openBoundaryCount",
   ]) {
-    nestedNumber(diagnostics, key, label, { integer: true, minimum: 0 });
+    nestedNumber(diagnostics, key, label, { integer: true, minimum: 0, nullable: true });
   }
   const bounds = nestedArray(diagnostics.bounds, `${label}.bounds`);
   if (bounds.length !== 2) invalidNested("invalid_working", `${label}.bounds must contain two vectors.`);
@@ -465,7 +472,7 @@ function validateMeshDiagnostics(value: unknown, label: string): MeshDiagnostics
   nestedNumber(diagnostics, "surfaceArea", label, { minimum: 0 });
   nestedNumber(diagnostics, "closedVolume", label, { minimum: 0, nullable: true });
   nestedBoolean(diagnostics, "watertight", label);
-  nestedBoolean(diagnostics, "windingConsistent", label);
+  if (diagnostics.windingConsistent !== null) nestedBoolean(diagnostics, "windingConsistent", label);
   nestedString(diagnostics, "selfIntersectionStatus", label);
   for (const [index, warningValue] of nestedArray(diagnostics.warnings, `${label}.warnings`).entries()) {
     const warningLabel = `${label}.warnings[${index}]`;

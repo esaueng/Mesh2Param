@@ -12,9 +12,6 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ["occt-wasm"],
-  },
   worker: {
     format: "es",
   },
