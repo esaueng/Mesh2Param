@@ -149,6 +149,11 @@ pub struct SegmentOptions {
     /// tessellated with many triangles across it, so it spans many tolerances,
     /// while a shard carved out of a curved region spans only the few chords it
     /// took for the surface to bend past the split angle.
+    ///
+    /// This is the one gate that applies to **every** patch and not only to a
+    /// carved one, and then only to a patch of a single triangle: one triangle
+    /// lies on exactly one plane, so it is evidence of a plane only when it is
+    /// big enough to be a face in its own right.
     pub shard_factor: f64,
     /// Minimum area, as a fraction of the mesh's total area, before a patch
     /// carved out of an unfittable region is promoted to a primitive.
@@ -444,6 +449,9 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
             min_spread: options.min_spread_deg.to_radians(),
             max_facet_step: options.max_facet_deg.to_radians(),
             max_normal_dev: options.max_normal_dev_deg.to_radians(),
+            // Filled in per patch by the fitting stages, which are the only
+            // place the mesh's face adjacency is known.
+            max_crease: 0.0,
             radius_tol_frac: options.radius_tol_frac,
             min_minor_sweep: options.min_minor_sweep_deg.to_radians(),
             bbox_diag,
@@ -479,12 +487,31 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         // it must be several triangles, span many of its own tolerances, and
         // fit distinctly better than the tolerance it is judged against.
         // Failing any of those it is noise from over-splitting, not a face.
+        //
+        // One triangle is gated whatever cut it out, because a single triangle
+        // lies on exactly one plane and so is no evidence of one at all. Where
+        // adjacent triangles are pervasively further apart than `angle_deg`,
+        // the dihedral pass alone cuts a coarsely tessellated freeform surface
+        // into lone triangles, no merge will join them, and nothing marks them
+        // `carved` — 18 of the 108 "planes" on the airtag keychain are one
+        // triangle each. It still keeps a genuinely small face that spans its
+        // own tolerances: a triangular gusset is one triangle too, and it is
+        // large.
+        //
+        // The face-count and residual gates stay `carved`-only. Measured over
+        // the corpus, requiring `min_patch_faces` of every patch costs the real
+        // two-triangle rectangles a CAD tessellator emits by the dozen — the
+        // heat sink's 41 planes drop to 27 and the manifold block's inventory
+        // error doubles — and requiring the span of every patch costs the same
+        // meshes their narrow ones.
         let min_span = options.shard_factor * fit.tol;
-        let promoted = !carved
-            || (faces.len() >= options.min_patch_faces
-                && area >= min_span * min_span
-                && area >= min_area
-                && fit.rms <= SHARD_RESIDUAL_FRAC * fit.tol);
+        let spans = area >= min_span * min_span;
+        let promoted = (faces.len() >= 2 || spans)
+            && (!carved
+                || (faces.len() >= options.min_patch_faces
+                    && spans
+                    && area >= min_area
+                    && fit.rms <= SHARD_RESIDUAL_FRAC * fit.tol));
         let primitive = if promoted {
             fit.prim
         } else {

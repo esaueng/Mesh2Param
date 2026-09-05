@@ -17,7 +17,7 @@ use remus_topology::face::{Face, FaceId, FaceSurface};
 use remus_topology::shell::Shell;
 use remus_topology::solid::{Solid, SolidId};
 use remus_topology::vertex::{Vertex as KernelVertex, VertexId};
-use remus_topology::wire::{OrientedEdge, Wire};
+use remus_topology::wire::{OrientedEdge, Wire, WireId};
 
 use super::geom::{MeshGeom, polygon_normal};
 use super::periodic;
@@ -155,6 +155,8 @@ impl<'a> Context<'a> {
         let owner = geom.half_edge_owner();
         let mut ccw_patch = Vec::with_capacity(chains.len());
         let mut mesh_to_topo: HashMap<u32, u32> = HashMap::new();
+        // Which mesh vertex owns each topology vertex. See the loop below.
+        let mut claimed: HashMap<u32, u32> = HashMap::new();
         for (i, chain) in chains.iter().enumerate() {
             let edge = patch_topo.edges.get(i).ok_or_else(|| {
                 CoreError::Validation("topology edge missing for a chain".to_string())
@@ -173,11 +175,31 @@ impl<'a> Context<'a> {
                 _ => None,
             };
             ccw_patch.push(owner_patch);
+            // A topology vertex may stand in for at most ONE mesh vertex.
+            //
+            // Recovery merges corners that sit inside one tolerance, so two
+            // distinct mesh vertices can arrive at the same topology vertex.
+            // Routing both of them to one kernel vertex fuses the mesh edges
+            // that end there: two different mesh edges resolve to the same
+            // kernel vertex pair, `mesh_edge` hands back the same kernel edge
+            // for both, and the shell then has an edge used by four faces.
+            // That is not a repairable solid — the demote-and-retry loop cannot
+            // reach it, because the faces on it are triangles — and it also
+            // moves `V - E + F` by one, so the Euler check fails as well.
+            // Measured on `cockpit-plug/mesh-export`, where 18 small carved
+            // features each contribute one such fusion.
+            //
+            // Keeping the vertices apart costs the analytic faces whose loops
+            // relied on the merge: their wires no longer chain and they fall to
+            // triangles, which is a face, not a solid.
             if let (Some(&first), Some(&last), Some((va, vb))) =
                 (chain.verts.first(), chain.verts.last(), edge.vertices)
             {
-                mesh_to_topo.insert(first, va);
-                mesh_to_topo.insert(last, vb);
+                for (mesh_v, topo_v) in [(first, va), (last, vb)] {
+                    if *claimed.entry(topo_v).or_insert(mesh_v) == mesh_v {
+                        mesh_to_topo.insert(mesh_v, topo_v);
+                    }
+                }
             }
         }
 
@@ -1273,6 +1295,67 @@ impl<'a> Builder<'a> {
         }
         out
     }
+}
+
+/// Turn a solid's outer shell inside out: every face's material side swapped.
+///
+/// A face's orientation is `reversed` against its stored surface normal, and
+/// its stored wires wind with that stored normal — so swapping the side is
+/// toggling the flag and walking every wire the other way round. Each face gets
+/// **new** wires rather than having its own reversed in place, because
+/// `unify_faces` may leave two faces holding the same wire and reversing that
+/// one twice would put it back.
+///
+/// This is the last line of defence under the orientation decision in
+/// [`Builder::outward_sign`]. That decision is per patch, area-weighted against
+/// the mesh's own outward triangle normals; a patch whose fitted surface passes
+/// through its own faces at a grazing angle can weight the wrong way, and once
+/// enough faces agree on the wrong sign the shell closes correctly and encloses
+/// a negative volume. The kernel's validator measures that sign exactly, by
+/// integrating the real face geometry, so this is driven by its verdict rather
+/// than by a second estimate of the same number.
+///
+/// # Errors
+///
+/// [`CoreError::Kernel`] when the solid's own topology cannot be walked.
+pub(super) fn reverse_shell(topo: &mut KernelTopology, solid: SolidId) -> Result<()> {
+    let faces = remus_topology::explorer::solid_faces(topo, solid)
+        .map_err(|e| CoreError::Kernel(format!("solid_faces: {e}")))?;
+    for fid in faces {
+        let face = topo
+            .face(fid)
+            .map_err(|e| CoreError::Kernel(format!("face: {e}")))?;
+        let ids: Vec<WireId> = std::iter::once(face.outer_wire())
+            .chain(face.inner_wires().iter().copied())
+            .collect();
+        let mut fresh = Vec::with_capacity(ids.len());
+        for wid in ids {
+            let wire = topo
+                .wire(wid)
+                .map_err(|e| CoreError::Kernel(format!("wire: {e}")))?;
+            let closed = wire.is_closed();
+            let edges: Vec<OrientedEdge> = wire
+                .edges()
+                .iter()
+                .rev()
+                .map(|oe| OrientedEdge::new(oe.edge(), !oe.is_forward()))
+                .collect();
+            let wire = Wire::new(edges, closed)
+                .map_err(|e| CoreError::Kernel(format!("reversed wire: {e}")))?;
+            fresh.push(topo.add_wire(wire));
+        }
+        let (outer, inner) = fresh.split_first().ok_or_else(|| {
+            CoreError::Kernel("a face with no outer wire cannot be reversed".to_string())
+        })?;
+        let inner = inner.to_vec();
+        let face = topo
+            .face_mut(fid)
+            .map_err(|e| CoreError::Kernel(format!("face_mut: {e}")))?;
+        face.set_outer_wire(*outer);
+        *face.inner_wires_mut() = inner;
+        face.compose_orientation(true);
+    }
+    Ok(())
 }
 
 /// Record which patches use which kernel edge, so a validator complaint about
