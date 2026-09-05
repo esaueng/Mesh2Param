@@ -1,6 +1,11 @@
-.canvas-shell{width:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) 236px;overflow:hidden;background:var(--color-viewport);color:var(--color-text)}
-.canvas-main{container-name:canvas-workspace;container-type:inline-size;position:relative;min-width:0;overflow:hidden}
-.canvas-stage{position:absolute;inset:0}
+/* App frame: a full-width top bar over a viewport column and a resizable
+   command panel. --panel-width is set inline from the persisted layout. */
+.canvas-shell{width:100%;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) var(--panel-width,248px);grid-template-rows:auto minmax(0,1fr);overflow:hidden;background:var(--color-viewport);color:var(--color-text)}
+.canvas-main{position:relative;display:grid;grid-template-rows:minmax(0,1fr);min-width:0;min-height:0;overflow:hidden}
+/* The docked console track is capped at 60% of the column so the 3D view
+   never collapses; --console-height is set inline from the persisted height. */
+.canvas-main.console-docked{grid-template-rows:minmax(0,1fr) min(var(--console-height,220px),60%)}
+.canvas-stage{position:relative;min-height:0;overflow:hidden}
 .canvas-shell .cad-viewport{inset:0}
 .canvas-shell .selection-chip{bottom:16px}
 .canvas-shell .scale-bar{left:14px;right:auto;bottom:14px}
@@ -19,14 +24,15 @@
 .canvas-empty-loading .spin{color:var(--color-accent);animation:ui-spin 1.1s linear infinite}
 
 /* ---------- top identity bar (overlay, does not capture orbit) ---------- */
-.canvas-topbar{position:absolute;z-index:6;top:0;left:0;right:0;display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:center;gap:14px;min-width:0;padding:13px 16px;pointer-events:none}
-.canvas-topbar>*{pointer-events:auto}
+.canvas-topbar{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:center;gap:14px;min-width:0;padding:13px 16px}
+.canvas-shell>.canvas-topbar{grid-column:1/-1;grid-template-columns:max-content minmax(0,1fr) max-content;height:44px;padding:0 14px 0 12px;border-bottom:1px solid var(--color-border);background:var(--color-surface)}
+.canvas-shell>.canvas-topbar .canvas-file-meta{justify-self:end}
 .canvas-brand{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 6px;margin-left:-6px;border:0;border-radius:var(--radius-md);background:transparent;color:var(--color-text)}
 button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-brand svg{width:26px;height:26px;color:var(--color-accent-soft)}
 .canvas-brand strong{font-size:var(--fs-md);font-weight:600}
 .canvas-badge{padding:2px 6px;border:1px solid var(--color-accent-border);border-radius:var(--radius-sm);background:var(--color-accent-dim);color:var(--color-accent);font:10px var(--font-mono)}
-.canvas-file{justify-self:start;min-width:0;max-width:100%;display:grid;grid-template-columns:minmax(0,34ch) max-content max-content;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--color-border);color:var(--color-muted);overflow:hidden}
+.canvas-file{justify-self:start;min-width:0;max-width:100%;display:grid;grid-template-columns:minmax(0,34ch) max-content;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--color-border);color:var(--color-muted);overflow:hidden}
 .canvas-file-name{width:100%;min-width:0;max-width:34ch;display:inline-flex;align-items:center;gap:6px;margin:-4px;padding:4px;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--color-text);font:var(--fs-xs) var(--font-mono);text-align:left}
 .canvas-file-name>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .canvas-file-name>svg{flex:none;color:var(--color-subtle);opacity:0;transition:opacity var(--dur-fast) var(--ease-out)}
@@ -41,13 +47,6 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-chip.info{background:var(--color-accent-dim);color:var(--color-accent);border:1px solid var(--color-accent-border)}
 .canvas-chip.warn{background:var(--color-warning-dim);color:var(--color-warning);border:1px solid var(--color-warning-border)}
 
-@container canvas-workspace (max-width:640px){
-  .canvas-topbar{gap:10px;padding:10px 12px}
-  .canvas-brand strong{display:none}
-  .canvas-file{grid-template-columns:minmax(0,1fr) max-content;gap:6px;padding-left:10px}
-  .canvas-file-name{max-width:none}
-  .canvas-file-meta{display:none}
-}
 
 /* ---------- job progress (lives in the panel's Convert group) ---------- */
 .canvas-progress{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-muted);font:var(--fs-xs) var(--font-mono);font-variant-numeric:tabular-nums}
@@ -60,9 +59,35 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .canvas-progress-cancel:hover:not(:disabled){color:var(--color-text);border-color:var(--color-accent-border)}
 
 /* ---------- right command panel ---------- */
-.canvas-panel{display:flex;flex-direction:column;gap:16px;padding:14px 14px 16px;border-left:1px solid var(--color-border);background:var(--color-surface);overflow-y:auto;scrollbar-width:thin}
+/* The panel is two rows: a body that scrolls on its own and the Convert
+   footer, so the conversion action is reachable no matter how long the
+   sections above it grow. */
+.canvas-panel{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;border-left:1px solid var(--color-border);background:var(--color-surface)}
+.panel-scroll{display:flex;flex-direction:column;gap:14px;min-height:0;padding:12px 14px 16px;overflow-y:auto;scrollbar-width:thin}
 .panel-group{display:grid;gap:7px;align-content:start}
+.panel-section[data-collapsed="true"]{gap:0}
+.panel-section-body{display:contents}
 .panel-label{margin:0;color:var(--color-subtle);font:500 10px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase}
+.panel-section-toggle{display:flex;align-items:center;gap:5px;width:calc(100% + 8px);min-height:26px;margin:-3px -4px;padding:3px 4px;border:0;border-radius:var(--radius-md);background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;text-align:left;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
+.panel-section-toggle:hover{color:var(--color-text);background:var(--color-hover)}
+.panel-section-toggle:focus-visible{outline:2px solid var(--color-focus);outline-offset:-2px}
+.panel-section-chevron{flex:none;color:var(--color-subtle);transition:transform var(--dur-fast) var(--ease-out)}
+.panel-section[data-collapsed="true"] .panel-section-chevron{transform:rotate(-90deg)}
+.panel-section-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-section-meta{margin-left:auto;color:var(--color-subtle);font-variant-numeric:tabular-nums;letter-spacing:.04em;text-transform:none;white-space:nowrap}
+/* Resize strip on the panel's inner edge; the visible line only appears on
+   hover, focus, or while dragging so it reads as an edge, not a control. */
+.panel-resize-handle{position:absolute;z-index:2;top:0;bottom:0;left:-4px;width:8px;cursor:col-resize;touch-action:none}
+.panel-resize-handle::after{content:"";position:absolute;inset:0 3px;background:transparent;transition:background var(--dur-fast) var(--ease-out)}
+.panel-resize-handle:hover::after,.panel-resize-handle:focus-visible::after,.panel-resize-handle[data-dragging]::after{background:var(--color-accent)}
+.panel-resize-handle:focus-visible{outline:none}
+.panel-readout{display:grid;gap:2px;margin:0}
+.panel-readout>div{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;font:var(--fs-mini) var(--font-ui)}
+.panel-readout dt{color:var(--color-subtle)}
+.panel-readout dd{margin:0;overflow:hidden;color:var(--color-text);font:var(--fs-mini) var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;text-overflow:ellipsis;white-space:nowrap}
+.panel-readout .tone-warn dd{color:var(--color-warning)}
+.panel-readout .tone-ok dd{color:var(--color-success)}
+.panel-warnings{display:grid;gap:4px;margin:0;padding:0;list-style:none}
 .panel-btn{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:transparent;color:var(--color-muted);font:500 var(--fs-sm) var(--font-ui);white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
 .panel-btn svg{flex:none}
 .panel-btn:hover{color:var(--color-text);background:var(--color-hover);border-color:var(--color-border-strong)}
@@ -123,12 +148,11 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .panel-feature-list button>span{grid-row:1/3;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--color-hover);font:600 var(--fs-mini) var(--font-ui)}
 .panel-feature-list button>strong{overflow:hidden;text-overflow:ellipsis;font:600 var(--fs-sm) var(--font-ui);white-space:nowrap}
 .panel-feature-list button>small{color:var(--color-muted);font:var(--fs-mini) var(--font-ui)}
-/* The conversion action stays reachable however long the display and feature
-   sections grow: margin-top:auto seats it at the bottom while the panel is
-   short, and sticky pins it there once the panel scrolls. Negative inline
-   margins make the backdrop full-bleed so content cannot show through the
-   panel's side gutters as it scrolls underneath. */
-.panel-convert{position:sticky;bottom:0;margin-top:auto;margin-inline:-14px;padding:14px 14px 16px;border-top:1px solid var(--color-border);background:var(--color-surface)}
+/* Convert is the panel's footer row. It scrolls on its own only if it ever
+   outgrows its share of a short window. The cap is viewport-relative on
+   purpose: a percentage would resolve against the footer's own grid track
+   and clip it to 60% of its content. */
+.panel-convert{max-height:min(60dvh,440px);padding:12px 14px 14px;border-top:1px solid var(--color-border);background:var(--color-surface);overflow-y:auto;scrollbar-width:thin}
 .panel-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .panel-secondary-grid .panel-btn{justify-content:center;padding:0 8px}
 .canvas-panel .dock-primary{display:flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 12px;border:1px solid var(--color-accent-strong-border);border-radius:var(--radius-md);background:var(--color-accent-strong);color:var(--color-accent-contrast);font:500 var(--fs-base) var(--font-ui);white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
@@ -186,16 +210,35 @@ button.canvas-brand:hover{background:var(--color-hover)}
 .theme-light .canvas-brand svg{color:var(--color-accent)}
 .theme-light .skip-link{color:var(--color-on-accent)}
 
-/* ---------- debug console (bottom sheet over the viewport column) ---------- */
-.debug-console{position:absolute;z-index:var(--z-console);left:50%;bottom:12px;transform:translateX(-50%);width:min(940px,calc(100% - 24px));max-height:min(46vh,440px);display:grid;grid-template-rows:auto minmax(0,1fr);border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);backdrop-filter:blur(10px);overflow:hidden}
-.dc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--color-border);background:var(--color-surface-2)}
+/* ---------- debug console (docked bottom drawer, or floating over the viewport) ---------- */
+.debug-console{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:var(--console-height,220px);overflow:hidden}
+.debug-console.docked{position:relative;height:auto;min-height:0;border-top:1px solid var(--color-border-strong);background:var(--color-surface)}
+.debug-console.floating{position:absolute;z-index:var(--z-console);left:50%;bottom:12px;transform:translateX(-50%);width:min(940px,calc(100% - 24px));max-height:calc(100% - 24px);border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-overlay-bg);box-shadow:var(--shadow-lg);backdrop-filter:blur(10px)}
+.dc-resize{position:relative;z-index:1;height:7px;margin-bottom:-7px;cursor:row-resize;touch-action:none}
+.dc-resize::after{content:"";position:absolute;inset:0 0 3px;background:transparent;transition:background var(--dur-fast) var(--ease-out)}
+.dc-resize:hover::after,.dc-resize:focus-visible::after{background:var(--color-accent)}
+.dc-resize:focus-visible{outline:none}
+.dc-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:7px 10px 7px 12px;border-bottom:1px solid var(--color-border);background:var(--color-surface-2)}
+.dc-filters{display:flex;flex-wrap:wrap;gap:4px}
+.dc-filter{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px 0 7px;border:1px solid var(--color-border);border-radius:var(--radius-pill);background:transparent;color:var(--color-subtle);font:var(--fs-mini) var(--font-mono);font-variant-numeric:tabular-nums;transition:background var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
+.dc-filter:hover{color:var(--color-text);background:var(--color-hover)}
+.dc-filter.active{color:var(--color-text);border-color:var(--color-border-strong);background:var(--color-surface)}
+.dc-filter-dot{width:7px;height:7px;border-radius:50%;background:var(--color-border-strong)}
+.dc-filter.active.lvl-error .dc-filter-dot{background:var(--color-error)}
+.dc-filter.active.lvl-warn .dc-filter-dot{background:var(--color-warning)}
+.dc-filter.active.lvl-info .dc-filter-dot{background:var(--color-accent)}
+.dc-filter.active.lvl-debug .dc-filter-dot{background:var(--color-muted)}
+.dc-filter-count{color:var(--color-subtle)}
+.dc-filter-reset{height:24px;padding:0 8px;border:0;border-radius:var(--radius-pill);background:transparent;color:var(--color-accent);font:var(--fs-mini) var(--font-mono)}
+.dc-filter-reset:hover{background:var(--color-accent-dim)}
 .dc-title{display:inline-flex;align-items:center;gap:7px;color:var(--color-text);font:500 var(--fs-sm) var(--font-ui)}
 .dc-title em{padding:1px 6px;border-radius:var(--radius-pill);background:var(--color-bg);color:var(--color-subtle);font:10px var(--font-mono);font-style:normal}
 .dc-actions{display:flex;align-items:center;gap:5px;margin-left:auto}
 .dc-actions button{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:transparent;color:var(--color-muted);font:var(--fs-xs) var(--font-ui);white-space:nowrap}
 .dc-actions button:hover{color:var(--color-text);background:var(--color-hover)}
 .dc-actions button.active{color:var(--color-accent);border-color:var(--color-accent-border);background:var(--color-accent-dim)}
-.dc-actions .dc-close{width:26px;padding:0;justify-content:center}
+.dc-actions .dc-icon{width:26px;padding:0;justify-content:center}
+.dc-actions .dc-icon[aria-pressed=true]{color:var(--color-accent)}
 .dc-log{overflow:auto;padding:4px 0;font:var(--fs-xs) var(--font-mono);font-variant-numeric:tabular-nums;scrollbar-width:thin}
 .dc-empty{padding:16px 12px;color:var(--color-subtle);text-align:center}
 .dc-row{display:grid;grid-template-columns:82px 46px 62px minmax(0,1fr);gap:8px;align-items:baseline;padding:2px 12px;border-bottom:1px solid color-mix(in srgb,var(--color-border) 45%,transparent)}
@@ -250,10 +293,14 @@ button.canvas-brand:hover{background:var(--color-hover)}
 
 /* Stack the panel under the viewport when the window is too narrow for a side column. */
 @media(max-width:720px){
-  .canvas-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
-  .canvas-panel{flex-flow:row wrap;align-items:center;gap:8px 14px;max-height:42dvh;overflow-y:auto;border-left:0;border-top:1px solid var(--color-border);padding:10px 12px}
+  .canvas-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+  .canvas-shell>.canvas-topbar{grid-column:1}
+  .canvas-panel{max-height:42dvh;border-left:0;border-top:1px solid var(--color-border)}
+  .panel-scroll{flex-flow:row wrap;align-items:center;gap:8px 14px;padding:10px 12px}
+  .panel-resize-handle{display:none}
   .panel-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
   .panel-label{display:none}
+  .panel-readout,.panel-warnings{flex:1 1 100%}
   .panel-modes{display:flex;gap:4px}
   .panel-view-grid{display:flex;flex-wrap:wrap;gap:6px}
   .panel-view-group{flex:1 1 100%;display:grid;align-items:start}
@@ -262,9 +309,10 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .panel-btn,.panel-modes button{height:44px}
   /* Same pinning in the bottom-bar layout, matched to its 12px side padding.
      The separator returns here because the stuck footer now overlays content. */
-  .panel-convert{flex:1 1 100%;display:grid;gap:6px;margin:0 -12px;padding:10px 12px;border-top:1px solid var(--color-border)}
+  .panel-convert{display:grid;gap:6px;max-height:none;padding:10px 12px;border-top:1px solid var(--color-border)}
   .canvas-panel .dock-primary{height:44px}
   .debug-console{max-height:34dvh}
+  .dc-resize{display:none}
 }
 
 @media(max-width:640px){
@@ -275,7 +323,7 @@ button.canvas-brand:hover{background:var(--color-hover)}
   .canvas-file-meta{display:none}
   .landing-recents-list button{min-height:52px}
   .dc-actions button{height:44px;padding:0 12px}
-  .dc-actions .dc-close{width:44px}
+  .dc-actions .dc-icon{width:44px}
   .shortcut-dialog dl{grid-template-columns:1fr}
   .shortcut-dialog dl>div:nth-child(odd){margin-right:0}
 }

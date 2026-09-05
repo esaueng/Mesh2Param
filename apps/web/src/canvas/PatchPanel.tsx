@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, GitMerge, Lock, LockOpen, Scissors } from "lucide-react";
 import type { PatchClassification, SurfacePatch } from "../state/types";
+import { PanelSection } from "./PanelSection";
 
 /**
  * Per-patch controls for the analyzed surface segmentation: lock, hide,
@@ -73,8 +74,7 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
   };
 
   return (
-    <section className="panel-group" aria-label="Surface patches">
-      <h2 className="panel-label">Patches ({patches.length})</h2>
+    <PanelSection id="patches" title={`Patches (${patches.length})`}>
       <ul className="panel-patches" role="listbox" aria-label="Analyzed surface patches">
         {patches.map((patch) => (
           <li key={patch.id} className={patch.id === selectedPatchId ? "selected" : ""}>
@@ -209,6 +209,6 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
           Split
         </button>
       </div>
-    </section>
+    </PanelSection>
   );
 }
