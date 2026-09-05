@@ -17,6 +17,8 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      MESH2PARAM_BOOTSTRAP_WASM: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -26,6 +28,7 @@ jobs:
           node-version: 22.22.2
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - run: python3 tests/infra/test_wasm_build_setup.py
       - run: pnpm cf:check
 
   deploy:
@@ -34,6 +37,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
+      MESH2PARAM_BOOTSTRAP_WASM: "1"
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:

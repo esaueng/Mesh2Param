@@ -18,9 +18,8 @@ describe("canvas pipeline actions", () => {
       source: { format: "stl", scaleFactor: 1, declaredUnits: "mm" },
       analysis: {
         settings: {
-          smoothAngleDeg: 12, planarFitToleranceMm: 0.005, cylinderFitToleranceMm: 0.01,
-          minimumCylinderCoverageDeg: 300, maximumCylinderAxisNormalComponent: 0.05,
-          minimumPatchAreaMm2: 1e-8, stableIdResolutionMm: 1e-5,
+          engine: "Mesh2Param core (WebAssembly)", angleDeg: 12,
+          triangleBudget: 200000, tolerance: 0.1,
         },
         patches,
         browserParametricCandidate: { accepted: true, family: "general-parametric-prismatic" },
@@ -61,13 +60,10 @@ describe("canvas pipeline actions", () => {
       },
       analysis: {
         settings: {
-          smoothAngleDeg: 12,
-          planarFitToleranceMm: 0.005,
-          cylinderFitToleranceMm: 0.01,
-          minimumCylinderCoverageDeg: 300,
-          maximumCylinderAxisNormalComponent: 0.05,
-          minimumPatchAreaMm2: 1e-8,
-          stableIdResolutionMm: 1e-5,
+          engine: "Mesh2Param core (WebAssembly)",
+          angleDeg: 12,
+          triangleBudget: 200000,
+          tolerance: 0.1,
         },
         patches,
       },

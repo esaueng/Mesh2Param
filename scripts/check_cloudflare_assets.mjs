@@ -1,3 +1,13 @@
+/**
+ * Cloudflare Workers Static Assets refuses any single file over 25 MiB, and it
+ * refuses it at deploy time, so this runs before every `wrangler deploy`.
+ *
+ * The largest asset is the reconstruction core's WebAssembly module (~1.8 MB);
+ * everything else is a bundled sample mesh. The check stays a hard per-file
+ * ceiling rather than a budget: per-chunk budgets live in
+ * `check_bundle_budgets.mjs`, and this one exists only to catch a file that
+ * cannot be deployed at all.
+ */
 import { readdir, stat } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 

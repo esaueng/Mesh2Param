@@ -23,11 +23,13 @@ The repository includes a Cloudflare Worker entrypoint and `wrangler.jsonc`. It 
 build through Workers Static Assets with SPA fallback routing. The production UI is browser-first:
 
 - IndexedDB is the project, revision, source, version, and artifact store.
-- A dedicated browser Web Worker loads `occt-wasm` and compiles supported CADGraph operations.
-- The bounded parametric path performs mesh normalization, section extraction, SVD-based B-spline
-  fitting, semantic edge resolution, fillet/detail reconstruction, bidirectional BVH comparison,
-  STEP export, and STEP reimport entirely inside that Web Worker.
-- Exact validation checks the OCCT B-Rep, exports STEP, reimports it, and checks the result.
+- A dedicated browser Web Worker loads `@mesh2param/core-wasm`, the Rust reconstruction core
+  compiled to WebAssembly, and runs the whole conversion inside that worker: mesh parse and weld,
+  segmentation and surface fitting, topology, solid construction, verification against the source
+  mesh, and STEP export with a round trip back through the kernel's own reader.
+- The core reports the tier it reached — analytic, mixed, or faceted — together with kernel
+  validity, the surface inventory, and the measured deviation. Rebuilding a project from a CADGraph
+  is not available in this mode and fails with a structured `unsupported` error.
 - Bundled samples and their source/reference artifacts are static same-origin assets.
 - Generated STEP/GLB/CADGraph artifacts are Blob URLs and survive reload through IndexedDB.
 
@@ -44,6 +46,14 @@ fixtures, including functional suppression and full detail recovery. Arbitrary t
 repair and segmentation, process isolation, and shared multi-user persistence still require the
 self-hosted FastAPI/CadQuery/OCCT topology below. Browser-local mode fails at a named evidence stage
 for unsupported paths instead of exporting a faceted result as parametric.
+
+Workers Builds can keep its existing `pnpm run build` command. When Cloudflare sets
+`WORKERS_CI=1`, the WASM build installs the Rust toolchain from `rust-toolchain.toml`,
+the `wasm32-unknown-unknown` target, and pinned `wasm-pack` 0.15.0 before compiling.
+The GitHub Cloudflare workflow enables the same setup with `MESH2PARAM_BOOTSTRAP_WASM=1`.
+This setup downloads tools from Rust's official distribution and crates.io; it does not deploy.
+Local builds require the tools described in `AGENTS.md`, or an explicit run of
+`bash scripts/setup_core_wasm.sh`.
 
 Install and validate the deployment without publishing it:
 

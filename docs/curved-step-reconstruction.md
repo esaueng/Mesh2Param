@@ -606,14 +606,15 @@ an evidence line (face inventory and measured maximum deviation), and the
 status chip distinguishes "Approximate curved B-Rep" from
 "Faceted (non-parametric)" through validation.
 
-The browser-local OCCT WebAssembly path also handles a bounded subset without
-the native API: watertight, axis-aligned layered solids are sliced into closed
-profiles and rebuilt as smooth lofts or representative swept profiles. Hole
-tracks require evidence in multiple slices; isolated shallow details are not
-invented. Export succeeds only after STEP reimport, solid validation, a curved
-surface inventory, an 8% volume gate, and a bounds-delta gate. The saved
-project records the reconstruction mode and quantitative approximation
-evidence.
+The browser-local path no longer runs a TypeScript reimplementation. It runs
+the Rust reconstruction core compiled to WebAssembly
+(`@mesh2param/core-wasm`), which segments the mesh, fits analytic surfaces,
+builds and validates a solid, and writes STEP — reporting the tier it reached
+(analytic, mixed, or faceted) rather than being told which one to produce.
+Export is recorded as validated only after kernel validation and a STEP round
+trip through the kernel's own reader. The saved project records the tier, the
+surface inventory, the measured deviation, and the core's reason for any
+fallback. See [browser-local reconstruction](browser-local-parametric.md).
 
 #### Per-patch user controls (implemented)
 

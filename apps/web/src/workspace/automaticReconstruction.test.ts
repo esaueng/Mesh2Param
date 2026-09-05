@@ -12,13 +12,10 @@ function documentWith(graph: CADGraph, settings: ProjectWorkingDocument["setting
     source: { sha256: "a".repeat(64), format: "stl" },
     analysis: {
       settings: {
-        smoothAngleDeg: 12,
-        planarFitToleranceMm: 0.005,
-        cylinderFitToleranceMm: 0.01,
-        minimumCylinderCoverageDeg: 300,
-        maximumCylinderAxisNormalComponent: 0.05,
-        minimumPatchAreaMm2: 1e-8,
-        stableIdResolutionMm: 1e-5,
+        engine: "Mesh2Param core (WebAssembly)",
+        angleDeg: 12,
+        triangleBudget: 200000,
+        tolerance: 0.1,
       },
       patches: analyzedPatches,
     },
@@ -174,5 +171,51 @@ describe("automaticReconstructionCapability", () => {
     const capability = automaticReconstructionCapability(document);
     expect(capability.supported).toBe(false);
     expect(capability.reason).toMatch(/surface analysis again/i);
+  });
+});
+
+describe("replayable analysis settings", () => {
+  const analyzedPatches = [{ id: "patch.plane", type: "plane", areaMm2: 10, locked: false }];
+  function documentWithSettings(settings: Record<string, unknown>) {
+    return {
+      cadgraph: null,
+      settings: {},
+      source: { sha256: "a".repeat(64), format: "stl" },
+      analysis: { settings, patches: analyzedPatches },
+      patches: analyzedPatches,
+    } as unknown as ProjectWorkingDocument;
+  }
+
+  // Server and browser modes record different segmentation settings. Rejecting
+  // either one silently downgrades that mode's primary action to a fallback.
+  it("accepts the service's segmentation settings", () => {
+    expect(automaticReconstructionCapability(documentWithSettings({
+      smoothAngleDeg: 12,
+      planarFitToleranceMm: 0.005,
+      cylinderFitToleranceMm: 0.01,
+      minimumCylinderCoverageDeg: 300,
+      maximumCylinderAxisNormalComponent: 0.05,
+      minimumPatchAreaMm2: 1e-8,
+      stableIdResolutionMm: 1e-5,
+    })).supported).toBe(true);
+  });
+
+  it("accepts the browser core's settings", () => {
+    expect(automaticReconstructionCapability(documentWithSettings({
+      engine: "Mesh2Param core (WebAssembly)",
+      angleDeg: 12,
+      triangleBudget: 200_000,
+      tolerance: 0.1,
+    })).supported).toBe(true);
+  });
+
+  it("refuses a partial mix of the two", () => {
+    const capability = automaticReconstructionCapability(documentWithSettings({
+      smoothAngleDeg: 12,
+      angleDeg: 12,
+      tolerance: 0.1,
+    }));
+    expect(capability.supported).toBe(false);
+    expect(capability.reason).toMatch(/Run surface analysis again/);
   });
 });
