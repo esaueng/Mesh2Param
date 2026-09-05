@@ -583,6 +583,23 @@ export function createWorkspaceStore(preferences: AppPreferences | null = null):
                   ? {}
                   : { status: event.status ?? terminalStatus }),
                 ...(terminalStatus === undefined ? {} : { finishedAt: event.timestamp }),
+                // A failure delivered over the stream carries its explanation on
+                // the event; keep it on the job so the failure surface can show
+                // it after the stream closes, exactly as a snapshot would.
+                ...(event.type === "failed" && view.job.error === null
+                  ? {
+                    error: {
+                      code: event.code ?? "job_failed",
+                      summary: event.message,
+                      detail: event.detail ?? null,
+                      phase: event.phase,
+                      projectId: view.job.projectId,
+                      jobId: view.job.id,
+                      recoverable: event.recoverable ?? true,
+                      recommendedAction: event.recommendedAction ?? null,
+                    },
+                  }
+                  : {}),
               },
               connection: terminalStatus === undefined ? view.connection : "closed",
               cancelling: terminalStatus === undefined ? view.cancelling : false,
