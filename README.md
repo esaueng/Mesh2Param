@@ -248,6 +248,9 @@ validate the extension, schema, source size, bounds, and SHA-256 before hydratio
 
 ## Deployment
 
+CI runner scope, activation gates, measurements and rollback are documented in
+[trusted-main CI migration](docs/trusted-vps-ci.md).
+
 ### Docker Compose
 
 ```sh

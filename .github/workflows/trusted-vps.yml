@@ -1,0 +1,109 @@
+name: Trusted VPS checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mesh2param-trusted-vps
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    name: Trusted VPS packages
+    if: >-
+      github.repository == 'esaueng/Mesh2Param' &&
+      github.ref == 'refs/heads/main' && github.ref_protected &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on:
+      group: ci-trusted-main
+      labels: ci-small
+    timeout-minutes: 20
+    env:
+      CI: '1'
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - name: Verify runner and clean session
+        env:
+          EXPECTED_RUNNER: ci-vm-1441561
+        run: |
+          set -euo pipefail
+          test "$RUNNER_NAME" = "$EXPECTED_RUNNER"
+          test "$(id -un)" = ci-runner
+          test "$(id -u)" != 0
+          test "$(uname -m)" = x86_64
+          test ! -w /opt/ci-runner/bin/Runner.Listener
+          test ! -e "$HOME/.mesh2param-ci-sentinel"
+          touch "$HOME/.mesh2param-ci-sentinel"
+          test ! -e /srv/ci/work/.mesh2param-ci-sentinel
+          touch /srv/ci/work/.mesh2param-ci-sentinel
+          test "$DOCKER_HOST" = unix:///run/ci-docker/docker.sock
+          docker info --format '{{json .SecurityOptions}}' | grep -q rootless
+          test -z "$(docker ps --all --quiet)"
+          test -z "$(docker image ls --quiet)"
+          mkdir -p "$RUNNER_TEMP/evidence"
+          date -u +%FT%TZ | tee "$RUNNER_TEMP/evidence/start.txt"
+          id
+          docker version
+          docker compose version
+          df -h /srv/ci
+
+      - name: Check out triggering main commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up pinned Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+          node --version
+          pnpm --version
+
+      - name: Install frozen workspace dependencies
+        run: >-
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/install.txt"
+          pnpm install --frozen-lockfile
+
+      - name: Verify contracts and UI serially
+        run: |
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/contracts-generate.txt" pnpm --filter @mesh2param/contracts generate:check
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/contracts-types.txt" pnpm --filter @mesh2param/contracts typecheck
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/contracts-tests.txt" pnpm --filter @mesh2param/contracts test --maxWorkers=1
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/contracts-build.txt" pnpm --filter @mesh2param/contracts build
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/ui-types.txt" pnpm --filter @mesh2param/ui typecheck
+          /usr/bin/time -v -o "$RUNNER_TEMP/evidence/ui-tests.txt" pnpm --filter @mesh2param/ui test --maxWorkers=1
+
+      - name: Record capacity evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          date -u +%FT%TZ | tee "$RUNNER_TEMP/evidence/end.txt"
+          df -h /srv/ci > "$RUNNER_TEMP/evidence/disk.txt"
+          du -sh "$HOME" "$GITHUB_WORKSPACE" >> "$RUNNER_TEMP/evidence/disk.txt"
+          docker system df >> "$RUNNER_TEMP/evidence/disk.txt"
+          for metric in memory.current memory.peak memory.events; do
+            if test -r "/sys/fs/cgroup/ci.slice/$metric"; then
+              cat "/sys/fs/cgroup/ci.slice/$metric" > "$RUNNER_TEMP/evidence/$metric.txt"
+            fi
+          done
+          cat "$RUNNER_TEMP"/evidence/*.txt
+
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-vps-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 7
+          if-no-files-found: warn
