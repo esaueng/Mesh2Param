@@ -31,20 +31,21 @@ class StorageGarbageCollector:
     def run_once(self, *, cutoff: datetime | None = None) -> GarbageCollectionResult:
         threshold = cutoff or datetime.now(UTC) - timedelta(days=self.settings.retention_days)
         threshold_epoch = threshold.timestamp()
-        metadata_blobs = 0
-        for digest in self.repository.orphan_blob_candidates_before(
-            threshold,
-            limit=self.settings.garbage_collection_batch_size,
-        ):
-            self.storage.delete_blob(digest)
-            if self.repository.delete_orphan_blob_metadata(digest):
-                metadata_blobs += 1
+        with self.storage.publication_lock(exclusive=True):
+            metadata_blobs = 0
+            for digest in self.repository.orphan_blob_candidates_before(
+                threshold,
+                limit=self.settings.garbage_collection_batch_size,
+            ):
+                self.storage.delete_blob(digest)
+                if self.repository.delete_orphan_blob_metadata(digest):
+                    metadata_blobs += 1
 
-        known = self.repository.known_blob_digests()
-        filesystem_blobs = 0
-        for digest, modified_at in self.storage.iter_blobs():
-            if digest not in known and modified_at < threshold_epoch:
-                filesystem_blobs += int(self.storage.delete_blob(digest))
+            known = self.repository.known_blob_digests()
+            filesystem_blobs = 0
+            for digest, modified_at in self.storage.iter_blobs():
+                if digest not in known and modified_at < threshold_epoch:
+                    filesystem_blobs += int(self.storage.delete_blob(digest))
 
         return GarbageCollectionResult(
             metadata_blobs=metadata_blobs,

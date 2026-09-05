@@ -29,6 +29,7 @@ import type {
   SurfacePatch,
   VersionPage,
 } from "../state/types";
+import { deleteProjectBlobs } from "../persistence/blobs";
 import { browserGeometry } from "./geometry/client";
 import type { BrowserCadResult } from "./geometry/types";
 import { meshToGlb } from "./glb";
@@ -174,9 +175,10 @@ export class BrowserApiClient {
   async deleteProject(projectId: string, revision: number | string, _signal?: AbortSignal): Promise<ApiResult<void>> {
     await this.requireProject(projectId, revision);
     await workspaceDb.transaction("rw", [workspaceDb.projects, workspaceDb.documents, workspaceDb.versions, workspaceDb.blobs, workspaceDb.ui, workspaceDb.history, workspaceDb.outbox], async () => {
+      await deleteProjectBlobs(workspaceDb, projectId);
       await Promise.all([
         workspaceDb.projects.delete(projectId), workspaceDb.documents.delete(projectId),
-        workspaceDb.versions.where("projectId").equals(projectId).delete(), workspaceDb.blobs.where("projectId").equals(projectId).delete(),
+        workspaceDb.versions.where("projectId").equals(projectId).delete(),
         workspaceDb.ui.delete(projectId), workspaceDb.history.delete(projectId), workspaceDb.outbox.where("projectId").equals(projectId).delete(),
       ]);
     });
@@ -728,9 +730,9 @@ export class BrowserApiClient {
   }
 
   artifactUrl(projectId: string, name: string, sha256?: string): string {
-    return this.artifactUrls.get(this.artifactUrlKey(projectId, name, sha256))
-      ?? this.artifactUrls.get(this.artifactUrlKey(projectId, name))
-      ?? "data:text/plain;charset=utf-8,Artifact%20is%20not%20available%20in%20this%20browser";
+    const url = this.artifactUrls.get(this.artifactUrlKey(projectId, name, sha256));
+    if (url === undefined) throw missing("artifact", `${name}${sha256 === undefined ? "" : ` (${sha256})`}`);
+    return url;
   }
 
   async listSamples(_signal?: AbortSignal): Promise<ApiResult<SamplePage>> {
@@ -790,19 +792,15 @@ export class BrowserApiClient {
   }
 
   private async cacheProjectArtifactUrls(projectId: string): Promise<void> {
-    const records = await workspaceDb.blobs
-      .where("projectId")
-      .equals(projectId)
-      .filter((record) => record.kind.startsWith("artifact:"))
-      .toArray();
-    for (const record of records) {
-      this.cacheArtifactUrl(
-        projectId,
-        record.originalFileName ?? record.kind.slice(9),
-        record.sha256,
-        record.blob,
-      );
-    }
+    const detail = await this.requireProject(projectId);
+    await Promise.all(detail.state.artifacts.map(async (artifact) => {
+      const record = await workspaceDb.blobs.get(`artifact:${projectId}:${artifact.name}:${artifact.sha256}`)
+        ?? await workspaceDb.blobs.get(`artifact:${projectId}:${artifact.name}`);
+      this.artifactUrls.delete(this.artifactUrlKey(projectId, artifact.name));
+      if (record?.sha256 === artifact.sha256 && record.projectId === projectId) {
+        this.cacheArtifactUrl(projectId, artifact.name, artifact.sha256, record.blob);
+      }
+    }));
   }
 
   private async detail(projectId: string): Promise<ProjectDetail | null> {
@@ -932,7 +930,7 @@ export class BrowserApiClient {
   private async putArtifact(projectId: string, name: string, blob: Blob, kind: string): Promise<ArtifactDescriptor> {
     const sha256 = await sha256Hex(await readBlobBytes(blob));
     await workspaceDb.blobs.put({
-      key: `artifact:${projectId}:${name}`, projectId, kind: `artifact:${kind}`, sha256, byteSize: blob.size,
+      key: `artifact:${projectId}:${name}:${sha256}`, projectId, kind: `artifact:${kind}`, sha256, byteSize: blob.size,
       mediaType: blob.type || "application/octet-stream", originalFileName: name, blob, createdAt: new Date().toISOString(),
     });
     this.cacheArtifactUrl(projectId, name, sha256, blob);
@@ -944,7 +942,8 @@ export class BrowserApiClient {
   }
 
   private cacheArtifactUrl(projectId: string, name: string, sha256: string, blob: Blob): void {
-    const url = URL.createObjectURL(blob);
+    const key = this.artifactUrlKey(projectId, name, sha256);
+    const url = this.artifactUrls.get(key) ?? URL.createObjectURL(blob);
     this.artifactUrls.set(this.artifactUrlKey(projectId, name), url);
     this.artifactUrls.set(this.artifactUrlKey(projectId, name, sha256), url);
   }

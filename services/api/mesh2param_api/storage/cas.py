@@ -140,6 +140,33 @@ class LocalCAS:
         normalized = _normalize_digest(digest)
         return self._digest_root / normalized[:2] / normalized[2:]
 
+    @contextmanager
+    def publication_lock(self, *, exclusive: bool = False) -> Iterator[None]:
+        """Keep CAS publication and reference commit indivisible to garbage collection."""
+        import fcntl
+
+        directory = _open_directory(self.root)
+        descriptor = -1
+        try:
+            descriptor = os.open(
+                ".publication.lock",
+                os.O_RDWR | os.O_CREAT | os.O_NONBLOCK
+                | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+                dir_fd=directory,
+            )
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                raise UnsafeStoragePathError("publication lock is not a regular file")
+            fcntl.flock(descriptor, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+            try:
+                yield
+            finally:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            os.close(directory)
+
     def put_bytes(self, content: bytes, *, max_bytes: int | None = None) -> StoredBlob:
         if not isinstance(content, bytes):
             raise TypeError("content must be bytes")

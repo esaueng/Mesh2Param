@@ -386,6 +386,13 @@ class JobSupervisor:
                 active.terminal_received = bool(applied)
 
     async def _publish_completed(self, active: ActiveJob, event: WorkerEvent) -> None:
+        await asyncio.to_thread(self._publish_completed_locked, active, event)
+
+    def _publish_completed_locked(self, active: ActiveJob, event: WorkerEvent) -> None:
+        with self.storage.publication_lock():
+            self._publish_completed_sync(active, event)
+
+    def _publish_completed_sync(self, active: ActiveJob, event: WorkerEvent) -> None:
         if event.result_file is None:
             raise ValueError("completed event omitted resultFile")
         result_path = self._safe_worker_path(active.workdir, event.result_file)
@@ -411,9 +418,7 @@ class JobSupervisor:
             path = self._safe_worker_path(active.workdir, str(raw_artifact.get("path", "")))
             media_type = str(raw_artifact.get("mediaType", "application/octet-stream"))[:160]
             kind = str(raw_artifact.get("kind", "artifact"))[:40]
-            blob = await asyncio.to_thread(
-                self.storage.put_path, path, max_bytes=2 * 1024**3
-            )
+            blob = self.storage.put_path(path, max_bytes=2 * 1024**3)
             prepared.append(
                 {
                     "name": name,
@@ -427,9 +432,8 @@ class JobSupervisor:
             )
 
         if active.kind == "reconstruct":
-            prepared = await self._replace_manifest(active, result, state_patch, prepared)
-        await asyncio.to_thread(
-            self.repository.complete_job,
+            prepared = self._replace_manifest(active, result, state_patch, prepared)
+        self.repository.complete_job(
             active.job_id,
             active.attempt_id,
             active.run_token,
@@ -438,7 +442,7 @@ class JobSupervisor:
             artifacts=prepared,
         )
 
-    async def _replace_manifest(
+    def _replace_manifest(
         self,
         active: ActiveJob,
         result: dict[str, Any],
@@ -488,7 +492,7 @@ class JobSupervisor:
             encoding="utf-8",
             newline="\n",
         )
-        blob = await asyncio.to_thread(self.storage.put_path, manifest_path)
+        blob = self.storage.put_path(manifest_path)
         payload_artifacts.append(
             {
                 "name": "manifest.json",
