@@ -59,7 +59,7 @@ const FAILED_JOB: JobViewState = {
 const COLOR_GROUPS: ReadonlyArray<{ title: string; tokens: readonly string[] }> = [
   {
     title: "Elevation",
-    tokens: ["--color-bg", "--color-surface", "--color-surface-2", "--color-hover", "--color-border", "--color-border-strong", "--color-viewport", "--color-overlay-bg"],
+    tokens: ["--color-bg", "--color-surface", "--color-surface-2", "--color-hover", "--color-border", "--color-border-strong", "--color-control-border", "--color-viewport", "--color-overlay-bg"],
   },
   {
     title: "Text",

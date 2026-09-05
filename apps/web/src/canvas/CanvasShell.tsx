@@ -442,6 +442,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                       key={feature.id}
                       className={vm.selectedFeatureId === feature.id ? "active" : ""}
                       aria-pressed={vm.selectedFeatureId === feature.id}
+                      aria-label={`${feature.name}, ${humanPhase(feature.operation)}, step ${feature.order + 1}`}
                       onClick={() => actions.selectFeature(feature.id)}
                     >
                       <span>{feature.order + 1}</span>
