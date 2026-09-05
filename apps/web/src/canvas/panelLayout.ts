@@ -18,12 +18,15 @@ export interface PanelLayout {
   width: number;
   collapsed: Record<PanelSectionId, boolean>;
   consoleDocked: boolean;
+  /** Reference grid under the model. Viewer chrome, so it lives here and not in the project file. */
+  grid: boolean;
 }
 
 export const defaultPanelLayout: PanelLayout = {
   width: PANEL_WIDTH.default,
   collapsed: { file: false, view: false, analysis: false, patches: false, convert: false },
   consoleDocked: true,
+  grid: false,
 };
 
 export function clampPanelWidth(width: number): number {
@@ -64,6 +67,7 @@ function normalize(value: unknown): PanelLayout {
     width: typeof value.width === "number" ? clampPanelWidth(value.width) : PANEL_WIDTH.default,
     collapsed,
     consoleDocked: typeof value.consoleDocked === "boolean" ? value.consoleDocked : defaultPanelLayout.consoleDocked,
+    grid: typeof value.grid === "boolean" ? value.grid : defaultPanelLayout.grid,
   };
 }
 
@@ -108,6 +112,9 @@ export const panelLayoutStore = {
   },
   setConsoleDocked(docked: boolean): void {
     if (layout.consoleDocked !== docked) commit({ ...layout, consoleDocked: docked });
+  },
+  setGrid(grid: boolean): void {
+    if (layout.grid !== grid) commit({ ...layout, grid });
   },
   /** Test hook: drop the in-memory state and reread storage. */
   reload(): void {

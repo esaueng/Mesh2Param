@@ -88,8 +88,13 @@ interface CadViewportProps {
   sourceProxyActive?: boolean;
   hiddenPatchIds?: readonly string[];
   selectedPatchId: string | null;
+  /** Patch under the pointer, in the viewport or in the patch list; rendering only. */
+  hoveredPatchId?: string | null;
+  /** Reference grid on the model's floor plane. */
+  grid?: boolean;
   onPreferences(patch: Partial<ViewerPreferences>): void;
   onSelectPatch(id: string | null): void;
+  onHoverPatch?(id: string | null): void;
   /** "minimal" hides the built-in mode bar so an external control (e.g. the command dock) can drive the viewer. */
   chrome?: "full" | "minimal";
 }
@@ -104,8 +109,11 @@ export function CadViewport({
   sourceProxyActive = false,
   hiddenPatchIds = NO_HIDDEN_PATCH_IDS,
   selectedPatchId,
+  hoveredPatchId = null,
+  grid = false,
   onPreferences,
   onSelectPatch,
+  onHoverPatch,
   chrome = "full",
 }: CadViewportProps) {
   // Parsed geometry is cached for as long as the project is open rather than
@@ -299,6 +307,7 @@ export function CadViewport({
       data-display-mode={preferences.shading}
       data-hidden-patch-count={hiddenPatchIds.length}
       data-viewer-preparing={String(preparing)}
+      data-grid={String(grid)}
     >
       {chrome === "full" ? (
       <div className="viewport-modebar" role="toolbar" aria-label="Viewer display modes">
@@ -465,6 +474,7 @@ export function CadViewport({
           <directionalLight position={[80, -60, 100]} intensity={palette.keyIntensity} />
           <directionalLight position={[-70, 80, 30]} intensity={palette.fillIntensity} />
           <axesHelper args={[35]} />
+          {grid && bounds !== null ? <GridFloor bounds={bounds} palette={palette} /> : null}
           <ProjectionController projection={preferences.projection} controlsRef={controls} />
           <ViewerCameraReference targetRef={viewerCamera} />
           <WebGLContextMonitor onLost={handleContextLost} onRestored={handleContextRestored} />
@@ -484,6 +494,7 @@ export function CadViewport({
                 selectionRanges={layer.mode === "patches" ? selection : NO_SELECTION_RANGES}
                 hiddenPatchIds={layer.mode === "patches" ? hiddenPatchIds : NO_HIDDEN_PATCH_IDS}
                 selectedPatchId={selectedPatchId}
+                hoveredPatchId={layer.mode === "patches" ? hoveredPatchId : null}
                 sectionPlane={sectionPlane}
                 measurementEnabled={measurementMode !== null}
                 onBounds={onBounds}
@@ -493,6 +504,7 @@ export function CadViewport({
                   return current.length >= required ? [point] : [...current, point];
                 })}
                 {...(layer.mode === "patches" ? { onSelectPatch } : {})}
+                {...(layer.mode === "patches" && onHoverPatch !== undefined ? { onHoverPatch } : {})}
               />
             ))}
             {measurementPoints.map((point, index) => (
@@ -536,7 +548,7 @@ export function CadViewport({
         </Canvas>
       </ViewerErrorBoundary>
 
-      <OrientationGizmoCanvas cameraRef={viewerCamera} onSelectView={gizmoView} />
+      <OrientationGizmoCanvas cameraRef={viewerCamera} onSelectView={gizmoView} theme={theme} />
 
       {preparing ? (
         <div className="viewer-preparing" role="status" aria-live="polite">
@@ -556,13 +568,54 @@ export function CadViewport({
         <div className="viewer-empty"><Box /><strong>No geometry yet</strong><p>Open a mesh or a sample to begin.</p></div>
       ) : null}
       {scaleBar === null ? null : (
-        <div className="scale-bar" aria-hidden="true"><span style={{ width: scaleBar.width }} />{scaleBar.value} {units}</div>
+        <div className="scale-bar" aria-hidden="true" data-scale-value={scaleBar.value}>
+          <span className="scale-bar-rule" style={{ width: scaleBar.width }} />
+          <span className="scale-bar-label">{scaleBar.value} {units}</span>
+        </div>
       )}
       {selectedPatchId === null ? null : (
         <div className="selection-chip">Selected patch <strong>{selectedPatchId}</strong></div>
       )}
     </section>
   );
+}
+
+/**
+ * Reference grid on the model's floor: the plane z = min(bounds), sized to
+ * the footprint with a decimal step picked the way the scale bar picks its
+ * length, so grid cells and the scale bar read in the same units.
+ */
+export function gridFloorSpec(bounds: THREE.Box3): { size: number; divisions: number; step: number; z: number } {
+  const extent = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, 1e-3);
+  const raw = extent / 10;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10]
+    .map((candidate) => Number((candidate * pow).toPrecision(12)))
+    .reduce((best, candidate) => (Math.abs(candidate - raw) < Math.abs(best - raw) ? candidate : best));
+  const divisions = Math.max(2, Math.ceil((extent * 2.4) / step));
+  return { size: divisions * step, divisions, step, z: bounds.min.z - step * 0.02 };
+}
+
+function GridFloor({ bounds, palette }: { bounds: THREE.Box3; palette: ReturnType<typeof viewerPalette> }) {
+  const spec = useMemo(() => gridFloorSpec(bounds), [bounds]);
+  const center = useMemo(() => bounds.getCenter(new THREE.Vector3()), [bounds]);
+  const grid = useMemo(() => {
+    const helper = new THREE.GridHelper(spec.size, spec.divisions, palette.gridMajor, palette.gridMinor);
+    // GridHelper lies in XZ; the viewer's up axis is +Z.
+    helper.rotation.x = Math.PI / 2;
+    const material = helper.material as THREE.Material;
+    material.transparent = true;
+    material.opacity = palette.gridOpacity;
+    material.depthWrite = false;
+    helper.raycast = () => {};
+    helper.renderOrder = -1;
+    return helper;
+  }, [palette, spec]);
+  useEffect(() => () => {
+    grid.geometry.dispose();
+    (grid.material as THREE.Material).dispose();
+  }, [grid]);
+  return <primitive object={grid} position={[center.x, center.y, spec.z]} />;
 }
 
 function ViewerCameraReference({ targetRef }: { targetRef: MutableRefObject<THREE.Camera | null> }) {

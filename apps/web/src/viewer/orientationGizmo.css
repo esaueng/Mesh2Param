@@ -1,10 +1,12 @@
+/* The gizmo canvas is square and the GizmoHelper margin is half its size, so
+   the triad sits centred in this layer; keep the two in step. */
 .orientation-gizmo-layer {
   position: absolute;
   z-index: 3;
-  right: 0;
-  bottom: 0;
-  width: 224px;
-  height: 224px;
+  right: 4px;
+  bottom: 4px;
+  width: 176px;
+  height: 176px;
 }
 
 .orientation-gizmo-layer canvas {

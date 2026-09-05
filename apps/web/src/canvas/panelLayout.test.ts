@@ -18,7 +18,7 @@ class MemoryStorage {
 describe("panel layout persistence", () => {
   it("round-trips a layout", () => {
     const storage = new MemoryStorage();
-    const layout = { ...defaultPanelLayout, width: 300, collapsed: { ...defaultPanelLayout.collapsed, view: true }, consoleDocked: false };
+    const layout = { ...defaultPanelLayout, width: 300, collapsed: { ...defaultPanelLayout.collapsed, view: true }, consoleDocked: false, grid: true };
     savePanelLayout(layout, storage);
     expect(loadPanelLayout(storage)).toEqual(layout);
   });
@@ -64,13 +64,15 @@ describe("panelLayoutStore", () => {
     panelLayoutStore.setWidth(320);
     panelLayoutStore.toggleCollapsed("patches");
     panelLayoutStore.setConsoleDocked(false);
+    panelLayoutStore.setGrid(true);
     unsubscribe();
 
-    expect(notified).toBe(3);
+    expect(notified).toBe(4);
     expect(panelLayoutStore.snapshot()).toEqual({
       width: 320,
       collapsed: { ...defaultPanelLayout.collapsed, patches: true },
       consoleDocked: false,
+      grid: true,
     });
     expect(loadPanelLayout(localStorage)).toEqual(panelLayoutStore.snapshot());
   });
