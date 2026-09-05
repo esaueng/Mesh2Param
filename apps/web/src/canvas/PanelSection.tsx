@@ -48,7 +48,13 @@ export function PanelSection({ id, title, meta, className = "", children }: Pane
         >
           <ChevronDown className="panel-section-chevron" size={13} aria-hidden />
           <span className="panel-section-title">{title}</span>
-          {meta !== undefined ? <span className="panel-section-meta">{meta}</span> : null}
+          {meta !== undefined ? (
+            <>
+              {/* Read as "Analysis, 5 features" rather than "Analysis5 features". */}
+              <span className="visually-hidden">, </span>
+              <span className="panel-section-meta">{meta}</span>
+            </>
+          ) : null}
         </button>
       </h2>
       {typeof children === "function" ? (

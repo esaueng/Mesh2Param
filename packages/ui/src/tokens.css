@@ -9,6 +9,8 @@
   --color-hover: #1b2430;
   --color-border: #2a3441;
   --color-border-strong: #3a4554;
+  /* Boundary of form controls and switches: >= 3:1 against surface and surface-2 (WCAG 1.4.11). */
+  --color-control-border: #617185;
   --color-viewport: #070b10;
   --color-glow: #0e141c;
   --color-overlay-bg: rgba(13, 18, 24, 0.97);
@@ -38,7 +40,7 @@
   --color-warning-dim: rgba(245, 158, 11, 0.13);
   --color-warning-border: rgba(245, 158, 11, 0.4);
   --color-warning-contrast: #111821;
-  --color-error: #ef4444;
+  --color-error: #f25555;
   --color-error-dim: rgba(239, 68, 68, 0.13);
   --color-error-border: rgba(239, 68, 68, 0.45);
 
@@ -109,6 +111,7 @@
   --color-hover: #dfe8f2;
   --color-border: #c8d2df;
   --color-border-strong: #aebbc9;
+  --color-control-border: #7a8da2;
   --color-viewport: #f7f9fc;
   --color-glow: #ffffff;
   --color-overlay-bg: rgba(248, 250, 252, 0.96);
@@ -128,10 +131,10 @@
   --color-on-accent: #ffffff;
   --color-focus: var(--color-accent);
 
-  --color-success: #15803d;
+  --color-success: #137036;
   --color-success-dim: rgba(21, 128, 61, 0.12);
   --color-success-border: rgba(21, 128, 61, 0.4);
-  --color-warning: #a16207;
+  --color-warning: #8f5606;
   --color-warning-dim: rgba(161, 98, 7, 0.12);
   --color-warning-border: rgba(161, 98, 7, 0.4);
   --color-warning-contrast: #ffffff;
