@@ -16,6 +16,68 @@ use super::linalg::{V3, angle_between, fit_line, jacobi3, perp, solve_small};
 /// is a plane; both have already had their turn by the time the cone is tried.
 const MIN_CONE_HALF_ANGLE_DEG: f64 = 2.0;
 
+/// How far apart the two smallest eigenvalues of the face normals' moment
+/// matrix have to be before the axis the smaller one names is a direction and
+/// not a coin flip.
+///
+/// The cylinder, the cone and the torus all take their axis from the
+/// smallest-eigenvalue eigenvector of a 3x3 moment matrix of the patch's face
+/// normals, and first-order perturbation theory puts that eigenvector's
+/// sensitivity at `1 / (lambda1 - lambda0)`: a difference of `eps` anywhere in
+/// the accumulated sums rotates the axis by about `eps / (lambda1 - lambda0)`.
+/// A tessellated cylinder's face normals are *exactly* perpendicular to its
+/// axis, so `lambda0` sits at the rounding floor and the ratio is a few times
+/// `1e-15`; a cone's `n . axis` is exactly constant, so the same holds of its
+/// centred matrix. A patch whose normals wander off one plane — a coarse loft,
+/// a thread band, a flat that leaked a chamfer — has no such separation, and
+/// then the axis, the circle fitted about it and the face built on it are all
+/// decided by the last bits of a sum. That is what made
+/// `lofted-pull-handle/mesh-coarse` and `threaded-pipe-cap/mesh-coarse` reach
+/// different tiers on macOS and on the Linux runner, the thread band's face
+/// landing 660 mm off the mesh there.
+///
+/// The threshold is what a real quadric band leaves room for, measured rather
+/// than chosen. The demanding case is the torus, whose `n . axis` is only
+/// *nearly* constant: swept over its tube from
+/// 30 to 180 degrees a fillet band's ratio runs 0.05, 0.19, 0.38, 0.45, 0.39 —
+/// it peaks at 0.45 around 115 degrees and never goes past it. Seven tenths
+/// therefore costs no surface the estimator handles and sits well below the 1
+/// at which the smallest and next-smallest directions become interchangeable.
+/// The margin above 0.45 is measured too: 0.5 costs `laser-rail/mesh-export`
+/// its tier and 0.6 costs `spanner-18mm/mesh-coarse` and
+/// `oring-gland-ring/mesh-coarse` recognised surfaces, while 0.8 stops catching
+/// the patches on `nist-ftc-10/mesh-coarse` whose refusal doubles its analytic
+/// face count. The criterion is not "is the axis accurate" but "is the axis
+/// *determined*".
+const MAX_AXIS_EIGEN_RATIO: f64 = 0.7;
+
+/// The largest radius a curved fit may claim, as a multiple of the patch's own
+/// extent across the surface's axis.
+///
+/// The circle fit behind the cylinder, the cone and the torus solves for
+/// `(centre, radius)` from rows `[-cos phi, -sin phi, -1]`, and over a short arc
+/// the first and third rows become collinear — the centre slides along one
+/// direction and the radius follows it with no residual to pay. The system's
+/// condition number goes as `1 / phi^4`, so a radius fitted to a short arc is
+/// not in the data at all. `radius_sane` allows 50 bounding-box diagonals, which
+/// is not a bound on anything: `laser-rail/mesh-export` fits a 254 mm cylinder
+/// and a 322 mm sphere to 6 mm-square patches of a 57 mm part.
+///
+/// The extent is measured from the samples' own centroid, transverse to the
+/// fitted axis, which is how `crate::build::periodic::ring_as_circle` bounds a
+/// rim it reads back out of marched samples.
+///
+/// The scale comes from [`FitOpts::min_spread`]: a band of sweep `phi` has an
+/// extent of `r sin(phi / 2)`, so the 8 degrees that guard already demands put
+/// the ratio at `1 / sin(4 deg) = 14.3` for a *uniformly sampled* arc. Measured
+/// about an area-weighted centroid a real arc's extent comes out shorter than
+/// that, so the bound is set at 20 rather than at 14.3: 15 refuses fits the
+/// cylinder's own swept-angle gate is happy with and costs
+/// `laser-rail/mesh-export` 19 of its 26 analytic faces, and from 20 upwards the
+/// corpus does not move again. The sphere, which has neither an axis nor a swept
+/// angle of its own, has only this guard.
+const MAX_RADIUS_EXTENT_FACTOR: f64 = 20.0;
+
 impl Primitive {
     /// Unsigned distance from `q` to the primitive's surface.
     pub(super) fn residual(self, q: V3) -> f64 {
@@ -290,8 +352,31 @@ fn axis_from_normals_raw(faces: &[FaceRef]) -> Option<V3> {
             }
         }
     }
-    let (_, vecs) = jacobi3(c);
-    vecs[0].unit()
+    let (vals, vecs) = jacobi3(c);
+    axis_determined(vals).then(|| vecs[0].unit()).flatten()
+}
+
+/// Whether the smallest of three ascending eigenvalues names a direction the
+/// data actually distinguishes. See [`MAX_AXIS_EIGEN_RATIO`].
+fn axis_determined(vals: [f64; 3]) -> bool {
+    let (lo, next) = (vals[0].max(0.0), vals[1].max(0.0));
+    next > 0.0 && lo <= MAX_AXIS_EIGEN_RATIO * next
+}
+
+/// The patch's own extent about its centroid, transverse to `dir`.
+///
+/// This is the span the radius of a circle fitted in that plane has to be
+/// supported by. See [`MAX_RADIUS_EXTENT_FACTOR`].
+fn transverse_extent(pts: &[Sample], wsum: f64, dir: V3) -> f64 {
+    let m = weighted_centroid(pts, wsum);
+    pts.iter()
+        .map(|s| s.p.sub(m).reject(dir).norm())
+        .fold(0.0_f64, f64::max)
+}
+
+/// Whether a fitted radius is supported by the span the samples cover.
+fn radius_supported(radius: f64, extent: f64) -> bool {
+    extent > 0.0 && radius <= MAX_RADIUS_EXTENT_FACTOR * extent
 }
 
 /// Area-weighted covariance of the face normals *about their mean*.
@@ -324,8 +409,8 @@ fn axis_from_normals_centred(faces: &[FaceRef]) -> Option<V3> {
             }
         }
     }
-    let (_, vecs) = jacobi3(c);
-    vecs[0].unit()
+    let (vals, vecs) = jacobi3(c);
+    axis_determined(vals).then(|| vecs[0].unit()).flatten()
 }
 
 /// A patch is a genuine polygonal prism or pyramid, not a coarsely tessellated
@@ -469,7 +554,7 @@ fn fit_cylinder(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
 
     let xy: Vec<(f64, f64, f64)> = pts.iter().map(|s| (s.p.dot(u), s.p.dot(v), s.w)).collect();
     let (cx, cy, r) = fit_circle(&xy)?;
-    if !radius_sane(r, o) {
+    if !radius_sane(r, o) || !radius_supported(r, transverse_extent(pts, wsum, dir)) {
         return None;
     }
     if !facet_step_ok(faces, dir, u, v, o) {
@@ -488,6 +573,16 @@ fn fit_cylinder(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
             .collect(),
     );
 
+    // The positional half of the conditioning, and the one the README recorded
+    // as missing: a patch has to wrap `min_spread` around *the axis it was
+    // given*, not merely turn its normals that far about their own mean. The
+    // motor mount's 23 mm flat leaked a chamfer, its normals turn 12.9 degrees
+    // while it wraps 7.3, and the 444 mm cylinder fitted through it puts a face
+    // 37 000 mm from the part. The torus is gated the same way by
+    // `min_minor_sweep`; the sphere has no axis and is left to the extent bound.
+    if sweep < o.min_spread {
+        return None;
+    }
     let prim = Primitive::Cylinder {
         axis_point: centre.arr(),
         axis_dir: dir.arr(),
@@ -549,6 +644,12 @@ fn fit_cone(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
     // accommodating of the developable surfaces — from swallowing everything
     // the absolute tolerance would let it.
     let mean_rho = tr.iter().map(|&(_, rho, w)| rho * w).sum::<f64>() / wsum;
+    // The same radial conditioning the cylinder is held to, on the local
+    // radius a cone does have: a band wrapping a few degrees around its axis
+    // determines neither the axis it wraps nor the distance to it.
+    if !radius_supported(mean_rho, transverse_extent(pts, wsum, dir)) {
+        return None;
+    }
     let prim = Primitive::Cone {
         apex: apex.arr(),
         axis_dir: dir.arr(),
@@ -588,7 +689,13 @@ fn fit_sphere(pts: &[Sample], o: FitOpts) -> Option<Cand> {
         return None;
     }
     let r = rsq.sqrt();
-    if !radius_sane(r, o) {
+    // A sphere has no axis, so the span that has to support its radius is the
+    // patch's whole extent about its own centroid.
+    let extent = pts
+        .iter()
+        .map(|s| s.p.sub(m).norm())
+        .fold(0.0_f64, f64::max);
+    if !radius_sane(r, o) || !radius_supported(r, extent) {
         return None;
     }
     let prim = Primitive::Sphere {
@@ -622,6 +729,13 @@ fn fit_torus(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
         .collect();
     let (major, axial, minor) = fit_circle(&rt)?;
     if !radius_sane(minor, o) || !radius_sane(major, o) || minor >= major {
+        return None;
+    }
+    // The **major** radius is what the samples have to span, exactly as a
+    // cylinder's radius does; the minor radius is the tube's, and its own
+    // conditioning is `min_minor_sweep` below, which says the same thing in
+    // the angle rather than in the span.
+    if !radius_supported(major, transverse_extent(pts, wsum, dir)) {
         return None;
     }
     // A cylinder's (rho, t) samples form a straight line, which a circle of

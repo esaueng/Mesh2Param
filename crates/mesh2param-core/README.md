@@ -148,6 +148,35 @@ cylinder uses, in the `(radial distance, axial offset)` half-plane. A torus
 swept more than about 140 degrees around its tube defeats the axis estimator —
 fillets and rounds, which is what tori are on real parts, stay well inside that.
 
+**A fit that the data does not determine is refused, not solved.** `minSpreadDeg`
+is the angular half of that rule and was until recently the whole of it. The rest
+is three conditioning checks, all of them stated in the fit's own terms:
+
+* **The axis has to be a direction, not a coin flip.** A cylinder, a cone and a
+  torus take their axis from the smallest-eigenvalue eigenvector of a 3x3 moment
+  matrix of the face normals, and that eigenvector's sensitivity goes as
+  `1 / (lambda1 - lambda0)`. A tessellated cylinder's normals are *exactly*
+  perpendicular to its axis and a cone's `n . axis` is exactly constant, so both
+  put `lambda0` at the rounding floor; a coarse loft, a thread band or a flat
+  that leaked a chamfer does not, and then the axis, the circle fitted about it
+  and the face built on it are all settled by the last bits of a sum. The fit is
+  refused when `lambda0 > 0.7 * lambda1`. The demanding legitimate case is the
+  torus, whose ratio peaks at 0.45 around 115 degrees of tube sweep.
+* **The patch has to wrap the axis it was given.** A cylinder must sweep at least
+  `minSpreadDeg` *about its own fitted axis*, not merely turn its normals that
+  far about their mean. This is the check the note below recorded as missing: the
+  motor mount's 23 mm flat turns its normals 12.9 degrees and wraps 7.3, and the
+  444 mm cylinder fitted through it puts a face 37 000 mm from the part. The
+  torus is gated the same way by `minMinorSweepDeg`.
+* **The radius has to be supported by a span.** The circle fit solves for
+  `(centre, radius)` from rows `[-cos phi, -sin phi, -1]`, whose condition number
+  goes as `1 / phi^4`: over a short arc the centre slides and the radius follows
+  it for free. A fitted radius above `20 x` the patch's own extent about its
+  centroid, transverse to the axis, is refused. `minSpreadDeg` puts that ratio at
+  `1 / sin(4 deg) = 14.3` for a uniformly sampled arc, and 20 is the margin an
+  area-weighted centroid needs; the sphere, which has no axis or sweep of its
+  own, has only this one.
+
 ### Known limits
 
 * A **coarse** cone or torus whose facet step exceeds `angleDeg` is not
@@ -193,17 +222,19 @@ fillets and rounds, which is what tori are on real parts, stay well inside that.
   down a tier; face construction now keeps those vertices apart instead (see
   "Face construction" below), and the cut itself is left alone because those
   fragments really do hold a crease.
-* `motor-mount-nema17/mesh-coarse` fits a 444 mm cylinder to a 23 mm flat face
-  whose patch leaked a chamfer: the fold pushes the plane past
-  `maxNormalDevDeg`, the circle fit then follows the flat majority, and the face
-  built on it lands 37 000 mm from the part. `radiusSane` allows 50 bbox
-  diagonals, which does not catch it; what does is that the patch wraps only 7.3
-  degrees around the axis it was given while its normals turn 12.9. Gating a
-  cylinder's swept angle at `minSpreadDeg`, as the torus is gated at
-  `minMinorSweepDeg`, removes the surface — but it could not be reproduced on a
-  synthetic mesh, so it is recorded here rather than applied. Verification
-  demotes the face it produces, so the surface costs the part one face rather
-  than its tier.
+* `motor-mount-nema17/mesh-coarse` used to fit a 444 mm cylinder to a 23 mm flat
+  face whose patch leaked a chamfer: the fold pushes the plane past
+  `maxNormalDevDeg` and the circle fit then follows the flat majority. The swept
+  angle gate above removes it — the patch wraps 7.3 degrees around the axis it
+  was given, under the 8 that `minSpreadDeg` demands of the normals — and the
+  part's inventory error goes 13 -> 12. What the guard does *not* reach is the
+  next surface along: the mesh's first solid is still 275x its own volume, and it
+  is verification demoting the faces responsible that keeps the row at `Mixed`.
+* The conditioning is not free. Refusing a fit changes which merges the greedy
+  growth attempts next, so the effect on a part is not confined to the patch that
+  was refused: `nist-ctc-03/mesh-coarse` (23 -> 26), `nist-ctc-04/mesh-coarse`
+  (174 -> 176) and `nist-ftc-10/mesh-coarse` (128 -> 130) each lose a surface or
+  two, against gains on seven other parts and a corpus mean of 34.68 -> 34.66.
 * `nist-ctc-01` reports roughly 57 planes against 80 in the ground truth. This
   was put down to STEP splitting coplanar adjacent faces, but the merged
   inventory measures that claim and refutes it: the part has no adjacent
@@ -363,6 +394,21 @@ polyline through its chain's own vertices. The triangles bound themselves with
 the mesh polygon, so an analytic neighbour has to bound itself with the same
 one or the shell has a slit down that boundary.
 
+**A ring's samples carry no direction of their own**, so they are laid down the
+way the mesh's own chain runs. The marcher walks its seed curve whichever way it
+started; built as it arrives, the loop's winding is inverted, and on a planar
+face `validate_solid` then reads a hole as a second outer boundary and rejects
+the solid ("inner wire N has the same winding as its outer wire"). An open chain
+is anchored to its two end vertices and needs none of this. The ring is reversed
+against the area vector of its own chain's mesh polygon, which is the same
+comparison the outer/inner classification below makes.
+
+**Two samples closer than 1e-7 are one sample.** `validate_solid` reports an open
+edge shorter than `Tolerance::linear` as an error, absolutely rather than against
+the run tolerance, and a marched curve hands back coincident points —
+`nist-ctc-03/mesh-coarse` has two 8.7e-19 apart. They are merged before any
+topology is built.
+
 **Faces from patches.** A patch with a recognised primitive, closed loops, a
 boundary the chain builder fully covered, and an orientation the mesh can give
 becomes one trimmed face. The surface comes from the fitted primitive (the
@@ -446,13 +492,26 @@ better answer than any circle drawn through them.
 
 Measured: the capped cylinder, the cone frustum, the pointed cone and the whole
 torus each tessellate to within 0.5% of their closed-form volume, and the corpus
-histogram moves from 9 analytic / 24 mixed / 66 faceted to 13 / 25 / 61 (16 / 70
-/ 13 with the repairs below).
+histogram moves from 9 analytic / 24 mixed / 66 faceted to 13 / 25 / 61 (16 / 77
+/ 6 with the repairs below).
 esaueng/remus#264 stays **open**: the workaround is here, not upstream, and
 `validate_solid` still accepts the inner-wire form without a word.
 
 **Unknown and open patches become triangles**, one planar face per mesh
 triangle, on the same shared vertices and edges, so the shell still closes.
+
+**A patch whose face fails to build takes its edges down with it.** The edge runs
+are laid down for the set of patches that are *going to be* analytic faces: both
+sides analytic gets the fitted curve, anything else gets the mesh chain. A patch
+that then fails — a surface the kernel refuses, a loop that will not chain — is
+emitted as triangles, which bound themselves with the mesh polygon while the
+neighbour across the boundary is still holding the fitted curve. That is a slit:
+the two faces no longer share an edge, the shell has boundary edges, and a face
+whose whole boundary went that way becomes a disconnected component of its own.
+So one attempt is not one pass: the failed patches are cleared and the whole
+assembly is rebuilt, up to eight times, until no patch fails. It terminates
+because the analytic set only ever shrinks, and it costs no demote-and-rebuild
+round — those are reserved for validation and verification.
 
 **A recovered corner stands in for at most one mesh vertex.** Topology recovery
 merges corners that sit inside one tolerance, so two distinct mesh vertices can
@@ -513,9 +572,9 @@ the same measurement is taken **per face** — from the grouped tessellation,
 result against source, with distance to the mesh's own bounding box as the lower
 bound that settles a far face without a grid search — and the analytic patches
 whose faces are further off than the deviation budget are demoted and the solid
-rebuilt, once. 26 of the 99 subset meshes take that retry.
-`motor-mount-nema17/mesh-coarse` goes from 970 668% off its volume to 0.6%, and
-`sensor-mount-bracket/mesh-coarse` from 17.5% to 1.6%; the ball stud keeps its
+rebuilt, once. 28 of the 99 subset meshes take that retry.
+`motor-mount-nema17/mesh-coarse` goes from 27 568% off its volume to 0.5%, and
+`threaded-pipe-cap/mesh-coarse` from 64 599% to 0.06%; the ball stud keeps its
 flat as an analytic face and loses only its sphere.
 
 **The volume budget follows the measured deviation.** A volume difference is
@@ -560,15 +619,26 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 
 ### Known limits
 
-* **The remaining `Faceted` rows are validation failures, not shape failures.**
-  Of the 99 corpus meshes that reach this stage, 16 come back `Analytic`, 70
-  `Mixed` and 13 `Faceted`. Ten of the 13 are solids that never validated —
-  seven on Euler characteristic, three on an inner wire winding the same way as
-  its outer wire, both inside the triangulated regions — two are meshes the
-  faceted floor itself cannot import (`mailbox-tray/mesh-coarse`,
-  `nist-ctc-02/mesh-coarse`, both non-manifold as welded), and exactly one is a
-  verification failure: `spherical-ball-stud/mesh-coarse`, on the deviation gate
-  rather than the volume one.
+* **Six `Faceted` rows are left, and four of them are the mesh.** Of the 99
+  corpus meshes that reach this stage, 16 come back `Analytic`, 77 `Mixed` and 6
+  `Faceted`. Two are meshes the faceted floor itself cannot import
+  (`mailbox-tray/mesh-coarse`, `nist-ctc-02/mesh-coarse`, both non-manifold as
+  welded) and two more are meshes that are not closed solids at all
+  (`nist-ctc-04/mesh-coarse`, `nist-ctc-05/mesh-coarse`): the faceted floor comes
+  back **invalid** on those two as well, so no reconstruction of them can close
+  a shell. One is a verification failure — `spherical-ball-stud/mesh-coarse`, on
+  the deviation gate rather than the volume one — and exactly one is a solid that
+  never validated: `airtag-keychain/mesh-coarse`, on Euler characteristic.
+* **The last Euler failure is not repairable by demotion.**
+  `airtag-keychain/mesh-coarse` builds a **valid** mixed solid on its first round
+  and then fails verification; the localised retry demotes the 17 faces that are
+  off the mesh, and the rebuilt solid — closed, manifold, every edge used exactly
+  twice, no boundary edges, no orientation complaints — reads `V-E+F = -3`
+  against the 2+L=4 the kernel expects. An odd characteristic on an edge-manifold
+  shell means a pinched vertex, and the demotion is what introduces it: a mesh
+  vertex that an analytic face reached through a recovered corner is reached by
+  the triangles directly once that face is gone. Nothing in the demote-and-retry
+  loop can help, because the faces on such a vertex are triangles.
 * **A spherical face wider than about 80 degrees has no structured
   tessellation path.** `fill_sphere_cap_web` declines it outright
   (`tessellate/nonplanar.rs:2604`) and the latitude-cap path needs a second
@@ -586,11 +656,12 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
 * **The per-face retry runs once and only demotes.** A face further off than
   the deviation budget is demoted to triangles; nothing tries to rebuild it
   better, and a second failure after the retry goes to the faceted floor.
-* **Euler failures are the largest remaining topological class**, seven of the
-  13. They are concentrated in the triangulated regions and are now the ones the
-  corner-per-mesh-vertex rule above does *not* cover: a mesh edge whose two ends
-  still resolve to one kernel vertex is dropped outright, which leaves a hole in
-  the shell rather than a fused edge.
+* **Euler failures used to be the largest remaining topological class**, seven of
+  the thirteen `Faceted` rows, alongside three on an inner wire winding the same
+  way as its outer one. Both classes were ours: a ring laid down against its own
+  chain, coincident marched samples becoming zero-length edges, and a failed
+  patch leaving fitted runs behind (all three above). Seven rows moved to `Mixed`
+  on those three fixes; `airtag-keychain/mesh-coarse` is what is left.
 * **The kernel panics on five corpus meshes** —
   `camera-support-arm/mesh-export`, `conduit-fitting/mesh-export`,
   `hinge-half-knuckle/mesh-coarse`, `motor-mount-nema17/mesh-default`,
@@ -633,13 +704,40 @@ The cost of the straight edges is file size: 27 kB against 16 kB on that part.
   recognise the circle back out of the samples itself.
 * A NURBS boundary edge on a cylindrical face is treated as a rim candidate by
   the band tessellator, which then sweeps a band that is not there.
+* `validate_solid`'s near-zero-length edge check compares against
+  `Tolerance::new().linear`, a flat 1e-7, rather than against the edge's own
+  stored tolerance or anything derived from the solid's size
+  (`crates/operations/src/validate.rs:936`). It is an **error**, not a warning,
+  so a part modelled in metres has a different notion of "degenerate" from the
+  same part in millimetres, and a caller has to know the constant to avoid it.
+* `remus_check::util::wire_polygon` re-derives each edge's traversal direction
+  **positionally**, from vertex chaining, and consults `OrientedEdge::is_forward`
+  only for the wire's first edge and for closed edges
+  (`crates/check/src/util.rs:163-190`). The winding checks built on it therefore
+  measure the *geometry's* direction, not the orientation the B-Rep stores. That
+  is defensible, and it is also the reason a wire whose stored flags are right
+  and whose polyline geometry runs the other way is reported as
+  "inner wire N ... has the same winding as its outer wire" — a message about the
+  wire's own orientation for a fault that is in its curve. Worth either using the
+  stored orientation or saying which of the two disagreed.
+* `check_face_inner_wire_orientation` runs only on `FaceSurface::Plane`
+  (`crates/check/src/validate/face.rs:90-95`), so the same fault on a cylindrical
+  or conical face is silent.
 
-- **Platform-sensitive fits.** Two coarse meshes reach a higher tier on macOS than on the
-  Linux CI runner (`lofted-pull-handle/mesh-coarse`, `threaded-pipe-cap/mesh-coarse`): a
-  near-degenerate fit resolves differently in floating point, and on Linux the thread band
-  produces a face hundreds of millimetres off the mesh that verification rejects. Both rows
-  are blessed at the tier both platforms reach. The fix is a conditioning check in the
-  cylinder and torus fits so a near-degenerate system is refused instead of solved.
+- **Platform-sensitive fits.** `lofted-pull-handle/mesh-coarse` and
+  `threaded-pipe-cap/mesh-coarse` used to reach a higher tier on macOS than on the Linux
+  CI runner: a near-degenerate fit resolved differently in floating point, and on Linux the
+  thread band produced a face hundreds of millimetres off the mesh that verification
+  rejected. The conditioning checks under "Segmentation" are the fix for the fits
+  themselves, and the lofted handle no longer sits near any threshold — it reaches `Mixed`
+  on macOS with a deviation p95 of 0.028 against a 0.99 budget and 0.13% of volume error,
+  and its old tier swing came from the ring winding above, which is now decided by the mesh
+  rather than by the marcher. The thread band still does: its first solid encloses 646x the
+  mesh's volume with a deviation p95 of 599 mm, and it is only the localised verification
+  retry demoting 29 faces that gets the row to `Mixed`. *Which* faces that retry picks is
+  what differed between the platforms, so the row stays blessed at `faceted`, the tier both
+  platforms are known to reach. Recovering it needs the thread band recognised or refused,
+  not a tighter fit guard.
 
 ## Running the scoreboard
 
