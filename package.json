@@ -18,7 +18,7 @@
     "cf:typecheck": "tsc -p tsconfig.cloudflare.json",
     "bundle:budgets": "node scripts/check_bundle_budgets.mjs",
     "cf:assets": "node scripts/check_cloudflare_assets.mjs",
-    "cf:check": "pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler deploy --dry-run",
+    "cf:check": "pnpm test:worker && pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler deploy --dry-run",
     "cf:dev": "pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler dev",
     "cf:test": "pnpm --filter @mesh2param/web test:cloudflare",
     "cf:deploy": "pnpm build:web && pnpm cf:assets && pnpm cf:types && pnpm cf:typecheck && wrangler deploy",
@@ -28,7 +28,7 @@
     "dev:web": "pnpm --filter @mesh2param/web dev",
     "typecheck": "pnpm --filter @mesh2param/contracts typecheck && pnpm --filter @mesh2param/ui typecheck && pnpm --filter @mesh2param/core-wasm typecheck && pnpm --filter @mesh2param/web typecheck && uv run --frozen --extra dev mypy engine services scripts tests",
     "lint": "pnpm --filter @mesh2param/contracts generate:check && pnpm --filter @mesh2param/core-wasm lint && pnpm --filter @mesh2param/web lint && uv run --frozen --extra dev ruff check engine services scripts tests",
-    "test:frontend": "pnpm --filter @mesh2param/contracts test && pnpm --filter @mesh2param/ui test && pnpm --filter @mesh2param/core-wasm test && pnpm --filter @mesh2param/web test",
+    "test:frontend": "pnpm test:worker && pnpm --filter @mesh2param/contracts test && pnpm --filter @mesh2param/ui test && pnpm --filter @mesh2param/core-wasm test && pnpm --filter @mesh2param/web test",
     "test:backend": "uv run --frozen --extra dev pytest",
     "test:api": "uv run --frozen --extra dev pytest tests/api",
     "test:geometry": "uv run --frozen --extra dev pytest tests/test_m2_reconstruction.py::test_geometry_acceptance_exact_sixteen_step_sequence",
@@ -45,7 +45,8 @@
     "licenses:check": "uv run --frozen --extra dev python scripts/check_licenses.py --check",
     "mesh2param": "uv run --frozen mesh2param",
     "verify": "pnpm build:packages && pnpm typecheck && pnpm lint && pnpm test && pnpm test:geometry && pnpm samples:check && pnpm build && pnpm test:e2e && pnpm licenses:check",
-    "acceptance": "uv run --frozen --extra dev python scripts/run_acceptance.py"
+    "acceptance": "uv run --frozen --extra dev python scripts/run_acceptance.py",
+    "test:worker": "node --test cloudflare/*.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

@@ -163,6 +163,21 @@ async function proxyToApi(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const pathname = new URL(request.url).pathname;
+    if (pathname === "/healthz") {
+      const headers = {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      };
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response(null, { status: 405, headers: { ...headers, allow: "GET, HEAD" } });
+      }
+      return new Response(
+        request.method === "HEAD" ? null : JSON.stringify({ status: "ok", service: "mesh2param" }),
+        { headers },
+      );
+    }
+
     if (pathname === "/health" && configuredApiOrigin(env.MESH2PARAM_API_ORIGIN) === null) {
       return browserLocalHealth(requestIdFor(request));
     }
