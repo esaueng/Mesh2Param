@@ -17,4 +17,4 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: esaueng/Mesh2Param/.github/workflows/ci-jobs.yml@3368c7a81bbba09a45bba57c641c2513f61d1616
+    uses: esaueng/Mesh2Param/.github/workflows/ci-jobs.yml@f6d835a9438519d3403754d756820f014bd41f3e
