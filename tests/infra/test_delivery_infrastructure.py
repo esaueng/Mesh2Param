@@ -379,7 +379,7 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     nginx = (REPOSITORY_ROOT / "infra/nginx/nginx.conf.template").read_text(
         encoding="utf-8"
     )
-    workflow = (REPOSITORY_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    workflow = (REPOSITORY_ROOT / ".github/workflows/ci-jobs.yml").read_text(encoding="utf-8")
 
     assert "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7" in backend
     assert "sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa" in backend
