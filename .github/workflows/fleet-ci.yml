@@ -1,0 +1,488 @@
+name: Trusted CI jobs
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  quality:
+    name: Quality (${{ matrix.task }})
+    runs-on: &fleet-runner ${{ fromJSON(vars.CI_FLEET_ENABLED == 'true' && (github.repository == 'esaueng/Mesh2Param' && github.repository_id == '1297125756' && github.actor == 'petergstfsn' && github.actor_id == '171875562' && github.triggering_actor == 'petergstfsn' && ((github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.user.login == 'petergstfsn' && github.event.pull_request.user.id == 171875562 && github.event.pull_request.head.repo.id == 1297125756 && github.event.pull_request.base.repo.id == 1297125756 && github.event.pull_request.head.repo.fork == false && github.event.pull_request.base.repo.fork == false && github.event.pull_request.base.ref == 'main' && github.ref == format('refs/pull/{0}/merge', github.event.pull_request.number)) || ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.ref_protected == true))) && (vars.CI_FLEET_TARGET == 'ci-server-jane' && '{"group":"ci-trusted-main","labels":"ci-server-jane"}' || vars.CI_FLEET_TARGET == 'ci-server-john' && '{"group":"ci-trusted-main","labels":"ci-server-john"}') || '"ubuntu-24.04"') }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [static, frontend, backend, browser]
+    env:
+      CI: "1"
+      MESH2PARAM_ENVIRONMENT: test
+      MESH2PARAM_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      MESH2PARAM_WORKER_COUNT: "1"
+      MESH2PARAM_JOB_RUNNER_MODE: embedded
+      MESH2PARAM_DEBUG: "false"
+    steps:
+      - &fleet-isolation
+        name: Verify runner isolation and fresh storage
+        if: runner.environment == 'self-hosted'
+        run: |
+          set -euo pipefail
+          case "$RUNNER_NAME" in
+            ci-vm-1441561|ci-server-jane|ci-server-john)
+              CI_USER=ci-runner CI_STORAGE=/srv/ci CI_SLICE=ci.slice
+              CI_DOCKER=ci-docker CI_MEMORY=3221225472 CI_CPUS=1
+              CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 ;;
+            ci-server-jane-1|ci-server-jane-2)
+              slot=${RUNNER_NAME##*-}
+              CI_USER=ci-slot$slot CI_STORAGE=/srv/ci-slot$slot CI_SLICE=cislot$slot.slice
+              CI_DOCKER=ci-slot$slot-docker CI_MEMORY=6442450944 CI_CPUS=6
+              CARGO_BUILD_JOBS=3 RUST_TEST_THREADS=6 ;;
+            *) echo 'Unknown trusted runner' >&2; exit 1 ;;
+          esac
+          CI_CGROUP=/sys/fs/cgroup/$CI_SLICE
+          test "$(id -un)" = "$CI_USER"
+          test "$(id -u)" != 0
+          test "$HOME" = "$CI_STORAGE/home"
+          test -f "/opt/$CI_USER/bin/Runner.Listener"
+          test -f "/etc/systemd/system/$CI_USER.service"
+          test ! -w "/opt/$CI_USER/bin/Runner.Listener"
+          test ! -w "/etc/systemd/system/$CI_USER.service"
+          test "$(awk '/^NoNewPrivs:/ {print $2}' /proc/self/status)" = 1
+          test ! -e "$HOME/.app-ci-sentinel"
+          test ! -e "$CI_STORAGE/work/.app-ci-sentinel"
+          touch "$HOME/.app-ci-sentinel" "$CI_STORAGE/work/.app-ci-sentinel"
+          test "$DOCKER_HOST" = "unix:///run/$CI_DOCKER/docker.sock"
+          docker info --format '{{json .SecurityOptions}}' | jq -e 'index("name=rootless") != null'
+          test -z "$(docker ps --all --quiet)"
+          test -z "$(docker image ls --quiet)"
+          test "$(cat "$CI_CGROUP/memory.max")" = "$CI_MEMORY"
+          test "$(cat "$CI_CGROUP/memory.swap.max")" = 0
+          awk -v cpus="$CI_CPUS" '{exit !($1 == $2 * cpus)}' "$CI_CGROUP/cpu.max"
+          grep -Fx "0::/$CI_SLICE/$CI_USER.service" /proc/self/cgroup
+          case ",$(findmnt -n -o OPTIONS --mountpoint "$CI_STORAGE")," in
+            *,nosuid,*) ;; *) exit 1 ;; esac
+          {
+            echo "CI_CGROUP=$CI_CGROUP"
+            echo "CI_STORAGE=$CI_STORAGE"
+            echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
+            echo "RUST_TEST_THREADS=$RUST_TEST_THREADS"
+          } >> "$GITHUB_ENV"
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify direct scheduling policy
+        run: python3 scripts/test-direct-fleet.py
+
+      - name: Test trusted routing policy
+        run: python3 scripts/test-ci-routing.py
+
+      # The runner context is not available to job-level env, and using it there
+      # fails the whole workflow at startup before a single job is created.
+      #
+      # Only the uv cache is exported. The data directory, database URL and
+      # storage path deliberately are not: the API tests count blobs and job
+      # directories, and pointing every test in the job at one shared location
+      # makes them observe each other's leftovers. Both suites already provision
+      # their own isolated state — pytest through fixtures, Playwright through
+      # the mkdtemp in its webServer config.
+      - name: Resolve runner paths
+        run: echo "UV_CACHE_DIR=$RUNNER_TEMP/uv-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: 3.12.11
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      # `pnpm licenses:check` inventories the Cargo dependency graph through
+      # `cargo metadata` and fails loudly when the toolchain is absent, so the
+      # static task needs cargo even though it never builds the Rust core. The
+      # pin is read the same way the Rust job reads it.
+      - name: Read the pinned toolchain
+        if: matrix.task == 'static'
+        id: toolchain
+        run: |
+          read_field() {
+            sed -n "s/^$1 *= *\"\\(.*\\)\"$/\\1/p" rust-toolchain.toml
+          }
+          echo "channel=$(read_field channel)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        if: matrix.task == 'static'
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master @ 2026-09-03
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: wasm32-unknown-unknown
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: 0.11.28
+          enable-cache: false
+
+      - name: Activate pinned pnpm
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          corepack enable --install-directory "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          corepack prepare pnpm@11.7.0 --activate
+          pnpm --version
+
+      - name: Resolve pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache package downloads
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ${{ steps.pnpm-store.outputs.path }}
+            ${{ env.UV_CACHE_DIR }}
+          key: deps-${{ runner.environment }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'uv.lock') }}
+          restore-keys: |
+            deps-${{ runner.environment }}-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        run: uv sync --frozen --extra dev
+
+      # @mesh2param/contracts and @mesh2param/ui are consumed through their built
+      # dist output, which is gitignored. Nothing that typechecks, lints, or
+      # imports them resolves on a clean checkout until they are built.
+      - name: Build workspace packages
+        if: matrix.task != 'backend'
+        run: pnpm build:packages:js
+
+      # @mesh2param/core-wasm is the same story one toolchain down: its `pkg/`
+      # is wasm-pack output, and `pnpm typecheck`/`pnpm lint` do not resolve
+      # without it. Only the static task runs those, so only it pays for the
+      # build; the Rust job builds the package again to test it, cached
+      # separately.
+      - name: Cache cargo build
+        if: matrix.task == 'static'
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install wasm-pack
+        if: matrix.task == 'static'
+        run: cargo install --locked wasm-pack --version 0.15.0
+
+      - name: Build the WebAssembly package
+        if: matrix.task == 'static'
+        run: pnpm core:wasm
+
+      - name: Install Chromium
+        if: matrix.task == 'browser'
+        run: |
+          if [ "${{ runner.environment }}" = self-hosted ]; then
+            pnpm --filter @mesh2param/web exec playwright install chromium
+          else
+            pnpm --filter @mesh2param/web exec playwright install --with-deps chromium
+          fi
+
+      - name: Run type, lint, build, sample, license, and Cloudflare checks
+        if: matrix.task == 'static'
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm build
+          pnpm bundle:budgets
+          pnpm licenses:check
+          pnpm cf:check
+
+      - name: Run frontend tests with coverage
+        if: matrix.task == 'frontend'
+        run: |
+          pnpm --filter @mesh2param/contracts test
+          pnpm --filter @mesh2param/ui test
+          pnpm --filter @mesh2param/web exec vitest run --coverage
+
+      - name: Run backend tests with coverage
+        if: matrix.task == 'backend'
+        run: >-
+          uv run --frozen --extra dev pytest
+          --cov=engine/mesh2param
+          --cov=services/api/mesh2param_api
+          --cov-report=term-missing
+          --cov-report=xml:coverage-backend.xml
+
+      # The viewer perf budgets are written for a machine with a GPU. This
+      # runner has none, so headless Chromium rasterizes through SwiftShader on
+      # the same shared vCPUs the measured JavaScript runs on;
+      # docs/viewer-performance.md records the measured spread. The gate stays
+      # in force here, just scaled — see tests/browser/support/perfBudget.ts.
+      - name: Run browser acceptance
+        if: matrix.task == 'browser'
+        env:
+          MESH2PARAM_E2E_PERF_SCALE: "3"
+        run: |
+          if [ "${{ runner.environment }}" = self-hosted ]; then
+            exec 9</run/ci-browser.lock
+            flock --exclusive 9
+          fi
+          pnpm test:e2e
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verification-evidence-${{ matrix.task }}-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            playwright-report
+            test-results
+            apps/web/coverage
+            coverage-backend.xml
+            artifacts/acceptance
+            artifacts/geometry-acceptance
+  rust:
+    name: Rust core
+    runs-on: *fleet-runner
+    timeout-minutes: 45
+    steps:
+      - *fleet-isolation
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # rust-toolchain.toml is the single source of truth for the pin. The
+      # install action needs the values as inputs, so read them out of the file
+      # rather than restating the channel here and letting the two drift.
+      - name: Read the pinned toolchain
+        id: toolchain
+        run: |
+          read_field() {
+            sed -n "s/^$1 *= *\"\\(.*\\)\"$/\\1/p" rust-toolchain.toml
+          }
+          read_list() {
+            sed -n "s/^$1 *= *\\[\\(.*\\)\\]$/\\1/p" rust-toolchain.toml \
+              | tr -d '" '
+          }
+          {
+            echo "channel=$(read_field channel)"
+            echo "components=$(read_list components)"
+            echo "targets=$(read_list targets)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master @ 2026-09-03
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: ${{ steps.toolchain.outputs.components }}
+          targets: ${{ steps.toolchain.outputs.targets }}
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build for the browser target
+        run: cargo build -p mesh2param-core --target wasm32-unknown-unknown
+
+      # Runs the corpus scoreboard in subset mode (meshes up to 30k triangles)
+      # against crates/mesh2param-core/scoreboard-baseline.json.
+      - name: Test
+        run: cargo test --workspace
+
+      # The browser package is built and tested here rather than in the
+      # frontend task: this is the job that already holds a warm Cargo cache,
+      # and the test is a reconstruction, not a UI test. `cargo install
+      # --locked` is what Swatinem/rust-cache restores best; the version is
+      # pinned so a wasm-pack release cannot change the artifact under us.
+      - name: Install wasm-pack
+        run: cargo install --locked wasm-pack --version 0.15.0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      - name: Activate pinned pnpm
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          corepack enable --install-directory "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          corepack prepare pnpm@11.7.0 --activate
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test the WebAssembly package
+        run: |
+          pnpm core:wasm
+          pnpm --filter @mesh2param/core-wasm typecheck
+          pnpm --filter @mesh2param/core-wasm lint
+          pnpm --filter @mesh2param/core-wasm test
+
+      - name: Upload the scoreboard
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rust-scoreboard-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: target/scoreboard.json
+  containers:
+    name: Containers
+    runs-on: *fleet-runner
+    timeout-minutes: 60
+    env:
+      COMPOSE_IMAGE_TAG: ci
+      COMPOSE_WEB_PORT: "18080"
+      COMPOSE_PROJECT_NAME: mesh2param-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - *fleet-isolation
+      - name: Assign a port for this runner slot
+        run: |
+          case "$RUNNER_NAME" in
+            ci-server-jane-1) echo 'COMPOSE_WEB_PORT=18081' >> "$GITHUB_ENV" ;;
+            ci-server-jane-2) echo 'COMPOSE_WEB_PORT=18082' >> "$GITHUB_ENV" ;;
+          esac
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.22.0
+
+      - name: Activate pinned pnpm
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          corepack enable --install-directory "$HOME/.local/bin"
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          corepack prepare pnpm@11.7.0 --activate
+          pnpm --version
+
+      - name: Build pinned backend image
+        run: docker build --file infra/backend.Dockerfile --tag mesh2param-backend:ci .
+
+      - name: Build pinned web image
+        run: docker build --file infra/web.Dockerfile --tag mesh2param-web:ci .
+
+      # The corpus is only reproducible against a fixed OCCT build, so it is
+      # verified here against the image just built rather than against whatever
+      # kernel the runner happens to provide.
+      - name: Verify the sample corpus
+        env:
+          MESH2PARAM_SAMPLES_IMAGE: mesh2param-backend:ci
+          MESH2PARAM_SAMPLES_DIAGNOSTICS_DIR: artifacts/container-ci/sample-corpus
+        run: pnpm samples:check
+
+      - name: Create non-secret CI environment
+        id: compose-env
+        run: |
+          ci_env="$RUNNER_TEMP/mesh2param-ci.env"
+          cp .env.example "$ci_env"
+          {
+            echo 'COMPOSE_IMAGE_TAG=ci'
+            echo "COMPOSE_WEB_PORT=$COMPOSE_WEB_PORT"
+            echo "MESH2PARAM_PUBLIC_URL=http://localhost:$COMPOSE_WEB_PORT"
+            echo "MESH2PARAM_CORS_ORIGINS=http://localhost:$COMPOSE_WEB_PORT,http://127.0.0.1:$COMPOSE_WEB_PORT"
+          } >> "$ci_env"
+          echo "path=$ci_env" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Compose model
+        run: >-
+          docker compose
+          --env-file "${{ steps.compose-env.outputs.path }}"
+          --project-name "$COMPOSE_PROJECT_NAME"
+          config --quiet
+
+      - name: Start isolated deployment
+        run: >-
+          docker compose
+          --env-file "${{ steps.compose-env.outputs.path }}"
+          --project-name "$COMPOSE_PROJECT_NAME"
+          up --detach --wait --no-build
+
+      - name: Verify effective container security
+        run: >-
+          python3 scripts/verify_container_security.py
+          --project-name "$COMPOSE_PROJECT_NAME"
+          --web-port "$COMPOSE_WEB_PORT"
+          --json-output artifacts/container-ci/security.json
+
+      - name: Collect container diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/container-ci
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" ps --format json \
+            > artifacts/container-ci/compose-ps.json 2>&1 || true
+          ids=$(docker compose --project-name "$COMPOSE_PROJECT_NAME" ps --quiet 2>/dev/null || true)
+          if [ -n "$ids" ]; then
+            docker inspect $ids > artifacts/container-ci/inspect.json 2>&1 || true
+          fi
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" logs --no-color \
+            > artifacts/container-ci/compose.log 2>&1 || true
+
+      - name: Upload container evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: container-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: artifacts/container-ci
+
+      - name: Remove isolated deployment
+        if: always()
+        run: >-
+          docker compose
+          --env-file "${{ steps.compose-env.outputs.path }}"
+          --project-name "$COMPOSE_PROJECT_NAME"
+          down --volumes --remove-orphans
+  verify:
+    name: verify
+    needs: [quality, rust, containers]
+    if: always()
+    runs-on: ${{ fromJSON(vars.CI_FLEET_ENABLED == 'true' && (github.repository == 'esaueng/Mesh2Param' && github.repository_id == '1297125756' && github.actor == 'petergstfsn' && github.actor_id == '171875562' && github.triggering_actor == 'petergstfsn' && ((github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.user.login == 'petergstfsn' && github.event.pull_request.user.id == 171875562 && github.event.pull_request.head.repo.id == 1297125756 && github.event.pull_request.base.repo.id == 1297125756 && github.event.pull_request.head.repo.fork == false && github.event.pull_request.base.repo.fork == false && github.event.pull_request.base.ref == 'main' && github.ref == format('refs/pull/{0}/merge', github.event.pull_request.number)) || ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.ref_protected == true))) && (vars.CI_FLEET_TARGET == 'ci-server-jane' && '{"group":"ci-trusted-main","labels":"ci-server-jane"}' || vars.CI_FLEET_TARGET == 'ci-server-john' && '{"group":"ci-trusted-main","labels":"ci-server-john"}') || '"ubuntu-latest"') }}
+    steps:
+      - *fleet-isolation
+      - name: Require all checks
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY_GATE'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          assert results and all(job["result"] == "success" for job in results.values()), results
+          PY_GATE
+  cloudflare-verify:
+    runs-on: *fleet-runner
+    timeout-minutes: 30
+    env:
+      MESH2PARAM_BOOTSTRAP_WASM: "1"
+    steps:
+      - *fleet-isolation
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify direct scheduling policy
+        run: python3 scripts/test-direct-fleet.py
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.22.2
+      - run: |
+          mkdir -p "$HOME/.local/bin"
+          corepack enable --install-directory "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: python3 tests/infra/test_wasm_build_setup.py
+      - run: pnpm cf:check
