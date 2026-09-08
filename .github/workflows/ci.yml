@@ -14,4 +14,7 @@ concurrency:
 
 jobs:
   checks:
-    uses: esaueng/Mesh2Param/.github/workflows/ci-jobs.yml@396776854fb84905e090962ae9344f65bd6e12fd
+    permissions:
+      contents: read
+      id-token: write
+    uses: esaueng/Mesh2Param/.github/workflows/ci-jobs.yml@3368c7a81bbba09a45bba57c641c2513f61d1616
