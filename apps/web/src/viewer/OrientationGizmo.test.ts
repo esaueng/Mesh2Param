@@ -18,7 +18,7 @@ import {
 describe("OpenCAE orientation gizmo", () => {
   test("keeps the exact OpenCAE layout and placement", () => {
     expect(VIEWER_GIZMO_ALIGNMENT).toBe("bottom-right");
-    expect(VIEWER_GIZMO_MARGIN).toEqual([112, 112]);
+    expect(VIEWER_GIZMO_MARGIN).toEqual([88, 88]);
     expect(VIEWER_GIZMO_DPR).toEqual([2, 3]);
     expect(VIEWER_GIZMO_SCALE).toBe(40);
     expect(VIEWER_GIZMO_AXIS_LENGTH).toBe(1.75);

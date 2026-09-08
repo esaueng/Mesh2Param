@@ -2,7 +2,7 @@
 //!
 //! Two things live here that nothing upstream provides: an **outward
 //! orientation** for the welded mesh (segmentation never needed one, face
-//! construction cannot do without it) and a uniform-grid point-to-triangle
+//! construction cannot do without it) and a point-to-triangle nearest-distance
 //! query used to measure the result against the source in both directions.
 
 use std::collections::HashMap;
@@ -110,36 +110,80 @@ pub(super) fn mesh_volume(positions: &[V3], indices: &[u32]) -> f64 {
     (total / 6.0).abs()
 }
 
-/// A uniform grid over a triangle soup, for nearest-surface queries.
+/// A bounding-volume hierarchy over a triangle soup, for nearest-surface
+/// queries.
 ///
-/// No external crate: a hash grid keyed on integer cells, searched in
-/// expanding shells and stopped as soon as the shell's own lower bound
-/// exceeds the best distance found so far.
-pub(super) struct TriGrid {
+/// No external crate: a median-split BVH over triangle centroids, queried
+/// depth-first with the nearer child taken first and any node whose box is
+/// already further than the best distance found pruned outright.
+///
+/// A uniform grid was tried here first and is the wrong structure for this
+/// input. Verification queries a *reconstructed* solid's tessellation, where
+/// triangle size spans several orders of magnitude — a large planar face is
+/// two triangles, a filleted one thousands — and where a single face built on
+/// a grazing surface can sit kilometres from a hundred-millimetre part. No one
+/// cell size serves that: sized for the small triangles the large ones smear
+/// across thousands of cells, sized for the large ones each cell holds
+/// thousands of small ones, and an expanding-shell search starting from an
+/// outlier walks the whole lattice. A hierarchy adapts to both without a
+/// tuning constant, and its answer is the exact nearest distance rather than
+/// one that depends on how many shells the search was willing to spend.
+pub(super) struct TriTree {
+    /// Triangles, reordered during the build so each leaf owns a contiguous
+    /// run of them.
     tris: Vec<[V3; 3]>,
-    cells: HashMap<(i64, i64, i64), Vec<u32>>,
-    cell: f64,
+    nodes: Vec<Node>,
 }
 
-impl TriGrid {
-    /// Build a grid whose cells hold a handful of triangles each.
-    pub(super) fn new(tris: Vec<[V3; 3]>, extent: f64) -> Self {
-        let n = tris.len().max(1);
-        // Roughly one triangle per cell along each axis: the cube root of the
-        // count spreads a surface mesh over a shell of cells, which is what
-        // the expanding-shell search wants.
-        let per_axis = (n as f64).cbrt().max(1.0);
-        let cell = if extent.is_finite() && extent > 0.0 {
-            (extent / per_axis).max(f64::MIN_POSITIVE)
-        } else {
-            1.0
-        };
-        let mut cells: HashMap<(i64, i64, i64), Vec<u32>> = HashMap::new();
-        for (i, t) in tris.iter().enumerate() {
-            let centroid = t[0].add(t[1]).add(t[2]).mul(1.0 / 3.0);
-            cells.entry(key(centroid, cell)).or_default().push(i as u32);
+/// Triangles per leaf. Small enough that a leaf scan is cheap, large enough
+/// that the tree stays shallow.
+const LEAF_TRIS: usize = 8;
+
+struct Node {
+    min: [f64; 3],
+    max: [f64; 3],
+    /// First triangle for a leaf, first child for an internal node; an
+    /// internal node's two children are adjacent.
+    start: u32,
+    /// Triangles in the leaf, or zero for an internal node.
+    count: u32,
+}
+
+impl Node {
+    /// Distance from `p` to the node's box, zero inside it. A lower bound on
+    /// the distance to every triangle underneath it, which is what makes the
+    /// pruning sound.
+    fn distance(&self, p: V3) -> f64 {
+        let at = p.arr();
+        let mut total = 0.0;
+        for axis in 0..3 {
+            let lo = self.min.get(axis).copied().unwrap_or(0.0);
+            let hi = self.max.get(axis).copied().unwrap_or(0.0);
+            let v = at.get(axis).copied().unwrap_or(0.0);
+            let d = (lo - v).max(v - hi).max(0.0);
+            if d.is_finite() {
+                total += d * d;
+            }
         }
-        Self { tris, cells, cell }
+        total.sqrt()
+    }
+}
+
+impl TriTree {
+    /// Build the hierarchy. Linear in the triangle count up to the sorting.
+    pub(super) fn new(mut tris: Vec<[V3; 3]>) -> Self {
+        let mut nodes = Vec::new();
+        if !tris.is_empty() {
+            let len = tris.len();
+            nodes.push(Node {
+                min: [0.0; 3],
+                max: [0.0; 3],
+                start: 0,
+                count: 0,
+            });
+            build(&mut tris, &mut nodes, 0, 0, len, 0);
+        }
+        Self { tris, nodes }
     }
 
     pub(super) fn is_empty(&self) -> bool {
@@ -148,63 +192,154 @@ impl TriGrid {
 
     /// Distance from `p` to the nearest triangle, or `None` when empty.
     pub(super) fn distance(&self, p: V3) -> Option<f64> {
-        if self.tris.is_empty() {
-            return None;
-        }
-        let (kx, ky, kz) = key(p, self.cell);
+        let root = self.nodes.first()?;
         let mut best = f64::INFINITY;
-        // A triangle can reach into a cell its centroid does not sit in, so a
-        // shell whose inner face is already further than `best` is not proof
-        // on its own; two extra shells past the first hit is the margin.
-        let mut slack = 0_i64;
-        let mut r = 0_i64;
-        loop {
-            let mut touched = false;
-            for dx in -r..=r {
-                for dy in -r..=r {
-                    for dz in -r..=r {
-                        if dx.abs() != r && dy.abs() != r && dz.abs() != r {
-                            continue;
-                        }
-                        let Some(bucket) = self.cells.get(&(kx + dx, ky + dy, kz + dz)) else {
-                            continue;
-                        };
-                        touched = true;
-                        for &i in bucket {
-                            if let Some(t) = self.tris.get(i as usize) {
-                                best = best.min(point_triangle_distance(p, t));
-                            }
-                        }
+        // Depth-first, nearer child first, pruned against `best`. The stack
+        // holds each pending node with the box distance it was pushed at, so a
+        // node that a later leaf has already beaten is dropped without being
+        // opened.
+        let mut stack: Vec<(u32, f64)> = vec![(0, root.distance(p))];
+        while let Some((index, bound)) = stack.pop() {
+            if bound >= best {
+                continue;
+            }
+            let Some(node) = self.nodes.get(index as usize) else {
+                continue;
+            };
+            if node.count > 0 {
+                let from = node.start as usize;
+                let to = from.saturating_add(node.count as usize);
+                if let Some(leaf) = self.tris.get(from..to) {
+                    for t in leaf {
+                        best = best.min(point_triangle_distance(p, t));
                     }
                 }
+                continue;
             }
-            let _ = touched;
-            if best.is_finite() {
-                let reach = (r as f64) * self.cell;
-                if reach > best {
-                    slack += 1;
-                    if slack > 2 {
-                        break;
-                    }
-                }
-            }
-            r += 1;
-            // The grid is finite; 4096 shells past the query point is far
-            // beyond any real mesh and stops a pathological input spinning.
-            if r > 4096 {
-                break;
+            let left = node.start;
+            let right = node.start.saturating_add(1);
+            let dl = self
+                .nodes
+                .get(left as usize)
+                .map_or(f64::INFINITY, |n| n.distance(p));
+            let dr = self
+                .nodes
+                .get(right as usize)
+                .map_or(f64::INFINITY, |n| n.distance(p));
+            // Push the further child first so the nearer one is popped first
+            // and gives the tighter `best` to prune the other with.
+            if dl <= dr {
+                stack.push((right, dr));
+                stack.push((left, dl));
+            } else {
+                stack.push((left, dl));
+                stack.push((right, dr));
             }
         }
         best.is_finite().then_some(best)
     }
 }
 
-fn key(p: V3, cell: f64) -> (i64, i64, i64) {
-    (
-        (p.x / cell).floor() as i64,
-        (p.y / cell).floor() as i64,
-        (p.z / cell).floor() as i64,
-    )
+/// Fill node `at` for `tris[from..to]`, recursing into two children unless the
+/// range is small enough to be a leaf.
+///
+/// `depth` only guards against a range the split cannot separate — coincident
+/// centroids — which would otherwise recurse forever on one side.
+fn build(
+    tris: &mut [[V3; 3]],
+    nodes: &mut Vec<Node>,
+    at: usize,
+    from: usize,
+    to: usize,
+    depth: u32,
+) {
+    let (min, max) = bounds_of(tris.get(from..to).unwrap_or_default());
+    let count = to.saturating_sub(from);
+    if count <= LEAF_TRIS || depth >= 64 {
+        if let Some(node) = nodes.get_mut(at) {
+            node.min = min;
+            node.max = max;
+            node.start = u32::try_from(from).unwrap_or(u32::MAX);
+            node.count = u32::try_from(count).unwrap_or(u32::MAX);
+        }
+        return;
+    }
+
+    // Split at the median centroid along the box's longest axis: it keeps the
+    // tree balanced whatever the triangle size distribution, which is the
+    // property a uniform grid could not offer here.
+    let mut axis = 0;
+    let mut widest = f64::NEG_INFINITY;
+    for a in 0..3 {
+        let w = max.get(a).copied().unwrap_or(0.0) - min.get(a).copied().unwrap_or(0.0);
+        if w > widest {
+            widest = w;
+            axis = a;
+        }
+    }
+    let mid = from + count / 2;
+    if let Some(range) = tris.get_mut(from..to) {
+        let k = mid - from;
+        range.select_nth_unstable_by(k, |a, b| {
+            centroid_axis(a, axis).total_cmp(&centroid_axis(b, axis))
+        });
+    }
+
+    let left = u32::try_from(nodes.len()).unwrap_or(u32::MAX);
+    for _ in 0..2 {
+        nodes.push(Node {
+            min: [0.0; 3],
+            max: [0.0; 3],
+            start: 0,
+            count: 0,
+        });
+    }
+    if let Some(node) = nodes.get_mut(at) {
+        node.min = min;
+        node.max = max;
+        node.start = left;
+        node.count = 0;
+    }
+    build(tris, nodes, left as usize, from, mid, depth + 1);
+    build(tris, nodes, left as usize + 1, mid, to, depth + 1);
+}
+
+fn centroid_axis(t: &[V3; 3], axis: usize) -> f64 {
+    let sum: f64 = t
+        .iter()
+        .map(|p| p.arr().get(axis).copied().unwrap_or(0.0))
+        .sum();
+    sum / 3.0
+}
+
+/// The axis-aligned box around a run of triangles. An empty run gives a
+/// degenerate box at the origin, which no query can be nearer to than to a
+/// real one it is competing with, because such a node holds nothing.
+fn bounds_of(tris: &[[V3; 3]]) -> ([f64; 3], [f64; 3]) {
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
+    for t in tris {
+        for p in t {
+            for (axis, v) in p.arr().iter().enumerate() {
+                if !v.is_finite() {
+                    continue;
+                }
+                if let (Some(lo), Some(hi)) = (min.get_mut(axis), max.get_mut(axis)) {
+                    *lo = lo.min(*v);
+                    *hi = hi.max(*v);
+                }
+            }
+        }
+    }
+    for axis in 0..3 {
+        if let (Some(lo), Some(hi)) = (min.get_mut(axis), max.get_mut(axis))
+            && (!lo.is_finite() || !hi.is_finite())
+        {
+            *lo = 0.0;
+            *hi = 0.0;
+        }
+    }
+    (min, max)
 }
 
 /// Closest distance from a point to a triangle (Ericson, region tables).
@@ -289,4 +424,79 @@ pub(super) fn polygon_normal(points: &[V3]) -> V3 {
         n = n.add(a.cross(b));
     }
     n.mul(0.5)
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::{TriTree, point_triangle_distance};
+    use crate::segment::linalg::V3;
+
+    /// A deterministic scatter of triangles whose sizes span four orders of
+    /// magnitude, plus one sitting kilometres away — the shape of a
+    /// reconstructed solid's tessellation, and the case the uniform grid this
+    /// replaced could neither bin nor search.
+    fn soup() -> Vec<[V3; 3]> {
+        let mut out = Vec::new();
+        let mut seed = 0x2545_f491_4f6c_dd1d_u64;
+        let mut next = || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed >> 11) as f64 / (1_u64 << 53) as f64
+        };
+        for i in 0..400 {
+            let scale = if i % 40 == 0 { 30.0 } else { 0.01 };
+            let a = V3::new(next() * 100.0, next() * 100.0, next() * 100.0);
+            out.push([
+                a,
+                a.add(V3::new(next() * scale, next() * scale, 0.0)),
+                a.add(V3::new(0.0, next() * scale, next() * scale)),
+            ]);
+        }
+        let far = V3::new(-4000.0, 900.0, 12.0);
+        out.push([
+            far,
+            far.add(V3::new(1.0, 0.0, 0.0)),
+            far.add(V3::new(0.0, 2.0, 0.0)),
+        ]);
+        out
+    }
+
+    fn brute(p: V3, tris: &[[V3; 3]]) -> f64 {
+        tris.iter()
+            .map(|t| point_triangle_distance(p, t))
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    #[test]
+    fn tree_matches_brute_force() {
+        let tris = soup();
+        let tree = TriTree::new(tris.clone());
+        let probes = [
+            V3::new(50.0, 50.0, 50.0),
+            V3::new(0.0, 0.0, 0.0),
+            V3::new(-1.0, 120.0, 7.5),
+            // Far outside everything: the query must prune to the answer
+            // rather than search outward towards it.
+            V3::new(-3990.0, 905.0, 12.0),
+            V3::new(1e5, -1e5, 1e5),
+            V3::new(12.25, 88.5, 3.125),
+        ];
+        for p in probes {
+            let want = brute(p, &tris);
+            let got = tree.distance(p).expect("non-empty tree answers");
+            assert!(
+                (got - want).abs() <= 1e-9 * want.max(1.0),
+                "at {p:?}: tree {got} vs brute force {want}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_tree_declines() {
+        let tree = TriTree::new(Vec::new());
+        assert!(tree.is_empty());
+        assert_eq!(tree.distance(V3::new(1.0, 2.0, 3.0)), None);
+    }
 }

@@ -160,4 +160,41 @@ describe("PatchPanel", () => {
     expect(split).toHaveAttribute("title", expect.stringContaining("not implemented"));
     expect(screen.getByRole("combobox", { name: "Reclassify selected patch" })).toBeDisabled();
   });
+
+  it("mirrors pointer and keyboard hover to the viewport and back", async () => {
+    const user = userEvent.setup();
+    const onHover = vi.fn();
+    const { rerender } = render(
+      <PatchPanel
+        patches={PATCHES}
+        selectedPatchId={null}
+        hoveredPatchId="patch.b"
+        disabled={false}
+        onSelect={() => {}}
+        onHover={onHover}
+        onUpdate={() => {}}
+        onMerge={() => {}}
+      />,
+    );
+
+    expect(document.querySelector('li[data-patch-id="patch.b"]')?.className).toContain("hovered");
+    await user.hover(document.querySelector('li[data-patch-id="patch.a"]')!);
+    expect(onHover).toHaveBeenLastCalledWith("patch.a");
+    await user.unhover(document.querySelector('li[data-patch-id="patch.a"]')!);
+    expect(onHover).toHaveBeenLastCalledWith(null);
+
+    rerender(
+      <PatchPanel
+        patches={PATCHES}
+        selectedPatchId={null}
+        hoveredPatchId={null}
+        disabled={false}
+        onSelect={() => {}}
+        onHover={onHover}
+        onUpdate={() => {}}
+        onMerge={() => {}}
+      />,
+    );
+    expect(document.querySelector("li.hovered")).toBeNull();
+  });
 });

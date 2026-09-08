@@ -10,7 +10,8 @@
 use core::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use super::Primitive;
-use super::linalg::{V3, angle_between, fit_line, jacobi3, perp, solve_small};
+use super::linalg::{V3, angle_between, jacobi3, perp, solve_small};
+use super::stats::{Allow, Stats};
 
 /// A cone flatter than this is a cylinder, and one steeper than its complement
 /// is a plane; both have already had their turn by the time the cone is tried.
@@ -49,7 +50,7 @@ const MIN_CONE_HALF_ANGLE_DEG: f64 = 2.0;
 /// the patches on `nist-ftc-10/mesh-coarse` whose refusal doubles its analytic
 /// face count. The criterion is not "is the axis accurate" but "is the axis
 /// *determined*".
-const MAX_AXIS_EIGEN_RATIO: f64 = 0.7;
+pub(super) const MAX_AXIS_EIGEN_RATIO: f64 = 0.7;
 
 /// The largest radius a curved fit may claim, as a multiple of the patch's own
 /// extent across the surface's axis.
@@ -76,7 +77,7 @@ const MAX_AXIS_EIGEN_RATIO: f64 = 0.7;
 /// `laser-rail/mesh-export` 19 of its 26 analytic faces, and from 20 upwards the
 /// corpus does not move again. The sphere, which has neither an axis nor a swept
 /// angle of its own, has only this guard.
-const MAX_RADIUS_EXTENT_FACTOR: f64 = 20.0;
+pub(super) const MAX_RADIUS_EXTENT_FACTOR: f64 = 20.0;
 
 impl Primitive {
     /// Unsigned distance from `q` to the primitive's surface.
@@ -231,6 +232,7 @@ pub(super) struct Sample {
 }
 
 /// One triangle reduced to what the fits need.
+#[derive(Clone, Copy)]
 pub(super) struct FaceRef {
     /// Unit normal.
     pub n: V3,
@@ -336,29 +338,16 @@ fn swept(angles: Vec<f64>) -> f64 {
     }
 }
 
-/// Area-weighted second moment of the face normals about the origin.
-///
-/// A cylinder's normals are all perpendicular to its axis, so the axis is the
-/// direction of zero second moment. Raw rather than centred on purpose: it
-/// still resolves an axis from as few as two facets, which is what lets a
-/// coarse cylinder be rebuilt one strip at a time.
-fn axis_from_normals_raw(faces: &[FaceRef]) -> Option<V3> {
-    let mut c = [[0.0_f64; 3]; 3];
-    for f in faces {
-        let v = f.n.arr();
-        for i in 0..3 {
-            for j in 0..3 {
-                c[i][j] += f.a * v[i] * v[j];
-            }
-        }
-    }
-    let (vals, vecs) = jacobi3(c);
-    axis_determined(vals).then(|| vecs[0].unit()).flatten()
-}
-
 /// Whether the smallest of three ascending eigenvalues names a direction the
 /// data actually distinguishes. See [`MAX_AXIS_EIGEN_RATIO`].
-fn axis_determined(vals: [f64; 3]) -> bool {
+///
+/// The moment matrices themselves are on [`Stats`], which is where a trial
+/// merge can reach them without a pass over the faces: a cylinder's is the raw
+/// area-weighted second moment of the face normals — raw on purpose, so that it
+/// still resolves an axis from as few as two facets — and a cone's or a torus's
+/// is the same about the mean normal, because `n . axis` is exactly constant on
+/// a cone rather than zero, which the raw form gets wrong past 35 degrees.
+pub(super) fn axis_determined(vals: [f64; 3]) -> bool {
     let (lo, next) = (vals[0].max(0.0), vals[1].max(0.0));
     next > 0.0 && lo <= MAX_AXIS_EIGEN_RATIO * next
 }
@@ -379,39 +368,39 @@ fn radius_supported(radius: f64, extent: f64) -> bool {
     extent > 0.0 && radius <= MAX_RADIUS_EXTENT_FACTOR * extent
 }
 
-/// Area-weighted covariance of the face normals *about their mean*.
+/// Lower bound on the RMS angle between the face normals and *any* surface of
+/// revolution about the line through `m` in direction `dir`.
 ///
-/// `n . axis` is exactly constant on a cone (`-sin(half angle)`) and nearly so
-/// on a fillet-like torus band, so the axis is the zero-variance direction of
-/// the centred covariance whatever the cone's angle. The raw second moment
-/// picks the wrong direction for a cone steeper than 35 degrees. Needs three
-/// independent normals, which is why the cylinder keeps the raw form.
+/// A surface of revolution's normal at a point lies in the plane spanned by the
+/// axis and the point's own radial direction, so it is perpendicular to the
+/// circumferential direction `tau = dir x (c - m)` there — whichever way round
+/// it points, which is what [`normal_dev`] measures. The angle from a face
+/// normal to that whole plane is therefore a floor under its angle to the
+/// surface, and `sin theta <= theta` turns the sines into the same sum
+/// [`normal_dev`] takes.
 ///
-/// A torus swept more than about 140 degrees around its tube defeats this too:
-/// the variance along the axis then exceeds the variance across it. Fillets and
-/// rounds, which is what tori are in practice, stay well inside that.
-fn axis_from_normals_centred(faces: &[FaceRef]) -> Option<V3> {
-    let asum: f64 = faces.iter().map(|f| f.a).sum();
-    if asum <= 0.0 {
-        return None;
-    }
-    let mut mean = V3::ZERO;
+/// Both the cone and the torus put their axis through the samples' centroid —
+/// the apex at `m + t dir`, the ring centre at `m + axial dir` — so `m` is
+/// known before either has fitted anything, and this costs one pass over the
+/// *faces* where the fits themselves cost several over the samples. On a
+/// freeform region trial-merged with each of its neighbours in turn, that is
+/// the difference between refusing it cheaply and refitting it every time.
+fn revolution_dev_floor(faces: &[FaceRef], dir: V3, m: V3) -> f64 {
+    let mut acc = 0.0;
+    let mut wsum = 0.0;
     for f in faces {
-        mean = mean.add(f.n.mul(f.a));
-    }
-    mean = mean.mul(1.0 / asum);
-    let mut c = [[0.0_f64; 3]; 3];
-    for f in faces {
-        let d = f.n.sub(mean).arr();
-        for i in 0..3 {
-            for j in 0..3 {
-                c[i][j] += f.a * d[i] * d[j];
-            }
+        wsum += f.a;
+        if let Some(tau) = dir.cross(f.c.sub(m)).unit() {
+            let s = f.n.dot(tau);
+            acc += f.a * s * s;
         }
     }
-    let (vals, vecs) = jacobi3(c);
-    axis_determined(vals).then(|| vecs[0].unit()).flatten()
+    if wsum > 0.0 { (acc / wsum).sqrt() } else { 0.0 }
 }
+
+/// How much slack a screening bound allows itself: it is derived exactly, so
+/// only the arithmetic can put it on the wrong side of a threshold.
+const BOUND_SLACK: f64 = 1.0 + 1e-9;
 
 /// A patch is a genuine polygonal prism or pyramid, not a coarsely tessellated
 /// cylinder or cone, when its facets step further than `max_facet_step` around
@@ -501,11 +490,19 @@ fn fit_circle(xy: &[(f64, f64, f64)]) -> Option<(f64, f64, f64)> {
     Some((cx + mx, cy + my, r))
 }
 
-fn radius_sane(r: f64, o: FitOpts) -> bool {
+pub(super) fn radius_sane(r: f64, o: FitOpts) -> bool {
     r.is_finite() && r >= 1e-9 && r <= 50.0 * o.bbox_diag
 }
 
 /// Weighted plane fit: PCA, normal is the smallest-eigenvalue direction.
+///
+/// The screen solves the same eigen-problem on the samples' second moment,
+/// which it carries, and gets the same plane to within the two summation
+/// orders. It is left to do so rather than handing the answer over: the
+/// residual it needs is `sqrt(lambda0 / w)`, which is the eigenvalue itself and
+/// so insensitive to an eigenvector the moment barely determines, while the
+/// plane a patch is *reported* as should stay the one the samples themselves
+/// give, to the last bit.
 fn fit_plane(pts: &[Sample]) -> Option<Cand> {
     if pts.len() < 3 {
         return None;
@@ -540,11 +537,11 @@ fn fit_plane(pts: &[Sample]) -> Option<Cand> {
 
 /// Cylinder fit: axis from the normal covariance, radius from a circle fit in
 /// the plane perpendicular to it.
-fn fit_cylinder(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
+fn fit_cylinder(pts: &[Sample], faces: &[FaceRef], o: FitOpts, s: &Stats) -> Option<Cand> {
     if pts.len() < 4 || faces.len() < 2 {
         return None;
     }
-    let dir = axis_from_normals_raw(faces)?;
+    let (dir, _) = s.cylinder_axis()?;
     let u = perp(dir);
     let v = dir.cross(u).unit()?;
     let wsum = weight_sum(pts);
@@ -595,25 +592,57 @@ fn fit_cylinder(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
 /// Cone fit: axis from the normal covariance, then apex and half-angle by
 /// least squares on the `(axial position, radial distance)` pairs, which lie on
 /// a straight line `rho = tan(half angle) * (t - t_apex)` for a true cone.
-fn fit_cone(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
+///
+/// That line, the mean radius and the transverse extent all come out of one
+/// streaming pass over the samples. Materialising the pairs first is what a
+/// trial merge cannot afford: the union of a freeform region and one of its
+/// neighbours has tens of thousands of them and is about to be refused.
+fn fit_cone(pts: &[Sample], faces: &[FaceRef], o: FitOpts, s: &Stats) -> Option<Cand> {
     if pts.len() < 4 || faces.len() < 3 {
         return None;
     }
-    let mut dir = axis_from_normals_centred(faces)?;
+    let mut dir = s.conic_axis()?;
     let wsum = weight_sum(pts);
     if wsum <= 0.0 {
         return None;
     }
+    let u = perp(dir);
+    let v = dir.cross(u).unit()?;
+    // Both of these are independent of everything below and counted over faces
+    // rather than samples, so they go first: a patch that steps too far per
+    // facet is a pyramid, and one whose normals miss every axial plane is not a
+    // surface of revolution at all — no pass over its vertices will change
+    // either. Both are blind to the axis's sign, which the line fit below may
+    // flip.
+    if !facet_step_ok(faces, dir, u, v, o) {
+        return None;
+    }
     let m = weighted_centroid(pts, wsum);
+    if revolution_dev_floor(faces, dir, m) > o.max_normal_dev * BOUND_SLACK {
+        return None;
+    }
 
-    let tr: Vec<(f64, f64, f64)> = pts
-        .iter()
-        .map(|s| {
-            let rel = s.p.sub(m);
-            (rel.dot(dir), rel.reject(dir).norm(), s.w)
-        })
-        .collect();
-    let (mut slope, intercept) = fit_line(&tr)?;
+    // One streaming pass for all three things the cone needs from its samples:
+    // the `(axial, radial)` line fit, the mean radius its budget is relative
+    // to, and the transverse extent that radius has to be supported by.
+    let (mut sw, mut sx, mut sy, mut sxx, mut sxy) = (0.0, 0.0, 0.0, 0.0, 0.0);
+    let mut extent = 0.0_f64;
+    for sample in pts {
+        let rel = sample.p.sub(m);
+        let (t, rho, w) = (rel.dot(dir), rel.reject(dir).norm(), sample.w);
+        sw += w;
+        sx += w * t;
+        sy += w * rho;
+        sxx += w * t * t;
+        sxy += w * t * rho;
+        extent = extent.max(rho);
+    }
+    let det = sxx.mul_add(sw, -(sx * sx));
+    if sw <= 0.0 || det.abs() < 1e-300 {
+        return None;
+    }
+    let mut slope = sxy.mul_add(sw, -(sx * sy)) / det;
+    let intercept = sxx.mul_add(sy, -(sx * sxy)) / det;
     // Orient the axis so the cone opens along +dir. Mirroring the axial
     // coordinate negates the slope and leaves the intercept — the radius at the
     // reference point — untouched.
@@ -632,22 +661,16 @@ fn fit_cone(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
     }
     let apex = m.add(dir.mul(t_apex));
 
-    let u = perp(dir);
-    let v = dir.cross(u).unit()?;
-    if !facet_step_ok(faces, dir, u, v, o) {
-        return None;
-    }
-
     // A cone has no single radius: its local radius runs from zero at the apex.
     // The mean distance to the axis over the patch is the scale that matters,
     // and holding the fit to a fraction of it stops the cone — the most
     // accommodating of the developable surfaces — from swallowing everything
     // the absolute tolerance would let it.
-    let mean_rho = tr.iter().map(|&(_, rho, w)| rho * w).sum::<f64>() / wsum;
+    let mean_rho = sy / wsum;
     // The same radial conditioning the cylinder is held to, on the local
     // radius a cone does have: a band wrapping a few degrees around its axis
     // determines neither the axis it wraps nor the distance to it.
-    if !radius_supported(mean_rho, transverse_extent(pts, wsum, dir)) {
+    if !radius_supported(mean_rho, extent) {
         return None;
     }
     let prim = Primitive::Cone {
@@ -709,16 +732,22 @@ fn fit_sphere(pts: &[Sample], o: FitOpts) -> Option<Cand> {
 /// samples' centroid, then the tube circle by the same circle fit the cylinder
 /// uses — in the `(radial distance, axial offset)` half-plane, where a torus is
 /// a circle of the minor radius centred at the major radius.
-fn fit_torus(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Option<Cand> {
+fn fit_torus(pts: &[Sample], faces: &[FaceRef], o: FitOpts, s: &Stats) -> Option<Cand> {
     if pts.len() < 6 || faces.len() < 3 {
         return None;
     }
-    let dir = axis_from_normals_centred(faces)?;
+    let dir = s.conic_axis()?;
     let wsum = weight_sum(pts);
     if wsum <= 0.0 {
         return None;
     }
     let m = weighted_centroid(pts, wsum);
+    // The same floor the cone is refused by, and for the same reason: the ring
+    // centre sits on the axis through `m`, so the circumferential direction at
+    // every face is known before the tube circle is fitted.
+    if revolution_dev_floor(faces, dir, m) > o.max_normal_dev * BOUND_SLACK {
+        return None;
+    }
 
     let rt: Vec<(f64, f64, f64)> = pts
         .iter()
@@ -782,13 +811,25 @@ pub(super) fn normal_spread(faces: &[FaceRef]) -> f64 {
 
 /// Fit every primitive in turn and take the **first** that clears the guards.
 ///
+/// `allow` is what the screen has already ruled out from the set's running
+/// sums: a primitive it has refused cannot be chosen here, so it is not tried.
+/// The fallback residual a screened fit reports is therefore the nearest of the
+/// candidates that were still open, which is all a trial merge — the only
+/// caller that screens — ever looks at, and then only when one is accepted.
+///
 /// The order — plane, cylinder, cone, sphere, torus — is deliberate. Picking
 /// the numerically smallest RMS instead lets a short cylindrical band win as a
 /// large sphere, because a sphere has one more free parameter and so never fits
 /// worse; a fillet band likewise wins as a torus, which has two more. The
 /// simplest model that is inside tolerance is the right answer, so the order is
 /// by how much freedom each surface has to flatter itself.
-pub(super) fn fit_patch(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Fit {
+pub(super) fn fit_patch(
+    pts: &[Sample],
+    faces: &[FaceRef],
+    o: FitOpts,
+    s: &Stats,
+    allow: Allow,
+) -> Fit {
     // No analytic surface has an edge on it, so a patch holding a crease
     // sharper than one facet step is two surfaces, whatever the residuals say —
     // and the residuals do say otherwise, in both directions:
@@ -822,18 +863,22 @@ pub(super) fn fit_patch(pts: &[Sample], faces: &[FaceRef], o: FitOpts) -> Fit {
             .then_some(c)
     };
 
-    let mut chosen = note(fit_plane(pts));
-    if chosen.is_none() && curved_ok {
-        chosen = note(fit_cylinder(pts, faces, o));
+    let mut chosen = if allow.plane {
+        note(fit_plane(pts))
+    } else {
+        None
+    };
+    if chosen.is_none() && curved_ok && allow.cylinder {
+        chosen = note(fit_cylinder(pts, faces, o, s));
     }
-    if chosen.is_none() && curved_ok {
-        chosen = note(fit_cone(pts, faces, o));
+    if chosen.is_none() && curved_ok && allow.cone {
+        chosen = note(fit_cone(pts, faces, o, s));
     }
-    if chosen.is_none() && curved_ok {
+    if chosen.is_none() && curved_ok && allow.sphere {
         chosen = note(fit_sphere(pts, o));
     }
-    if chosen.is_none() && curved_ok {
-        chosen = note(fit_torus(pts, faces, o));
+    if chosen.is_none() && curved_ok && allow.torus {
+        chosen = note(fit_torus(pts, faces, o, s));
     }
 
     match (chosen, fallback) {

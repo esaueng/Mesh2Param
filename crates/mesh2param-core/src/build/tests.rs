@@ -9,8 +9,9 @@ use core::f64::consts::TAU;
 
 use super::*;
 use crate::mesh::MeshData;
+use crate::progress::{Progress, Stage};
 use crate::segment::linalg::V3;
-use crate::segment::{Inventory, Patch, Primitive, Segmentation};
+use crate::segment::{Inventory, Patch, Primitive, Segmentation, segment};
 use crate::topology::{Curve, Topology as PatchTopology};
 
 /// A triangle soup under construction, in the winding the mesh will keep.
@@ -435,8 +436,12 @@ fn a_whole_torus_is_one_face_on_a_fundamental_polygon() {
                 major_radius: major,
                 minor_radius: minor,
             },
+            reason: None,
+            smooth_curved_fraction: 1.0,
         }],
         face_patch: vec![0; welded.triangles.len()],
+        face_curvature: vec![1.0 / minor; welded.triangles.len()],
+        face_smooth_curved: vec![true; welded.triangles.len()],
         inventory: Inventory {
             torus: 1,
             ..Inventory::default()
@@ -648,6 +653,7 @@ fn the_volume_budget_admits_a_coarse_prism_and_refuses_a_wrong_radius() {
             samples: 1,
         },
         volume: core::f64::consts::PI * radius * radius * height,
+        mesh: verify::ResultMesh::default(),
     };
     let error = relative_volume_error(right.volume, geom.volume);
     assert!(
@@ -667,6 +673,7 @@ fn the_volume_budget_admits_a_coarse_prism_and_refuses_a_wrong_radius() {
             samples: 1,
         },
         volume: core::f64::consts::PI * (2.0 * radius) * (2.0 * radius) * height,
+        mesh: verify::ResultMesh::default(),
     };
     let error = relative_volume_error(wrong.volume, geom.volume);
     assert!(
@@ -813,4 +820,59 @@ fn a_patch_whose_face_fails_leaves_no_slit() {
     assert!(lone.is_empty(), "shell has boundary edges: {lone:?}");
     let report = validate(&attempt.topo, attempt.solid);
     assert!(report.is_valid(), "issues: {:?}", issues_of(&report));
+}
+
+#[test]
+fn progress_is_reported_without_changing_the_result() {
+    let mesh = capped_cylinder(1.0, 4.0, 24);
+    let options = ReconstructOptions::default();
+
+    let mut seen: Vec<(Stage, f32)> = Vec::new();
+    let mut sink = |stage: Stage, fraction: f32| seen.push((stage, fraction));
+    let with = reconstruct_with_progress(&mesh, &options, &mut Progress::new(&mut sink)).unwrap();
+    let without = reconstruct(&mesh, &options).unwrap();
+
+    assert_eq!(
+        with.build.tier, without.build.tier,
+        "reporting progress changed the tier"
+    );
+    assert_eq!(
+        with.build.step, without.build.step,
+        "reporting progress changed the STEP output"
+    );
+
+    assert!(
+        seen.iter().any(|&(s, _)| s == Stage::Weld),
+        "no weld report: {seen:?}"
+    );
+    assert!(
+        seen.iter().any(|&(s, _)| s == Stage::Segment),
+        "no segmentation report: {seen:?}"
+    );
+    assert_eq!(
+        seen.last().copied(),
+        Some((Stage::Step, 1.0)),
+        "the run did not finish on step 1.0: {seen:?}"
+    );
+
+    // Each stage runs its own 0..=1, and never goes backwards inside itself.
+    for stage in [Stage::Weld, Stage::Segment, Stage::Build] {
+        let mut last = -1.0_f32;
+        for &(_, fraction) in seen.iter().filter(|&&(s, _)| s == stage) {
+            assert!(
+                (0.0..=1.0).contains(&fraction) && fraction >= last,
+                "{stage:?} reported {fraction} after {last}"
+            );
+            last = fraction;
+        }
+    }
+
+    assert!(
+        !with.build.mesh.is_empty(),
+        "a verified reconstruction carried no display mesh"
+    );
+    assert!(
+        with.build.mesh.indices.len().is_multiple_of(3),
+        "display mesh indices are not whole triangles"
+    );
 }

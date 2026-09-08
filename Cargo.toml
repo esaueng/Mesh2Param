@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/mesh2param-core"]
+members = ["crates/mesh2param-core", "crates/mesh2param-wasm"]
 resolver = "3"
 
 # The spikes are throwaway measurement packages with their own pinned

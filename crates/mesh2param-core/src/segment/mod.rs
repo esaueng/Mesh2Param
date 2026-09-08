@@ -12,7 +12,9 @@
 //!    differ by less than [`SegmentOptions::angle_deg`].
 //! 2. **Fit.** Each patch gets a plane, cylinder, cone, sphere and torus in
 //!    turn, and the first one inside tolerance wins. Patches that fit nothing
-//!    are re-cut at a tighter angle and refitted.
+//!    are re-cut at a tighter angle and refitted — except across a smoothly
+//!    curved neighbourhood, which is one surface and is never cut into planar
+//!    shards.
 //! 3. **Merge.** Patches whose fitted primitives agree are merged, then
 //!    adjacent patches are trial-merged and the merge kept when the union is
 //!    still a primitive. This is what turns a coarse cylinder's planar strips
@@ -25,6 +27,13 @@
 //! the patch's **own** median edge length, not the mesh's; a decision spanning
 //! two patches uses the looser of the two. See
 //! [`SegmentOptions::tol_chord_factor`].
+//!
+//! A patch that is mostly smoothly curved and does not fit its plane to a
+//! hundredth of that tolerance is not promoted as a plane: it is
+//! [`PatchKind::Unknown`] with [`UnknownReason::Freeform`], a surface waiting
+//! for a fit this crate does not have. The `curvature` module says what
+//! "smoothly curved" measures and why it is the only thing that separates a
+//! shard of a b-spline from a small planar face.
 //!
 //! # Example
 //!
@@ -41,9 +50,11 @@
 //! # }
 //! ```
 
+mod curvature;
 mod fit;
 mod grow;
 pub(crate) mod linalg;
+mod stats;
 #[cfg(test)]
 mod tests;
 
@@ -51,6 +62,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, Result};
 use crate::mesh::MeshData;
+use crate::progress::{Progress, Stage};
 use fit::FitOpts;
 use grow::{Geom, Params};
 
@@ -288,6 +300,26 @@ pub enum Primitive {
     Unknown,
 }
 
+/// Why a region was left [`PatchKind::Unknown`].
+///
+/// Recorded so the stages above can tell the three apart: a freeform region is
+/// a *surface* waiting for a fit the crate does not have yet (a NURBS), while a
+/// shard is a fragment of one and a no-fit region is a region nothing was
+/// recognised in at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UnknownReason {
+    /// The region is smoothly curved and its plane fit was refused on that
+    /// basis: a B-spline or blend surface, not a set of small flats. The build
+    /// stage may later fit a general surface here.
+    Freeform,
+    /// A fragment carved out of an unfittable region that did not clear the
+    /// promotion gates.
+    Shard,
+    /// No primitive fitted the region within tolerance.
+    NoFit,
+}
+
 /// One recognised region of the mesh.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -311,6 +343,13 @@ pub struct Patch {
     pub max_residual: Option<f64>,
     /// The fitted surface.
     pub primitive: Primitive,
+    /// Why the patch is [`PatchKind::Unknown`]; `None` exactly when it is not.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<UnknownReason>,
+    /// Share of the patch's area that lies in a smoothly curved neighbourhood.
+    ///
+    /// Diagnostic: this is the number the freeform gate is a threshold on.
+    pub smooth_curved_fraction: f64,
 }
 
 /// How many patches of each kind a segmentation found.
@@ -353,6 +392,19 @@ pub struct Segmentation {
     /// [`MeshData::welded`] produces, which has degenerate triangles dropped,
     /// not the input triangle soup.
     pub face_patch: Vec<u32>,
+    /// Mean dominant principal curvature magnitude per **welded** triangle, in
+    /// reciprocal mesh units, and zero wherever curvature is not defined (a
+    /// corner on a crease, a boundary, or a degenerate triangle).
+    ///
+    /// Diagnostic only: nothing downstream reads it, and it is what makes the
+    /// freeform gates inspectable on a real part.
+    pub face_curvature: Vec<f64>,
+    /// Whether each **welded** triangle sits in a smoothly curved
+    /// neighbourhood: at least one corner measured past
+    /// `1 / (2 x bbox diagonal)`, no corner measured flat, and no edge of the
+    /// triangle folding past `maxFacetDeg`. This is the score the freeform gate
+    /// weighs by area, and [`Patch::smooth_curved_fraction`] is that weighing.
+    pub face_smooth_curved: Vec<bool>,
     /// Patch counts by kind.
     pub inventory: Inventory,
     /// Share of the total area that no primitive was recognised in.
@@ -402,6 +454,40 @@ fn check_nonneg(value: f64, name: &str) -> Result<()> {
 /// tells a genuinely flat few triangles from a flat-looking sample of a curve.
 const SHARD_RESIDUAL_FRAC: f64 = 0.25;
 
+/// How much of a patch's area has to be smoothly curved before its **plane**
+/// fit is refused and the patch is called [`UnknownReason::Freeform`].
+///
+/// A majority, with room to spare, because the score is deliberately silent at
+/// a region's rim: the corners there sit on the creases that bound the face, so
+/// the border ring of every patch scores zero however curved the surface is. A
+/// b-spline face therefore reads as somewhat less than fully curved — three
+/// fifths is what a small one still clears — while a planar face reads as
+/// nothing at all, and a plane-to-fillet-to-plane leak, where the fillet is a
+/// narrow band between two large flats, stays well under the bar and is still
+/// split into its parts by stage 2b.
+///
+/// Only the plane is gated. A cylinder, cone, sphere or torus fit is *supposed*
+/// to land on a curved region, and its own residual, axis conditioning and
+/// normal deviation already say whether it did.
+const FREEFORM_AREA_FRACTION: f64 = 0.6;
+
+/// How far off its own plane a patch has to be, as a fraction of its tolerance,
+/// before curvature is allowed to demote it.
+///
+/// A hundredth, which is not a tolerance but a *separation*, and the two
+/// populations it separates are far apart. A planar face on a CAD export is
+/// planar exactly: the corpus's real planes fit to `1e-14` mm, machine epsilon
+/// on their own coordinates, and even a binary STL's float32 rounding reaches
+/// only a few times `1e-5` of a tolerance. A shard of a smooth surface fits its
+/// plane to a few per cent of one — small enough to be accepted, far too large
+/// to be rounding.
+///
+/// This is what keeps the gate off a narrow flat bounded by fillets, whose
+/// every vertex is on a tangent rim and therefore reads curved: the flange's
+/// 4 mm annulus fits its plane to 0.8% of its tolerance and keeps it, while the
+/// hammer holder's shards fit theirs to between 3.5% and 25% and lose it.
+const FREEFORM_RESIDUAL_FLOOR: f64 = 1e-2;
+
 /// Segment a mesh into analytic surface patches.
 ///
 /// # Errors
@@ -409,6 +495,22 @@ const SHARD_RESIDUAL_FRAC: f64 = 0.25;
 /// - [`CoreError::Validation`] when an option is not a finite positive number,
 ///   or when the mesh has no usable triangles once welded.
 pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation> {
+    segment_with_progress(mesh, options, &mut Progress::none())
+}
+
+/// [`segment`], reporting [`Stage::Weld`] and [`Stage::Segment`] as it goes.
+///
+/// The result is the same one [`segment`] returns: the sink is advisory and
+/// nothing in the stage reads it back.
+///
+/// # Errors
+///
+/// The same as [`segment`].
+pub fn segment_with_progress(
+    mesh: &MeshData,
+    options: &SegmentOptions,
+    progress: &mut Progress<'_>,
+) -> Result<Segmentation> {
     check(options.angle_deg, "angleDeg")?;
     check(options.tol_chord_factor, "tolChordFactor")?;
     check(options.tol_min_frac, "tolMinFrac")?;
@@ -423,8 +525,10 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         )));
     }
 
+    progress.at(Stage::Weld, 0.0);
     let welded = mesh.welded()?;
     let geom = Geom::new(&welded);
+    progress.at(Stage::Weld, 1.0);
     let bbox_diag = mesh.bbox.diagonal();
     let total_area = geom.total_area();
     if !total_area.is_finite() || total_area <= 0.0 {
@@ -466,7 +570,8 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         fit_on_centroids: options.fit_on_centroids,
     };
 
-    let grown = grow::run(&geom, &params);
+    let curv = curvature::estimate(&geom, params.opts.max_facet_step, bbox_diag);
+    let grown = grow::run(&geom, &curv, &params, &mut progress.reborrow());
 
     let min_area = options.min_patch_area_fraction * total_area;
     let mut inventory = Inventory::default();
@@ -506,7 +611,32 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
         // meshes their narrow ones.
         let min_span = options.shard_factor * fit.tol;
         let spans = area >= min_span * min_span;
-        let promoted = (faces.len() >= 2 || spans)
+
+        // The freeform gate. A plane fitted over a region that is mostly
+        // smoothly curved is a *sample* of that curve, not a face on it: over a
+        // short span the sagitta is far under any tolerance, which is why no
+        // residual and no size gate separates the two. Curvature does. The
+        // region keeps its area and is reported as one honest `Unknown`
+        // surface, for the build stage to fit a general surface to later.
+        // Two conditions, because "mostly curved" alone is not enough. A narrow
+        // flat face bounded by a fillet on each side has *no* interior: every
+        // corner of it sits on a tangent rim, where the one-ring really is
+        // curved because half of it belongs to the fillet, so the face reads as
+        // fully smooth and loses its plane. What separates it from a shard is
+        // how well it fits: the flange's 4 mm-wide annulus fits its plane to
+        // 0.8% of its tolerance, and the hammer holder's shards fit theirs to
+        // between 3.5% and 25%. A plane that exact is a plane; a surface
+        // sampled over a short span is not.
+        let smooth_curved_fraction = grown
+            .stats
+            .get(id)
+            .map_or(0.0, stats::Stats::smooth_fraction);
+        let exactly_planar = fit.rms <= FREEFORM_RESIDUAL_FLOOR * fit.tol;
+        let freeform = smooth_curved_fraction > FREEFORM_AREA_FRACTION && !exactly_planar;
+        let refused_plane = freeform && matches!(fit.prim, Primitive::Plane { .. });
+
+        let promoted = !refused_plane
+            && (faces.len() >= 2 || spans)
             && (!carved
                 || (faces.len() >= options.min_patch_faces
                     && spans
@@ -518,6 +648,15 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
             Primitive::Unknown
         };
         let kind = PatchKind::of(primitive);
+        let reason = if promoted {
+            None
+        } else if freeform {
+            Some(UnknownReason::Freeform)
+        } else if matches!(fit.prim, Primitive::Unknown) {
+            Some(UnknownReason::NoFit)
+        } else {
+            Some(UnknownReason::Shard)
+        };
 
         inventory.count(kind);
         if kind == PatchKind::Unknown {
@@ -536,12 +675,17 @@ pub fn segment(mesh: &MeshData, options: &SegmentOptions) -> Result<Segmentation
             rms_residual: finite(fit.rms),
             max_residual: finite(fit.max_res),
             primitive,
+            reason,
+            smooth_curved_fraction,
         });
     }
 
+    progress.at(Stage::Segment, 1.0);
     Ok(Segmentation {
         patches,
         face_patch,
+        face_curvature: curv.kappa,
+        face_smooth_curved: curv.smooth,
         inventory,
         unknown_area_fraction: unknown_area / total_area,
         tolerance,

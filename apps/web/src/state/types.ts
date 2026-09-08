@@ -68,19 +68,20 @@ export interface MeshDiagnostics {
   weldedVertexCount: number;
   duplicateVertexCount: number;
   triangleCount: number;
-  connectedComponentCount: number;
+  /** `null` where the reporting engine does not measure it (the browser core). */
+  connectedComponentCount: number | null;
   bounds: [[number, number, number], [number, number, number]];
   boundingDimensions: [number, number, number];
   coordinateRange: [number, number];
   surfaceArea: number;
   closedVolume: number | null;
   watertight: boolean;
-  windingConsistent: boolean;
+  windingConsistent: boolean | null;
   degenerateTriangleCount: number;
-  duplicateFaceCount: number;
+  duplicateFaceCount: number | null;
   nonManifoldEdgeCount: number;
-  openBoundaryEdgeCount: number;
-  openBoundaryCount: number;
+  openBoundaryEdgeCount: number | null;
+  openBoundaryCount: number | null;
   selfIntersectionStatus: string;
   warnings: DiagnosticWarning[];
 }

@@ -3,10 +3,27 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use super::curvature::Curvature;
 use super::fit::{FaceRef, Fit, FitOpts, Sample, fit_patch};
 use super::linalg::{V3, angle_between, angle_undirected, dist_point_line};
+use super::stats::{Allow, Stats, screen};
 use super::{PatchKind, Primitive};
 use crate::mesh::WeldedMesh;
+use crate::progress::{Progress, Stage};
+
+// Where each of the four stages ends inside [`Stage::Segment`]'s own 0..1
+// range. The split is by measured share of the stage's wall clock over the
+// corpus, rounded: fitting and merging are what a caller waits on.
+/// End of the smooth over-segmentation pass.
+const SEG_OVERSEGMENT: f32 = 0.15;
+/// End of the first fit over every patch.
+const SEG_FIT: f32 = 0.35;
+/// End of the split-and-refit levels.
+const SEG_SPLIT: f32 = 0.5;
+/// End of the merge rounds.
+const SEG_MERGE: f32 = 0.8;
+/// End of the boundary-refinement rounds.
+const SEG_REFINE: f32 = 0.95;
 
 /// One triangle's geometry, computed once and reused by every stage.
 pub(super) struct FaceGeom {
@@ -108,7 +125,7 @@ impl<'a> Geom<'a> {
             .sum()
     }
 
-    fn neighbours_of(&self, f: u32) -> &[u32] {
+    pub(super) fn neighbours_of(&self, f: u32) -> &[u32] {
         self.neighbours
             .get(f as usize)
             .map_or(&[][..], Vec::as_slice)
@@ -201,6 +218,10 @@ pub(super) struct Grown {
     pub fits: Vec<Fit>,
     /// Whether the patch was carved out of a region that fitted nothing.
     pub carved: Vec<bool>,
+    /// Each patch's running sums, in step with `patches`. The promotion policy
+    /// reads the smoothly curved area off these rather than walking the faces
+    /// again.
+    pub stats: Vec<Stats>,
 }
 
 struct Uf {
@@ -238,9 +259,9 @@ impl Uf {
     }
 }
 
-/// Weighted sample points and area-weighted normals for one patch.
-fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef>) {
-    let refs: Vec<FaceRef> = faces
+/// Area-weighted normals for one patch, in the order its faces are listed.
+fn refs_of(g: &Geom, faces: &[u32]) -> Vec<FaceRef> {
+    faces
         .iter()
         .filter_map(|&f| {
             g.faces.get(f as usize).map(|x| FaceRef {
@@ -249,7 +270,88 @@ fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef
                 a: x.area,
             })
         })
-        .collect();
+        .collect()
+}
+
+/// One patch's vertices with the share of its area incident on each, in vertex
+/// order.
+///
+/// Vertex order, not face order: the sample order decides the floating-point
+/// summation order inside every fit, so it has to be reproducible from run to
+/// run — and it is what lets two patches' lists be joined by a linear merge.
+fn vertex_weights(g: &Geom, faces: &[u32]) -> Vec<(u32, f64)> {
+    let mut w: BTreeMap<u32, f64> = BTreeMap::new();
+    for &f in faces {
+        let Some(face) = g.faces.get(f as usize) else {
+            continue;
+        };
+        for v in face.v {
+            *w.entry(v).or_insert(0.0) += face.area / 3.0;
+        }
+    }
+    w.into_iter().collect()
+}
+
+fn samples_of(g: &Geom, weights: &[(u32, f64)]) -> Vec<Sample> {
+    weights
+        .iter()
+        .filter_map(|&(v, w)| g.verts.get(v as usize).map(|&p| Sample { p, w }))
+        .collect()
+}
+
+/// The samples of two patches joined: a linear merge of their ordered weight
+/// lists, adding the weights where they share a boundary vertex, and looking
+/// each vertex up as it goes.
+///
+/// This is the union's sample list exactly, and it is why a patch's own list is
+/// kept: rebuilding the union's from the mesh costs a tree insertion per corner
+/// of the larger patch, over and over, once per neighbour.
+fn merge_samples(g: &Geom, a: &[(u32, f64)], b: &[(u32, f64)]) -> Vec<Sample> {
+    let mut out = Vec::with_capacity(a.len() + b.len());
+    let mut push = |v: u32, w: f64| {
+        if let Some(&p) = g.verts.get(v as usize) {
+            out.push(Sample { p, w });
+        }
+    };
+    let (mut i, mut j) = (0, 0);
+    while let (Some(&(va, wa)), Some(&(vb, wb))) = (a.get(i), b.get(j)) {
+        match va.cmp(&vb) {
+            core::cmp::Ordering::Less => {
+                push(va, wa);
+                i += 1;
+            }
+            core::cmp::Ordering::Greater => {
+                push(vb, wb);
+                j += 1;
+            }
+            core::cmp::Ordering::Equal => {
+                push(va, wa + wb);
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    for &(v, w) in a.get(i..).unwrap_or_default() {
+        push(v, w);
+    }
+    for &(v, w) in b.get(j..).unwrap_or_default() {
+        push(v, w);
+    }
+    out
+}
+
+/// Two patches' face records joined: a copy of each, in the order the union's
+/// face list has them.
+fn join_refs(a: &[FaceRef], b: &[FaceRef]) -> Vec<FaceRef> {
+    let mut out = Vec::with_capacity(a.len() + b.len());
+    out.extend_from_slice(a);
+    out.extend_from_slice(b);
+    out
+}
+
+/// Weighted sample points and area-weighted normals for one patch.
+fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef>) {
+    let refs = refs_of(g, faces);
     if centroids {
         let pts = faces
             .iter()
@@ -262,23 +364,7 @@ fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef
             .collect();
         return (pts, refs);
     }
-    // Vertices, not centroids, and in vertex order: the sample order decides
-    // the floating-point summation order inside every fit, so it has to be
-    // reproducible from run to run.
-    let mut w: BTreeMap<u32, f64> = BTreeMap::new();
-    for &f in faces {
-        let Some(face) = g.faces.get(f as usize) else {
-            continue;
-        };
-        for v in face.v {
-            *w.entry(v).or_insert(0.0) += face.area / 3.0;
-        }
-    }
-    let pts = w
-        .into_iter()
-        .filter_map(|(v, weight)| g.verts.get(v as usize).map(|&p| Sample { p, w: weight }))
-        .collect();
-    (pts, refs)
+    (samples_of(g, &vertex_weights(g, faces)), refs)
 }
 
 /// The sharpest crease inside a face set: the largest angle between the normals
@@ -293,7 +379,7 @@ fn gather(g: &Geom, faces: &[u32], centroids: bool) -> (Vec<Sample>, Vec<FaceRef
 /// rectangle-to-circle triangulation is full of them. Degenerate triangles are
 /// skipped outright, because [`Geom::new`] gives them an arbitrary normal and
 /// one sliver must not be able to veto a real cylinder.
-fn max_crease(g: &Geom, faces: &[u32]) -> f64 {
+pub(super) fn max_crease(g: &Geom, faces: &[u32]) -> f64 {
     let own: HashSet<u32> = faces.iter().copied().collect();
     let mut worst: f64 = 0.0;
     for &f in faces {
@@ -319,20 +405,55 @@ fn max_crease(g: &Geom, faces: &[u32]) -> f64 {
     worst
 }
 
+/// The fit options one face set is judged under: the caller's tolerance and the
+/// set's own sharpest crease, which [`Stats`] already carries.
+fn fit_opts(p: &Params, tol: f64, s: &Stats) -> FitOpts {
+    FitOpts {
+        tol,
+        max_crease: s.crease,
+        ..p.opts
+    }
+}
+
 /// Fit a face set against a tolerance chosen by the caller: a freshly cut patch
 /// is judged against its own chords ([`patch_tol`]), while a trial merge is
 /// judged against the looser of the two patches it joins.
-fn fit_faces_at(g: &Geom, faces: &[u32], p: &Params, tol: f64) -> Fit {
+///
+/// The set's statistics come in rather than being recomputed: they carry the
+/// crease, the plane and the two axis matrices, so a fit that a trial merge has
+/// already screened does not pay for any of them twice.
+fn fit_faces_at(g: &Geom, faces: &[u32], p: &Params, tol: f64, s: &Stats, allow: Allow) -> Fit {
     let (pts, refs) = gather(g, faces, p.fit_on_centroids);
-    let crease = max_crease(g, faces);
+    fit_patch(&pts, &refs, fit_opts(p, tol, s), s, allow)
+}
+
+/// The same for the union of two whole patches, out of the samples and face
+/// records those patches already carry.
+///
+/// This is every trial merge in the merge and absorption stages, and it is
+/// where the stage spends its time: joining two ordered lists costs a pass over
+/// them, while rebuilding the union's from the mesh costs a tree insertion per
+/// corner — of the larger patch, over and over, once per neighbour.
+fn fit_union_at(
+    g: &Geom,
+    (a, b): (usize, usize),
+    st: &State,
+    p: &Params,
+    tol: f64,
+    s: &Stats,
+    allow: Allow,
+) -> Fit {
+    if p.fit_on_centroids {
+        let mut faces = st.patches[a].clone();
+        faces.extend_from_slice(&st.patches[b]);
+        return fit_faces_at(g, &faces, p, tol, s, allow);
+    }
     fit_patch(
-        &pts,
-        &refs,
-        FitOpts {
-            tol,
-            max_crease: crease,
-            ..p.opts
-        },
+        &merge_samples(g, &st.weights[a], &st.weights[b]),
+        &join_refs(&st.refs[a], &st.refs[b]),
+        fit_opts(p, tol, s),
+        s,
+        allow,
     )
 }
 
@@ -443,22 +564,40 @@ fn accept_merge(f: Fit, tol: f64) -> bool {
     PatchKind::of(f.prim) != PatchKind::Unknown && f.rms <= tol && f.max_res <= 2.0 * tol
 }
 
-/// Adjacent patch pairs, each listed once, in a deterministic order.
-fn patch_pairs(g: &Geom, label: &[usize]) -> Vec<(usize, usize)> {
-    let mut seen: HashSet<(usize, usize)> = HashSet::new();
+/// Adjacent patch pairs, each listed once, in a deterministic order, with the
+/// sharpest fold across the edges the two share.
+///
+/// That fold is the one thing a union's crease needs that neither patch's own
+/// statistics hold, and it comes out of the same scan that finds the pair —
+/// which is what lets a trial merge decide the crease rule in constant time.
+/// Degenerate triangles are skipped exactly as [`max_crease`] skips them.
+fn patch_pairs(g: &Geom, label: &[usize]) -> Vec<(usize, usize, f64)> {
+    let mut seen: HashMap<(usize, usize), f64> = HashMap::new();
     for i in 0..g.faces.len() {
-        let Some(&li) = label.get(i) else { continue };
+        let (Some(&li), Some(fi)) = (label.get(i), g.faces.get(i)) else {
+            continue;
+        };
         for &j in g.neighbours_of(i as u32) {
             let Some(&lj) = label.get(j as usize) else {
                 continue;
             };
-            if li != lj {
-                seen.insert(if li < lj { (li, lj) } else { (lj, li) });
+            if li == lj {
+                continue;
             }
+            let fold = match g.faces.get(j as usize) {
+                Some(fj) if fi.area > 0.0 && fj.area > 0.0 => {
+                    angle_undirected(fi.normal, fj.normal)
+                }
+                _ => 0.0,
+            };
+            let slot = seen
+                .entry(if li < lj { (li, lj) } else { (lj, li) })
+                .or_insert(0.0);
+            *slot = slot.max(fold);
         }
     }
-    let mut out: Vec<(usize, usize)> = seen.into_iter().collect();
-    out.sort_unstable();
+    let mut out: Vec<(usize, usize, f64)> = seen.into_iter().map(|(k, v)| (k.0, k.1, v)).collect();
+    out.sort_by_key(|x| (x.0, x.1));
     out
 }
 
@@ -565,7 +704,29 @@ fn joins_smoothly(g: &Geom, f: u32, to: usize, label: &[usize], max_step: f64) -
 }
 
 /// Re-cut one patch at a tighter dihedral angle, using only its own faces.
-fn split_patch(g: &Geom, faces: &[u32], label: &[usize], angle: f64) -> Vec<Vec<u32>> {
+///
+/// When the patch is itself a curved region (`protect`), a pair of triangles
+/// that share a smooth curved neighbourhood is never cut, whatever the angle:
+/// tightening the threshold far enough makes *any* pair look planar, and
+/// cutting a curved region on that basis is precisely how a freeform surface
+/// shatters into shards that each fit a plane. Such a pair belongs to one
+/// freeform region from the start.
+///
+/// It is *only* done for such a patch. A prismatic region that happens to hold
+/// a sliver of curvature — a bore's rim, a countersink — is re-cut exactly as
+/// before, because there the tighter angle is separating real faces and
+/// refusing the cut leaves the merge stage a partition it cannot put back
+/// together: on `sensor-mount-bracket/mesh-default` an unconditional rule turns
+/// 36 patches into 106, nearly all of them slivers, and the extra boundaries
+/// are what the face builder then fails on.
+fn split_patch(
+    g: &Geom,
+    curv: &Curvature,
+    faces: &[u32],
+    label: &[usize],
+    angle: f64,
+    protect: bool,
+) -> Vec<Vec<u32>> {
     let own = faces
         .first()
         .and_then(|&f| label.get(f as usize).copied())
@@ -583,7 +744,10 @@ fn split_patch(g: &Geom, faces: &[u32], label: &[usize], angle: f64) -> Vec<Vec<
             let (Some(&j), Some(hg)) = (local.get(&h), g.faces.get(h as usize)) else {
                 continue;
             };
-            if j > i && angle_between(fg.normal, hg.normal) < angle {
+            if j > i
+                && (angle_between(fg.normal, hg.normal) < angle
+                    || (protect && curv.same_freeform(f, h)))
+            {
                 uf.union(i, j);
             }
         }
@@ -612,26 +776,47 @@ struct State {
     /// patch's own edge lengths when it is first cut, and the max of its parts
     /// once it has been merged.
     tols: Vec<f64>,
+    /// Each patch's running sums. Rebuilt whenever the patches move, and joined
+    /// in constant time to screen a trial merge.
+    stats: Vec<Stats>,
+    /// Each patch's vertex weights, in vertex order. Empty when the fits run on
+    /// face centroids, which have nothing to deduplicate.
+    weights: Vec<Vec<(u32, f64)>>,
+    /// Each patch's face records, in its face order.
+    refs: Vec<Vec<FaceRef>>,
 }
 
 impl State {
     /// Derive every patch's tolerance from its own triangles and refit. Used
     /// where the patches have just been cut, so no merge budget exists to
     /// inherit.
-    fn refit_fresh(&mut self, g: &Geom, p: &Params) {
+    fn refit_fresh(&mut self, g: &Geom, curv: &Curvature, p: &Params) {
         self.tols = self.patches.iter().map(|f| patch_tol(g, f, p)).collect();
-        self.refit(g, p);
+        self.refit(g, curv, p);
     }
 
     /// Refit every patch against the tolerance it already carries.
-    fn refit(&mut self, g: &Geom, p: &Params) {
+    fn refit(&mut self, g: &Geom, curv: &Curvature, p: &Params) {
+        self.stats = self
+            .patches
+            .iter()
+            .map(|f| Stats::of(g, curv, f, p.fit_on_centroids))
+            .collect();
+        (self.weights, self.refs) = if p.fit_on_centroids {
+            (vec![Vec::new(); self.patches.len()], Vec::new())
+        } else {
+            (
+                self.patches.iter().map(|f| vertex_weights(g, f)).collect(),
+                self.patches.iter().map(|f| refs_of(g, f)).collect(),
+            )
+        };
         for (i, faces) in self.patches.iter().enumerate() {
-            self.fits[i] = fit_faces_at(g, faces, p, self.tols[i]);
+            self.fits[i] = fit_faces_at(g, faces, p, self.tols[i], &self.stats[i], Allow::ALL);
         }
     }
 }
 
-pub(super) fn run(g: &Geom, p: &Params) -> Grown {
+pub(super) fn run(g: &Geom, curv: &Curvature, p: &Params, progress: &mut Progress<'_>) -> Grown {
     let nf = g.faces.len();
 
     // ── stage 1: smooth over-segmentation ─────────────────────────
@@ -647,6 +832,7 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
             }
         }
     }
+    progress.at(Stage::Segment, SEG_OVERSEGMENT);
     let mut label = vec![0_usize; nf];
     let mut patches: Vec<Vec<u32>> = Vec::new();
     let mut index: HashMap<usize, usize> = HashMap::new();
@@ -667,8 +853,12 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
         fits: vec![Fit::UNKNOWN; n],
         carved: vec![false; n],
         tols: vec![p.opts.tol; n],
+        stats: Vec::new(),
+        weights: Vec::new(),
+        refs: Vec::new(),
     };
-    st.refit_fresh(g, p);
+    st.refit_fresh(g, curv, p);
+    progress.at(Stage::Segment, SEG_FIT);
 
     // ── stage 2b: split patches that fitted nothing ───────────────
     //
@@ -680,7 +870,8 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
     // makes any triangle pair look planar and those shards must not be
     // promoted to real surfaces on their own.
     let mut split_angle = p.angle_rad;
-    for _ in 0..p.split_levels {
+    for level in 0..p.split_levels {
+        progress.pass(Stage::Segment, SEG_FIT, SEG_SPLIT, level, p.split_levels);
         if st
             .fits
             .iter()
@@ -701,7 +892,8 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
                 next_carved.push(was_carved);
                 continue;
             }
-            let parts = split_patch(g, faces, &label, split_angle);
+            let protect = curv.smooth_area_fraction(g, faces) > super::FREEFORM_AREA_FRACTION;
+            let parts = split_patch(g, curv, faces, &label, split_angle, protect);
             let split = parts.len() > 1;
             changed |= split;
             for part in parts {
@@ -721,15 +913,24 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
             }
         }
         // Fresh cuts, so each shard is judged against its own chords.
-        st.refit_fresh(g, p);
+        st.refit_fresh(g, curv, p);
     }
 
     // ── stage 3: merge patches whose primitives agree ─────────────
-    for _ in 0..p.max_merge_rounds {
+    for round in 0..p.max_merge_rounds {
+        progress.pass(
+            Stage::Segment,
+            SEG_SPLIT,
+            SEG_MERGE,
+            round,
+            p.max_merge_rounds,
+        );
         let pairs = patch_pairs(g, &label);
+        let folds: HashMap<(usize, usize), f64> =
+            pairs.iter().map(|&(a, b, c)| ((a, b), c)).collect();
         // Rank: agreeing primitives first, then trial merges by fit quality.
         let mut cands: Vec<(f64, usize, usize)> = Vec::new();
-        for &(a, b) in &pairs {
+        for &(a, b, fold) in &pairs {
             // A merge is judged by the looser of the two patches: the finer
             // one's tolerance would reject the coarser one's own chords.
             let tol = st.tols[a].max(st.tols[b]);
@@ -740,9 +941,18 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
             if !mergeable_types(st.fits[a].prim, st.fits[b].prim) {
                 continue;
             }
-            let mut faces = st.patches[a].clone();
-            faces.extend_from_slice(&st.patches[b]);
-            let f = fit_faces_at(g, &faces, p, tol);
+            // The union's statistics join in constant time, and most trial
+            // merges are refused on them alone. Gathering the union's samples
+            // and running five fits over them — twice with a Gauss-Newton
+            // refinement — is what the screen is there to avoid: a freeform
+            // region held together by the curvature gate has tens of thousands
+            // of triangles and thousands of neighbours.
+            let s = Stats::combined(&st.stats[a], &st.stats[b], fold);
+            let allow = screen(&s, fit_opts(p, tol, &s));
+            if !allow.any() {
+                continue;
+            }
+            let f = fit_union_at(g, (a, b), &st, p, tol, &s, allow);
             if accept_merge(f, tol) {
                 cands.push((f.rms, a, b));
             }
@@ -753,43 +963,68 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
         cands.sort_by(|x, y| x.0.total_cmp(&y.0));
 
         let mut round_uf = Uf::new(st.patches.len());
-        let mut merged: HashMap<usize, (Vec<u32>, f64)> = HashMap::new();
+        let mut merged: HashMap<usize, (Vec<u32>, f64, Stats)> = HashMap::new();
         let mut changed = false;
         for (_, a, b) in cands {
             let (ra, rb) = (round_uf.find(a), round_uf.find(b));
             if ra == rb {
                 continue;
             }
-            let (fa, ta) = merged
-                .get(&ra)
-                .map_or((&st.patches[ra], st.tols[ra]), |(f, t)| (f, *t));
-            let (fb, tb) = merged
-                .get(&rb)
-                .map_or((&st.patches[rb], st.tols[rb]), |(f, t)| (f, *t));
+            let (fa, ta, sa) = merged.get(&ra).map_or(
+                (&st.patches[ra], st.tols[ra], &st.stats[ra]),
+                |(f, t, s)| (f, *t, s),
+            );
+            let (fb, tb, sb) = merged.get(&rb).map_or(
+                (&st.patches[rb], st.tols[rb], &st.stats[rb]),
+                |(f, t, s)| (f, *t, s),
+            );
             let tol = ta.max(tb);
+            // Joining two groups the round has already grown, the fold across
+            // their shared edges is only known for the pair that named them, so
+            // the joint crease is a *lower* bound — which is the direction that
+            // can refuse a merge but never accept one the fit would not.
+            let fold = folds
+                .get(&(a.min(b), a.max(b)))
+                .copied()
+                .unwrap_or_default();
+            let coarse = Stats::combined(sa, sb, fold);
+            if !screen(&coarse, fit_opts(p, tol, &coarse)).any() {
+                continue;
+            }
             let mut faces = fa.clone();
             faces.extend_from_slice(fb);
             // Re-fit the actual union before committing, so a chain of merges
-            // cannot drift away from a surface any single step accepted.
-            if !accept_merge(fit_faces_at(g, &faces, p, tol), tol) {
+            // cannot drift away from a surface any single step accepted. Its
+            // statistics are taken over the real face set, so the crease this
+            // fit is judged under is the exact one again.
+            let s = Stats::of(g, curv, &faces, p.fit_on_centroids);
+            let allow = screen(&s, fit_opts(p, tol, &s));
+            if !accept_merge(fit_faces_at(g, &faces, p, tol, &s, allow), tol) {
                 continue;
             }
             round_uf.union(ra, rb);
             let root = round_uf.find(ra);
             merged.remove(&ra);
             merged.remove(&rb);
-            merged.insert(root, (faces, tol));
+            merged.insert(root, (faces, tol, s));
             changed = true;
         }
         if !changed {
             break;
         }
         rebuild(&mut st, &mut label, &mut round_uf);
-        st.refit(g, p);
+        st.refit(g, curv, p);
     }
 
     // ── stage 4: boundary refinement + unknown absorption ─────────
-    for _ in 0..p.refine_rounds {
+    for round in 0..p.refine_rounds {
+        progress.pass(
+            Stage::Segment,
+            SEG_MERGE,
+            SEG_REFINE,
+            round,
+            p.refine_rounds,
+        );
         let mut moves: Vec<(usize, usize)> = Vec::new();
         for i in 0..nf {
             let own = label[i];
@@ -824,23 +1059,26 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
             st.patches[to].push(f as u32);
             label[f] = to;
         }
-        st.refit(g, p);
+        st.refit(g, curv, p);
     }
 
     // Unknown patches that complete an adjacent primitive get absorbed by it.
     for _ in 0..2 {
         let pairs = patch_pairs(g, &label);
         let mut cands: Vec<(f64, usize, usize)> = Vec::new();
-        for &(a, b) in &pairs {
+        for &(a, b, fold) in &pairs {
             let a_unknown = PatchKind::of(st.fits[a].prim) == PatchKind::Unknown;
             let b_unknown = PatchKind::of(st.fits[b].prim) == PatchKind::Unknown;
             if a_unknown == b_unknown {
                 continue;
             }
             let tol = st.tols[a].max(st.tols[b]);
-            let mut faces = st.patches[a].clone();
-            faces.extend_from_slice(&st.patches[b]);
-            let f = fit_faces_at(g, &faces, p, tol);
+            let s = Stats::combined(&st.stats[a], &st.stats[b], fold);
+            let allow = screen(&s, fit_opts(p, tol, &s));
+            if !allow.any() {
+                continue;
+            }
+            let f = fit_union_at(g, (a, b), &st, p, tol, &s, allow);
             if accept_merge(f, tol) {
                 cands.push((f.rms, a, b));
             }
@@ -858,24 +1096,30 @@ pub(super) fn run(g: &Geom, p: &Params) -> Grown {
             break;
         }
         rebuild(&mut st, &mut label, &mut round_uf);
-        st.refit(g, p);
+        st.refit(g, curv, p);
     }
 
     let State {
         patches,
         fits,
         carved,
+        stats,
         ..
     } = st;
     // Stable ids: largest patch first.
     let mut order: Vec<usize> = (0..patches.len()).collect();
     order.sort_by(|&a, &b| g.area_of(&patches[b]).total_cmp(&g.area_of(&patches[a])));
+    let mut stats: Vec<Option<Stats>> = stats.into_iter().map(Some).collect();
     Grown {
         patches: order.iter().map(|&i| patches[i].clone()).collect(),
         fits: order.iter().map(|&i| fits[i]).collect(),
         carved: order
             .iter()
             .map(|&i| carved.get(i).copied().unwrap_or(false))
+            .collect(),
+        stats: order
+            .iter()
+            .filter_map(|&i| stats.get_mut(i).and_then(Option::take))
             .collect(),
     }
 }

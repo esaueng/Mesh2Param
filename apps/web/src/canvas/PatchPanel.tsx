@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, GitMerge, Lock, LockOpen, Scissors } from "lucide-react";
 import type { PatchClassification, SurfacePatch } from "../state/types";
+import { PanelSection } from "./PanelSection";
 
 /**
  * Per-patch controls for the analyzed surface segmentation: lock, hide,
@@ -43,8 +44,12 @@ export function patchSummary(patch: SurfacePatch): string {
 export interface PatchPanelProps {
   patches: readonly SurfacePatch[];
   selectedPatchId: string | null;
+  /** Patch under the pointer in the viewport; the matching row lights up. */
+  hoveredPatchId?: string | null;
   disabled: boolean;
   onSelect(id: string | null): void;
+  /** Row under the pointer or keyboard focus; the viewport washes that patch. */
+  onHover?(id: string | null): void;
   onUpdate(
     patchId: string,
     patch: {
@@ -57,7 +62,7 @@ export interface PatchPanelProps {
   onMerge(patchIds: [string, string]): void;
 }
 
-export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpdate, onMerge }: PatchPanelProps) {
+export function PatchPanel({ patches, selectedPatchId, hoveredPatchId = null, disabled, onSelect, onHover, onUpdate, onMerge }: PatchPanelProps) {
   const [mergeSelection, setMergeSelection] = useState<string[]>([]);
   const selected = patches.find((patch) => patch.id === selectedPatchId);
   const mergePair = mergeSelection
@@ -73,11 +78,16 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
   };
 
   return (
-    <section className="panel-group" aria-label="Surface patches">
-      <h2 className="panel-label">Patches ({patches.length})</h2>
+    <PanelSection id="patches" title={`Patches (${patches.length})`}>
       <ul className="panel-patches" role="listbox" aria-label="Analyzed surface patches">
         {patches.map((patch) => (
-          <li key={patch.id} className={patch.id === selectedPatchId ? "selected" : ""}>
+          <li
+            key={patch.id}
+            className={`${patch.id === selectedPatchId ? "selected" : ""} ${patch.id === hoveredPatchId ? "hovered" : ""}`.trim()}
+            data-patch-id={patch.id}
+            onPointerEnter={() => onHover?.(patch.id)}
+            onPointerLeave={() => onHover?.(null)}
+          >
             <input
               type="checkbox"
               aria-label={`Select ${patch.id} for merge`}
@@ -90,6 +100,8 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
               role="option"
               aria-selected={patch.id === selectedPatchId}
               onClick={() => onSelect(patch.id === selectedPatchId ? null : patch.id)}
+              onFocus={() => onHover?.(patch.id)}
+              onBlur={() => onHover?.(null)}
               title={patchSummary(patch)}
             >
               <span className={`patch-kind patch-kind-${patch.type}`}>{patch.type}</span>
@@ -209,6 +221,6 @@ export function PatchPanel({ patches, selectedPatchId, disabled, onSelect, onUpd
           Split
         </button>
       </div>
-    </section>
+    </PanelSection>
   );
 }

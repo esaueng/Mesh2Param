@@ -30,10 +30,9 @@ import type {
   VersionPage,
 } from "../state/types";
 import { deleteProjectBlobs } from "../persistence/blobs";
-import { browserGeometry } from "./geometry/client";
-import type { BrowserCadResult } from "./geometry/types";
+import { BROWSER_TRIANGLE_BUDGET, browserGeometry } from "./geometry/client";
+import type { BrowserMeshFormat, BrowserReconstruction, BrowserReconstructionMode } from "./geometry/types";
 import { meshToGlb } from "./glb";
-import { meshToBinaryStl, meshToObj } from "./meshExports";
 import { browserSampleAssetUrl, listBrowserSamples, loadBrowserSample } from "./sampleAssets";
 
 type Operation = "repair" | "analyze" | "reconstruct" | "rebuild" | "validate" | "export";
@@ -60,7 +59,7 @@ function emptyDocument(projectId: string, name: string, units: Units): ProjectDe
     artifactSetId: null,
     artifacts: [],
     currentVersionId: null,
-    settings: { executionMode: "browser-local", geometryKernel: "OCCT WebAssembly" },
+    settings: { executionMode: "browser-local", geometryKernel: BROWSER_ENGINE },
   };
 }
 
@@ -105,6 +104,77 @@ async function blobFromUrl(url: string, mediaType?: string): Promise<Blob> {
   if (!response.ok) throw new Error(`Bundled asset request failed (${response.status})`);
   const blob = await response.blob();
   return mediaType === undefined || blob.type === mediaType ? blob : new Blob([await blob.arrayBuffer()], { type: mediaType });
+}
+
+/** What the browser path runs, as it is reported in project state. */
+const BROWSER_ENGINE = "Mesh2Param core (WebAssembly)";
+
+/** The core's default dihedral threshold for its initial over-segmentation. */
+const BROWSER_SEGMENTATION_ANGLE_DEG = 12;
+
+const MESH_FORMATS: readonly BrowserMeshFormat[] = ["stl", "3mf", "obj", "ply"];
+
+function sourceFormat(detail: ProjectDetail): BrowserMeshFormat {
+  const format = detail.state.source?.format?.toLowerCase();
+  const match = MESH_FORMATS.find((candidate) => candidate === format);
+  if (match === undefined) throw new Error(`Browser-local geometry cannot read ${format ?? "this"} sources; use the Mesh2Param service`);
+  return match;
+}
+
+/**
+ * The record the UI reads a run's tier and evidence from. Everything in it is
+ * measured by the core; nothing is inferred here.
+ */
+function reconstructionEvidence(result: BrowserReconstruction, mode: BrowserReconstructionMode): JsonObject {
+  return {
+    engine: BROWSER_ENGINE,
+    requestedMode: mode,
+    tier: result.tier,
+    valid: result.valid,
+    stepReimportValid: result.roundTripOk,
+    fallbackReason: result.fallbackReason,
+    issues: result.issues,
+    facesFinal: result.facesFinal,
+    facesAnalytic: result.facesAnalytic,
+    facesTriangle: result.facesTriangle,
+    surfaceCounts: { ...result.inventory },
+    unknownAreaFraction: result.unknownAreaFraction,
+    volume: result.volume,
+    sourceVolume: result.sourceVolume,
+    stepBytes: result.stepBytes,
+    ...(result.patches === null ? {} : { patches: result.patches }),
+    ...(result.edges === null ? {} : { edges: result.edges }),
+    ...(result.deviation === null ? {} : {
+      deviationP95: result.deviation.p95,
+      deviationMax: result.deviation.max,
+      deviationSamples: result.deviation.samples,
+    }),
+    designHistoryRecovered: false,
+  };
+}
+
+const TIER_ISSUES: Record<BrowserReconstruction["tier"], { code: string; message: string }> = {
+  analytic: {
+    code: "analytic-tier",
+    message: "Every face was recognised as an analytic surface. This is a fit to the mesh, not recovered design history.",
+  },
+  mixed: {
+    code: "mixed-tier",
+    message: "Some faces are analytic surfaces and some remain triangulated. This is a fit to the mesh, not recovered design history.",
+  },
+  faceted: {
+    code: "faceted-tier",
+    message: "No analytic surfaces survived; the STEP preserves the source facets and is not a parametric model.",
+  },
+};
+
+function reconstructionIssues(result: BrowserReconstruction): JsonObject[] {
+  const tier = TIER_ISSUES[result.tier];
+  return [
+    { code: tier.code, severity: result.tier === "faceted" ? "warning" : "info", message: tier.message },
+    ...(result.fallbackReason === null ? [] : [{ code: "tier-fallback", severity: "warning", message: result.fallbackReason }]),
+    ...result.issues.map((message) => ({ code: "kernel-issue", severity: "warning", message })),
+  ];
 }
 
 export class BrowserApiClient {
@@ -237,315 +307,151 @@ export class BrowserApiClient {
           || next.state.validation !== null
           || existingArtifacts.some((artifact) => artifact.name === "model.step");
         const source = await this.sourceBlob(next);
-        const tolerance = Math.max(0.01, Number(options.settings?.tolerance ?? 0.1));
+        const tolerance = Math.max(0.001, Number(options.settings?.tolerance ?? 0.1));
         const importedProjectPreview = options.settings?.importedProjectPreview === true;
-        const compiled = await browserGeometry.compileStl(source, tolerance, {
-          solidify: !importedProjectPreview,
-          validateStep: false,
-        });
-        const diagnostics = compiled.diagnostics;
-        const preview = await this.putArtifact(projectId, "source.glb", meshToGlb(compiled.mesh), "source");
+        const analysis = await browserGeometry.analyze(source, sourceFormat(next));
+        // The worker only builds a display mesh for STL. Another container is
+        // analyzed and reconstructed without a source layer rather than being
+        // given an empty GLB the viewer would fail to load.
+        const preview = analysis.mesh.triangleCount > 0
+          ? [await this.putArtifact(projectId, "source.glb", meshToGlb(analysis.mesh), "source")]
+          : [];
         next.state.artifacts = preserveGeneratedResult
-          ? [...existingArtifacts.filter((artifact) => artifact.name !== "source.glb"), preview]
-          : [preview];
+          ? [...existingArtifacts.filter((artifact) => artifact.name !== "source.glb"), ...preview]
+          : preview;
         if (importedProjectPreview) {
           const saved = await this.save(next, true);
           return { operation, revision: saved.revision, mode: "browser-local-import-preview" };
         }
         next.state.patches = [{
-          id: "patch.browser-local.source", type: "freeform", name: "Imported STL surface",
-          triangleCount: compiled.mesh.triangleCount, vertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
-          areaMm2: compiled.surfaceArea, confidence: 1, locked: false,
+          id: "patch.browser-local.source", type: "freeform", name: "Imported mesh surface",
+          triangleCount: analysis.triangleCount, vertexCount: analysis.weldedVertexCount,
+          areaMm2: analysis.surfaceArea, confidence: 1, locked: false,
         }];
-        const parametricProbe = await browserGeometry.probeParametricStl(
-          source,
-          next.state.source?.scaleFactor ?? 1,
-          tolerance,
-        );
+        // The core segments and classifies surfaces inside `reconstruct`; its
+        // `analyze` reports mesh statistics only. These settings are what the
+        // reconstruction will actually replay, not a separate analysis model.
         next.state.analysis = {
           settings: {
-            smoothAngleDeg: 12,
-            planarFitToleranceMm: 0.005,
-            cylinderFitToleranceMm: 0.01,
-            minimumCylinderCoverageDeg: 300,
-            maximumCylinderAxisNormalComponent: 0.05,
-            minimumPatchAreaMm2: 1e-8,
-            stableIdResolutionMm: 1e-5,
+            engine: BROWSER_ENGINE,
+            angleDeg: BROWSER_SEGMENTATION_ANGLE_DEG,
+            triangleBudget: BROWSER_TRIANGLE_BUDGET,
+            tolerance,
           },
           patches: next.state.patches,
-          prismaticCandidate: parametricProbe.analysis,
-          browserParametricCandidate: {
-            accepted: parametricProbe.supported,
-            family: parametricProbe.family,
-            featureHints: parametricProbe.featureHints,
-            detailDetected: parametricProbe.detailDetected,
-            ...(parametricProbe.error === null ? {} : { diagnostics: [parametricProbe.error] }),
+          meshHealth: {
+            watertight: analysis.watertight,
+            edgeManifold: analysis.edgeManifold,
+            nonManifoldEdgeCount: analysis.nonManifoldEdgeCount,
+            droppedTriangleCount: analysis.droppedTriangleCount,
           },
         } as unknown as JsonObject;
+        const [lower, upper] = analysis.bounds;
         next.state.diagnostics = {
-          format: "stl", encoding: "binary-or-text", byteSize: source.size, sha256: next.state.source!.sha256,
-          rawVertexCount: diagnostics?.rawVertexCount ?? compiled.mesh.vertexCount,
-          weldedVertexCount: diagnostics?.weldedVertexCount ?? compiled.mesh.vertexCount,
-          duplicateVertexCount: diagnostics?.duplicateVertexCount ?? 0,
-          triangleCount: compiled.mesh.triangleCount,
-          connectedComponentCount: diagnostics?.connectedComponentCount ?? 1,
-          bounds: compiled.bounds, boundingDimensions: [
-            compiled.bounds[1][0] - compiled.bounds[0][0],
-            compiled.bounds[1][1] - compiled.bounds[0][1],
-            compiled.bounds[1][2] - compiled.bounds[0][2],
-          ],
-          coordinateRange: [Math.min(...compiled.bounds[0]), Math.max(...compiled.bounds[1])],
-          surfaceArea: compiled.surfaceArea, closedVolume: compiled.solid ? compiled.volume : null,
-          watertight: diagnostics?.watertight ?? compiled.solid,
-          windingConsistent: diagnostics?.windingConsistent ?? compiled.valid,
-          degenerateTriangleCount: diagnostics?.degenerateTriangleCount ?? 0,
-          duplicateFaceCount: diagnostics?.duplicateFaceCount ?? 0,
-          nonManifoldEdgeCount: diagnostics?.nonManifoldEdgeCount ?? 0,
-          openBoundaryEdgeCount: diagnostics?.openBoundaryEdgeCount ?? (compiled.solid ? 0 : 1),
-          openBoundaryCount: diagnostics?.openBoundaryCount ?? (compiled.solid ? 0 : 1),
+          format: next.state.source!.format as "stl" | "obj" | "ply",
+          encoding: "binary-or-text", byteSize: source.size, sha256: next.state.source!.sha256,
+          rawVertexCount: analysis.rawVertexCount,
+          weldedVertexCount: analysis.weldedVertexCount,
+          duplicateVertexCount: Math.max(0, analysis.rawVertexCount - analysis.weldedVertexCount),
+          triangleCount: analysis.triangleCount,
+          // The core measures edges, not bodies, boundary loops or winding, so
+          // those stay null rather than being guessed at in JavaScript.
+          connectedComponentCount: null,
+          bounds: analysis.bounds,
+          boundingDimensions: [upper[0] - lower[0], upper[1] - lower[1], upper[2] - lower[2]],
+          coordinateRange: [Math.min(...lower), Math.max(...upper)],
+          surfaceArea: analysis.surfaceArea,
+          closedVolume: analysis.closedVolume,
+          watertight: analysis.watertight,
+          windingConsistent: null,
+          degenerateTriangleCount: analysis.droppedTriangleCount,
+          duplicateFaceCount: null,
+          nonManifoldEdgeCount: analysis.nonManifoldEdgeCount,
+          openBoundaryEdgeCount: null,
+          openBoundaryCount: null,
           selfIntersectionStatus: "not-evaluated-in-browser",
-          warnings: compiled.solid ? [] : [{ code: "not-solid", message: "OCCT could not solidify the imported STL.", severity: "warning" }],
-        };
-        next.state.metrics = {
-          volume: compiled.volume, surfaceArea: compiled.surfaceArea, bounds: compiled.bounds,
-          vertexCount: compiled.mesh.vertexCount, triangleCount: compiled.mesh.triangleCount,
-        };
-        const saved = await this.save(next, true);
-        return { operation, revision: saved.revision, mode: "browser-local-stl" };
-      }
-      if (operation === "reconstruct" && options.settings?.mode === "faceted") {
-        const next = await this.requireProject(projectId);
-        const source = await this.sourceBlob(next);
-        const compiled = await browserGeometry.compileStl(source, 0.1);
-        if (!compiled.valid || !compiled.solid || !compiled.stepReimportValid) {
-          throw new Error("OCCT could not create and reimport a valid solid from this STL");
-        }
-        const artifacts = await Promise.all([
-          this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "faceted-step"),
-          ...this.resultMeshArtifactWrites(projectId, compiled, "preserved-source-proxy"),
-        ]);
-        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
-        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
-        next.state.validation = {
-          status: "valid-with-warnings", brepValid: true, stepReimportValid: true, toleranceSatisfied: null,
-          issues: [{ code: "faceted-source", message: "STEP preserves source facets; it is not a recovered parametric history." }],
-          compilation: { kernel: "OCCT WebAssembly", mode: "preserved-source-faceted" },
-        };
-        const saved = await this.save(next, true);
-        return { operation, revision: saved.revision, mode: "preserved-source-faceted", exactParametric: false };
-      }
-      if (operation === "reconstruct" && options.settings?.mode === "curved") {
-        const next = await this.requireProject(projectId);
-        const source = await this.sourceBlob(next);
-        const requestedTolerance = Number(options.settings.surfaceDeviationTolerance ?? 0.1);
-        const tolerance = Number.isFinite(requestedTolerance)
-          ? Math.min(10, Math.max(0.01, requestedTolerance))
-          : 0.1;
-        const compiled = await browserGeometry.compileCurvedStl(source, tolerance);
-        const evidence = compiled.curvedReconstruction;
-        if (!compiled.valid || !compiled.solid || !compiled.stepReimportValid || evidence === undefined) {
-          throw new Error("OCCT could not create and reimport a valid approximate curved solid from this STL");
-        }
-        const artifacts = await Promise.all([
-          this.putArtifact(projectId, "model.step", new Blob([compiled.step], { type: "model/step" }), "curved-step"),
-          ...this.resultMeshArtifactWrites(
-            projectId,
-            compiled,
-            "reconstructed-curved",
-          ),
-        ]);
-        next.state.cadgraph = null;
-        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
-        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
-        next.state.validation = {
-          status: "valid-with-warnings",
-          brepValid: true,
-          stepReimportValid: true,
-          toleranceSatisfied: null,
-          issues: [{
-            code: "approximate-layered-curved",
-            message: "STEP contains real swept or spline curved surfaces reconstructed from layered STL sections. It is an approximation; original CAD surfaces and design history are not recoverable from STL.",
+          warnings: analysis.watertight ? [] : [{
+            code: "not-watertight",
+            message: "The mesh is not watertight; reconstruction may fall back to the faceted tier.",
+            severity: "warning",
           }],
-          compilation: {
-            kernel: "OCCT WebAssembly",
-            mode: evidence.scope,
-            relativeVolumeDelta: evidence.relativeVolumeDelta,
-            maximumBoundsDelta: evidence.maximumBoundsDelta,
-            faceSurfaces: evidence.faceSurfaces,
-          },
         };
         next.state.metrics = {
-          volume: compiled.volume,
-          surfaceArea: compiled.surfaceArea,
-          bounds: compiled.bounds,
-          vertexCount: compiled.mesh.vertexCount,
-          triangleCount: compiled.mesh.triangleCount,
+          volume: analysis.closedVolume, surfaceArea: analysis.surfaceArea, bounds: analysis.bounds,
+          vertexCount: analysis.weldedVertexCount, triangleCount: analysis.triangleCount,
         };
-        const reconstructionEvidence = {
-          ...evidence,
-          approximate: true,
-          designHistoryRecovered: false,
-          toleranceUnits: next.units,
+        const saved = await this.save(next, true);
+        return { operation, revision: saved.revision, mode: "browser-local-analyze" };
+      }
+      if (operation === "reconstruct") {
+        const next = await this.requireProject(projectId);
+        // A project that already carries a CADGraph would be rebuilt from that
+        // history, which the browser core cannot do.
+        if (next.state.cadgraph !== null) return await browserGeometry.compile(next.state.cadgraph);
+        const source = await this.sourceBlob(next);
+        const requested = Number(options.settings?.surfaceDeviationTolerance ?? options.settings?.tolerance ?? Number.NaN);
+        const tolerance = Number.isFinite(requested) ? Math.min(10, Math.max(0.001, requested)) : null;
+        const mode: BrowserReconstructionMode = options.settings?.mode === "faceted"
+          ? "faceted"
+          : options.settings?.mode === "curved" ? "curved" : "automatic";
+        const result = await browserGeometry.reconstruct(source, sourceFormat(next), {
+          mode,
+          tolerance,
+          triangleBudget: BROWSER_TRIANGLE_BUDGET,
+          onProgress: ({ stage, fraction, message }) => { report(stage, Math.round(10 + fraction * 85), message); },
+        });
+        const evidence = reconstructionEvidence(result, mode);
+        const artifacts = await Promise.all([
+          this.putArtifact(projectId, "model.step", new Blob([result.step], { type: "model/step" }), `${result.tier}-step`),
+          this.putArtifact(projectId, "reconstructed.glb", new Blob([result.glb], { type: "model/gltf-binary" }), `reconstructed-${result.tier}`),
+          this.putArtifact(projectId, "reconstruction.json", new Blob([JSON.stringify(evidence, null, 2)], { type: "application/json" }), "reconstruction-evidence"),
+        ]);
+        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
+        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
+        next.state.validation = {
+          status: result.valid && result.roundTripOk
+            ? (result.tier === "faceted" ? "valid-with-warnings" : "valid")
+            : "invalid-brep",
+          brepValid: result.valid,
+          stepReimportValid: result.roundTripOk,
+          toleranceSatisfied: tolerance === null || result.deviation === null ? null : result.deviation.p95 <= tolerance,
+          issues: reconstructionIssues(result),
+          compilation: {
+            kernel: BROWSER_ENGINE,
+            mode: `browser-local-${result.tier}`,
+            tier: result.tier,
+            facesFinal: result.facesFinal,
+            facesAnalytic: result.facesAnalytic,
+            facesTriangle: result.facesTriangle,
+            surfaceCounts: { ...result.inventory },
+          },
+          step: { exported: true, reimported: result.roundTripOk },
         };
-        next.state.settings = {
-          ...next.state.settings,
-          curvedReconstruction: reconstructionEvidence,
-          browserCurvedReconstruction: reconstructionEvidence,
+        next.state.metrics = {
+          volume: result.volume,
+          sourceVolume: result.sourceVolume,
+          bounds: next.state.diagnostics?.bounds ?? null,
+          triangleCount: next.state.diagnostics?.triangleCount ?? null,
+          faceCount: result.facesFinal,
+          ...(result.deviation === null ? {} : { p95Distance: result.deviation.p95, maxDistance: result.deviation.max }),
         };
+        next.state.settings = { ...next.state.settings, reconstruction: evidence };
         const saved = await this.save(next, true);
         return {
           operation,
           revision: saved.revision,
-          mode: evidence.scope,
-          approximate: true,
-          stepReimportValid: true,
-          relativeVolumeDelta: evidence.relativeVolumeDelta,
+          mode: `browser-local-${result.tier}`,
+          tier: result.tier,
+          requestedMode: mode,
+          brepValid: result.valid,
+          stepReimportValid: result.roundTripOk,
         };
       }
       const next = await this.requireProject(projectId);
-      if (next.state.cadgraph === null && operation === "reconstruct") {
-        const source = await this.sourceBlob(next);
-        const sourceDescriptor = next.state.source!;
-        const requestedTolerance = Number(options.settings?.surfaceDeviationTolerance ?? options.settings?.tolerance ?? 0.05);
-        const tolerance = Number.isFinite(requestedTolerance) ? Math.min(1, Math.max(0.01, requestedTolerance)) : 0.05;
-        const detailMode = options.settings?.detailMode === "full" ? "full" : "functional";
-        const parametric = await browserGeometry.reconstructParametricStl(source, {
-          sha256: sourceDescriptor.sha256,
-          originalFileName: sourceDescriptor.originalFileName,
-          byteSize: sourceDescriptor.byteSize,
-          declaredUnits: sourceDescriptor.declaredUnits ?? next.units,
-          scaleFactor: sourceDescriptor.scaleFactor ?? 1,
-        }, next.units, {
-          tolerance,
-          detailMode,
-          onProgress: ({ stage, fraction, message }) => report(stage, Math.round(10 + fraction * 85), message),
-        });
-        next.state.cadgraph = parametric.graph;
-        next.state.analysis = {
-          ...(next.state.analysis ?? {}),
-          prismaticCandidate: {
-            accepted: true,
-            family: parametric.parametricReconstruction.family,
-            features: parametric.parametricReconstruction.featureSequence,
-            comparison: parametric.parametricReconstruction.comparison,
-          },
-        } as unknown as JsonObject;
-        const artifactPromises = [
-          this.putArtifact(projectId, "model.step", new Blob([parametric.step], { type: "model/step" }), "parametric-step"),
-          ...this.resultMeshArtifactWrites(
-            projectId,
-            parametric,
-            "reconstructed-parametric",
-          ),
-          this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(parametric.graph, null, 2)], { type: "application/json" }), "cadgraph"),
-          this.putArtifact(projectId, "comparison.json", new Blob([JSON.stringify(parametric.parametricReconstruction.comparison, null, 2)], { type: "application/json" }), "comparison"),
-          this.putArtifact(projectId, "surface-audit.json", new Blob([JSON.stringify({
-            surfaceCounts: parametric.surfaceCounts,
-            topologyCounts: parametric.topologyCounts,
-            reimportSurfaceCounts: parametric.reimportSurfaceCounts,
-            reimportTopologyCounts: parametric.reimportTopologyCounts,
-            stepReimportRelativeVolumeDelta: parametric.stepReimportRelativeVolumeDelta,
-            stepReimportValid: parametric.stepReimportValid,
-          }, null, 2)], { type: "application/json" }), "surface-audit"),
-          ...(parametric.suppressedRegions.length === 0 ? [] : [
-            this.putArtifact(projectId, "suppressed-regions.json", new Blob([JSON.stringify(parametric.suppressedRegions, null, 2)], { type: "application/json" }), "suppressed-regions"),
-          ]),
-          ...(parametric.suppressedMesh === null ? [] : [
-            this.putArtifact(projectId, "residual.glb", meshToGlb(parametric.suppressedMesh), "suppressed-residual"),
-          ]),
-        ];
-        const artifacts = await Promise.all(artifactPromises);
-        const functionalApproximation = parametric.parametricReconstruction.acceptance === "functional-approximation";
-        next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
-        next.state.artifacts = [...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"), ...artifacts];
-        next.state.validation = {
-          status: functionalApproximation ? "valid-with-warnings" : "valid",
-          brepValid: true,
-          stepReimportValid: true,
-          toleranceSatisfied: parametric.parametricReconstruction.toleranceSatisfied,
-          issues: functionalApproximation ? [{
-            code: "functional-parametric-approximation",
-            severity: "warning",
-            message: "The STEP is a valid functional reconstruction; complex chamfer and blend details remain approximate.",
-            comparison: parametric.parametricReconstruction.comparison as unknown as JsonObject,
-          }] : [],
-          compilation: {
-            kernel: "OCCT WebAssembly",
-            mode: functionalApproximation ? "browser-local-parametric-functional" : "browser-local-parametric",
-            featureCount: parametric.featureCount,
-            surfaceCounts: parametric.surfaceCounts ?? {},
-            comparison: parametric.parametricReconstruction.comparison as unknown as JsonObject,
-          },
-          step: { exported: true, reimported: true },
-        };
-        next.state.metrics = {
-          volume: parametric.volume, surfaceArea: parametric.surfaceArea, bounds: parametric.bounds,
-          vertexCount: parametric.mesh.vertexCount, triangleCount: parametric.mesh.triangleCount,
-          rmsDistance: parametric.parametricReconstruction.comparison.distance.rms,
-          p95Distance: parametric.parametricReconstruction.comparison.distance.p95,
-        };
-        next.state.settings = {
-          ...next.state.settings,
-          browserParametricReconstruction: parametric.parametricReconstruction as unknown as JsonObject,
-          suppressedRegions: parametric.suppressedRegions,
-        };
-        const saved = await this.save(next, true);
-        return {
-          operation,
-          revision: saved.revision,
-          mode: functionalApproximation ? "browser-local-parametric-functional" : "browser-local-parametric",
-          exactParametric: !functionalApproximation,
-          approximate: functionalApproximation,
-          detailMode,
-          stepReimportValid: true,
-        };
-      }
       if (next.state.cadgraph === null) throw new Error("This project does not have a CADGraph to compile");
-      const compiled = await browserGeometry.compile(next.state.cadgraph);
-      const step = new Blob([compiled.step], { type: "model/step" });
-      const artifacts = await Promise.all([
-        this.putArtifact(projectId, "model.step", step, "step"),
-        ...this.resultMeshArtifactWrites(
-          projectId,
-          compiled,
-          "reconstructed",
-        ),
-        this.putArtifact(projectId, "model.cadgraph.json", new Blob([JSON.stringify(next.state.cadgraph, null, 2)], { type: "application/json" }), "cadgraph"),
-      ]);
-      next.state.artifactSetId = `artifact-set-${crypto.randomUUID()}`;
-      next.state.artifacts = [
-        ...next.state.artifacts.filter((artifact) => artifact.name === "source.glb"),
-        ...artifacts,
-      ];
-      next.state.validation = {
-        status: compiled.valid && compiled.solid && compiled.stepReimportValid ? "valid" : "invalid-brep",
-        brepValid: compiled.valid && compiled.solid,
-        stepReimportValid: compiled.stepReimportValid,
-        toleranceSatisfied: null,
-        compilation: { kernel: "OCCT WebAssembly", featureCount: compiled.featureCount },
-        step: { exported: true, reimported: compiled.stepReimportValid },
-      };
-      next.state.metrics = {
-        volume: compiled.volume, surfaceArea: compiled.surfaceArea, bounds: compiled.bounds,
-        vertexCount: compiled.mesh.vertexCount, triangleCount: compiled.mesh.triangleCount,
-      };
-      next.state.cadgraph = {
-        ...next.state.cadgraph,
-        engineVersions: {
-          ...next.state.cadgraph.engineVersions,
-          dependencies: { ...next.state.cadgraph.engineVersions.dependencies, "occt-wasm": "3.7.0" },
-        },
-        validation: {
-          ...next.state.cadgraph.validation,
-          status: compiled.valid && compiled.stepReimportValid ? "valid" : "invalid",
-          brepValid: compiled.valid,
-          stepReimportValid: compiled.stepReimportValid,
-          checkedAt: new Date().toISOString(),
-          issues: [],
-        },
-      };
-      const saved = await this.save(next, true);
-      return { operation, revision: saved.revision, exactBrep: compiled.valid, stepReimportValid: compiled.stepReimportValid };
+      // `validate`, `export` and `rebuild` all mean "run the CADGraph through
+      // the kernel again", which the browser core does not do.
+      return await browserGeometry.compile(next.state.cadgraph);
     });
     return result(job, detail.revision);
   }
@@ -690,7 +596,7 @@ export class BrowserApiClient {
       id: `version-${crypto.randomUUID()}`, projectId, parentId: detail.state.currentVersionId, label: label || "Snapshot",
       state: structuredClone(detail.state), sourceSha256: detail.state.source?.sha256 ?? null,
       validationStatus: detail.state.validation?.status ?? "not-run", metrics: detail.state.metrics,
-      artifactSetId: detail.state.artifactSetId, engineVersion: "browser-local/1", dependencyVersions: { occtWasm: "3.7.0" },
+      artifactSetId: detail.state.artifactSetId, engineVersion: "browser-local/1", dependencyVersions: { core: BROWSER_ENGINE },
       createdAt: new Date().toISOString(),
     };
     await workspaceDb.versions.put({ projectId, versionId: snapshot.id, parentVersionId: snapshot.parentId, createdAt: snapshot.createdAt, snapshot });
@@ -759,11 +665,7 @@ export class BrowserApiClient {
         blobFromUrl(browserSampleAssetUrl(sampleId, "source-high.stl"), "model/stl"),
       ]);
       const sourceSha = await sha256Hex(await readBlobBytes(source));
-      const sourcePreview = await browserGeometry.compileStl(
-        previewSource,
-        Math.max(0.01, sample.graph.projectTolerance.surfaceDeviation),
-        { solidify: false, validateStep: false },
-      );
+      const sourcePreview = await browserGeometry.analyze(previewSource, "stl");
       next.state.source = {
         id: `source-${sourceSha.slice(0, 16)}`, originalFileName: `${sampleId}.stl`, format: "stl", encoding: "binary",
         sha256: sourceSha, byteSize: source.size, declaredUnits: sample.graph.units, unitsConfirmed: true, scaleFactor: 1, state: "bundled-local",
@@ -816,7 +718,6 @@ export class BrowserApiClient {
   private async sourceBlob(detail: ProjectDetail): Promise<Blob> {
     const source = detail.state.source;
     if (source === null) throw new Error("This project does not have a source mesh");
-    if (source.format !== "stl") throw new Error("Browser-local geometry currently supports STL sources; use the native service for OBJ or PLY");
     const record = await workspaceDb.blobs.get(`source:${source.sha256}`);
     if (record === undefined) throw new Error("The source mesh is no longer available in this browser profile");
     return record.blob;
@@ -907,24 +808,6 @@ export class BrowserApiClient {
     };
     this.lastEvents.set(job.id, event);
     for (const listener of this.listeners.get(job.id) ?? []) listener(structuredClone(event));
-  }
-
-  private resultMeshArtifactWrites(
-    projectId: string,
-    result: BrowserCadResult,
-    kind: string,
-  ): Array<Promise<ArtifactDescriptor>> {
-    const exportMesh = result.exportMesh ?? result.mesh;
-    return [
-      this.putArtifact(
-        projectId,
-        "reconstructed.glb",
-        meshToGlb(result.mesh, result.edgeLines),
-        kind,
-      ),
-      this.putArtifact(projectId, "reconstructed.stl", meshToBinaryStl(exportMesh), kind),
-      this.putArtifact(projectId, "reconstructed.obj", meshToObj(exportMesh), kind),
-    ];
   }
 
   private async putArtifact(projectId: string, name: string, blob: Blob, kind: string): Promise<ArtifactDescriptor> {

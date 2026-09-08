@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
+  patchOutlinePositions,
   edgeOverlayKind,
   displayMaterialProperties,
   hidePatchTriangles,
@@ -166,5 +167,48 @@ describe("display material modes", () => {
       wireframe: false,
     });
     expect(displayMaterialProperties("wireframe", 1).wireframe).toBe(true);
+  });
+});
+
+describe("patch outline", () => {
+  function quadRanges(): SelectionRange[] {
+    return [{ triangleStart: 0, triangleEndExclusive: 2, patchId: "patch.quad", semanticIds: [] }];
+  }
+  function quad(indexed: boolean): THREE.BufferGeometry {
+    const geometry = new THREE.BufferGeometry();
+    if (indexed) {
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3));
+      geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    } else {
+      // Two triangles with duplicated corner vertices, as an STL-derived mesh has.
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0], 3));
+    }
+    return geometry;
+  }
+
+  it("keeps only the boundary edges of the selected patch", () => {
+    for (const indexed of [true, false]) {
+      const positions = patchOutlinePositions(quad(indexed), quadRanges(), "patch.quad");
+      // Four boundary segments of the unit square; the shared diagonal is dropped.
+      expect(positions.length).toBe(4 * 6);
+      const lengths = [];
+      for (let item = 0; item < positions.length; item += 6) {
+        const dx = positions[item + 3]! - positions[item]!;
+        const dy = positions[item + 4]! - positions[item + 1]!;
+        lengths.push(Math.hypot(dx, dy));
+      }
+      expect(lengths.every((length) => Math.abs(length - 1) < 1e-9)).toBe(true);
+    }
+  });
+
+  it("returns nothing without a selection or for a patch outside the ranges", () => {
+    expect(patchOutlinePositions(quad(true), quadRanges(), null)).toEqual([]);
+    expect(patchOutlinePositions(quad(true), quadRanges(), "patch.other")).toEqual([]);
+  });
+
+  it("respects the triangle offset of later meshes in the same object", () => {
+    const ranges: SelectionRange[] = [{ triangleStart: 10, triangleEndExclusive: 12, patchId: "p", semanticIds: [] }];
+    expect(patchOutlinePositions(quad(true), ranges, "p", 10).length).toBe(24);
+    expect(patchOutlinePositions(quad(true), ranges, "p", 0)).toEqual([]);
   });
 });

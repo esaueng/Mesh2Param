@@ -14,13 +14,52 @@ import {
   Toast,
   type SemanticState,
 } from "@mesh2param/ui";
-import { Download, Moon, Plus, Save, Sun, Trash2 } from "lucide-react";
+import { Download, Moon, Plus, Save, ScanSearch, Sun, Trash2 } from "lucide-react";
+import { JobFailure } from "../canvas/JobFailure";
+import { EmptyState, PanelSkeleton } from "../canvas/PanelStates";
+import type { JobViewState } from "../state/types";
+import "../canvas/canvas.css";
 import "./styleguide.css";
+
+const FAILED_JOB: JobViewState = {
+  job: {
+    id: "reconstruct-demo",
+    projectId: "demo",
+    kind: "reconstruct",
+    status: "failed",
+    progress: 40,
+    phase: "fit surfaces",
+    inputRevision: 1,
+    attempt: 1,
+    maxAttempts: 1,
+    createdAt: "2026-09-05T00:00:00Z",
+    startedAt: "2026-09-05T00:00:01Z",
+    heartbeatAt: null,
+    finishedAt: "2026-09-05T00:00:09Z",
+    eventsUrl: "/api/jobs/demo/events",
+    cancelRequestedAt: null,
+    error: {
+      code: "no_extrusion_axis",
+      summary: "No single extrusion axis covers the side walls.",
+      detail: "Best axis covered 61% of side-wall area; 98% is required for parametric inference.",
+      phase: "fit surfaces",
+      projectId: "demo",
+      jobId: "reconstruct-demo",
+      recoverable: true,
+      recommendedAction: "Generate a curved STEP instead.",
+    },
+    result: null,
+  },
+  connection: "closed",
+  logs: [],
+  cancelling: false,
+  lastEventAt: "2026-09-05T00:00:09Z",
+};
 
 const COLOR_GROUPS: ReadonlyArray<{ title: string; tokens: readonly string[] }> = [
   {
     title: "Elevation",
-    tokens: ["--color-bg", "--color-surface", "--color-surface-2", "--color-hover", "--color-border", "--color-border-strong", "--color-viewport", "--color-overlay-bg"],
+    tokens: ["--color-bg", "--color-surface", "--color-surface-2", "--color-hover", "--color-border", "--color-border-strong", "--color-control-border", "--color-viewport", "--color-overlay-bg"],
   },
   {
     title: "Text",
@@ -211,6 +250,23 @@ export function Styleguide() {
         <PanelSection title="Convert" action={<Badge tone="accent">ready</Badge>}>
           <Button variant="primary"><Download size={14} /> Download STEP</Button>
         </PanelSection>
+      </GuideSection>
+
+      <GuideSection title="Panel states">
+        <div className="sg-panel-states">
+          <div>
+            <h3>Empty</h3>
+            <EmptyState icon={<ScanSearch size={22} />} title="Not analyzed yet" hint="Mesh health, surface patches, and fit residuals appear here after analysis." action={{ label: "Analyze mesh", onClick: () => {} }} />
+          </div>
+          <div>
+            <h3>Loading</h3>
+            <PanelSkeleton rows={5} label="Segmenting surfaces…" />
+          </div>
+          <div>
+            <h3>Failed job</h3>
+            <JobFailure view={FAILED_JOB} canRetry onRetry={() => {}} onDismiss={() => {}} />
+          </div>
+        </div>
       </GuideSection>
 
       <GuideSection title="Toasts">

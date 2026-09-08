@@ -74,6 +74,132 @@ stage re-cuts a patch, so the fold is permanent and the crease rule then refuses
 the *whole* face rather than the one triangle that spoiled it. A face may only
 join a patch it does not fold, measured exactly as the crease rule measures it.
 
+**A curve is not a fan of small planes.** A shard carved out of a b-spline face
+and a genuinely small planar face are the same size, hold the same number of
+triangles and fit a plane equally well — over a short span the sagitta is far
+under any tolerance, whatever the curvature. No size gate separates them; the
+sweeps that tried are in the known limits below. One measurement does: the
+shard's *neighbourhood* is curved and the small face's is not.
+
+So every vertex gets a discrete curvature, from the cotangent (normal-cycle)
+mean-curvature normal and the angle deficit, both normalised by Meyer's mixed
+area, giving `kappa1, kappa2 = H +/- sqrt(H^2 - G)`. Both sums are accumulated
+in one pass over the triangles — each triangle touches only its own three
+corners — so the estimate is O(triangles) and needs no structure the weld has
+not already produced. A local quadric fit would need a two-ring to be
+conditioned, which is the neighbourhood the shards make unreliable in the first
+place.
+
+A vertex is **curved** when `max(|kappa1|, |kappa2|) > 1 / (2 x bbox diagonal)`,
+i.e. when its radius of curvature is under two part diagonals. The threshold
+only has to separate two far-apart populations, not name a physical limit: a
+planar CAD face is exactly planar and the operator returns exactly zero on a
+coplanar one-ring, leaving only the tessellator's rounding, which reads four
+orders of magnitude under the threshold; and past two diagonals the plane fit's
+own tolerance accepts the region anyway, so there is nothing left to decide.
+
+**A crease is not curvature.** The same operator reports a *large* mean
+curvature at a box's edge — the one-ring folds, and it cannot tell a fold from a
+very tight bend. A vertex with any incident dihedral past `maxFacetDeg`, and any
+vertex on an open or non-manifold edge whose one-ring does not close, is
+therefore **unmeasured**: neither curved nor flat. That leaves three states per
+vertex and two scores per triangle, because the two gates make opposite claims:
+
+* **smooth** — at least one corner curved, no corner flat, and no fold across
+  the triangle's own edges. Refusing to call a region a plane is a negative
+  claim, so silence counts towards it; that matters because the rim of a curved
+  face is exactly the part whose corners sit on the creases bounding it.
+* **core** — every corner curved, and no fold, *and* adjacency only to
+  triangles of comparable curvature: `kappa` may step by half again between
+  two triangles of one surface, not more. Holding two triangles
+  together against a re-cut is a positive and irreversible claim, so silence
+  may not carry it — and a fillet of radius `r` blended into a face of radius
+  `R` has continuous normals across the join and nothing but that factor to
+  give it away. Without the ratio the corpus loses its tori outright.
+
+The two gates are then:
+
+1. **A patch more than 60% smooth by area, which does not fit its plane to
+   better than a hundredth of its tolerance, is not promoted as a plane.** It
+   is reported `Unknown` with `reason: freeform`, keeping its area, for the
+   build stage to fit a general surface to later. Only the plane is gated: a
+   cylinder, cone, sphere or torus is *supposed* to land on a curved region and
+   its own residual, axis conditioning and normal deviation already say whether
+   it did. A planar face on a curved part has measured-flat corners over its
+   interior, which veto it however its rim is bounded; a chamfer facet on a
+   coarse mesh has creases all round it and no curved corner anywhere, so it is
+   promoted as the plane it is. The residual floor is what covers the third
+   case, a narrow flat bounded by a fillet on each side: it has no interior at
+   all, every corner of it sits on a tangent rim where the one-ring really is
+   curved, and only the fit tells it from a shard — the flange's 4 mm annulus
+   fits its plane to 0.8% of tolerance and the hammer holder's shards fit
+   theirs to between 3.5% and 25%. Three fifths rather than a bare majority is
+   what a small curved face still clears once its rim is discounted, while a
+   plane-to-fillet-to-plane leak stays well under it and is still split into its
+   parts by stage 2b.
+2. **A patch that is itself a curved region is not re-cut through its
+   curvature.** When more than 60% of a patch's area is smooth, stage 2b may not
+   cut between two adjacent core triangles, at any angle. Splitting far enough
+   makes any pair look planar, and that is the whole mechanism by which a
+   freeform surface shatters; a region that stays one patch is never a planar
+   candidate in the first place. It is still *fitted*, so a region that turns
+   out to be a cylinder or a sphere is recognised as one — which is how the
+   capped cylinder in the tests recovers its dome instead of leaving it
+   unknown. The 60% condition is not decoration: applied unconditionally the
+   rule leaves the merge stage a partition it cannot put back together, and
+   `sensor-mount-bracket/mesh-default` comes back as 106 patches instead of 36,
+   nearly all slivers, which is what the face builder then fails on.
+
+The per-triangle scores are on `Segmentation` as `faceCurvature` and
+`faceSmoothCurved`, and the per-patch area fraction as
+`patch.smoothCurvedFraction`, so both gates can be inspected on a real part.
+
+**A trial merge is screened before it is fitted.** Holding a freeform region
+together leaves the merge stage trial-merging one patch of tens of thousands of
+triangles with each of its thousands of neighbours, and fitting a union costs a
+pass over its vertices for each of five primitives, two of them with a
+Gauss-Newton refinement on top. `hammer-holder/mesh-export` reached 98 million
+triangle-visits that way and 61 s of segmentation.
+
+Almost none of those merges are taken, and what separates the ones that might be
+is computable from running sums that **add** when two face sets are joined: the
+face count and area, the samples' centroid and their second and third moments
+about it, the face normals' mean and their second moment raw and centred, the
+sharpest crease inside the set, and its smoothly curved area. Every patch
+carries them, a union's are reached in constant time, and the screen they feed
+may only refuse a merge the fit would have refused anyway — each of its tests is
+a *necessary* condition for the fit accepting anything:
+
+* a crease sharper than one facet step makes the set unfittable outright;
+* the **plane** comes out of the moments, and its residual is their smallest
+  eigenvalue;
+* a **normal deviation** is bounded below through `sin θ ≤ θ`: a plane's from
+  `A − nᵀNn`, a cylinder's from the smallest eigenvalue of `N`;
+* a **cylinder, cone or torus** needs an axis its normals determine, which is a
+  property of the same matrix;
+* a **sphere**'s centre and radius come out algebraically, so its size guards
+  apply without touching a vertex.
+
+What the moments cannot bound is a curved fit's *residual*, so a large smooth
+region still reaches the fits. Two more refusals are paid for there, both over
+the faces rather than the samples and both before any circle is fitted: the
+facet-step rule, and — since a cone's apex and a torus's ring centre both sit on
+the axis through the samples' centroid — the angle each face normal makes with
+the axial plane through its own centroid, which is a floor under the deviation
+any surface of revolution about that axis has to pay. Between them the hammer
+holder's segmentation comes back to about 5 s against the 4.1 s it took before
+the gates existed, and the subset scoreboard spends 3.9 s in segmentation
+against 23.8 s on main — the screen pays for itself on the prismatic parts too.
+
+Screening changes the *speed* of the stage and not its answers, with one
+measured exception: a union's moments are reached by the parallel-axis shift
+rather than by re-accumulating the union's samples, and the two differ in their
+last bits. Across the subset that moves one patch on
+`watch-charger-desk-clip/mesh-default` from the plane bucket to the cylinder
+bucket (26/13 to 25/14). Its inventory error, its unknown area and its tier are
+unchanged, and disabling the screen entirely does not move it back — it is the
+arithmetic, not the refusals.
+
 Primitives are tried simplest first — plane, cylinder, cone, sphere, torus — and
 the **first** one inside tolerance wins. Smallest residual is the wrong rule: a
 sphere has one more free parameter than a cylinder and a torus two more, so they
@@ -190,11 +316,34 @@ is three conditioning checks, all of them stated in the fit's own terms:
   anything above 5 starts demoting genuine faces, whose whole area is only a few
   hundred chords squared. 5 is the largest value that costs nothing on the
   coarse corpus meshes. The residual gate is what actually does the work.
-* Freeform stays the largest single error. Refusing to invent planes on
-  `hammer-holder` cuts its inventory error from 273 to 205, but the area those
-  planes used to cover becomes `Unknown` (2.6% -> 32%), because the part's 42
-  b-spline faces have no primitive to be recognised as. Only cone/torus/general
-  freeform handling moves that number, not promotion policy.
+* Freeform is no longer the largest single error, but what is left of it is
+  the honest kind: the area is recognised as *one surface* and named
+  `reason: freeform`, and nothing in this crate can fit it yet.
+  `hammer-holder/mesh-export` reports 70 planes against 52 in the ground truth
+  where it used to report 134, its inventory error falls 192 -> 42, its
+  reconstruction tier rises `faceted` -> `mixed`, and 62% of its area is
+  `Unknown` (from 33%) — the 42 b-spline faces, refused rather than papered
+  over with shards. Only a NURBS fit moves that number now.
+* **Two baseline rows are blessed against main, and both are honest.**
+  `oring-gland-ring/mesh-default` is blessed at `mixed`, down from `analytic`:
+  main's analytic tier there was **132 fabricated cylinders on one O-ring
+  groove** (inventory error 133), and the new result is one freeform region with
+  an error of 3 — the correct segmentation, which simply does not build an
+  all-analytic solid. Winning the tier back needs a torus fit that survives a
+  180-degree tube sweep: the groove is a half-round, and past about 140 degrees
+  around the tube the variance of `n · axis` exceeds the variance across it, so
+  `axis_from_normals_centred` stops naming the axis at all. That is the fix, not
+  a looser gate. `corner-brace-countersunk/mesh-default` is blessed at an
+  inventory error of 15, up from 12 — a 25% growth against a 20% budget —
+  because three plane fits sitting at 14% and 64% of their tolerance are refused
+  by the freeform gate's residual floor, and the ground truth has more planes
+  than the stage finds either way, so demoting a wrong plane moves the count
+  further from it. Neither row loses a valid solid.
+* **The gates need a surface with an interior.** A fillet band two rows tall —
+  which is what a tessellator emits for a fillet between two flats — has every
+  vertex on the rim where a cap folds away, so there is nowhere on it any
+  one-ring estimator can measure, and the band is invisible to both gates. It
+  is left to the fits, which is where it was.
 * The crease rule still costs coarsely tessellated freeform, though less than it
   did. Where adjacent triangles are pervasively more than `maxFacetDeg` apart,
   merges that used to fuse such a region into one primitive are refused and the
@@ -561,16 +710,38 @@ and the run falls back to `faceted_step` with `fallbackReason` set.
 **Verification is part of the tier claim.** The result is tessellated and
 measured against the source mesh in both directions — source centroids and
 vertices against the result, result vertices against the source — with a
-uniform-grid point-to-triangle query, and its volume compared. A hex prism
+point-to-triangle nearest-distance query, and its volume compared. A hex prism
 recognised as a cylinder is closed, manifold, orientable and half again too big;
 topology cannot see that and a caller acting on the tier would.
+
+**The nearest-distance query is a BVH, and a uniform grid is the wrong
+structure for it.** Both directions are answered by a median-split bounding
+volume hierarchy over the triangle soup, traversed nearer-child-first with any
+node whose box is already further than the best distance pruned. A uniform grid
+was tried and does not survive the input: verification queries a
+*reconstructed* solid's tessellation, where a large planar face is two
+triangles and a filleted one is thousands, and where a single face built on a
+grazing surface routinely sits kilometres from a hundred-millimetre part — the
+hammer holder's 70k-triangle export tessellates over a 5.5 m extent for a 130 mm
+part. No one cell size serves that. Sized for the small triangles the large ones
+smear across thousands of cells; sized for the large ones a cell holds thousands
+of small ones; and an expanding-shell search starting from an outlier walks the
+whole lattice. The hierarchy needs no cell size and returns the *exact* nearest
+distance, where the shell search returned whatever it found before it gave up:
+switching to it moved `deviationP95` **down** on every subset mesh that moved at
+all, by up to 96%, and it is what took the export's verify stage from 16.6 s to
+0.65 s at `opt-level = 3`.
+
+Sampling is capped at `MAX_SAMPLES` (40 000) in each direction, chosen by an
+even stride so the cap never biases the quantile toward one region of the part.
+That is what bounds the stage's cost independently of mesh size.
 
 **A failed verification is localised before it is fatal.** It is rarely the
 whole solid that is wrong: one face built on a surface that grazes its own patch
 can sit metres off a hundred-millimetre part and carry the aggregate with it. So
 the same measurement is taken **per face** — from the grouped tessellation,
-result against source, with distance to the mesh's own bounding box as the lower
-bound that settles a far face without a grid search — and the analytic patches
+result against source, one answer cached per tessellation vertex because
+adjacent faces share their boundary points — and the analytic patches
 whose faces are further off than the deviation budget are demoted and the solid
 rebuilt, once. 28 of the 99 subset meshes take that retry.
 `motor-mount-nema17/mesh-coarse` goes from 27 568% off its volume to 0.5%, and

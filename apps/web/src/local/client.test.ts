@@ -1,15 +1,13 @@
 import { Blob as NodeBlob } from "node:buffer";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CADGraph } from "@mesh2param/contracts";
-import graphFixture from "../../../../packages/contracts/tests/fixtures/base.cadgraph.json";
 import { workspaceDb } from "../persistence/db";
 import { readBlobBytes } from "../persistence/projectBytes";
 import { WorkspaceRepository } from "../persistence/repository";
 import { BrowserApiClient } from "./client";
 import { browserGeometry } from "./geometry/client";
-import type { BrowserCadResult } from "./geometry/types";
+import type { BrowserReconstruction } from "./geometry/types";
 
-vi.mock("./geometry/client", () => ({ browserGeometry: { compile: vi.fn() } }));
+vi.mock("./geometry/client", () => ({ BROWSER_TRIANGLE_BUDGET: 80000, browserGeometry: { reconstruct: vi.fn() } }));
 const objects = new Map<string, Blob>();
 
 beforeAll(() => { vi.stubGlobal("Blob", NodeBlob); });
@@ -42,20 +40,21 @@ async function upload(client: BrowserApiClient, id: string, contents = "shared s
   return accepted;
 }
 
-function compiled(step: string): BrowserCadResult {
+function reconstructed(step: string): BrowserReconstruction {
   return {
-    step, valid: true, solid: true, stepReimportValid: true, volume: 1, surfaceArea: 1,
-    bounds: [[0, 0, 0], [1, 1, 0]], featureCount: 1,
-    mesh: { positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-      normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), indices: new Uint32Array([0, 1, 2]),
-      vertexCount: 3, triangleCount: 1 },
+    step: new TextEncoder().encode(step).buffer, glb: new ArrayBuffer(0),
+    tier: "analytic", valid: true, issues: [], fallbackReason: null,
+    facesAnalytic: 6, facesTriangle: 0, facesFinal: 6, deviation: null,
+    volume: 1, sourceVolume: 1, stepBytes: step.length, roundTripOk: true,
+    inventory: { plane: 6, cylinder: 0, cone: 0, torus: 0, sphere: 0, unknown: 0 },
+    unknownAreaFraction: 0, patches: 6, edges: 12,
   };
 }
 
-async function rebuild(client: BrowserApiClient, id: string, step: string) {
-  vi.mocked(browserGeometry.compile).mockResolvedValueOnce(compiled(step));
+async function reconstruct(client: BrowserApiClient, id: string, step: string) {
+  vi.mocked(browserGeometry.reconstruct).mockResolvedValueOnce(reconstructed(step));
   const project = (await client.getProject(id)).data;
-  const job = (await client.startOperation(id, "rebuild", project.revision)).data;
+  const job = (await client.startOperation(id, "reconstruct", project.revision)).data;
   await waitJob(client, job.id);
   return (await client.getProject(id)).data;
 }
@@ -115,8 +114,8 @@ describe("browser blob retention", () => {
   it.each([false, true])("restores immutable artifact bytes after reload (legacy key: %s)", async (legacy) => {
     const client = new BrowserApiClient();
     const project = (await client.createProject("Versions")).data;
-    await client.updateCadgraph(project.id, project.revision, graphFixture as unknown as CADGraph);
-    const first = await rebuild(client, project.id, "first STEP");
+    await upload(client, project.id);
+    const first = await reconstruct(client, project.id, "first STEP");
     const old = first.state.artifacts.find((artifact) => artifact.name === "model.step")!;
     if (legacy) {
       const key = `artifact:${project.id}:model.step:${old.sha256}`;
@@ -125,7 +124,7 @@ describe("browser blob retention", () => {
       await workspaceDb.blobs.delete(key);
     }
     const version = (await client.createVersion(project.id, first.revision, "First")).data;
-    const second = await rebuild(client, project.id, "second STEP");
+    const second = await reconstruct(client, project.id, "second STEP");
     await client.restoreVersion(project.id, version.id, second.revision);
     const reopened = new BrowserApiClient();
     const restored = (await reopened.getProject(project.id)).data;

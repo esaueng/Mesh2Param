@@ -1,0 +1,27 @@
+[package]
+name = "mesh2param-wasm"
+version = "0.1.0"
+description = "WebAssembly bindings for the Mesh2Param reconstruction core"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+# `rlib` alongside `cdylib` so the crate is checkable and testable on the host:
+# `cargo clippy --workspace --all-targets` never builds a cdylib for wasm.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# wasm-bindgen is pinned exactly, and must match the `wasm-bindgen-cli` that
+# wasm-pack drives: a mismatch is a link-time schema error, not a warning. The
+# kernel pins the same version (esaueng/remus), so a bump is coordinated.
+[dependencies]
+console_error_panic_hook = "0.1"
+js-sys = "0.3"
+mesh2param-core = {path = "../mesh2param-core"}
+serde = {version = "1", features = ["derive"]}
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "=0.2.126"
+
+[lints]
+workspace = true

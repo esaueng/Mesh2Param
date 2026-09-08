@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   AlertTriangle,
   Box,
+  ChevronUp,
   Download,
   FileArchive,
   FolderOpen,
@@ -29,9 +30,16 @@ import { CadViewport } from "../viewer/CadViewport";
 import { PatchPanel } from "./PatchPanel";
 import type { WorkspaceActions, WorkspaceViewModel } from "../workspace/types";
 import { debugLog, useDebugLog } from "./debugLog";
-import { DebugConsole } from "./DebugConsole";
+import { clampConsoleHeight, DebugConsole } from "./DebugConsole";
 import { artifactDownloadName, stepDownloadName } from "./downloadFilename";
 import { EditableProjectName } from "./EditableProjectName";
+import { JobFailure, latestFailedJob } from "./JobFailure";
+import { EmptyState, PanelSkeleton } from "./PanelStates";
+import { NARROW_LAYOUT_QUERY, useMediaQuery } from "./useMediaQuery";
+import { analysisMeta, diagnosticRows, fileMeta } from "./meshReadout";
+import { panelLayoutStore, usePanelLayout } from "./panelLayout";
+import { PanelResizeHandle } from "./PanelResizeHandle";
+import { PanelSection } from "./PanelSection";
 import { ShortcutHelp } from "./ShortcutHelp";
 import { ViewSettings } from "./ViewSettings";
 import {
@@ -49,12 +57,26 @@ import "./canvas.css";
 
 export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: WorkspaceActions }) {
   const viewer = useWorkspaceSelector((state) => state.viewer);
-  const theme = useWorkspaceSelector((state) => state.shell.theme);
+  const shell = useWorkspaceSelector((state) => state.shell);
+  const theme = shell.theme;
+  // The console reuses the shell's persisted bottom-drawer slots, so its open
+  // state and height survive a reload like any other docked tool window.
+  const consoleOpen = shell.bottomDrawerExpanded;
+  const consoleHeight = clampConsoleHeight(shell.bottomDrawerHeight);
+  const layout = usePanelLayout();
+  const jobs = useWorkspaceSelector((state) => state.jobs);
+  const narrow = useMediaQuery(NARROW_LAYOUT_QUERY);
+  // Narrow layout: the panel is a bottom sheet that peeks its Convert footer
+  // and opens over the viewport on demand. Not persisted; a sheet reopening
+  // itself on every reload would cover the model.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const revealedKey = `mesh2param-revealed-${vm.project.id}`;
   const revealed = sessionStorage.getItem(revealedKey) === "1";
-  const [consoleOpen, setConsoleOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Pointer hover over a patch, shared by the viewport and the patch list so
+  // each mirrors the other. Rendering only; selection stays in the store.
+  const [hoveredPatchId, setHoveredPatchId] = useState<string | null>(null);
   const [recoverFullDetailsProject, setRecoverFullDetailsProject] = useState<string | null>(null);
   const recoverFullDetails = recoverFullDetailsProject === vm.project.id;
   const logs = useDebugLog();
@@ -106,6 +128,8 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
 
   const fit = () => window.dispatchEvent(new Event("mesh2param:fit-view"));
   const toggleTheme = () => workspaceStore.getState().setShellState({ theme: theme === "dark" ? "light" : "dark" });
+  const setConsoleOpen = (open: boolean) => workspaceStore.getState().setShellState({ bottomDrawerExpanded: open });
+  const setConsoleHeight = (height: number) => workspaceStore.getState().setShellState({ bottomDrawerHeight: height });
 
   const openFilePicker = () => fileRef.current?.click();
 
@@ -162,12 +186,19 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
   };
 
   const status = conversionStatus(vm);
+  const failedJob = activeJob === null ? latestFailedJob(jobs) : null;
+  const analyzing = activeJob !== null && (activeJob.job.kind === "analyze" || activeJob.job.kind === "upload" || activeJob.job.kind === "sample_open");
+  const canAnalyze = state.source !== null && activeJob === null && vm.workerReady;
   const hasGeometry = vm.artifacts.some((artifact) => artifact.name.toLowerCase().endsWith(".glb"));
   // The "result" is a preserved-source facet proxy (not exact B-Rep) when reconstruction fell back to faceting.
-  const sourceProxy = vm.artifacts.some((artifact) => artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy");
+  const sourceProxy = reconstructionTier(vm.project.state) === "faceted";
 
   return (
-    <main className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`} data-theme={theme}>
+    <main
+      className={`canvas-shell ${theme === "light" ? "theme-light" : ""}`}
+      data-theme={theme}
+      style={{ "--panel-width": `${layout.width}px` } as CSSProperties}
+    >
       <a
         className="skip-link"
         href="#canvas-viewport"
@@ -179,7 +210,25 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
       >
         Skip to 3D viewport
       </a>
-      <div className="canvas-main">
+      <header className="canvas-topbar">
+        <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
+          <Mesh2ParamLogoMark aria-hidden />
+          <strong>Mesh2Param</strong>
+          <span className="canvas-badge">Beta</span>
+        </button>
+        {state.source !== null ? (
+          <div className="canvas-file">
+            <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
+            {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
+          </div>
+        ) : null}
+        {state.source !== null ? <span className="canvas-file-meta">{fileMeta(vm)}</span> : null}
+      </header>
+
+      <div
+        className={`canvas-main ${consoleOpen && layout.consoleDocked ? "console-docked" : ""}`}
+        style={{ "--console-height": `${consoleHeight}px` } as CSSProperties}
+      >
         <div id="canvas-viewport" className="canvas-stage" tabIndex={-1}>
           {hasGeometry ? (
             <CadViewport
@@ -193,8 +242,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               sourceProxyActive={sourceProxy}
               hiddenPatchIds={hiddenPatchIds}
               selectedPatchId={vm.selectedPatchId}
+              hoveredPatchId={hoveredPatchId}
+              grid={layout.grid}
               onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
               onSelectPatch={actions.selectPatch}
+              onHoverPatch={setHoveredPatchId}
             />
           ) : (
             <div
@@ -224,30 +276,73 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               )}
             </div>
           )}
-        </div>
-
-        <header className="canvas-topbar">
-          <button className="canvas-brand" onClick={actions.openStart} aria-label="Back to start screen">
-            <Mesh2ParamLogoMark aria-hidden />
-            <strong>Mesh2Param</strong>
-            <span className="canvas-badge">Beta</span>
-          </button>
-          {state.source !== null ? (
-            <div className="canvas-file">
-              <EditableProjectName value={vm.project.name} onCommit={actions.renameProject} />
-              <span className="canvas-file-meta">{fileMeta(vm)}</span>
-              {status !== null ? <span className={`canvas-chip ${status.tone}`}>{status.label}</span> : null}
+          {hasGeometry ? (
+            <div className="viewport-display-toolbar">
+              <ViewSettings
+                shading={viewer.shading}
+                edges={viewer.edges}
+                grid={layout.grid}
+                onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
+                onGridChange={(grid) => panelLayoutStore.setGrid(grid)}
+              />
             </div>
           ) : null}
-        </header>
+          {activeJob !== null ? (
+            <div
+              className="canvas-progress canvas-progress-viewport"
+              role="status"
+              aria-live="polite"
+              data-job-kind={activeJob.job.kind}
+              data-job-state={activeJob.job.status}
+            >
+              <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
+              <div className="canvas-progress-pill">
+                <LoaderCircle className="spin" size={14} />
+                <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
+                <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
+                {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
+                  <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
+                    {activeJob.cancelling ? "Cancelling…" : "Cancel"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
 
-        {consoleOpen ? <DebugConsole onClose={() => setConsoleOpen(false)} /> : null}
+        {consoleOpen ? (
+          <DebugConsole
+            docked={layout.consoleDocked}
+            height={consoleHeight}
+            onDockedChange={(docked) => panelLayoutStore.setConsoleDocked(docked)}
+            onHeightChange={setConsoleHeight}
+            onClose={() => setConsoleOpen(false)}
+          />
+        ) : null}
         {shortcutsOpen ? <ShortcutHelp onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
 
-      <nav className="canvas-panel" aria-label="Conversion commands">
-        <section className="panel-group">
-          <h2 className="panel-label">File</h2>
+      <nav
+        className={`canvas-panel ${narrow ? "sheet" : ""} ${narrow && sheetOpen ? "open" : ""}`.trim()}
+        aria-label="Conversion commands"
+        data-sheet={narrow ? (sheetOpen ? "open" : "peek") : undefined}
+      >
+        <PanelResizeHandle />
+        {narrow ? (
+          <button
+            type="button"
+            className="panel-sheet-handle"
+            aria-expanded={sheetOpen}
+            aria-controls="panel-scroll"
+            onClick={() => setSheetOpen((open) => !open)}
+          >
+            <span className="panel-sheet-grip" aria-hidden />
+            <ChevronUp size={14} aria-hidden className="panel-sheet-chevron" />
+            {sheetOpen ? "Hide tools" : "Show tools"}
+          </button>
+        ) : null}
+        <div className="panel-scroll" id="panel-scroll" hidden={narrow && !sheetOpen}>
+        <PanelSection id="file" title="File">
           <button className="panel-btn" onClick={openFilePicker} title={state.source === null ? "Open a mesh" : "Replace the mesh"}>
             <FolderOpen size={16} />
             {state.source === null ? "Open a mesh…" : "Replace mesh…"}
@@ -256,12 +351,11 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             <Save size={16} />
             Save project
           </button>
-        </section>
+        </PanelSection>
 
-        {modes.length >= 2 ? (
-          <section className="panel-group">
-            <h2 className="panel-label" id="panel-display-label">Display</h2>
-            <div className="panel-modes" role="group" aria-labelledby="panel-display-label">
+        <PanelSection id="view" title="View" className="panel-view-group">
+          {modes.length >= 2 ? (
+            <div className="panel-modes" role="group" aria-label="Display">
               {modes.map((option) => (
                 <button
                   key={option.mode}
@@ -273,11 +367,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 </button>
               ))}
             </div>
-          </section>
-        ) : null}
-
-        <section className="panel-group panel-view-group">
-          <h2 className="panel-label">View</h2>
+          ) : null}
           <div className="panel-view-grid">
             <button className="panel-btn" onClick={fit} title="Fit to view"><Focus size={16} />Fit view</button>
             <button className="panel-btn" onClick={toggleTheme} title="Toggle light or dark theme" aria-label="Toggle light or dark theme">
@@ -286,7 +376,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
             </button>
             <button
               className={`panel-btn ${consoleOpen ? "active" : ""} ${issueCount > 0 ? "has-issues" : ""}`}
-              onClick={() => setConsoleOpen((value) => !value)}
+              onClick={() => setConsoleOpen(!consoleOpen)}
               title="Toggle debug console"
               aria-pressed={consoleOpen}
             >
@@ -299,70 +389,135 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               Shortcuts
             </button>
           </div>
-          <ViewSettings
-            shading={viewer.shading}
-            edges={viewer.edges}
-            disabled={!hasGeometry}
-            onPreferences={(patch) => workspaceStore.getState().setViewerPreferences(patch)}
-          />
-        </section>
+        </PanelSection>
 
-        {state.patches.length > 0 && state.cadgraph === null ? (
-          <PatchPanel
-            patches={state.patches}
-            selectedPatchId={vm.selectedPatchId}
-            disabled={activeJob !== null}
-            onSelect={actions.selectPatch}
-            onUpdate={(patchId, patch) => void actions.updatePatch(patchId, patch)}
-            onMerge={(patchIds) => void actions.mergePatches(patchIds)}
-          />
+        {state.source !== null && state.diagnostics === null && state.cadgraph === null ? (
+          <PanelSection id="analysis" title="Analysis" className={analyzing ? "is-busy" : ""}>
+            {analyzing ? (
+              <PanelSkeleton rows={6} label={`${humanPhase(activeJob?.job.phase || "analyze")}…`} />
+            ) : (
+              <EmptyState
+                icon={<ScanSearch size={22} />}
+                title="Not analyzed yet"
+                hint="Mesh health, surface patches, and fit residuals appear here after analysis."
+                action={{
+                  label: "Analyze mesh",
+                  onClick: () => void actions.run("analyze"),
+                  disabled: !canAnalyze,
+                  title: canAnalyze ? "Run the analysis job" : "Wait for the worker and the running job",
+                }}
+                testId="analysis-empty"
+              />
+            )}
+          </PanelSection>
         ) : null}
-
-        {state.cadgraph !== null ? (
-          <section className="panel-group panel-features" aria-labelledby="panel-features-label">
-            <h2 className="panel-label" id="panel-features-label">Features</h2>
-            <div className="panel-feature-list">
-              {[...state.cadgraph.features]
-                .sort((left, right) => left.order - right.order)
-                .map((feature) => (
-                  <button
-                    key={feature.id}
-                    className={vm.selectedFeatureId === feature.id ? "active" : ""}
-                    aria-pressed={vm.selectedFeatureId === feature.id}
-                    onClick={() => actions.selectFeature(feature.id)}
-                  >
-                    <span>{feature.order + 1}</span>
-                    <strong>{feature.name}</strong>
-                    <small>{humanPhase(feature.operation)}</small>
-                  </button>
+        {state.diagnostics !== null || state.cadgraph !== null ? (
+          <PanelSection id="analysis" title="Analysis" meta={analysisMeta(vm)} className={analyzing ? "is-busy" : ""}>
+            {state.diagnostics !== null ? (
+              <dl className="panel-readout" aria-label="Mesh diagnostics">
+                {diagnosticRows(state.diagnostics, vm.project.units).map((row) => (
+                  <div key={row.label} className={row.tone === undefined ? undefined : `tone-${row.tone}`}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
                 ))}
-            </div>
-            {detailEvidence(state.cadgraph.extensions) !== null ? (
+              </dl>
+            ) : null}
+            {state.diagnostics !== null && state.diagnostics.warnings.length > 0 ? (
+              <ul className="panel-warnings" aria-label="Mesh warnings">
+                {state.diagnostics.warnings.map((warning) => (
+                  <li key={warning.code} className="panel-hint warn">
+                    <AlertTriangle size={13} />
+                    <span>{warning.message}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {state.cadgraph !== null ? (
+              <div className="panel-feature-list" role="group" aria-label="Features">
+                {[...state.cadgraph.features]
+                  .sort((left, right) => left.order - right.order)
+                  .map((feature) => (
+                    <button
+                      key={feature.id}
+                      className={vm.selectedFeatureId === feature.id ? "active" : ""}
+                      aria-pressed={vm.selectedFeatureId === feature.id}
+                      aria-label={`${feature.name}, ${humanPhase(feature.operation)}, step ${feature.order + 1}`}
+                      onClick={() => actions.selectFeature(feature.id)}
+                    >
+                      <span>{feature.order + 1}</span>
+                      <strong>{feature.name}</strong>
+                      <small>{humanPhase(feature.operation)}</small>
+                    </button>
+                  ))}
+              </div>
+            ) : null}
+            {state.cadgraph !== null && detailEvidence(state.cadgraph.extensions) !== null ? (
               <p className="panel-hint info" role="note" data-testid="detail-evidence">
                 <Layers size={13} />
                 <span>{detailEvidence(state.cadgraph.extensions)}</span>
               </p>
             ) : null}
-          </section>
+          </PanelSection>
         ) : null}
 
-        <section className="panel-group panel-convert">
-          <h2 className="panel-label">Convert</h2>
+        {state.patches.length === 0 && state.cadgraph === null && state.diagnostics !== null ? (
+          <PanelSection id="patches" title="Patches" className={analyzing ? "is-busy" : ""}>
+            {analyzing ? (
+              <PanelSkeleton rows={5} label="Segmenting surfaces…" />
+            ) : (
+              <EmptyState
+                icon={<ScanSearch size={22} />}
+                title="Not analyzed yet"
+                hint="Surface patches, their fits, and residuals appear here after analysis."
+                action={{
+                  label: "Analyze mesh",
+                  onClick: () => void actions.run("analyze"),
+                  disabled: !canAnalyze,
+                  title: canAnalyze ? "Run the analysis job" : "Wait for the worker and the running job",
+                }}
+                testId="patches-empty"
+              />
+            )}
+          </PanelSection>
+        ) : null}
+        {state.patches.length > 0 && state.cadgraph === null ? (
+          <PatchPanel
+            patches={state.patches}
+            selectedPatchId={vm.selectedPatchId}
+            hoveredPatchId={hoveredPatchId}
+            disabled={activeJob !== null}
+            onSelect={actions.selectPatch}
+            onHover={setHoveredPatchId}
+            onUpdate={(patchId, patch) => void actions.updatePatch(patchId, patch)}
+            onMerge={(patchIds) => void actions.mergePatches(patchIds)}
+          />
+        ) : null}
+
+        </div>
+
+        <PanelSection id="convert" title="Convert" className="panel-convert" meta={activeJob !== null ? `${Math.round(activeJob.job.progress)}%` : undefined}>
+          {(collapsed) => (
+          <>
+          {failedJob !== null && !collapsed ? (
+            <JobFailure
+              view={failedJob}
+              canRetry={vm.workerReady && activeJob === null}
+              onRetry={(operation) => {
+                workspaceStore.getState().clearJob(failedJob.job.kind);
+                void actions.run(operation);
+              }}
+              onDismiss={() => workspaceStore.getState().clearJob(failedJob.job.kind)}
+            />
+          ) : null}
           {activeJob !== null ? (
-            <div className="canvas-progress" role="status" aria-live="polite" data-job-kind={activeJob.job.kind} data-job-state={activeJob.job.status}>
-              <LoaderCircle className="spin" size={15} />
-              <span className="canvas-progress-phase">{humanPhase(activeJob.job.phase || activeJob.job.kind)}</span>
-              <span className="canvas-progress-pct">{Math.round(activeJob.job.progress)}%</span>
-              <span className="canvas-progress-track"><span style={{ width: `${activeJob.job.progress}%` }} /></span>
-              {activeJob.job.status === "running" || activeJob.job.status === "queued" ? (
-                <button className="canvas-progress-cancel" onClick={() => void actions.cancelJob()} disabled={activeJob.cancelling}>
-                  {activeJob.cancelling ? "Cancelling…" : "Cancel"}
-                </button>
-              ) : null}
-            </div>
+            <button className="dock-primary" disabled data-action={action.kind} data-job-kind={activeJob.job.kind}>
+              <LoaderCircle className="spin" size={16} />
+              {humanPhase(activeJob.job.phase || activeJob.job.kind)}…
+            </button>
           ) : (
             <>
-              {action.kind === "reconstruct" && action.settings === undefined ? (
+              {!collapsed && action.kind === "reconstruct" && action.settings === undefined ? (
                 <button
                   className={`panel-btn ${recoverFullDetails ? "active" : ""}`}
                   aria-pressed={recoverFullDetails}
@@ -375,7 +530,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   Full detail recovery
                 </button>
               ) : null}
-              {rerunAnalysis !== null || regenerate !== null ? (
+              {!collapsed && (rerunAnalysis !== null || regenerate !== null) ? (
                 <div className="panel-secondary-grid">
                   {rerunAnalysis !== null ? (
                     <button
@@ -411,7 +566,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                 <PrimaryIcon kind={action.kind} />
                 {action.label}
               </button>
-              {action.alternate !== undefined ? (
+              {!collapsed && action.alternate !== undefined ? (
                 <button
                   className="panel-btn"
                   onClick={() => {
@@ -426,13 +581,13 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
                   {action.alternate.label}
                 </button>
               ) : null}
-              {action.reason !== undefined || action.kind === "faceted" || action.kind === "curved" ? (
+              {!collapsed && (action.reason !== undefined || action.kind === "faceted" || action.kind === "curved") ? (
                 <p className={`panel-hint ${action.disabled ? "warn" : "info"}`} role="status">
                   <AlertTriangle size={13} />
                   <span>{action.reason ?? action.hint}</span>
                 </p>
               ) : null}
-              {curvedEvidence(state) !== null ? (
+              {!collapsed && curvedEvidence(state) !== null ? (
                 <p className="panel-hint info" role="note" data-testid="curved-evidence">
                   <Spline size={13} />
                   <span>{curvedEvidence(state)}</span>
@@ -440,7 +595,7 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               ) : null}
             </>
           )}
-          {action.kind === "download" ? (
+          {!collapsed && action.kind === "download" ? (
             <div className="panel-export-group">
               <span className="panel-export-label">Mesh downloads</span>
               <div className="panel-export-formats" role="group" aria-label="Mesh export formats">
@@ -464,7 +619,9 @@ export function CanvasShell({ vm, actions }: { vm: WorkspaceViewModel; actions: 
               </div>
             </div>
           ) : null}
-        </section>
+          </>
+          )}
+        </PanelSection>
       </nav>
 
       <input
@@ -496,28 +653,32 @@ function PrimaryIcon({ kind }: { kind: PipelineActionKind }) {
   return <Download size={size} />;
 }
 
-function fileMeta(vm: WorkspaceViewModel): string {
-  const state = vm.project.state;
-  const parts: string[] = [];
-  if (state.diagnostics !== null) parts.push(`${state.diagnostics.triangleCount.toLocaleString()} tris`);
-  if (state.cadgraph !== null) parts.push(`${state.cadgraph.features.length} features`);
-  parts.push(vm.project.units);
-  return parts.join(" · ");
+function capitalize(value: string): string {
+  return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+}
+
+/** The tier a browser-local reconstruction reached, as the core reported it. */
+export function reconstructionTier(
+  state: WorkspaceViewModel["project"]["state"],
+): "analytic" | "mixed" | "faceted" | null {
+  const raw = state.settings["reconstruction"];
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const tier = (raw as { tier?: unknown }).tier;
+  return tier === "analytic" || tier === "mixed" || tier === "faceted" ? tier : null;
 }
 
 export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone: "ok" | "warn" | "info" } | null {
   const state = vm.project.state;
+  const tier = reconstructionTier(state);
+  if (tier !== null) {
+    if (tier === "faceted") return { label: "Faceted STEP", tone: "warn" };
+    return isValidated(state)
+      ? { label: `Validated · ${tier}`, tone: "ok" }
+      : { label: `${capitalize(tier)} B-Rep`, tone: "info" };
+  }
   if (isValidated(state) && state.validation?.toleranceSatisfied === false) {
     return { label: "Validated · functional approximation", tone: "warn" };
   }
-  if (vm.artifacts.some((artifact) => (
-    artifact.name === "reconstructed.glb" && artifact.kind === "preserved-source-proxy"
-  ))) return { label: "Faceted STEP", tone: "warn" };
-  if (vm.artifacts.some((artifact) => (
-    artifact.name === "reconstructed.glb" && artifact.kind === "reconstructed-curved"
-  ))) return isValidated(state)
-      ? { label: "Validated · approximate curved", tone: "ok" }
-      : { label: "Approximate curved B-Rep", tone: "info" };
   const operation = state.cadgraph?.features[0]?.operation;
   const flavor = operation === "reconstructedSurfaceNetwork"
     ? " · approximate curved"
@@ -538,19 +699,35 @@ export function conversionStatus(vm: WorkspaceViewModel): { label: string; tone:
   return { label: "Loaded", tone: "info" };
 }
 
-/** A one-line evidence summary for a completed approximate curved reconstruction. */
+/**
+ * A one-line evidence summary for a completed browser-local reconstruction:
+ * the tier it reached, what the surfaces are, and how far it sits from the
+ * mesh. Every number here was measured by the core.
+ */
 function curvedEvidence(state: WorkspaceViewModel["project"]["state"]): string | null {
-  const raw = state.settings["curvedReconstruction"];
+  const raw = state.settings["reconstruction"];
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const record = raw as { faceSurfaces?: unknown; residualMaximumMm?: unknown };
-  const faces = record.faceSurfaces;
-  const residual = record.residualMaximumMm;
-  if (faces === null || typeof faces !== "object" || typeof residual !== "number") return null;
-  const counts = Object.entries(faces as Record<string, unknown>)
-    .filter(([, count]) => typeof count === "number" && count > 0)
-    .map(([kind, count]) => `${String(count)} ${kind}`)
-    .join(", ");
-  return `Approximate curved B-Rep: ${counts} faces · max deviation ${residual.toFixed(3)} mm. Design history is not recovered.`;
+  const record = raw as {
+    tier?: unknown;
+    surfaceCounts?: unknown;
+    facesFinal?: unknown;
+    deviationMax?: unknown;
+    fallbackReason?: unknown;
+  };
+  const tier = record.tier;
+  if (tier !== "analytic" && tier !== "mixed" && tier !== "faceted") return null;
+  const counts = record.surfaceCounts !== null && typeof record.surfaceCounts === "object"
+    ? Object.entries(record.surfaceCounts as Record<string, unknown>)
+      .filter(([, value]) => typeof value === "number" && value > 0)
+      .map(([kind, value]) => `${String(value)} ${kind}`)
+      .join(", ")
+    : "";
+  const parts = [`${capitalize(tier)} tier`];
+  if (typeof record.facesFinal === "number") parts.push(`${String(record.facesFinal)} faces`);
+  if (counts) parts.push(counts);
+  if (typeof record.deviationMax === "number") parts.push(`max deviation ${record.deviationMax.toFixed(3)} mm`);
+  if (typeof record.fallbackReason === "string") parts.push(record.fallbackReason);
+  return `${parts.join(" · ")}. Design history is not recovered.`;
 }
 
 function detailEvidence(extensions: unknown): string | null {

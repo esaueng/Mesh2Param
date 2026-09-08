@@ -7,7 +7,10 @@ use core::f64::consts::TAU;
 
 use super::fit::{FaceRef, FitOpts, Sample, fit_patch};
 use super::linalg::V3;
-use super::{Inventory, PatchKind, Primitive, SegmentOptions, Segmentation, segment};
+use super::stats::{Allow, Stats};
+use super::{
+    Inventory, Patch, PatchKind, Primitive, SegmentOptions, Segmentation, UnknownReason, segment,
+};
 use crate::mesh::MeshData;
 
 /// A rectangular box, one quad per face, outward winding.
@@ -329,10 +332,24 @@ fn sphere_cap_shards_never_become_planes() {
         plane.area
     );
     // The cap itself is not lost: it is either recognised or honestly unknown,
-    // never invented.
-    assert!(
-        seg.unknown_area_fraction > 0.0,
-        "nothing was left unknown, so the shards went somewhere"
+    // never invented. Since the freeform gates it is recognised — the cap is one
+    // smooth curved region from the start, so it is never carved into the
+    // shards the split stage used to leave `Unknown`, and it fits the sphere it
+    // is.
+    let cap = seg
+        .patches
+        .iter()
+        .find(|p| p.kind == PatchKind::Sphere)
+        .expect("the spherical cap");
+    match cap.primitive {
+        Primitive::Sphere { radius, .. } => assert!((radius - 10.0).abs() < 0.1, "radius {radius}"),
+        other => panic!("expected a sphere, got {other:?}"),
+    }
+    assert_eq!(
+        seg.inventory,
+        inventory(1, 1, 0, 0, 1),
+        "the base, the side and the cap, and nothing invented: {:?}",
+        seg.inventory
     );
 }
 
@@ -670,7 +687,13 @@ fn a_nearly_flat_strip_is_never_a_huge_radius_cylinder() {
     let sagitta = width * width / (8.0 * radius);
     let mut o = fit_opts(sagitta / 10.0);
     o.min_spread = 0.0;
-    let fit = fit_patch(&pts, &faces, o);
+    let fit = fit_patch(
+        &pts,
+        &faces,
+        o,
+        &Stats::from_samples(&pts, &faces, 0.0),
+        Allow::ALL,
+    );
     assert!(
         matches!(fit.prim, Primitive::Unknown),
         "a nearly flat strip came back as {:?}",
@@ -680,7 +703,13 @@ fn a_nearly_flat_strip_is_never_a_huge_radius_cylinder() {
     // With a budget the plane fits inside, it is a plane and nothing else.
     let mut o = fit_opts(2.0 * sagitta);
     o.min_spread = 0.0;
-    let fit = fit_patch(&pts, &faces, o);
+    let fit = fit_patch(
+        &pts,
+        &faces,
+        o,
+        &Stats::from_samples(&pts, &faces, 0.0),
+        Allow::ALL,
+    );
     assert!(
         matches!(fit.prim, Primitive::Plane { .. }),
         "expected a plane, got {:?}",
@@ -706,7 +735,13 @@ fn a_twelve_facet_cylinder_still_fits_under_the_conditioning_guard() {
         tris.push([b1, t1, t0]);
     }
     let (pts, faces) = patch_of(&points, &tris);
-    let fit = fit_patch(&pts, &faces, fit_opts(0.35 * radius * TAU / facets as f64));
+    let fit = fit_patch(
+        &pts,
+        &faces,
+        fit_opts(0.35 * radius * TAU / facets as f64),
+        &Stats::from_samples(&pts, &faces, 0.0),
+        Allow::ALL,
+    );
     match fit.prim {
         Primitive::Cylinder {
             radius: r,
@@ -718,4 +753,240 @@ fn a_twelve_facet_cylinder_still_fits_under_the_conditioning_guard() {
         }
         other => panic!("expected a cylinder, got {other:?}"),
     }
+}
+
+/// How much of the dome's pole is left out, in degrees.
+///
+/// A pole is a tessellation singularity, not a surface feature: the triangles
+/// there are slivers whose normals wobble past the facet limit, so the whole
+/// neighbourhood reads as creased and the test would be measuring the sliver
+/// fan rather than the freeform gate.
+const POLAR_HOLE_DEG: f64 = 20.0;
+
+/// A dome whose radius is gently modulated, tessellated finely enough that
+/// every adjacent pair of triangles is far inside `angleDeg`.
+///
+/// An open surface on purpose: this is the freeform case with nothing else on
+/// the part to hide behind. `phi` runs from [`POLAR_HOLE_DEG`] to `open_deg`.
+fn bumpy_dome(
+    radius: f64,
+    bump: f64,
+    open_deg: f64,
+    lon: usize,
+    lat: usize,
+) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let mut v = Vec::new();
+    for j in 0..=lat {
+        let t = (POLAR_HOLE_DEG + (open_deg - POLAR_HOLE_DEG) * j as f64 / lat as f64).to_radians();
+        for i in 0..lon {
+            let u = TAU * i as f64 / lon as f64;
+            let r = radius * bump.mul_add((3.0 * u).sin() * (2.0 * t).cos(), 1.0);
+            v.push([r * t.sin() * u.cos(), r * t.sin() * u.sin(), r * t.cos()]);
+        }
+    }
+    let n = lon as u32;
+    let mut i = Vec::new();
+    for j in 0..lat as u32 {
+        for k in 0..n {
+            let nk = (k + 1) % n;
+            let (a, b) = (j * n + k, j * n + nk);
+            let (c, d) = ((j + 1) * n + k, (j + 1) * n + nk);
+            i.extend_from_slice(&[a, c, b, b, c, d]);
+        }
+    }
+    (v, i)
+}
+
+/// A smooth curved surface has no planes on it, at any tessellation density.
+///
+/// This is the failure the curvature gates exist for. Fine tessellation is the
+/// *hard* direction, not the easy one: every neighbouring pair is inside
+/// `angleDeg`, so the region arrives as one patch, fits nothing, and is carved
+/// at a progressively tighter angle until each shard is flat to a small
+/// fraction of its own tolerance — the shards then clear every size and
+/// residual gate there is. Only their curvature says they are samples of a
+/// curve rather than faces on the part.
+#[test]
+fn a_finely_tessellated_dome_has_no_planes_on_it() {
+    let (v, i) = bumpy_dome(10.0, 0.12, 80.0, 48, 16);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory.plane, 0,
+        "the dome shattered into planes: {:?}",
+        seg.inventory
+    );
+    assert!(
+        seg.unknown_area_fraction > 0.9,
+        "a dome that fits no primitive is not mostly unknown: {}",
+        seg.unknown_area_fraction
+    );
+    let freeform = seg
+        .patches
+        .iter()
+        .filter(|p| p.reason == Some(UnknownReason::Freeform))
+        .map(|p| p.area)
+        .sum::<f64>();
+    let total = seg.patches.iter().map(|p| p.area).sum::<f64>();
+    assert!(
+        freeform > 0.9 * total,
+        "the dome is unknown but not reported as freeform: {freeform} of {total}"
+    );
+}
+
+/// A box with one vertical edge rounded: a prism over a profile that is three
+/// straight runs and one quarter-circle arc.
+///
+/// `facets` steps over the 90 degrees, kept under `angleDeg` so the fillet is
+/// tangent to both flats it joins and the dihedral pass cannot cut it off them.
+fn box_with_one_fillet(
+    sx: f64,
+    sy: f64,
+    sz: f64,
+    r: f64,
+    facets: usize,
+    levels: usize,
+) -> (Vec<[f64; 3]>, Vec<u32>) {
+    let mut profile = vec![[0.0, 0.0], [sx, 0.0]];
+    for k in 0..=facets {
+        let a = core::f64::consts::FRAC_PI_2 * k as f64 / facets as f64;
+        profile.push([(sx - r) + r * a.cos(), (sy - r) + r * a.sin()]);
+    }
+    profile.push([0.0, sy]);
+
+    // The extrusion is subdivided in z, as a tessellator subdivides a face it
+    // has to keep inside a chord tolerance in both directions. It is also what
+    // gives the fillet band vertices of its own: a band two rows tall has every
+    // vertex on the rim where a cap folds away, so there is nowhere on it that
+    // any one-ring estimator can measure.
+    let n = profile.len() as u32;
+    let rows = levels as u32 + 1;
+    let mut v = Vec::new();
+    for p in &profile {
+        for l in 0..rows {
+            v.push([p[0], p[1], sz * f64::from(l) / f64::from(rows - 1)]);
+        }
+    }
+    let cb = v.len() as u32;
+    v.push([0.0, 0.0, 0.0]);
+    let ct = v.len() as u32;
+    v.push([0.0, 0.0, sz]);
+
+    let mut i = Vec::new();
+    for k in 0..n {
+        let m = (k + 1) % n;
+        for l in 0..rows - 1 {
+            let (b0, t0) = (k * rows + l, k * rows + l + 1);
+            let (b1, t1) = (m * rows + l, m * rows + l + 1);
+            i.extend_from_slice(&[b0, b1, t0, b1, t1, t0]);
+        }
+        i.extend_from_slice(&[cb, m * rows, k * rows]);
+        i.extend_from_slice(&[ct, k * rows + rows - 1, m * rows + rows - 1]);
+    }
+    (v, i)
+}
+
+/// A fillet is a surface, not a row of narrow planes — and gating it must not
+/// cost the flats it joins.
+///
+/// The band is tangent to both neighbouring flats, so nothing in the dihedral
+/// pass separates the three, and every facet of it is a long thin quad that
+/// fits a plane to well inside tolerance. It has to come back as one cylinder
+/// or as one freeform region, and the box's six planes have to survive intact:
+/// a real planar face has no curvature over its interior, so the gate never
+/// looks at it.
+#[test]
+fn a_filleted_box_keeps_six_planes_and_never_plates_the_fillet() {
+    let (v, i) = box_with_one_fillet(20.0, 16.0, 12.0, 3.0, 12, 8);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory.plane, 6,
+        "the box lost or gained a flat: {:?}",
+        seg.inventory
+    );
+    let band: Vec<&Patch> = seg
+        .patches
+        .iter()
+        .filter(|p| p.kind == PatchKind::Cylinder || p.reason == Some(UnknownReason::Freeform))
+        .collect();
+    assert_eq!(
+        band.len(),
+        1,
+        "the fillet is not one cylinder or one freeform region: {:?}",
+        seg.inventory
+    );
+    // Half of the band — a quarter turn of radius 3 over a height of 12 — comes
+    // back as that one patch. The other half is absorbed by the two flats it is
+    // tangent to, each facet of it lying inside their own plane tolerance; that
+    // is older behaviour and unrelated to curvature, which is why the bar here
+    // is a third of the band rather than all of it.
+    let want = core::f64::consts::FRAC_PI_2 * 3.0 * 12.0;
+    assert!(
+        band[0].area > want / 3.0,
+        "only {} of a {want} fillet band survives as a surface",
+        band[0].area
+    );
+    // And whatever the flats absorbed, none of them is a plane *on* the curve.
+    for plane in seg.patches.iter().filter(|p| p.kind == PatchKind::Plane) {
+        assert!(
+            plane.smooth_curved_fraction < 0.5,
+            "a plane was promoted over a curved region: {:?}",
+            plane
+        );
+    }
+}
+
+/// Creases beat curvature: a coarse cylinder is still a cylinder.
+///
+/// Twelve facets is a 30 degree step, wider than `angleDeg` and inside
+/// `maxFacetDeg`, which is exactly the range the freeform grouping reaches
+/// into. It must not reach *this*: the side is a cylinder and the merge stage
+/// has to be left free to rebuild it strip by strip. Every vertex of the side
+/// lies on the rim where a cap folds away at 90 degrees, so no vertex of it
+/// carries curvature at all and the grouping never fires.
+#[test]
+fn a_coarse_cylinder_is_not_swallowed_by_the_freeform_grouping() {
+    let (v, i) = cylinder_mesh(10.0, 20.0, 12);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        inventory(2, 1, 0, 0, 0),
+        "the coarse cylinder was lost: {:?}",
+        seg.inventory
+    );
+    let cyl = seg
+        .patches
+        .iter()
+        .find(|p| p.kind == PatchKind::Cylinder)
+        .expect("a cylinder patch");
+    assert!(
+        cyl.smooth_curved_fraction.abs() < 1e-12,
+        "a rim-to-rim strip scored as smoothly curved: {}",
+        cyl.smooth_curved_fraction
+    );
+}
+
+/// A thin flat plate is six planes and no curvature anywhere.
+///
+/// The plate is where a curvature estimate normalised by a vertex area goes
+/// wrong if it is going to: the rim vertices carry a sliver of area and the
+/// aspect ratio is 200:1. Nothing on it bends, so nothing on it may score as
+/// bent.
+#[test]
+fn a_thin_flat_plate_stays_six_planes() {
+    let (v, i) = box_mesh(100.0, 80.0, 0.5);
+    let seg = run(&v, &i);
+    assert_eq!(
+        seg.inventory,
+        inventory(6, 0, 0, 0, 0),
+        "{:?}",
+        seg.inventory
+    );
+    assert!(
+        seg.face_smooth_curved.iter().all(|&s| !s),
+        "a flat plate has a smoothly curved triangle on it"
+    );
+    assert!(
+        seg.face_curvature.iter().all(|&k| k < 1e-9),
+        "a flat plate reports curvature"
+    );
 }
