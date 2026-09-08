@@ -16,5 +16,4 @@ jobs:
   checks:
     permissions:
       contents: read
-      id-token: write
-    uses: esaueng/Mesh2Param/.github/workflows/ci-jobs.yml@f6d835a9438519d3403754d756820f014bd41f3e
+    uses: esaueng/Mesh2Param/.github/workflows/fleet-ci.yml@bbb45854cfcd8c979e9597dfc8f869c22ffe54c3
