@@ -529,40 +529,42 @@ async def upload_source(
                 max_coordinate_magnitude=config.max_abs_coordinate,
             ),
         )
-        blob = await asyncio.to_thread(
-            store.put_path, staging_path, max_bytes=config.max_upload_bytes
-        )
-        if blob.sha256 != preflight.sha256:
-            raise APIError(
-                500,
-                "upload_hash_mismatch",
-                "Upload integrity check failed",
-                "The staged upload changed between validation and publication.",
-                project_id=project_id,
-            )
-        source_document, source_revision = await asyncio.to_thread(
-            repo.create_source_asset,
-            project_id,
-            expected_revision,
-            original_filename=display_filename,
-            format_name=preflight.format,
-            encoding=preflight.encoding,
-            blob={
-                "sha256": blob.sha256,
-                "byteSize": blob.byte_size,
-                "mediaType": f"model/{preflight.format}",
-                "storageKey": str(blob.path.relative_to(store.root)),
-            },
-            declared_units=units,
-            units_confirmed=True,
-            scale_factor=scale_factor,
-        )
+        def publish_source() -> tuple[dict[str, object], int, str]:
+            with store.publication_lock():
+                blob = store.put_path(staging_path, max_bytes=config.max_upload_bytes)
+                if blob.sha256 != preflight.sha256:
+                    raise APIError(
+                        500,
+                        "upload_hash_mismatch",
+                        "Upload integrity check failed",
+                        "The staged upload changed between validation and publication.",
+                        project_id=project_id,
+                    )
+                source_document, source_revision = repo.create_source_asset(
+                    project_id,
+                    expected_revision,
+                    original_filename=display_filename,
+                    format_name=preflight.format,
+                    encoding=preflight.encoding,
+                    blob={
+                        "sha256": blob.sha256,
+                        "byteSize": blob.byte_size,
+                        "mediaType": f"model/{preflight.format}",
+                        "storageKey": str(blob.path.relative_to(store.root)),
+                    },
+                    declared_units=units,
+                    units_confirmed=True,
+                    scale_factor=scale_factor,
+                )
+                return source_document, source_revision, blob.sha256
+
+        source_document, source_revision, source_sha256 = await asyncio.to_thread(publish_source)
         payload = {
             "projectId": project_id,
             "units": units,
             "source": source_document,
-            "sourcePath": str(store.path_for(blob.sha256)),
-            "inputHash": blob.sha256,
+            "sourcePath": str(store.path_for(source_sha256)),
+            "inputHash": source_sha256,
             "limits": {
                 "maxFileBytes": config.max_upload_bytes,
                 "maxTriangles": config.max_triangles,
@@ -588,8 +590,8 @@ async def upload_source(
             project_id=project_id,
             job_id=str(job["id"]),
             details={
-                "sha256": blob.sha256,
-                "byteSize": blob.byte_size,
+                "sha256": source_sha256,
+                "byteSize": preflight.byte_size,
                 "format": preflight.format,
             },
         )

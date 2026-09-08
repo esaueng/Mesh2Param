@@ -1,4 +1,5 @@
 import type { ViewerMode } from "../state/types";
+import { artifactAuthorizationHeaders } from "../api/auth";
 
 /**
  * The `.glb` artifact each single-layer display mode draws. Kept here — free of
@@ -62,13 +63,13 @@ export function geometryToWarm(mode: ViewerMode, available: ReadonlySet<string>)
  *
  * Artifact URLs are SHA-256 addressed and served `immutable` for a year, so a
  * plain GET here is reused by the loader rather than repeated. The request is
- * deliberately header-free: `useGLTF` fetches without the API authorization
- * header, and a prefetch that did not match it would not be reused.
+ * authenticated with the same headers as the GLTF loader so protected geometry
+ * can be warmed and the request can be reused.
  */
 export function prefetchGeometry(urls: Iterable<string>): void {
   for (const url of urls) {
     // Failures are not worth reporting: this is an optimisation, and the loader
     // will make the same request again (and surface any real error) shortly.
-    void fetch(url, { credentials: "same-origin" }).catch(() => undefined);
+    void fetch(url, { credentials: "same-origin", headers: artifactAuthorizationHeaders(url) }).catch(() => undefined);
   }
 }

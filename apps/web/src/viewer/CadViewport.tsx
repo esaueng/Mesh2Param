@@ -99,7 +99,13 @@ interface CadViewportProps {
   chrome?: "full" | "minimal";
 }
 
-export function CadViewport({
+export function CadViewport(props: CadViewportProps) {
+  // Resolving browser artifact URLs can fail before the canvas is mounted.
+  const resetKey = `${props.projectId}:${props.artifacts.map((artifact) => `${artifact.name}:${artifact.sha256}`).join("|")}`;
+  return <ViewerErrorBoundary resetKey={resetKey}><CadViewportContent {...props} /></ViewerErrorBoundary>;
+}
+
+function CadViewportContent({
   projectId,
   units,
   artifacts,
@@ -182,9 +188,10 @@ export function CadViewport({
   useEffect(() => {
     if (selectionArtifact === undefined) return;
     const controller = new AbortController();
-    void apiFetch(apiClient.artifactUrl(projectId, selectionArtifact.name, selectionArtifact.sha256), {
-      signal: controller.signal,
-    })
+    void Promise.resolve().then(() => apiFetch(
+      apiClient.artifactUrl(projectId, selectionArtifact.name, selectionArtifact.sha256),
+      { signal: controller.signal },
+    ))
       .then((response) => {
         if (!response.ok) throw new Error("selection map unavailable");
         return response.json();

@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { authenticateGltfLoader } from "./gltfAuth";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -174,7 +175,7 @@ export function ArtifactLayer({
   // bytes behind the URL cannot have changed in between. CadViewport owns
   // eviction; see viewer/gltfCache.ts. Only the resources cloned below are
   // disposed here.
-  const gltf = useGLTF(url) as GLTF;
+  const gltf = useGLTF(url, true, true, (loader) => authenticateGltfLoader(loader, url)) as GLTF;
   const palette = viewerPalette(theme);
   const object = useMemo(() => profileSceneBuild(() => {
     const clone = gltf.scene.clone(true);

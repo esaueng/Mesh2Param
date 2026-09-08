@@ -1,3 +1,4 @@
+import { deleteProjectBlobs } from "./blobs";
 import { contentSha256 } from "@mesh2param/contracts";
 
 import type {
@@ -259,11 +260,11 @@ export class WorkspaceRepository {
         this.db.outbox,
       ],
       async () => {
+        await deleteProjectBlobs(this.db, projectId);
         await Promise.all([
           this.db.projects.delete(projectId),
           this.db.documents.delete(projectId),
           this.db.versions.where("projectId").equals(projectId).delete(),
-          this.db.blobs.where("projectId").equals(projectId).delete(),
           this.db.ui.delete(projectId),
           this.db.history.delete(projectId),
           this.db.outbox.where("projectId").equals(projectId).delete(),
