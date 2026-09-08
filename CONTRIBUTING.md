@@ -5,7 +5,7 @@ security guarantees; a visually plausible result is not sufficient.
 
 ## Development setup
 
-Use Python 3.12, Node 20+, pnpm 10+, and uv:
+Use Python 3.12, Node 22.22.0+, pnpm 11.7.0, and uv:
 
 ```sh
 pnpm install --frozen-lockfile
