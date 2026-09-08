@@ -46,3 +46,19 @@ def test_fleet_selection_is_opt_in_and_uses_the_shared_slot_label() -> None:
     assert "ci-server-jane-1" not in expression
     assert "ci-server-jane-2" not in expression
     assert expression.endswith("|| '\"ubuntu-24.04\"') }}")
+
+
+def test_python_bootstrap_uses_the_project_pin_without_an_ubuntu_catalog() -> None:
+    jobs = yaml.safe_load((ROOT / ".github/workflows/fleet-ci.yml").read_text())["jobs"]
+    steps = jobs["quality"]["steps"]
+    assert not any(step.get("uses", "").startswith("actions/setup-python@") for step in steps)
+    setup = next(
+        i for i, step in enumerate(steps) if step.get("uses", "").startswith("astral-sh/setup-uv@")
+    )
+    install = next(i for i, step in enumerate(steps) if "uv python install" in step.get("run", ""))
+    assert setup < install
+    script = steps[install]["run"]
+    assert ".python-version" in script
+    assert "--managed-python" in script
+    assert "GITHUB_PATH" in script
+    assert "3.12.11" not in script
