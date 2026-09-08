@@ -12,6 +12,7 @@
       "/api",
       "/api/*",
       "/health",
+      "/healthz",
       "/ready",
       "/docs",
       "/openapi.json"
