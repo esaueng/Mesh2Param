@@ -1,53 +1,50 @@
-# Hosted allowance fallback
+# Trusted CI fleet
 
-`ci.yml` calls `ci-jobs.yml` at an immutable commit. GitHub evaluates the runner
-expression before scheduling each matrix job; there is no hosted selector or
-aggregate job blocking the self-hosted path.
+Only Quality (frontend) and Quality (backend) run on the fleet. Static/WebAssembly, browser, Rust and container checks stay hosted; all original commands and assertions remain.
 
-Only **Quality (frontend)** and **Quality (backend)** can move to the approved
-Linux VPS. They run the same commands, assertions, coverage, and 60-minute timeout.
-Static/WebAssembly builds, browser acceptance, Rust core, and Containers remain
-hosted. The VPS cannot enforce the container suite's per-container cgroup limits;
-no assertion or protection is relaxed. Browser system dependency installation also
-requires privileges unavailable to its runner. Whole-pipeline completion can still
-be blocked by hosted allowance exhaustion.
+The caller pins the reusable job workflow to an immutable commit. Its hosted
+policy job runs before checkout and admits only the approved owner's same-repository
+PR merge refs. Where main pushes are configured, they also require protected main.
+Other authors, forks and reruns by other actors remain on GitHub-hosted runners.
+No caller-supplied checkout override or inherited secret is accepted.
 
-The management controller in the CI infrastructure project sets the repository
-variable `CI_RUNNER_MODE` to `hosted` or `self-hosted`. Missing or unrecognized
-values select hosted. A separate operator-managed repository variable,
-`CI_TRUSTED_ACTOR`, identifies the approved contributor; an empty value never
-enables self-hosted execution. The controller does not grant contributor trust.
+`CI_FLEET_ENABLED=true` enables the pinned shared selector. The routing service
+chooses Jane first, then John only when Jane is unavailable, then GitHub-hosted
+when both are unavailable. Busy is available: jobs queue for Jane rather than
+spill over. Jane's shared `ci-server-jane` label lets either of its two isolated
+slots accept a job. `ci-server-john` identifies the backup. Runner-group policy
+must separately authorize the repository and exact immutable job workflow.
 
-Self-hosted routing also requires the exact repository, matching initiating and
-rerun actors, and either a main push or a same-repository PR authored by the
-approved contributor using GitHub's PR merge ref. Forks, other contributors,
-bot-authored PRs, and reruns by other actors remain hosted. No caller inputs,
-checkout overrides, or inherited secrets are accepted. Checkout credentials are
-not persisted. Package caches are separated by runner environment.
+An absent/false flag keeps these checks hosted. A failed or invalid routing
+response also selects hosted; it never grants arbitrary runner labels. Hosted
+selection and hosted-only checks still require GitHub Actions capacity. This is
+not a solution for exhausted hosted minutes.
 
-The existing runner group must admit this repository and **the exact
-`ci-jobs.yml@SHA` used by the caller**, retaining selected-repository and
-selected-workflow restrictions. Labels do not grant access. Do not add PR refs
-or arbitrary branches. Keep the runner's one-job limit, rootless Docker,
-non-root identity, immutable binaries, and bounded cleanup.
+Before checkout on the fleet, the job verifies its non-root identity, read-only
+runner files, NoNewPrivileges, fresh storage and empty rootless Docker state,
+mount options and exact CPU/memory/swap limits. Jane slots each have six CPU
+equivalents and 6 GiB memory; John retains its smaller profile. Guard failure
+fails the job instead of silently continuing on an unexpected machine.
 
-## Review and activation
+## Activation and rollback
 
-This change prepares routing; it does not set variables, modify the runner group,
-start a controller timer, merge, or deploy. The first server run must validate both
-compatible jobs and measure duration/memory; local workflow tests do not establish
-VPS capacity. Review the immutable workflow commit, add that exact allowlist ref,
-configure the trusted actor, then enable the controller after approval. Already
-queued jobs retain their original runner assignment; submit a new run to test a
-new selection. A busy/offline VPS queues eligible jobs rather than skipping them.
+This PR prepares the workflows; it does not deploy the routing service, modify
+runner access or enable fleet routing. Activation requires:
 
-The reusable call changes check context display names to `checks / Quality (...)`,
-`checks / Rust core`, and `checks / Containers`; review required-check configuration
-where available. No check is removed. Updating the reusable workflow later needs
-a reviewed new commit, caller pin, and allowlist change; editing the local file
-alone does not change execution.
+1. Review the immutable job workflow and approve its exact runner-group entry;
+   preserve every existing group restriction and workflow entry.
+2. Deploy and validate fleet health routing with both Jane slots and John,
+   including unavailable-only behavior and authorized repository identities.
+3. Validate real app jobs on the isolated slots, including memory and cleanup,
+   before enabling `CI_FLEET_ENABLED` for normal runs.
+4. Preserve required check contexts and require the complete application suite.
 
-Rollback: stop the management timer, set `CI_RUNNER_MODE=hosted`, and allow current
-jobs to finish. Remove the runner allowlist entry only after consumers stop using
-it. A code rollback restores the original CI file through a PR. No production
-deployment workflow is changed.
+Already queued jobs keep their selected runner label. Loss of a host after
+selection does not retarget that job; queue supervision and a fresh run are
+needed. A failing build is a failing build, not an availability failover signal.
+
+Rollback is `CI_FLEET_ENABLED=false`; subsequent jobs use hosted runners. Let
+current jobs finish and rerun stranded jobs. Change the caller pin through a PR
+when updating or reverting the policy. No application deployment is performed
+by this routing change itself; existing main-merge deployment integrations still
+apply and need their normal approval.
