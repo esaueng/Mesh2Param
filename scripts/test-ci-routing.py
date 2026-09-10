@@ -5,24 +5,25 @@ import re
 import subprocess
 import unittest
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/ci-jobs.yml"
 
 
-def policy_namespace():
+def policy_namespace() -> dict[str, Any]:
     text = WORKFLOW.read_text()
     script = text.split("python3 - <<'PY_POLICY'\n", 1)[1].split("          PY_POLICY", 1)[0]
     script = "\n".join(
         line[10:] if line.startswith("          ") else line for line in script.splitlines()
     )
-    scope = {"__name__": "policy_test"}
+    scope: dict[str, Any] = {"__name__": "policy_test"}
     exec(compile(script, str(WORKFLOW), "exec"), scope)
     return scope
 
 
 class TrustedPolicyTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.scope = policy_namespace()
         repo = {"id": self.scope["REPO_ID"], "full_name": self.scope["REPO"], "fork": False}
         self.event = {
@@ -46,13 +47,15 @@ class TrustedPolicyTests(unittest.TestCase):
             "REF_PROTECTED": "true",
         }
 
-    def authorized(self):
-        return self.scope["authorized"](self.event, self.context)
+    def authorized(self) -> bool:
+        result = self.scope["authorized"](self.event, self.context)
+        assert isinstance(result, bool)
+        return result
 
-    def test_owner_pr(self):
+    def test_owner_pr(self) -> None:
         self.assertTrue(self.authorized())
 
-    def test_untrusted_contexts(self):
+    def test_untrusted_contexts(self) -> None:
         for key, value in [
             ("ACTOR", "outsider"),
             ("ACTOR_ID", "1"),
@@ -70,7 +73,7 @@ class TrustedPolicyTests(unittest.TestCase):
                 self.assertFalse(self.authorized())
                 self.context[key] = original
 
-    def test_untrusted_pr_payloads(self):
+    def test_untrusted_pr_payloads(self) -> None:
         mutations = [
             lambda pr: pr["head"]["repo"].update(fork=True),
             lambda pr: pr["head"]["repo"].update(id=1),
@@ -88,7 +91,7 @@ class TrustedPolicyTests(unittest.TestCase):
             mutate(self.event["pull_request"])
             self.assertFalse(self.authorized())
 
-    def test_protected_main_only(self):
+    def test_protected_main_only(self) -> None:
         for event_name in ["push", "workflow_dispatch"]:
             self.context.update(EVENT_NAME=event_name, REF="refs/heads/main")
             self.assertTrue(self.authorized())
@@ -97,7 +100,7 @@ class TrustedPolicyTests(unittest.TestCase):
             self.context.update(REF_PROTECTED="true", REF="refs/heads/feature")
             self.assertFalse(self.authorized())
 
-    def test_policy_precedes_checkout_and_no_secrets(self):
+    def test_policy_precedes_checkout_and_no_secrets(self) -> None:
         text = WORKFLOW.read_text()
         self.assertLess(text.index("python3 - <<'PY_POLICY'"), text.index("actions/checkout@"))
         self.assertNotIn("secrets:", text)
@@ -112,7 +115,7 @@ class TrustedPolicyTests(unittest.TestCase):
         self.assertIn("ci-server-jane-1|ci-server-jane-2)", text)
         self.assertIn("test -f", text)
 
-    def test_embedded_shell_syntax(self):
+    def test_embedded_shell_syntax(self) -> None:
         text = WORKFLOW.read_text()
         for block in re.findall(r"        run: \|\n((?:          [^\n]*\n|\n)+)", text):
             script = "\n".join(
