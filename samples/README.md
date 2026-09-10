@@ -23,3 +23,13 @@ Run `pnpm curved:fixtures` to regenerate (byte-stable) and `pnpm curved:baseline
 current faceted-fallback baseline to `artifacts/curved-baseline/baseline.json`. The baseline
 harness accepts `--workers N` for process-level parallelism; results are reduced in manifest
 order, so the deterministic fields are identical for any worker count.
+
+# Real-world sample licensing
+
+Owner-supplied designs in `real/` whose `part.json` declares `Apache-2.0 (repository)`
+are released by the repository owner under the [Apache License, Version 2.0](../LICENSE).
+This covers their CAD models and mesh exports, including modification and commercial redistribution
+under that license. Third-party samples retain the licenses and attribution recorded in their
+respective `part.json` files; they are not relicensed by the repository license.
+
+See the [real-world corpus inventory](real/README.md) for each sample’s license and provenance.

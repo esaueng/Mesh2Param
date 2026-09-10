@@ -38,7 +38,7 @@
     "vertexCount": 398,
     "volume": 21029.6456
   },
-  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "license": "Apache-2.0 (repository)",
   "meshes": [
     {
       "angularTolerance": 0.5,
