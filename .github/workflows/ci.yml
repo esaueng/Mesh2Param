@@ -16,4 +16,4 @@ jobs:
   checks:
     permissions:
       contents: read
-    uses: esaueng/Mesh2Param/.github/workflows/fleet-ci.yml@bbb45854cfcd8c979e9597dfc8f869c22ffe54c3
+    uses: esaueng/Mesh2Param/.github/workflows/fleet-ci.yml@f146a3c6db253ffc381623649672f0e82e95c1d6
