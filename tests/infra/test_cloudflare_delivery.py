@@ -35,8 +35,10 @@ def test_cloudflare_worker_delivery_contract() -> None:
     assert "Content-Security-Policy: default-src 'self'" in headers
     document_policy = headers.split("/assets/*", 1)[0]
     assert "'unsafe-eval'" not in document_policy
-    assert "/assets/geometry.worker-*" in headers
-    assert "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'" in headers
+    # The Rust WASM worker no longer needs Emscripten's JavaScript eval exception.
+    # Require WASM compilation while forbidding JavaScript eval on every route.
+    assert "'unsafe-eval'" not in headers
+    assert "script-src 'self' 'wasm-unsafe-eval'" in document_policy
     assert "Cache-Control: public, max-age=31536000, immutable" in headers
     assert "ajv.compile" not in validator
     assert 'from "ajv/dist/2020.js"' not in validator

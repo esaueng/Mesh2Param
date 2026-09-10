@@ -47,3 +47,7 @@ spikes
 # Compile WASM from source inside the builder; never import local build output.
 **/target
 packages/core-wasm/pkg
+
+# This is Rust source, not generated build output.
+!crates/mesh2param-core/src/build
+!crates/mesh2param-core/src/build/**

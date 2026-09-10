@@ -157,6 +157,8 @@ class CleanCheckoutWasmTests(unittest.TestCase):
         ignored = (ROOT / ".dockerignore").read_text().splitlines()
         self.assertIn("packages/core-wasm/pkg", ignored)
         self.assertIn("**/target", ignored)
+        self.assertIn("!crates/mesh2param-core/src/build", ignored)
+        self.assertIn("!crates/mesh2param-core/src/build/**", ignored)
 
 
 if __name__ == "__main__":

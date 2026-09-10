@@ -26,6 +26,7 @@ from scripts.verify_container_security import (
 _VERIFY_STEP_EQUIVALENTS = {
     "pnpm test": (("vitest", "run"), ("pytest",)),
     "pnpm test:geometry": (("pytest",),),
+    "pnpm build:packages": (("pnpm", "build:packages:js"), ("pnpm", "core:wasm")),
 }
 
 
@@ -125,10 +126,21 @@ def _inspect_document(service: str) -> dict[str, object]:
             "Ports": (
                 {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"}]}
                 if service == "web"
-                else {"8000/tcp": None} if service == "api" else {}
+                else {"8000/tcp": None}
+                if service == "api"
+                else {}
             )
         },
     }
+
+
+def test_workflow_coverage_requires_both_workspace_build_parts() -> None:
+    workflow = "jobs:\n  quality:\n    steps:\n"
+    javascript = "      - run: pnpm build:packages:js\n"
+    wasm = "      - run: pnpm core:wasm\n"
+    assert not _workflow_covers(workflow + javascript, "pnpm build:packages")
+    assert not _workflow_covers(workflow + wasm, "pnpm build:packages")
+    assert _workflow_covers(workflow + javascript + wasm, "pnpm build:packages")
 
 
 def test_sample_tree_comparison_detects_missing_extra_and_changed_files(
@@ -376,10 +388,8 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     web = (REPOSITORY_ROOT / "infra/web.Dockerfile").read_text(encoding="utf-8")
     dockerignore = (REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8")
     compose = (REPOSITORY_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    nginx = (REPOSITORY_ROOT / "infra/nginx/nginx.conf.template").read_text(
-        encoding="utf-8"
-    )
-    workflow = (REPOSITORY_ROOT / ".github/workflows/ci-jobs.yml").read_text(encoding="utf-8")
+    nginx = (REPOSITORY_ROOT / "infra/nginx/nginx.conf.template").read_text(encoding="utf-8")
+    workflow = (REPOSITORY_ROOT / ".github/workflows/fleet-ci.yml").read_text(encoding="utf-8")
 
     assert "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7" in backend
     assert "sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa" in backend
@@ -398,7 +408,7 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     assert compose.count('cap_drop: ["ALL"]') == 3
     assert compose.count("platform: linux/amd64") == 2
     assert "network_mode: none" in compose
-    assert '127.0.0.1:${COMPOSE_WEB_PORT:-8080}:8080' in compose
+    assert "127.0.0.1:${COMPOSE_WEB_PORT:-8080}:8080" in compose
     assert "urllib.parse.urlsplit(os.environ['MESH2PARAM_PUBLIC_URL']).netloc" in compose
     assert 'wget -qO- --header="Host: $${host}"' in compose
     assert "proxy_request_buffering off" in nginx
@@ -406,9 +416,7 @@ def test_delivery_files_pin_images_and_security_controls() -> None:
     assert "Content-Security-Policy" in nginx
     assert "location = /docs" in nginx
     assert "location = /openapi.json" in nginx
-    docs_location = nginx.split("location = /docs", 1)[1].split(
-        "location = /index.html", 1
-    )[0]
+    docs_location = nginx.split("location = /docs", 1)[1].split("location = /index.html", 1)[0]
     assert "'unsafe-inline'" not in docs_location
     assert "default-src 'none'" in docs_location
 
