@@ -1,5 +1,8 @@
 # Mesh2Param
 
+[![CI](https://github.com/esaueng/Mesh2Param/actions/workflows/ci.yml/badge.svg)](https://github.com/esaueng/Mesh2Param/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Mesh2Param is an evidence-first mesh-to-CAD reconstruction workspace. It preserves an uploaded
 STL, OBJ, or PLY mesh, analyzes its geometry, and follows one of three honest conversion paths:
 an editable parametric CADGraph, a tolerance-controlled curved B-Rep, or a source-bound faceted
@@ -95,8 +98,10 @@ source is an inspectable export and is never executed from an upload. Read
 ## Prerequisites
 
 - Python `>=3.12,<3.13`
-- Node.js 20 or newer
-- pnpm 10 or newer; the repository pins pnpm `11.7.0`
+- Node.js `22.22.0` or newer
+- pnpm `11.7.0` (the repository-pinned version)
+- Rust through rustup; `rust-toolchain.toml` pins `1.96.0` and the WebAssembly target
+- wasm-pack `0.15.0` for the browser reconstruction core
 - [uv](https://docs.astral.sh/uv/)
 - Optional: Docker with Compose v2 for the production topology
 - Optional: Playwright browser binaries for end-to-end tests
@@ -105,11 +110,15 @@ No login, paid conversion API, runtime CDN, or cloud account is required for loc
 
 ## Quickstart
 
-From the repository root:
+Clone the public repository, then install dependencies and build the browser reconstruction core:
 
 ```sh
+git clone https://github.com/esaueng/Mesh2Param.git
+cd Mesh2Param
 pnpm install --frozen-lockfile
-XDG_CACHE_HOME=.cache uv sync --extra dev
+XDG_CACHE_HOME=.cache uv sync --frozen --extra dev
+cargo install --locked wasm-pack --version 0.15.0
+pnpm build:packages
 pnpm db:migrate
 pnpm dev
 ```
@@ -298,8 +307,9 @@ geometry budgets, a static trusted worker-operation map, process isolation, and 
 denial. Project mutations use `If-Match: "rev-N"`; stale writes fail instead of overwriting newer
 state.
 
-There is currently no authentication layer. Do not expose the native service directly to an
-untrusted network; terminate TLS at a trusted reverse proxy and configure exact hosts and origins.
+The native service supports an optional shared `MESH2PARAM_API_TOKEN` bearer token; local
+development defaults to unauthenticated loopback access. Do not expose the native service directly
+to an untrusted network; use a trusted TLS/authentication boundary and configure exact hosts and origins.
 Read the [security model](docs/security.md) and [vulnerability reporting policy](SECURITY.md).
 
 ## Repository map
@@ -333,6 +343,16 @@ docs/                 Architecture, formats, deployment, security, research, and
 - [Sample corpora](samples/README.md)
 - [Contributing](CONTRIBUTING.md)
 
+## Contributing and reporting issues
+
+Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+validation, and geometry requirements. For bugs, [open an issue](https://github.com/esaueng/Mesh2Param/issues)
+with reproduction steps, the version or commit, and expected versus actual behavior. Attach only
+models you have permission to share publicly.
+
+Report suspected vulnerabilities through [private vulnerability reporting](https://github.com/esaueng/Mesh2Param/security/advisories/new),
+following [SECURITY.md](SECURITY.md), rather than a public issue.
+
 ## Licensing
 
 Mesh2Param's original source is Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Native OCCT
@@ -341,7 +361,12 @@ LGPL-3.0-or-later. Canonical texts, source references, override rationale, and t
 dependency inventory are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
 [`licenses/`](licenses/README.md).
 
-### Public liveness endpoint
+The owner-supplied CAD models and mesh exports marked `Apache-2.0 (repository)` are also
+released under Apache-2.0. Third-party samples retain their individual licenses and attribution;
+see [sample licensing](samples/README.md#real-world-sample-licensing) and the
+[real-world corpus inventory](samples/real/README.md).
+
+## Public liveness endpoint
 
 `GET /healthz` returns HTTP 200 with JSON `status: "ok"` and a service name.
 `HEAD /healthz` returns the same headers without a body; other methods return
