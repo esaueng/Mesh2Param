@@ -43,3 +43,7 @@ packages/contracts/tests
 # Benchmark corpus and Rust spikes are not needed inside the images
 samples/real
 spikes
+
+# Compile WASM from source inside the builder; never import local build output.
+**/target
+packages/core-wasm/pkg
