@@ -1,7 +1,7 @@
 {
   "featured": false,
   "groundTruth": null,
-  "license": "Owner-supplied design, copyright the repository owner; redistribution terms to be confirmed",
+  "license": "Apache-2.0 (repository)",
   "meshes": [
     {
       "angularTolerance": null,
