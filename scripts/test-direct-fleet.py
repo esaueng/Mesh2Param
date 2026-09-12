@@ -7,6 +7,7 @@ import re
 import subprocess
 import unittest
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = (ROOT / ".github/workflows/fleet-ci.yml").read_text()
@@ -14,17 +15,20 @@ CALLER = (ROOT / ".github/workflows/ci.yml").read_text()
 EXPRESSIONS = re.findall(
     r"^    runs-on: (?:&fleet-runner )?(\$\{\{ fromJSON\(.+\) \}\})$", TEXT, re.M
 )
-REPO = re.search(r"github.repository == '([^']+)'", TEXT)[1]
-REPO_ID = int(re.search(r"github.repository_id == '([0-9]+)'", TEXT)[1])
+repo_match = re.search(r"github.repository == '([^']+)'", TEXT)
+repo_id_match = re.search(r"github.repository_id == '([0-9]+)'", TEXT)
+assert repo_match is not None and repo_id_match is not None
+REPO = repo_match[1]
+REPO_ID = int(repo_id_match[1])
 
 
-class Context(dict):
-    def __getattr__(self, key):
+class Context(dict[str, Any]):
+    def __getattr__(self, key: str) -> Any:
         value = self.get(key)
         return Context(value) if isinstance(value, dict) else value
 
 
-def evaluate(expression, github, variables):
+def evaluate(expression: str, github: dict[str, Any], variables: dict[str, str]) -> Any:
     source = expression[3:-3].replace("&&", " and ").replace("||", " or ")
     source = re.sub(r"\btrue\b(?!\')", "True", source)
     source = re.sub(r"\bfalse\b(?!\')", "False", source)
@@ -41,9 +45,9 @@ def evaluate(expression, github, variables):
 
 
 class DirectFleetTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         repo = {"id": REPO_ID, "fork": False}
-        self.github = {
+        self.github: dict[str, Any] = {
             "repository": REPO,
             "repository_id": str(REPO_ID),
             "actor": "petergstfsn",
@@ -64,7 +68,7 @@ class DirectFleetTests(unittest.TestCase):
         }
         self.variables = {"CI_FLEET_ENABLED": "true", "CI_FLEET_TARGET": "ci-server-jane"}
 
-    def test_trusted_events_choose_exact_group_and_host(self):
+    def test_trusted_events_choose_exact_group_and_host(self) -> None:
         self.assertTrue(EXPRESSIONS)
         for target in ("ci-server-jane", "ci-server-john"):
             self.variables["CI_FLEET_TARGET"] = target
@@ -74,7 +78,7 @@ class DirectFleetTests(unittest.TestCase):
                     {"group": "ci-trusted-main", "labels": target},
                 )
 
-    def test_untrusted_events_never_schedule_on_home_fleet(self):
+    def test_untrusted_events_never_schedule_on_home_fleet(self) -> None:
         cases = []
         for key, value in [
             ("repository", "outsider/repo"),
@@ -88,7 +92,7 @@ class DirectFleetTests(unittest.TestCase):
             altered = copy.deepcopy(self.github)
             altered[key] = value
             cases.append(altered)
-        for path, value in [
+        for path, replacement in [
             (("head", "repo", "id"), 1),
             (("head", "repo", "fork"), True),
             (("base", "repo", "id"), 1),
@@ -102,14 +106,14 @@ class DirectFleetTests(unittest.TestCase):
             obj = altered["event"]["pull_request"]
             for key in path[:-1]:
                 obj = obj[key]
-            obj[path[-1]] = value
+            obj[path[-1]] = replacement
             cases.append(altered)
         for github in cases:
             for expression in EXPRESSIONS:
                 with self.subTest(event=github, expression=expression):
                     self.assertIsInstance(evaluate(expression, github, self.variables), str)
 
-    def test_protected_main_and_opt_in_fail_closed(self):
+    def test_protected_main_and_opt_in_fail_closed(self) -> None:
         for event in ("push", "workflow_dispatch"):
             self.github.update(event_name=event, ref="refs/heads/main")
             for expression in EXPRESSIONS:
@@ -125,7 +129,7 @@ class DirectFleetTests(unittest.TestCase):
         for expression in EXPRESSIONS:
             self.assertIsInstance(evaluate(expression, self.github, self.variables), str)
 
-    def test_no_hosted_bootstrap_and_guard_before_checkout(self):
+    def test_no_hosted_bootstrap_and_guard_before_checkout(self) -> None:
         self.assertNotIn("select-runner.yml", TEXT)
         self.assertNotIn("/routing/v1/target", TEXT)
         self.assertNotIn("needs.route", TEXT)
@@ -151,7 +155,7 @@ class DirectFleetTests(unittest.TestCase):
                 self.assertLess(job.index(guard), job.index("actions/checkout@"))
                 self.assertIn("persist-credentials: false", job)
 
-    def test_embedded_shell_syntax(self):
+    def test_embedded_shell_syntax(self) -> None:
         for block in re.findall(r"        run: \|\n((?:          [^\n]*\n|\n)+)", TEXT):
             script = "\n".join(
                 line[10:] if line.startswith("          ") else line for line in block.splitlines()

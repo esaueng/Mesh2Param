@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -123,6 +124,41 @@ class WasmBuildSetupTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("wasm-pack is not on PATH", result.stderr)
         self.assertFalse((self.root / "calls").exists())
+
+
+class CleanCheckoutWasmTests(unittest.TestCase):
+    def test_browser_job_builds_wasm_before_web_acceptance(self) -> None:
+        workflow = (ROOT / ".github/workflows/fleet-ci.yml").read_text()
+        steps = re.split(r"      - name: ", workflow)
+        for name in ("Cache cargo build", "Install wasm-pack", "Build the WebAssembly package"):
+            step = next(block for block in steps if block.startswith(name + "\n"))
+            condition = next(line.strip() for line in step.splitlines() if "if:" in line)
+            for task in ("static", "browser"):
+                self.assertIn(f"matrix.task == '{task}'", condition)
+        self.assertLess(
+            workflow.index("run: pnpm core:wasm"), workflow.index("name: Run browser acceptance")
+        )
+
+    def test_web_image_has_workspace_inputs_and_builds_wasm(self) -> None:
+        dockerfile = (ROOT / "infra/web.Dockerfile").read_text()
+        builder, runtime = dockerfile.split("FROM ${NGINX_IMAGE} AS runtime", 1)
+        install = builder.index("pnpm install --frozen-lockfile")
+        self.assertLess(builder.index("COPY packages/core-wasm/package.json"), install)
+        build = builder.index("RUN MESH2PARAM_BOOTSTRAP_WASM=1 pnpm build:web")
+        for source in (
+            "COPY packages/core-wasm packages/core-wasm",
+            "COPY Cargo.toml Cargo.lock rust-toolchain.toml ./",
+            "COPY crates crates",
+            "COPY scripts/build_core_wasm.sh scripts/setup_core_wasm.sh scripts/",
+        ):
+            self.assertLess(builder.index(source), build)
+        self.assertIn("--from=builder /build/apps/web/dist", runtime)
+        self.assertNotIn("COPY crates", runtime)
+        ignored = (ROOT / ".dockerignore").read_text().splitlines()
+        self.assertIn("packages/core-wasm/pkg", ignored)
+        self.assertIn("**/target", ignored)
+        self.assertIn("!crates/mesh2param-core/src/build", ignored)
+        self.assertIn("!crates/mesh2param-core/src/build/**", ignored)
 
 
 if __name__ == "__main__":

@@ -165,19 +165,18 @@ jobs:
 
       # @mesh2param/core-wasm is the same story one toolchain down: its `pkg/`
       # is wasm-pack output, and `pnpm typecheck`/`pnpm lint` do not resolve
-      # without it. Only the static task runs those, so only it pays for the
-      # build; the Rust job builds the package again to test it, cached
-      # separately.
+      # without it. Browser acceptance also builds the web app from a clean
+      # checkout, so both static and browser tasks need this package.
       - name: Cache cargo build
-        if: matrix.task == 'static'
+        if: matrix.task == 'static' || matrix.task == 'browser'
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Install wasm-pack
-        if: matrix.task == 'static'
+        if: matrix.task == 'static' || matrix.task == 'browser'
         run: cargo install --locked wasm-pack --version 0.15.0
 
       - name: Build the WebAssembly package
-        if: matrix.task == 'static'
+        if: matrix.task == 'static' || matrix.task == 'browser'
         run: pnpm core:wasm
 
       - name: Install Chromium

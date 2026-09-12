@@ -199,7 +199,6 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | chai | 6.2.2 | MIT |
 | javascript | chalk | 5.6.2 | MIT |
 | javascript | cliui | 9.0.1 | ISC |
-| javascript | comlink | 4.4.2 | Apache-2.0 |
 | javascript | concurrently | 10.0.3 | MIT |
 | javascript | convert-source-map | 2.0.0 | MIT |
 | javascript | cookie | 1.1.1 | MIT |
@@ -243,7 +242,6 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | fast-deep-equal | 3.1.3 | MIT |
 | javascript | fast-json-stable-stringify | 2.1.0 | MIT |
 | javascript | fast-levenshtein | 2.0.6 | MIT |
-| javascript | fast-uri | 3.1.3 | BSD-3-Clause |
 | javascript | fast-uri | 3.1.4 | BSD-3-Clause |
 | javascript | fdir | 6.5.0 | MIT |
 | javascript | fflate | 0.6.10 | MIT |
@@ -270,7 +268,6 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | immer | 11.1.15 | MIT |
 | javascript | imurmurhash | 0.1.4 | MIT |
 | javascript | indent-string | 4.0.0 | MIT |
-| javascript | is-any-array | 3.0.0 | MIT |
 | javascript | is-extglob | 2.1.1 | MIT |
 | javascript | is-glob | 4.0.3 | MIT |
 | javascript | is-potential-custom-element-name | 1.0.1 | MIT |
@@ -313,9 +310,6 @@ are omitted from this cross-platform table; distributors must audit the exact ta
 | javascript | miniflare | 4.20260714.0 | MIT |
 | javascript | minimatch | 10.2.5 | BlueOak-1.0.0 |
 | javascript | minimist | 1.2.8 | MIT |
-| javascript | ml-array-max | 2.0.0 | MIT |
-| javascript | ml-array-min | 2.0.0 | MIT |
-| javascript | ml-array-rescale | 2.0.0 | MIT |
 | javascript | ms | 2.1.3 | MIT |
 | javascript | nanoid | 3.3.15 | MIT |
 | javascript | natural-compare | 1.4.0 | MIT |

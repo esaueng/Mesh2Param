@@ -10,6 +10,11 @@ ENV COREPACK_HOME=/tmp/corepack \
     PATH=/tmp/pnpm:$PATH
 WORKDIR /build
 
+# Rust/wasm-pack compile the browser core; these tools stay in the builder stage.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl git build-essential pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable \
     && corepack prepare pnpm@11.7.0 --activate \
     && pnpm --version
@@ -18,6 +23,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/ui/package.json packages/ui/package.json
+COPY packages/core-wasm/package.json packages/core-wasm/package.json
 # pnpm applies patchedDependencies from pnpm-workspace.yaml during install.
 COPY patches patches
 RUN --mount=type=cache,target=/tmp/pnpm-store \
@@ -27,9 +33,11 @@ RUN --mount=type=cache,target=/tmp/pnpm-store \
 COPY apps/web apps/web
 COPY packages/contracts packages/contracts
 COPY packages/ui packages/ui
-RUN pnpm --filter @mesh2param/contracts build \
-    && pnpm --filter @mesh2param/ui build \
-    && pnpm --filter @mesh2param/web build
+COPY packages/core-wasm packages/core-wasm
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY crates crates
+COPY scripts/build_core_wasm.sh scripts/setup_core_wasm.sh scripts/
+RUN MESH2PARAM_BOOTSTRAP_WASM=1 pnpm build:web
 
 FROM ${NGINX_IMAGE} AS runtime
 

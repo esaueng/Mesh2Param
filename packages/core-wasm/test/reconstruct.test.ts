@@ -58,11 +58,12 @@ describe("the packaged reconstruction core", () => {
   // and `hammer-holder/mesh-export.stl` is the 70k-triangle export of the same
   // part — the largest thing in the corpus, kept here because it is the only
   // case that exercises the query structures at a size where their complexity
-  // shows. See README.md, "Measured".
+  // shows. See README.md, "Measured". The 70k budget is sized for hosted
+  // runners, which measure ~120s for that mesh; keep 2x headroom for variance.
   for (const [slug, mesh, budgetMs] of [
     ["dovetail-slide-block", "mesh-coarse.stl", 30_000],
     ["hammer-holder", "mesh-coarse.stl", 30_000],
-    ["hammer-holder", "mesh-export.stl", 90_000],
+    ["hammer-holder", "mesh-export.stl", 180_000],
   ] as const) {
     it(`reconstructs ${slug}/${mesh} to an analytic or mixed solid`, async () => {
       const bytes = await sample(slug, mesh);
