@@ -5,7 +5,7 @@ HEADER;
 
 FILE_DESCRIPTION(('HOOPS Exchange Step'),'2;1');
 
-FILE_NAME('/Users/userzero/Library/Containers/com.shapr3d.shapr/Data/tmp/export/temp_export',
+FILE_NAME('/Users/dev/shapr3d-export/export/temp_export',
 '1970-01-01T00:00:00',
 ('userzero'),
 ('Shapr3D Limited'),
